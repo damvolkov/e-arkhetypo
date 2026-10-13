@@ -56,6 +56,7 @@ Infra y aplicaciones:
 | `llm` | serving de modelos y embeddings | vllm, llamacpp, ellm, embed |
 | `speech` | STT / TTS | evoice, speaches, fwhisper, wlive, kokoro |
 | `rag` | retrieval: búsqueda, loaders, extracción, pipelines | searxng (+ yacy), docling, playwright, pipelines |
+| `mem` | memoria de agentes | cortexdb |
 | `front` | UIs y dashboards | openwebui |
 | `media` | WebRTC / tiempo real | livekit, sip |
 
@@ -83,6 +84,7 @@ Puerto = default en host (`:container`). GPU = necesita `nvidia` runtime.
 | rag/docling | docling-project/docling-serve:latest | 5001 | | |
 | rag/playwright | playwright:latest | 3000 | | |
 | rag/pipelines | open-webui/pipelines:latest | 9099 | | |
+| mem/cortexdb | cortexdb/cortexdb:v0.10.4 (pin: formato de datos) | 3141 (loopback) | | `cortex.toml`; usa `llm/embed` y `llm/vllm` |
 | front/openwebui | open-webui/open-webui:latest | 8080 | | `static/` |
 | media/livekit | livekit/livekit-server:latest | 7880 | | `livekit.yaml` |
 | media/sip | livekit/sip:latest | 5060 | | red `host` |

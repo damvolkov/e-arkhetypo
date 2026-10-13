@@ -58,6 +58,42 @@ services:
     networks:
       - stack
 
+  cortexdb-mirror:
+    # CortexDB's graph as Obsidian markdown: one note per entity, a heading per relation, [[links]] between
+    # entities and to the vault notes they came from. Read-only output; stdlib Python, nothing built.
+    image: python:3-alpine
+    container_name: cortexdb-mirror
+    hostname: cortexdb-mirror
+    restart: unless-stopped
+    user: "${PUID:-1000}:${PGID:-1000}"   # files owned by the vault's user (Obsidian, Syncthing)
+    command: ["python", "-u", "/app/mirror.py"]
+    labels:
+      stack.category: "mem"
+    volumes:
+      - ./mirror.py:/app/mirror.py:ro
+      # the vault, read-only: to link entities to the notes they were read from
+      - ${CORTEXDB_VAULT_DIR:-./vault}:/vault:ro
+      # where the mirror lives — point it inside the vault (e.g. <vault>/cortex) for Obsidian's graph
+      - ${CORTEXDB_MIRROR_DIR:-./vault/cortex}:/mirror
+    environment:
+      - CORTEX_URL=http://cortexdb:3141
+      - CORTEX_API_KEY=${CORTEX_API_KEY:?set CORTEX_API_KEY}
+      - MIRROR_EVERY=${CORTEXDB_MIRROR_EVERY:-600}
+      - MIRROR_SCOPES=${CORTEXDB_MIRROR_SCOPES:-app:tinymemory/source:files/app:documents}
+      # memory source id → vault folder (the mirror files each entity under its main source's folder)
+      - MIRROR_SOURCES=${CORTEXDB_MIRROR_SOURCES:-}
+    depends_on:
+      cortexdb:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "test -n \"$$(find /tmp/mirror.ok -mmin -30 2>/dev/null)\""]
+      interval: 60s
+      timeout: 5s
+      retries: 3
+      start_period: 120s
+    networks:
+      - stack
+
 volumes:
   cortexdb-data:
 

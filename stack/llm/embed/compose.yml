@@ -14,12 +14,13 @@ services:
       - embed-data:/data
     environment:
       - HUGGING_FACE_HUB_TOKEN=${HF_TOKEN:-}
+    # client batch 64 / queue 128: CortexDB embeds 64 chunks per request; compute stays bounded by max-batch-tokens
     command: >-
       --model-id ${EMBED_MODEL:-Qwen/Qwen3-Embedding-0.6B}
       --port 80
       --max-batch-tokens ${EMBED_MAX_BATCH:-1024}
-      --max-client-batch-size 8
-      --max-concurrent-requests 8
+      --max-client-batch-size 64
+      --max-concurrent-requests 128
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost:80/health || exit 1"]
       interval: 10s

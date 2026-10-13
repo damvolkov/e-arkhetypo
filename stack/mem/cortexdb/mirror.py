@@ -253,6 +253,10 @@ class Mirror:
         stale = sorted(previous - set(notes))
         for rel in stale:
             (OUT / rel).unlink(missing_ok=True)
+        ### Folders a retired source left empty go too — only inside the mirror, never the mirror itself.
+        for root, dirs, files in os.walk(OUT, topdown=False):
+            if Path(root) != OUT and not dirs and not files:
+                Path(root).rmdir()
         self._write(manifest, json.dumps(sorted(notes), indent=1) + "\n")
         HEARTBEAT.write_text(str(time.time()))
         log.info(

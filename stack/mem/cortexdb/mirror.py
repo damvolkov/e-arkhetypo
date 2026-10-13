@@ -76,7 +76,8 @@ class CortexClient:
                 ### A forgotten event (a source removed with its items) is no origin, never a failed pass.
                 if error.code != 404:
                     raise
-                labels = []
+                self.events[event_id] = {"source": "", "file_path": "", "title": "", "gone": True}
+                return self.events[event_id]
             chunks = sorted((label.split(":", 3)[2], label.split(":", 3)[3]) for label in labels if label.startswith("tm:e:"))
             try:
                 meta = json.loads("".join(text for _, text in chunks)).get("meta", {})
@@ -143,9 +144,11 @@ class Projection:
         claims = defaultdict(list)
         for belief in beliefs:
             claims[self._key(self._display(belief["claim"]["subject"]["id"], named))].append(belief)
+        ### An entity whose every supporting event was forgotten has no evidence left: it is not shown.
+        alive = {key: group for key, group in groups.items() if not all(o.get("gone") for o in self._origins(group) or [{}])}
         notes = {
             f"{self._folder(group)}/{files[key]}.md": self._render(key, group, names[key], files, claims[key])
-            for key, group in groups.items()
+            for key, group in alive.items()
         }
         if unattributed:
             notes["Statements.md"] = self._statements(unattributed, files)

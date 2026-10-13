@@ -16,6 +16,7 @@ import re
 import signal
 import threading
 import time
+import urllib.error
 import urllib.parse
 import urllib.request
 from collections import Counter, defaultdict
@@ -69,7 +70,13 @@ class CortexClient:
     def origin(self, event_id: str) -> dict:
         """Where an event came from: {source, file_path, title} out of tinymemory's chunked envelope label."""
         if event_id not in self.events:
-            labels = self._get(f"/v1/events/{event_id}").get("context", {}).get("labels", [])
+            try:
+                labels = self._get(f"/v1/events/{event_id}").get("context", {}).get("labels", [])
+            except urllib.error.HTTPError as error:
+                ### A forgotten event (a source removed with its items) is no origin, never a failed pass.
+                if error.code != 404:
+                    raise
+                labels = []
             chunks = sorted((label.split(":", 3)[2], label.split(":", 3)[3]) for label in labels if label.startswith("tm:e:"))
             try:
                 meta = json.loads("".join(text for _, text in chunks)).get("meta", {})

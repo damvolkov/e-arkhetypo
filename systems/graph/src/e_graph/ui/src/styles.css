@@ -1,0 +1,260 @@
+:root {
+  --pending: #3a3f47;
+  --running: #e0a43a;
+  --succeeded: #2fb39a;
+  --failed: #e05a5a;
+  --skipped: #2a2d33;
+  --ink: #d8dce2;
+  --mute: #7d8590;
+  --surface: #1a1d21;
+  --line: #262a30;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  height: 100%;
+  background: #121417;
+  color: var(--ink);
+  font-family: ui-monospace, "JetBrains Mono", monospace;
+  font-size: 12px;
+}
+
+.stage {
+  min-width: 120px;
+  padding: 8px 14px;
+  border: 1.5px solid var(--pending);
+  border-radius: 8px;
+  background: var(--surface);
+  text-align: center;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    opacity 160ms ease;
+}
+
+.role-start,
+.role-end {
+  border-radius: 999px;
+}
+
+.stage-label {
+  font-weight: 600;
+}
+
+.stage-meta {
+  color: var(--mute);
+  font-size: 10px;
+}
+
+.status-running {
+  border-color: var(--running);
+  animation: pulse 1s ease-in-out infinite;
+}
+
+.status-succeeded {
+  border-color: var(--succeeded);
+  box-shadow: 0 0 10px -2px var(--succeeded);
+}
+
+.status-failed {
+  border-color: var(--failed);
+  box-shadow: 0 0 12px -2px var(--failed);
+}
+
+.status-skipped {
+  border-style: dashed;
+  border-color: var(--skipped);
+  opacity: 0.45;
+}
+
+.status-text-succeeded {
+  color: var(--succeeded);
+}
+
+.status-text-failed {
+  color: var(--failed);
+}
+
+@keyframes pulse {
+  50% {
+    box-shadow: 0 0 14px 0 var(--running);
+  }
+}
+
+.react-flow__edge.cable path.react-flow__edge-path {
+  stroke: #565d68;
+  stroke-width: 1.5;
+}
+
+.react-flow__edge.cable-running path.react-flow__edge-path,
+.react-flow__edge.cable-succeeded path.react-flow__edge-path {
+  stroke: var(--succeeded);
+}
+
+.react-flow__edge.cable-failed path.react-flow__edge-path {
+  stroke: var(--failed);
+}
+
+.react-flow__edge.cable-skipped path.react-flow__edge-path {
+  stroke: var(--skipped);
+}
+
+.react-flow__edge-text {
+  fill: var(--mute);
+}
+
+.react-flow__handle {
+  width: 6px;
+  height: 6px;
+  background: var(--pending);
+  border: none;
+}
+
+.react-flow__handle[data-handleid^="loop"],
+.role-start .react-flow__handle[data-handleid="in"],
+.role-end .react-flow__handle[data-handleid="out"] {
+  opacity: 0;
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 240px;
+  padding: 10px 12px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.panel button,
+.panel select {
+  padding: 4px 8px;
+  color: var(--ink);
+  background: #22262c;
+  border: 1px solid var(--pending);
+  border-radius: 6px;
+  font: inherit;
+}
+
+.panel button {
+  cursor: pointer;
+}
+
+.panel button:disabled,
+.panel select:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.toasts {
+  position: absolute;
+  right: 16px;
+  bottom: 32px;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 260px;
+}
+
+.toast {
+  padding: 8px 10px;
+  background: var(--surface);
+  border: 1px solid var(--pending);
+  border-left-width: 4px;
+  border-radius: 6px;
+  box-shadow: none;
+}
+
+.toast.status-succeeded {
+  border-left-color: var(--succeeded);
+}
+
+.toast.status-failed {
+  border-left-color: var(--failed);
+}
+
+.toast-head {
+  display: flex;
+  justify-content: space-between;
+}
+
+.toast-body {
+  margin-top: 4px;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.outcome {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 20;
+  width: 340px;
+  padding: 12px 14px;
+  background: var(--surface);
+  border: 1.5px solid var(--pending);
+  border-radius: 10px;
+}
+
+.outcome-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  font-weight: 600;
+}
+
+.outcome-close {
+  color: var(--mute);
+  background: none;
+  border: none;
+  font: inherit;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.outcome-output {
+  display: grid;
+  grid-template-columns: 64px 1fr;
+  gap: 4px 10px;
+  margin: 0;
+}
+
+.outcome-output dt {
+  color: var(--mute);
+}
+
+.outcome-output dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.outcome-foot {
+  margin-top: 8px;
+  color: var(--mute);
+}
+
+.role-chip {
+  padding: 0 6px;
+  color: var(--mute);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-size: 10px;
+}
+
+.pipeline-summary {
+  color: var(--mute);
+  font-size: 10px;
+  line-height: 1.4;
+}

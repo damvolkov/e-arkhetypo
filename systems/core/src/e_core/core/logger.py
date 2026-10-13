@@ -1,4 +1,4 @@
-"""e-stack logger: structured JSON in prod, ordered plain text in dev/local.
+"""core/logger: structured JSON in prod, ordered plain text in dev/local.
 
 Nothing loads at import: `setup` and the `logger` singleton run on first use, exactly once per process."""
 

@@ -1,0 +1,9 @@
+# the happy road: classified, extracted twice (the loop), delivered as JSON
+name: invoice
+data:
+  document: "invoice 42 · total 1250.00 EUR"
+expect:
+  status: succeeded
+  kind: invoice
+  amount: "1250.00"
+  extractions: 2

@@ -19,10 +19,11 @@ classifiers = [
 ]
 dependencies = [
     "msgspec>=0.21",
-    "e-serde>=0.5.1",
+    "e-serde>=0.6.1",
     "structlog>=26.1",
     "textual>=8.2.8",
     "pytest-asyncio>=1.4.0",
+    "libcst>=1.9",
     "e-core",
 ]
 
@@ -88,6 +89,8 @@ ignore = ["E501", "ISC001", "PLR0913"]
 "src/e_management/__main__.py" = ["T20"]
 ### msgspec resolves Struct annotations at runtime — type-checking imports would break the schemas.
 "src/e_management/core/plan.py" = ["TC001", "TC002", "TC003"]
+### NON_SERVICE is an exclusion vocabulary for host tokens, not a socket bind.
+"src/ops/compose.py" = ["S104"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["e_management", "ops"]

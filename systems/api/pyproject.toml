@@ -27,7 +27,9 @@ dependencies = [
     "structlog>=26.1",
     ##### data #####
     "msgspec>=0.21",
-    "e-serde>=0.5.1",
+    "pydantic>=2.10",
+    "pydantic-settings>=2.6",
+    "pyyaml>=6.0",
     ##### crypto #####
     "joserfc>=1.7.5",
     "cryptography>=50.0.1",
@@ -40,10 +42,17 @@ dependencies = [
     "authlib>=1.6",
     ### httpx2 survives only because authlib's httpx_client shim prefers it over legacy httpx.
     "httpx2>=2.9",
+    ##### telemetry #####
+    "opentelemetry-sdk>=1.44",
+    "opentelemetry-exporter-otlp-proto-http>=1.44",
+    "opentelemetry-exporter-otlp-proto-grpc>=1.44",
     ##### stores #####
     "redis>=6.2",
     "aiosqlite>=0.20",
     "beartype>=0.22.9",
+    ##### documents — liteparse (Rust, in-process) first, docling-serve for what it reads better; polars frames #####
+    "liteparse>=2.14",
+    "polars>=2.0",
 ]
 
 [project.urls]
@@ -92,8 +101,8 @@ dev = [
 required-version = ">=0.12"
 default-groups = ["dev"]
 exclude-newer = "7 days"
-### e-serde and pytest-resources are first-party and can publish same-day; exempt only them from the freshness guard.
-exclude-newer-package = { "e-serde" = "2100-01-01T00:00:00Z", "pytest-resources" = "2100-01-01T00:00:00Z" }
+### pytest-resources is first-party and can publish same-day; exempt it from the freshness guard.
+exclude-newer-package = { "pytest-resources" = "2100-01-01T00:00:00Z" }
 cache-keys = [{ file = "pyproject.toml" }, { git = { commit = true, tags = true } }]
 
 ##### VERSION #####
@@ -137,6 +146,15 @@ ignore = ["E501", "ISC001", "PLR0913"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["e_api", "core", "ops", "adapters"]
+
+[tool.ruff.lint.flake8-type-checking]
+### pydantic and msgspec resolve these classes' annotations at runtime: their imports must stay real.
+runtime-evaluated-base-classes = [
+    "pydantic.BaseModel",
+    "core.settings.base.BaseSettings",
+    "msgspec.Struct",
+    "core.struct.CheckedStruct",
+]
 
 [tool.ruff.lint.flake8-tidy-imports]
 ban-relative-imports = "all"

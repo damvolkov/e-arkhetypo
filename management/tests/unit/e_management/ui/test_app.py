@@ -4,11 +4,12 @@ from typing import TYPE_CHECKING, cast
 
 from textual.widgets import Button, Input
 
-from e_management.core.session import Step
+from e_management.core.session import Session, Step
 from e_management.ui.app import ManagementApp
 from e_management.ui.screens import (
     CommonAreaScreen,
     ConfirmScreen,
+    DependencyScreen,
     ModulesScreen,
     OptionsScreen,
     SystemScreen,
@@ -103,3 +104,83 @@ async def test_app_resumes_on_the_first_unseen_step(tmp_path: Path, repo: Path, 
         assert isinstance(resumed.screen, CommonAreaScreen)
         assert resumed.screen.area == "core"
         assert resumed.session.seen == (Step.SYSTEM, "common-adapters")
+
+
+async def test_reset_clears_the_draft_and_returns_to_start(tmp_path: Path, repo: Path, spec: Manifest) -> None:
+    draft = tmp_path / "draft.json"
+    app = ManagementApp(spec, repo, draft)
+    async with app.run_test(size=(100, 60)) as pilot:
+        await pilot.pause()
+        await press(app, pilot, "template-api")
+        await submit_name(app, pilot, "myapp")
+        assert isinstance(app.screen, CommonAreaScreen)
+        assert draft.exists()
+
+        app.action_reset()
+        await pilot.pause()
+        assert isinstance(app.screen, SystemScreen)
+        assert not draft.exists(), "reset must delete the on-disk draft"
+        assert app.session == Session()
+
+
+async def test_adapters_toggle_and_base_follows(tmp_path: Path, repo: Path, spec: Manifest) -> None:
+    """redis and http switch freely; base is locked while anything kept imports it."""
+    app = ManagementApp(spec, repo, tmp_path / "draft.json")
+    async with app.run_test(size=(140, 60)) as pilot:
+        await pilot.pause()
+        await press(app, pilot, "template-api")
+        await submit_name(app, pilot, "myapp")
+        assert isinstance(app.screen, CommonAreaScreen)
+
+        await press(app, pilot, "tile-adapters-redis")
+        assert "adapters/redis" in app.session.drop
+        await press(app, pilot, "tile-adapters-base")
+        assert "adapters/base" not in app.session.drop, "base is needed by sqlite: it must stay"
+
+        await press(app, pilot, "tile-adapters-redis")
+        assert "adapters/redis" not in app.session.drop
+
+
+async def test_tiles_are_live_and_answer_a_real_click(tmp_path: Path, repo: Path, spec: Manifest) -> None:
+    """No stage may shadow ``Widget.disabled``: its tiles must take a real mouse click."""
+    app = ManagementApp(spec, repo, tmp_path / "draft.json")
+    async with app.run_test(size=(140, 60)) as pilot:
+        await pilot.pause()
+        await press(app, pilot, "template-api")
+        await submit_name(app, pilot, "myapp")
+        tile = pick(app, "tile-adapters-redis")
+        assert not app.screen.disabled
+        assert not tile.disabled
+        await pilot.click(tile)
+        await pilot.pause()
+        assert "adapters/redis" in app.session.drop
+
+
+async def test_graph_overlay_opens_over_the_chosen_system(tmp_path: Path, repo: Path, spec: Manifest) -> None:
+    app = ManagementApp(spec, repo, tmp_path / "draft.json")
+    async with app.run_test(size=(140, 60)) as pilot:
+        await pilot.pause()
+        await press(app, pilot, "template-api")
+        await submit_name(app, pilot, "myapp")
+
+        app.action_graph()
+        await pilot.pause()
+        assert isinstance(app.screen, DependencyScreen)
+        graph = app.graph()
+        assert graph is not None
+        assert graph.system == "api"
+        assert not any(u.key == "adapters/http" and u.locked for u in graph.units)
+
+        app.action_step_back()
+        await pilot.pause()
+        assert isinstance(app.screen, CommonAreaScreen), "the map is an overlay: esc returns to the flow"
+
+
+async def test_graph_overlay_before_choosing_a_system(tmp_path: Path, repo: Path, spec: Manifest) -> None:
+    app = ManagementApp(spec, repo, tmp_path / "draft.json")
+    async with app.run_test(size=(140, 60)) as pilot:
+        await pilot.pause()
+        app.action_graph()
+        await pilot.pause()
+        assert isinstance(app.screen, DependencyScreen)
+        assert app.graph() is None

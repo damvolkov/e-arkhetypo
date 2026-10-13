@@ -1,0 +1,70 @@
+interactions:
+- request:
+    body: '{"model":"qwen3.6-27b","messages":[{"role":"system","content":"Answer the
+      question."},{"role":"user","content":"Capital of France?"}],"max_completion_tokens":4096,"response_format":{"type":"json_schema","json_schema":{"name":"Capital","schema":{"properties":{"city":{"title":"City","type":"string"}},"required":["city"],"title":"Capital","type":"object"},"strict":false}},"seed":7,"temperature":0.0}'
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate, zstd
+      authorization:
+      - REDACTED
+      connection:
+      - keep-alive
+      content-length:
+      - '399'
+      content-type:
+      - application/json
+      host:
+      - localhost:45100
+      user-agent:
+      - AsyncOpenAI/Python 3.24.0
+      x-stainless-arch:
+      - x64
+      x-stainless-async:
+      - async:asyncio
+      x-stainless-lang:
+      - python
+      x-stainless-os:
+      - Linux
+      x-stainless-package-version:
+      - 3.24.0
+      x-stainless-read-timeout:
+      - '60.0'
+      x-stainless-retry-count:
+      - '0'
+      x-stainless-runtime:
+      - CPython
+      x-stainless-runtime-version:
+      - 3.14.3
+    method: POST
+    uri: http://localhost:45100/v1/chat/completions
+  response:
+    body:
+      string: "{\"id\":\"chatcmpl-a57eb179b6a8dac5\",\"object\":\"chat.completion\",\"created\":1791895024,\"model\":\"qwen3.6-27b\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"{\\n
+        \ \\\"city\\\": \\\"Paris\\\"\\n}\",\"refusal\":null,\"annotations\":null,\"audio\":null,\"function_call\":null,\"reasoning\":\"Here's
+        a thinking process:\\n\\n1.  **Analyze User Input:**\\n   - Question: \\\"Capital
+        of France?\\\"\\n   - This is a straightforward factual question.\\n\\n2.
+        \ **Identify Key Entity:**\\n   - Country: France\\n   - Requested Information:
+        Capital city\\n\\n3.  **Retrieve Knowledge:**\\n   - I know that the capital
+        of France is Paris.\\n   - This is a well-established, universally recognized
+        fact.\\n\\n4.  **Formulate Response:**\\n   - Keep it concise and direct.\\n
+        \  - Answer: Paris.\\n\\n5.  **Self-Correction/Verification:**\\n   - Is there
+        any ambiguity? No.\\n   - Is it accurate? Yes.\\n   - Should I add extra context?
+        Not necessary for such a direct question, but I can keep it simple.\\n\\n
+        \  Final answer: Paris.\u2705\\n\"},\"logprobs\":null,\"finish_reason\":\"stop\",\"stop_reason\":null,\"token_ids\":null,\"routed_experts\":null}],\"service_tier\":null,\"system_fingerprint\":\"vllm-0.31.0-0ace834d\",\"usage\":{\"prompt_tokens\":23,\"total_tokens\":220,\"completion_tokens\":197,\"prompt_tokens_details\":null,\"completion_tokens_details\":{\"reasoning_tokens\":184}},\"prompt_logprobs\":null,\"prompt_token_ids\":null,\"prompt_text\":null,\"kv_transfer_params\":null,\"ec_transfer_params\":null,\"metrics\":null}"
+    headers:
+      content-length:
+      - '1438'
+      content-type:
+      - application/json
+      date:
+      - Tue, 13 Oct 2026 12:37:03 GMT
+      server:
+      - uvicorn
+      vary:
+      - Origin
+    status:
+      code: 200
+      message: OK
+version: 1

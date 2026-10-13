@@ -1,0 +1,28 @@
+# CortexDB server config: vectors sized to the embedder (Qwen3-Embedding-0.6B → 1024; match CORTEXDB_EMBED_DIMS).
+[cluster]
+node_id = 1
+
+[storage]
+data_path = "/data/cortex"
+wal_sync = true
+
+[engine]
+vector_dimensions = 1024
+hnsw_m = 32
+hnsw_ef_construction = 500
+hnsw_ef_search = 200
+hnsw_quantization = "None"
+block_cache_bytes = 536870912
+
+[network]
+
+[llm]
+
+[governance]
+
+[scheduler]
+enabled = true
+compaction_interval_secs = 300
+methylation_interval_secs = 600
+cognitive_persist_interval_secs = 600
+feedback_weight_interval_secs = 600

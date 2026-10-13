@@ -9,12 +9,17 @@ root_module = "forbid"
 
 ##### LAYERS #####
 # Ordered high → low: a layer may import lower layers, importing upward fails.
-layers = ["adapters", "core", "ops"]
+layers = ["processors", "adapters", "core", "ops"]
 
 [rules]
 unused_ignore_directives = "error"
 
 ##### MODULES #####
+[[modules]]
+path = "e_core.processors"
+layer = "processors"
+depends_on = []
+
 [[modules]]
 path = "e_core.adapters"
 layer = "adapters"

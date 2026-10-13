@@ -1,13 +1,14 @@
-"""api.lifespan.adapters: open every external edge — sqlite, redis, http — on one exit stack.
+"""api.lifespan.adapters: open every external edge on one exit stack.
 
 The concern owns its subtree as a typed section: `AdaptersState` names each edge by the Port the
 consumers (api.deps, routers) may ask of it, so the graph carries contracts, not classes. Each
-adapter is a singleton built here, enters the shared `AsyncExitStack`, and they close in reverse
-order when the stack unwinds."""
+adapter is a singleton built here, enters the shared `AsyncExitStack` in field order, and they close
+in reverse when the stack unwinds. Every edge is one line per block — its import, its field, its
+construction — so an exported project that drops an adapter loses exactly those lines."""
 
 from collections.abc import AsyncIterator
-from contextlib import AsyncExitStack, asynccontextmanager
-from dataclasses import dataclass
+from contextlib import AbstractAsyncContextManager, AsyncExitStack, asynccontextmanager
+from dataclasses import dataclass, fields
 from typing import cast
 
 from litestar import Litestar
@@ -17,7 +18,7 @@ from adapters.ports import HttpPort, StorePort
 from adapters.redis import RedisAdapter
 from adapters.sqlite import SQLiteAdapter
 from core.logger import logger
-from core.state import State
+from e_api.api.state import AppState
 
 
 ##### SECTION #####
@@ -25,9 +26,8 @@ from core.state import State
 class AdaptersState:
     """The typed adapters section: fields named by role, typed by the port the role speaks.
 
-    `store` is the KV edge the app's records live on (currently sqlite); `redis` keeps its own
-    adapter name because it is a second, interchangeable StorePort; `http` is the outbound client.
-    The adapters are singletons — factory machinery comes later, this section wires what exists."""
+    `store` is the KV edge the app's records live on; any further field is an optional edge the
+    export may drop. The adapters are singletons — factory machinery comes later."""
 
     store: StorePort
     redis: StorePort
@@ -36,16 +36,19 @@ class AdaptersState:
 
 @asynccontextmanager
 async def lifespan(app: Litestar) -> AsyncIterator[None]:
-    """Open every external edge on the exit stack, then mount the typed section under `state.adapters`."""
-    state = cast("State", app.state)
-    store, redis, http = SQLiteAdapter(), RedisAdapter(), HttpAdapter()
+    """Open every external edge on the exit stack, then mount the typed section under `system.adapters`."""
+    system = AppState.of(app).system
+    edges = AdaptersState(
+        store=SQLiteAdapter(),
+        redis=RedisAdapter(),
+        http=HttpAdapter(),
+    )
     async with AsyncExitStack() as stack:
-        ### concrete adapters enter the stack; the section narrows them to the ports consumers may ask.
-        ### enter order is close order reversed: http unwinds first, sqlite — the app's own store — last.
-        await stack.enter_async_context(store)
-        await stack.enter_async_context(redis)
-        await stack.enter_async_context(http)
-        state.adapters = AdaptersState(store=store, redis=redis, http=http)
-        logger.info("adapters ready", edges=sorted(edge.name for edge in (store, redis, http)), step="START")
+        ### each field is a concrete adapter behind its port: it enters the stack as the context manager it is.
+        roles = tuple(field.name for field in fields(edges))
+        for role in roles:
+            await stack.enter_async_context(cast("AbstractAsyncContextManager[object]", getattr(edges, role)))
+        system.adapters = edges
+        logger.info("adapters ready", edges=sorted(roles), step="START")
         yield
     logger.info("adapters closed", step="STOP")

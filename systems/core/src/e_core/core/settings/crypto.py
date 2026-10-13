@@ -1,4 +1,4 @@
-"""Auto-discoverable settings submodule: crypto engine configuration, loaded from CRYPTO__*."""
+"""core/settings/crypto: crypto engine configuration, loaded from CRYPTO__*."""
 
 from enum import StrEnum
 
@@ -32,7 +32,7 @@ BCRYPT_ROUNDS: int = 12
 
 
 ##### SETTINGS #####
-class CryptoSettings(BaseSettings, frozen=True):
+class CryptoSettings(BaseSettings):
     """CRYPTO__SECRET / _ALG / _ENC / _PRIVATE_KEY (PEM) / _HASHER / _BCRYPT_ROUNDS."""
 
     secret: Secret | None = None

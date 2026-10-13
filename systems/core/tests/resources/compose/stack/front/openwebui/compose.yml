@@ -1,0 +1,78 @@
+services:
+  openwebui:
+    image: ghcr.io/open-webui/open-webui:latest
+    container_name: openwebui
+    hostname: openwebui
+    restart: unless-stopped
+    labels:
+      stack.category: "front"
+      stack.port: "8080"
+    ports:
+      # Open WebUI — front unificado
+      - "${OPENWEBUI_PORT:-8080}:8080"
+    volumes:
+      - openwebui-data:/app/backend/data
+      # e-ui branding (./static/)
+      - ./static/favicon.svg:/app/build/static/favicon.svg:ro
+      - ./static/favicon.png:/app/build/static/favicon.png:ro
+      - ./static/favicon-96x96.png:/app/build/static/favicon-96x96.png:ro
+      - ./static/favicon-dark.png:/app/build/static/favicon-dark.png:ro
+      - ./static/logo.svg:/app/build/static/logo.svg:ro
+      - ./static/logo.png:/app/build/static/logo.png:ro
+      - ./static/custom.css:/app/build/static/custom.css:ro
+    environment:
+      # --- Branding ---
+      - WEBUI_NAME=e-ui
+      # --- LLM Engine (vllm) ---
+      - OPENAI_API_BASE_URL=http://vllm:8000/v1
+      - OPENAI_API_KEY=${VLLM_API_KEY:-local-dev}
+      # --- Embedding Engine (embed / TEI) ---
+      - RAG_EMBEDDING_ENGINE=openai
+      - RAG_OPENAI_API_BASE_URL=http://embed:80/v1
+      - RAG_OPENAI_API_KEY=dummy
+      # --- Web Search (searxng) ---
+      - ENABLE_RAG_WEB_SEARCH=true
+      - RAG_WEB_SEARCH_ENGINE=searxng
+      - SEARXNG_QUERY_URL=http://searxng:8080/search?q=<query>
+      - RAG_WEB_SEARCH_RESULT_COUNT=3
+      - RAG_WEB_SEARCH_CONCURRENT_REQUESTS=10
+      # --- Web Loader (playwright) ---
+      - WEB_LOADER_ENGINE=playwright
+      - PLAYWRIGHT_WS_URL=ws://playwright:3000
+      - PLAYWRIGHT_TIMEOUT=10000
+      # --- Document Extraction (docling) ---
+      - CONTENT_EXTRACTION_ENGINE=docling
+      - DOCLING_SERVER_URL=http://docling:5001
+      # --- Vector DB (qdrant) ---
+      - VECTOR_DB=qdrant
+      - QDRANT_URI=http://qdrant:6333
+      # --- Audio: TTS (kokoro) ---
+      - AUDIO_TTS_ENGINE=openai
+      - AUDIO_TTS_OPENAI_API_BASE_URL=http://kokoro:8880/v1
+      - AUDIO_TTS_OPENAI_API_KEY=not-needed
+      - AUDIO_TTS_MODEL=kokoro
+      - AUDIO_TTS_VOICE=af_heart
+      - AUDIO_TTS_SPLIT_ON=punctuation
+      # --- Audio: STT (built-in faster_whisper) ---
+      - AUDIO_STT_ENGINE=
+      - WHISPER_MODEL=large-v3-turbo
+      # --- UI and Auth ---
+      - WEBUI_AUTH=${WEBUI_AUTH:-false}
+      - ENABLE_SIGNUP=${WEBUI_SIGNUP:-true}
+      - ENABLE_OLLAMA_API=False
+      - OLLAMA_BASE_URL=
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8080/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - stack
+
+volumes:
+  openwebui-data:
+
+networks:
+  stack:
+    name: stack

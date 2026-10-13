@@ -1,0 +1,17 @@
+id: frame
+kind: static
+border: thick
+axis: row
+padding: 1
+children:
+  - id: left
+    kind: dynamic
+    size: { weight: 1.0, min_cells: 10 }
+  - id: orb
+    kind: static
+    shape: circle
+    border: fine
+    size: { frac: 0.3, min_cells: 6, max_cells: 20 }
+    cross: { frac: 1.0 }
+    lines:
+      - { text: "ROUND", emphasis: 2 }

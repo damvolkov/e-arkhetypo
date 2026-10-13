@@ -3,6 +3,8 @@
 import argparse
 import json
 import sys
+import tempfile
+import webbrowser
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -10,9 +12,12 @@ import msgspec
 
 from e_management.cli import commands
 from e_management.ui.app import ManagementApp
+from e_management.ui.view import render_map_html
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
+
+    from e_management.models.manifest import Manifest
 
 ##### DEFAULTS #####
 MANAGEMENT = Path(__file__).resolve().parents[2]
@@ -21,6 +26,14 @@ REPO = MANAGEMENT.parent
 
 def _off(pieces: str) -> frozenset[str]:
     return frozenset(name for name in pieces.split(",") if name)
+
+
+def _write_map(root: Path, spec: Manifest, names: Sequence[str]) -> Path:
+    """Render the chosen systems' dependency maps to a self-contained HTML in the temp dir (never the repo)."""
+    pairs = [(name, graph) for name in names if (graph := commands.dependency_map(root, spec, name)) is not None]
+    out = Path(tempfile.gettempdir()) / "e-templates-depmap.html"
+    out.write_text(render_map_html(pairs))
+    return out
 
 
 def _run(args: argparse.Namespace) -> int:
@@ -41,6 +54,26 @@ def _run(args: argparse.Namespace) -> int:
             for name, issues in report.items():
                 print(f"{name}: {'in sync' if not issues else chr(10).join('  ' + i for i in issues)}")
             return int(any(report.values()))
+        case "graph":
+            for name, path in commands.graph(args.root, spec).items():
+                print(f"{name}: wrote {path.relative_to(args.root)}")
+        case "graph-check":
+            report = commands.graph_drift(args.root, spec)
+            for name, issues in report.items():
+                print(f"{name}: {'in sync' if not issues else chr(10).join('  ' + i for i in issues)}")
+            return int(any(report.values()))
+        case "map":
+            names = [args.template] if args.template else sorted(spec.templates)
+            out = _write_map(args.root, spec, names)
+            webbrowser.open(out.as_uri())
+            print(f"{out}")
+        case "stack":
+            out = commands.stack_write(args.root)
+            print(f"stack: wrote {out.relative_to(args.root)}")
+        case "stack-check":
+            issues = commands.stack_drift(args.root)
+            print(f"stack: {'in sync' if not issues else chr(10).join('  ' + i for i in issues)}")
+            return int(bool(issues))
     return 0
 
 
@@ -59,6 +92,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         if name == "gen":
             sub.add_argument("--dest", type=Path, required=True)
     subs.add_parser("drift")
+    subs.add_parser("graph")
+    subs.add_parser("graph-check")
+    subs.add_parser("stack")
+    subs.add_parser("stack-check")
+    mp = subs.add_parser("map")
+    mp.add_argument("template", nargs="?", default="", help="a system name (default: every system)")
     args = parser.parse_args(list(argv) if argv is not None else None)
     args.command = args.command or "ui"
     return _run(args)

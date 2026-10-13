@@ -3,6 +3,7 @@
 import asyncio
 from typing import TYPE_CHECKING, ClassVar
 
+from msgspec import UNSET
 from textual.app import App
 from textual.binding import Binding
 from textual.widgets import Footer
@@ -15,6 +16,7 @@ from e_management.core.session import Session, Step
 from e_management.ui.screens import (
     CommonAreaScreen,
     ConfirmScreen,
+    DependencyScreen,
     ModulesScreen,
     OptionsScreen,
     ProgressScreen,
@@ -30,8 +32,8 @@ if TYPE_CHECKING:
 
     from e_management.core.blueprint import Blueprint
     from e_management.core.plan import Plan
+    from e_management.models.graph import Graph
     from e_management.models.manifest import Manifest
-    from e_management.ops.scan import Survey
 
 ##### TYPES #####
 SCREENS: dict[str, type] = {
@@ -45,29 +47,84 @@ TAIL = ("modules", "options", "confirm")
 
 
 class ManagementApp(App[None]):
-    """Owns the session, the draft, the live common survey and the pipeline: decisions accumulate, survive back, and generate on confirmation."""
+    """Owns the session, the draft, the live dependency graph and the pipeline: decisions accumulate, survive back, and generate on confirmation."""
 
     TITLE = "e-management"
     CSS: ClassVar[str] = """
-    .title, .section { text-style: bold; margin-bottom: 1; }
-    .section { color: #6f9bff; }
-    .hint { color: #7c8aa5; margin-bottom: 1; }
-    .error { color: $text-error; }
-    Input { margin-bottom: 1; }
-    Button { margin-bottom: 1; }
+    Screen { background: #04060b; }
+    #trail { height: 1; margin: 1 2 0 2; }
     #stage {
         width: 100%;
         height: 1fr;
-        border: round #2a52e0;
-        margin: 1 0;
-        padding: 1 2;
-        background: #05070c;
+        border: round #1a2b55;
+        border-title-color: #6f9bff;
+        margin: 1 1 0 1;
+        padding: 1 2 0 2;
+        background: #060911;
     }
-    #actions { height: auto; align-horizontal: left; }
-    #actions Button { margin-right: 2; }
-    #planbox { height: 1fr; border: tall #16294f; padding: 0 1; }
+    .hint, .label { color: #56627a; margin-bottom: 1; }
+    .label { margin: 1 0 0 0; }
+    .error { color: #ff6b6b; height: auto; margin-bottom: 1; }
+    Input { margin-bottom: 1; background: #02040a; border: tall #1a2233; }
+    Input:focus { border: tall #3b6cf0; }
+
+    /* tiles: off sits sunk into the panel (dark lip on top, light lip below); on stands out raised, in blue */
+    .tiles { grid-size: 3; grid-gutter: 1 2; grid-rows: 4; height: auto; margin-bottom: 1; }
+    .tile {
+        width: 100%;
+        height: 4;
+        padding: 0 2;
+        text-align: left;
+        content-align: left middle;
+        text-style: none;
+        color: #5d6b85;
+        background: #030509;
+        border: none;
+        border-top: tall #000000;
+        border-bottom: tall #1c2638;
+        tint: transparent;
+    }
+    .tile:hover { background: #0a1020; color: #9fb0cc; border-top: tall #000000; }
+    .tile.-on {
+        color: #f2f6ff;
+        text-style: bold;
+        background: #1f53e0;
+        border-top: tall #6f9bff;
+        border-bottom: tall #0c2a82;
+    }
+    .tile.-on:hover { background: #2a61f2; border-top: tall #8fb2ff; }
+    .tile.-locked {
+        color: #b4c4e6;
+        background: #142552;
+        border-top: tall #2d4d9a;
+        border-bottom: tall #08132f;
+    }
+    .tile.-locked:hover { background: #172a5c; }
+    .tile:focus { text-style: bold; }
+    .tile.-active { border-top: tall #000000; border-bottom: tall #1c2638; }
+
+    /* calls to action: the same raised blue as an ON tile */
+    Button.-primary {
+        color: #f2f6ff;
+        text-style: bold;
+        background: #1f53e0;
+        border: none;
+        border-top: tall #6f9bff;
+        border-bottom: tall #0c2a82;
+    }
+    Button.-primary:hover { background: #2a61f2; border-top: tall #8fb2ff; }
+    .actions { dock: bottom; height: auto; align-horizontal: right; padding-bottom: 1; }
+    .actions Button { margin-left: 2; }
+    .actions .tile { width: auto; height: 3; }
+    #planbox { height: 1fr; border: round #1a2b55; background: #03050a; padding: 0 1; margin-bottom: 1; }
+    Footer { background: #070b16; }
     """
-    BINDINGS: ClassVar[list[Binding]] = [Binding("escape", "step_back", "back"), Binding("ctrl+q", "quit", "quit")]
+    BINDINGS: ClassVar[list[Binding]] = [
+        Binding("escape", "step_back", "back"),
+        Binding("g", "graph", "map", priority=True),
+        Binding("ctrl+r", "reset", "reset"),
+        Binding("ctrl+q", "quit", "quit"),
+    ]
 
     def __init__(self, spec: Manifest, root: Path, draft_path: Path) -> None:
         super().__init__()
@@ -76,7 +133,7 @@ class ManagementApp(App[None]):
         self.draft = DraftStore(draft_path)
         self.session: Session = self.draft.load() or Session()
         self.plan_value: Plan | None = None
-        self._surveys: dict[str, Survey | None] = {}
+        self._maps: dict[str, Graph | None] = {}
 
     ##### PRIVATE #####
 
@@ -118,18 +175,32 @@ class ManagementApp(App[None]):
         if len(self.screen_stack) > 1:
             self.pop_screen()
 
+    def action_reset(self) -> None:
+        """Abandon everything remembered and start the wizard from the first stage."""
+        self.draft.drop()
+        self.session = Session()
+        self._maps.clear()
+        self.switch_screen(SystemScreen())
+
+    def action_graph(self) -> None:
+        """Inspect the dependency map of the chosen template — a read-only overlay, never a wizard step."""
+        self.push_screen(DependencyScreen())
+
     def save_draft(self) -> None:
         self.draft.save(self.session)
 
-    def common(self) -> Survey | None:
-        """The live survey of the chosen template's common tree — cached per template, re-read every app start."""
+    def graph(self) -> Graph | None:
+        """The live dependency graph of the chosen template — re-derived every app start, cached per template; None until one is chosen."""
+        if self.session.template is UNSET:
+            return None
         template = str(self.session.template)
-        if template not in self._surveys:
-            self._surveys[template] = commands.survey(self.root, self.spec, template)
-        return self._surveys[template]
+        if template not in self._maps:
+            self._maps[template] = commands.dependency_map(self.root, self.spec, template)
+        return self._maps[template]
 
-    def survey(self) -> Survey:
-        found = self.common()
+    def dependency_map(self) -> Graph:
+        """The graph a decision screen requires — raises when the chosen template has nothing to graph."""
+        found = self.graph()
         if found is None:
             msg = "the chosen template declares no common tree"
             raise ValueError(msg)
@@ -144,9 +215,13 @@ class ManagementApp(App[None]):
 
     def begin_flow(self) -> None:
         """The step sequence of the chosen template: system, one panel per discovered area, then the fixed tail."""
-        found = self.common()
+        found = self.graph()
         areas = () if found is None else tuple(f"common-{area}" for area in found.area_names())
         self.session.steps = (Step.SYSTEM, *areas, *TAIL)
+
+    def flow(self) -> tuple[str, ...]:
+        """The step sequence known so far: the whole flow once a template is chosen, the fixed skeleton before."""
+        return self.session.steps or (Step.SYSTEM, *TAIL)
 
     def screen_for(self, step: str) -> Screen:
         if step.startswith("common-"):
@@ -155,7 +230,7 @@ class ManagementApp(App[None]):
 
     def advance(self, step: str) -> Screen:
         """The screen of the next step of the session's flow."""
-        steps = self.session.steps or (Step.SYSTEM, *TAIL)
+        steps = self.flow()
         return self.screen_for(steps[steps.index(step) + 1])
 
     def suggested(self) -> Path:

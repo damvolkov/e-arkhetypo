@@ -68,6 +68,25 @@ def test_scaffold_finalizes_tooling_files(tmp_path: Path, repo: Path, spec: Mani
     assert "shared core materialized from systems/core" not in (dest / "pyproject.toml").read_text()
 
 
+def test_scaffold_strips_materialization_machinery(tmp_path: Path, repo: Path, spec: Manifest) -> None:
+    """The exporter never ships the template's own rewriter: the file and its sole dependency go, docs tooling stays."""
+    dest = generate(repo, spec, frozenset(), tmp_path / "e-myapp")
+    assert not (dest / "scripts" / "materialize.py").exists()
+    assert (dest / "scripts" / "gen_ref_pages.py").is_file()
+    assert "libcst" not in (dest / "pyproject.toml").read_text()
+
+
+def test_scaffold_cli_leaves_no_scripts(tmp_path: Path, repo: Path, spec: Manifest) -> None:
+    """A cli project has no docs tree: the scripts directory, its only file and its dependency must not survive the export."""
+    dest = commands.gen(repo, spec, "cli", "myapp", tmp_path / "e-myapp")
+    assert not (dest / "scripts").exists()
+    makefile = (dest / "Makefile").read_text()
+    assert "scripts/materialize" not in makefile
+    assert " scripts" not in makefile
+    assert "libcst" not in (dest / "pyproject.toml").read_text()
+    assert_parses(dest)
+
+
 @pytest.mark.parametrize(("off_name", "gone", "kept"), CASES)
 def test_scaffold_drops_each_choice(
     tmp_path: Path, repo: Path, spec: Manifest, off_name: str, gone: str, kept: str
@@ -107,3 +126,20 @@ def test_scaffold_apply_refuses_existing_destination(tmp_path: Path, repo: Path,
 
 def test_scaffold_drift_reports_in_sync_for_the_real_systems(repo: Path, spec: Manifest) -> None:
     assert Scaffold(repo).drift(spec.templates["api"]) == []
+
+
+def test_scaffold_detaches_dropped_adapters_from_the_system(tmp_path: Path, repo: Path, spec: Manifest) -> None:
+    """Dropping wired adapters removes their modules and every line of the system that named them."""
+    dest = commands.gen(
+        repo, spec, "api", "myapp", tmp_path / "e-myapp", drop=frozenset({"adapters/redis", "adapters/http"})
+    )
+    assert_parses(dest)
+    assert not (dest / "src/adapters/redis.py").exists()
+    assert not (dest / "src/adapters/http.py").exists()
+    wiring = (dest / "src/e_myapp/api/lifespan/adapters.py").read_text()
+    assert "Redis" not in wiring
+    assert "Http" not in wiring
+    assert "store=SQLiteAdapter()" in wiring
+    pyproject = (dest / "pyproject.toml").read_text()
+    assert '"redis>=' not in pyproject
+    assert '"wreq>=' not in pyproject

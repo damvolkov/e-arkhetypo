@@ -1,0 +1,63 @@
+##### ROOTS #####
+source_roots = ["src"]
+exclude = ["tests"]
+
+##### RULES #####
+forbid_circular_dependencies = true
+exact = true
+root_module = "forbid"
+
+##### LAYERS #####
+# Ordered high → low: a layer may import lower layers, importing upward fails.
+# `cli`: the root and the commands it mounts (driving adapters) · `runtime`: the run's lifecycle and the
+# port→adapter binding · `services`: the use cases, which see ports only · then the shared core, and data.
+layers = ["cli", "runtime", "services", "processors", "adapters", "core", "ops", "models"]
+
+[rules]
+unused_ignore_directives = "error"
+
+##### MODULES #####
+[[modules]]
+path = "e_cli.cli"
+layer = "cli"
+depends_on = []
+
+[[modules]]
+path = "e_cli.commands"
+layer = "cli"
+depends_on = []
+
+[[modules]]
+path = "e_cli.runtime"
+layer = "runtime"
+depends_on = []
+
+[[modules]]
+path = "e_cli.services"
+layer = "services"
+depends_on = []
+
+[[modules]]
+path = "processors"
+layer = "processors"
+depends_on = []
+
+[[modules]]
+path = "adapters"
+layer = "adapters"
+depends_on = []
+
+[[modules]]
+path = "core"
+layer = "core"
+depends_on = []
+
+[[modules]]
+path = "ops"
+layer = "ops"
+depends_on = []
+
+[[modules]]
+path = "e_cli.models"
+layer = "models"
+depends_on = []

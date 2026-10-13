@@ -1,0 +1,13 @@
+services:
+  cache:
+    image: redis:7
+    command: ["redis-server", "/usr/local/etc/redis/redis.conf"]
+    volumes:
+      - ./redis.conf:/usr/local/etc/redis/redis.conf:ro
+      - cache-data:/data
+    ports:
+      - "6379:6379"
+    networks: [stack]
+
+volumes:
+  cache-data:

@@ -1,0 +1,1 @@
+[{"name":"redis","category":"cdb","path":"cdb/redis/compose.yml","port":6379,"depends":[]},{"name":"openwebui","category":"front","path":"front/openwebui/compose.yml","port":8080,"depends":[]},{"name":"vllm","category":"llm","path":"llm/vllm/compose.yml","port":8000,"depends":[]},{"name":"postgres","category":"rdb","path":"rdb/postgres/compose.yml","port":5432,"depends":[]}]

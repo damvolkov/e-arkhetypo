@@ -1,0 +1,12 @@
+services:
+  matrix:
+    image: example/matrix:1
+    ports:
+      - "9000-9010:9000-9010"
+      - target: 5000
+        published: "5000"
+        protocol: udp
+        host_ip: 0.0.0.0
+      - "7000"
+      - "${MATRIX_PORT:-7880}:7880"
+    networks: [stack]

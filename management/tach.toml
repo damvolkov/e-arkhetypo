@@ -43,7 +43,7 @@ depends_on = []
 [[modules]]
 path = "e_management.ops"
 layer = "ops"
-depends_on = ["ops"]
+depends_on = []
 
 [[modules]]
 path = "ops"

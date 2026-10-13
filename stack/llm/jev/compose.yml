@@ -1,0 +1,35 @@
+services:
+  jev:
+    image: ghcr.io/damvolkov/e-jev:latest
+    container_name: jev
+    hostname: jev
+    restart: unless-stopped
+    labels:
+      stack.category: "llm"
+      stack.port: "45160"
+    ports:
+      # e-jev typed decisions over vLLM, escucha en 45160 (necesita llm/vllm)
+      - "${JEV_PORT:-45160}:45160"
+    volumes:
+      - jev-data:/data
+    environment:
+      - JEV_VLLM_URL=http://vllm:8000/v1
+      - JEV_VLLM_API_KEY=${VLLM_API_KEY:-local-dev}
+      - JEV_MODEL=${LLM_SERVED_NAME:-qwen3.6-27b}
+      - JEV_PERMUTATIONS=${JEV_PERMUTATIONS:-1}
+      - JEV_OTLP_ENDPOINT=${JEV_OTLP_ENDPOINT:-http://phoenix:6006/v1/traces}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:45160/ready')"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+    networks:
+      - stack
+
+volumes:
+  jev-data:
+
+networks:
+  stack:
+    name: stack

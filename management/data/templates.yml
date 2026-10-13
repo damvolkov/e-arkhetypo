@@ -4,10 +4,31 @@ templates:
     source: systems/api
     package: e_api
     brand: e-api
-    drops: [uv.lock]
-    common: {root: systems/core, package: e_core, skip: [ops/tui]}
-    materials:
-      - {src: systems/core/common/pre-commit-config.yaml, dst: .pre-commit-config.yaml}
+    drops: [uv.lock, scripts/materialize.py]
+    common:
+      root: systems/core
+      package: e_core
+      skip: [ops/tui]
+      ##### DETACH — how the system lets go of a common unit it wires; without rules a wired unit stays locked #####
+      detach:
+        - unit: adapters/redis
+          prunes:
+            - {file: src/e_api/api/lifespan/adapters.py, pattern: '^from adapters\.redis import RedisAdapter\n'}
+            - {file: src/e_api/api/lifespan/adapters.py, pattern: '^    redis: StorePort\n'}
+            - {file: src/e_api/api/lifespan/adapters.py, pattern: '^        redis=RedisAdapter\(\),\n'}
+            - {file: tests/unit/e_api/api/test_lifespan.py, pattern: '^    assert (isinstance\(edges\.redis, StorePort\)|edges\.redis\.name == "redis")\n'}
+            - {file: pyproject.toml, pattern: '^    "(fake)?redis>=[^"]*",\n'}
+        - unit: adapters/http
+          prunes:
+            - {file: src/e_api/api/lifespan/adapters.py, pattern: '^from adapters\.http import HttpAdapter\n'}
+            - {file: src/e_api/api/lifespan/adapters.py, pattern: '^from adapters\.ports import HttpPort, StorePort$', to: 'from adapters.ports import StorePort'}
+            - {file: src/e_api/api/lifespan/adapters.py, pattern: '^    http: HttpPort\n'}
+            - {file: src/e_api/api/lifespan/adapters.py, pattern: '^        http=HttpAdapter\(\),\n'}
+            - {file: tests/unit/e_api/api/test_lifespan.py, pattern: '^from adapters\.ports import HttpPort, StorePort$', to: 'from adapters.ports import StorePort'}
+            - {file: tests/unit/e_api/api/test_lifespan.py, pattern: '^    assert (isinstance\(edges\.http, HttpPort\)|edges\.http\.name == "http")\n'}
+            - {file: pyproject.toml, pattern: '^    ##### http #####\n    "wreq>=[^"]*",\n'}
+    materials: &materials
+      - {src: systems/core/common/prek.toml, dst: prek.toml}
       - {src: systems/core/common/gitattributes, dst: .gitattributes}
       - {src: systems/core/common/python-version, dst: .python-version}
       - {src: systems/core/common/dependabot.yml, dst: .github/dependabot.yml}
@@ -77,13 +98,13 @@ templates:
           - {file: pyproject.toml, pattern: '^    \{ include-group = "docs" \},\n'}
 
     ##### VERIFY — post-export pipeline; tests steps obey the user's confirmation #####
-    verify:
+    verify: &verify
       - {name: git init, argv: [git, init, -q]}
       - {name: uv sync, argv: [uv, sync], tests: true}
       - {name: make check, argv: [make, check], tests: true}
 
     ##### FINALIZE — engine plumbing, never a user choice (strips the template's own machinery) #####
-    finalize:
+    finalize: &finalize
       - {file: Makefile, pattern: '^# — common —\n[\s\S]*?(?=^# — gates —)'}
       - {file: Makefile, pattern: '^CORE_SRC \?= .*\n'}
       - {file: Makefile, pattern: '^COMMON_SRC \?= .*\n'}
@@ -92,9 +113,32 @@ templates:
       - {file: Makefile, pattern: ' core\b(?!/)'}
       - {file: Makefile, pattern: ' common\b(?!/)'}
       - {file: .gitignore, pattern: '^# (generated|materialized).*\n'}
-      - {file: .gitignore, pattern: '^src/(core|ops)/\n'}
-      - {file: .gitignore, pattern: '^\.(pre-commit-config\.yaml|gitattributes|python-version)\n'}
+      - {file: .gitignore, pattern: '^src/(core|ops|adapters)/\n'}
+      - {file: .gitignore, pattern: '^(prek\.toml|\.(gitattributes|python-version))\n'}
       - {file: .gitignore, pattern: '^\.github/(dependabot\.yml|CODEOWNERS)\n'}
       - {file: pyproject.toml, pattern: ', shared core materialized from systems/core'}
+      - {file: pyproject.toml, pattern: '^    ### structural rewrite.*materialization time.*\n    "libcst>=[^"]*",\n'}
       - {file: Makefile, pattern: ' — core/ops/adapters materialized from \$\(CORE_SRC\)'}
       - {file: README.md, pattern: '^.*\b(GENERATED|make core)\b.*\n'}
+
+  cli:
+    source: systems/cli
+    package: e_cli
+    brand: e-cli
+    drops: [uv.lock, scripts]
+    common: {root: systems/core, package: e_core, skip: [ops/tui]}
+    materials: *materials
+
+    ##### MANDATORY — the harness and the tree contract survive every selection #####
+    mandatory:
+      - tests/unit/conftest.py
+      - tests/unit/test_ci_contract.py
+      - tests/unit/test_resources.py
+      - tests/resources
+      - tests/unit/e_cli/conftest.py
+      - tests/unit/e_cli/test_cli.py
+
+    verify: *verify
+    finalize: *finalize
+    finalize_extra:
+      - {file: Makefile, pattern: ' scripts', to: ''}

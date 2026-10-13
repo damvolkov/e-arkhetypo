@@ -1,0 +1,21 @@
+x-common: &common
+  restart: unless-stopped
+  networks: [stack]
+x-health: &health
+  interval: 30s
+  timeout: 5s
+  retries: 3
+
+services:
+  web:
+    <<: *common
+    image: nginx:1.27
+    healthcheck:
+      <<: *health
+      test: ["CMD", "curl", "-sf", "http://localhost/health"]
+  worker:
+    <<: *common
+    image: example/worker:1
+    environment:
+      - API_URL=http://web:80
+      - QUEUE_URL=redis://cache:6379/1

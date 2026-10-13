@@ -15,9 +15,13 @@ services:
       - vllm-cache:/root/.cache/huggingface
     environment:
       - HUGGING_FACE_HUB_TOKEN=${HF_TOKEN:-}
-      - VLLM_ATTENTION_BACKEND=${VLLM_ATTENTION_BACKEND:-FLASHINFER}
       - NVIDIA_VISIBLE_DEVICES=all
       - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+      - PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+      # trazas a watch/phoenix, en el proyecto de jev: los spans de vLLM cuelgan del readout que los causó
+      - OTEL_SERVICE_NAME=vllm
+      - OTEL_RESOURCE_ATTRIBUTES=openinference.project.name=e-jev
+      - OTEL_EXPORTER_OTLP_TRACES_PROTOCOL=http/protobuf
     deploy:
       resources:
         reservations:
@@ -25,25 +29,35 @@ services:
             - driver: nvidia
               count: 1
               capabilities: [gpu, compute, utility]
+    # Sized for one RTX 4090 (24 GB, Ada): AWQ INT4 weights take 18.3 GiB; 0.93 leaves the desktop its VRAM.
+    # Recurrent state in bf16 (float32 by default) halves its pages: 800-token blocks, 25k cache, 20k context.
+    # Vision tower off, fp8 KV, prefix cache on (shared prompts, e.g. jev, reuse their prefix).
+    # Grammars by xgrammar: the outlines backend rejects Qwen3.6 <|im_end|> (vLLM 0.30.0).
     command: >-
-      --model Qwen/Qwen3-32B-AWQ
-      --quantization awq_marlin
-      --dtype auto
-      --served-model-name ${LLM_SERVED_NAME:-qwen3-32b}
-      --gpu-memory-utilization 0.95
-      --max-model-len 8192
+      --model ${VLLM_MODEL:-cyankiwi/Qwen3.6-27B-AWQ-INT4}
+      --served-model-name ${LLM_SERVED_NAME:-qwen3.6-27b}
+      --language-model-only
+      --gpu-memory-utilization ${VLLM_GPU_UTIL:-0.93}
+      --max-model-len ${VLLM_MAX_MODEL_LEN:-20480}
+      --kv-cache-dtype ${VLLM_KV_DTYPE:-fp8}
+      --max-num-seqs ${VLLM_MAX_SEQS:-16}
+      --max-num-batched-tokens ${VLLM_MAX_BATCHED:-2048}
+      --enable-prefix-caching
+      --mamba-block-size ${VLLM_MAMBA_BLOCK:-256}
+      --mamba-ssm-cache-dtype ${VLLM_SSM_DTYPE:-bfloat16}
+      --structured-outputs-config.backend xgrammar
+      --reasoning-parser qwen3
+      --enable-auto-tool-choice
+      --tool-call-parser qwen3_coder
       --port 8000
       --api-key ${VLLM_API_KEY:-local-dev}
-      --enable-auto-tool-choice
-      --tool-call-parser hermes
-      --tensor-parallel-size 1
-      --enforce-eager
+      --otlp-traces-endpoint ${VLLM_OTLP_ENDPOINT:-http://phoenix:6006/v1/traces}
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost:8000/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 10
-      start_period: 300s
+      start_period: 600s
     networks:
       - stack
 

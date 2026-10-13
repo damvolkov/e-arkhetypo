@@ -2,8 +2,6 @@
 
 from importlib.metadata import version
 
-import msgspec
-
 import e_api.main as entrypoint
 from core.settings import Settings
 from core.settings import settings as st
@@ -15,7 +13,7 @@ def test_importing_main_has_no_side_effects() -> None:
 
 
 def test_composite_settings_expose_every_scope() -> None:
-    scopes = {field.name for field in msgspec.structs.fields(Settings)}
+    scopes = set(Settings.model_fields)
     assert {"api", "app", "crypto", "db", "http", "oauth", "redis"} <= scopes
     assert st.redis.redis_url.startswith("redis://")
     assert st.app.app_port == 8000
@@ -23,7 +21,15 @@ def test_composite_settings_expose_every_scope() -> None:
 
 def test_create_app_registers_every_router(client) -> None:
     paths = {route.path for route in client.app.routes}
-    assert {"/health", "/oauth/providers", "/users", "/users/{user_id:uuid}", "/ws/telemetry", "/schema"} <= paths
+    assert {
+        "/health",
+        "/oauth/providers",
+        "/users",
+        "/users/{user_id:uuid}",
+        "/ws/telemetry",
+        "/docs",
+        "/schema",
+    } <= paths
 
 
 def test_chains_wire_endpoints_not_the_app(client) -> None:

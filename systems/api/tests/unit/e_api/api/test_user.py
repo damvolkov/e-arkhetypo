@@ -81,7 +81,7 @@ def test_tampered_token_is_rejected(client, bearer, created_user) -> None:
 
 def test_credential_is_stored_only_as_an_argon2_hash(client, created_user) -> None:
     """The crypto-through-the-store chain end to end: what persists is a hash, verifiable and never the password."""
-    graph = client.app.state
+    graph = client.app.state.system
     with client.portal() as portal:
         raw = portal.call(graph.adapters.store.get, USER_KEY + created_user["id"])
         record = msgspec.json.decode(raw, type=UserRecord)

@@ -8,6 +8,7 @@ is a self-contained system under `systems/`, and infrastructure stacks live unde
 ```
 systems/core/   # e-core — the common core: settings, logger, crypto, state, ops (+ common/: shared project files)
 systems/api/    # e-api  — Litestar + Granian API service template (full stack: Docker, compose, CI/CD)
+systems/graph/  # e-graph — LangGraph + rustworkx + React Flow graph system template (api + canvas)
 stack/          # infrastructure services (auth, db, queue, proxy, ...) — containers, not Python projects
 ```
 
@@ -21,7 +22,7 @@ docs · zizmor`, git-tag releases, all publishing gates inert by default.
 
 - `make core` copies `core/` + `ops/` into the service's own `src/` (import paths rewritten to bare
   `core.*` / `ops.*`); `make common` copies the shared project files from `systems/core/common/`
-  (pre-commit, gitattributes, dependabot, CODEOWNERS, python-version).
+  (prek, gitattributes, dependabot, CODEOWNERS, python-version).
 - `make core-check` / `make common-check` fail the moment a materialized copy drifts from its source.
 - Edit the shared code **only** in `systems/core/src/e_core/` — never in a service's `src/core/`.
 

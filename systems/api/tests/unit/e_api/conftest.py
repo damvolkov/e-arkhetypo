@@ -31,7 +31,7 @@ def pytest_configure() -> None:
 @pytest.fixture
 def client() -> Iterator[TestClient]:
     with TestClient(create_app()) as test_client:
-        store = test_client.app.state.adapters.store
+        store = test_client.app.state.system.adapters.store
 
         async def wipe() -> None:
             ### one shared file per process: every test starts from empty; keys() streams, so drain it async.
@@ -47,7 +47,7 @@ def bearer(client: TestClient) -> Callable[[str], dict[str, str]]:
     """Mint real tokens with the live crypto engine — the fake check accepts exactly what crypto signs."""
 
     def make(subject: str) -> dict[str, str]:
-        token = client.app.state.crypto.create_token({"sub": subject}, expires_in=timedelta(minutes=5))
+        token = client.app.state.system.crypto.create_token({"sub": subject}, expires_in=timedelta(minutes=5))
         return {"Authorization": f"Bearer {token}"}
 
     return make

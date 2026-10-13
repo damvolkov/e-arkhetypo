@@ -1,0 +1,10 @@
+# a format e-serde does not speak: the report node answers FAILED, the verdict names the key
+name: unknown_format
+data:
+  document: "invoice 1 total 1.00"
+  format: xml
+expect:
+  status: failed
+  kind: invoice
+  amount: "1.00"
+  failed_at: report

@@ -1,10 +1,6 @@
-"""e-core errors: typed exception hierarchy — all domain exceptions inherit from CoreError."""
+"""core/errors: typed exception hierarchy — all domain exceptions inherit from CoreError."""
 
 from enum import StrEnum
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 
 ##### ROOT #####
@@ -14,19 +10,6 @@ class CoreError(Exception):
     def __init__(self, message: str) -> None:
         super().__init__(message)
         self.message = message
-
-
-##### CONFIG / SETTINGS #####
-class ConfigError(CoreError):
-    """A config file exists but cannot be decoded, or settings validation failed."""
-
-    def __init__(self, message: str, *, source: Path | None = None) -> None:
-        super().__init__(message)
-        self.source_path: Path | None = source
-
-
-class SettingsLoadError(ConfigError):
-    """A config file exists but cannot be decoded: its suffix promises a format and the bytes break it."""
 
 
 ##### CRYPTO #####

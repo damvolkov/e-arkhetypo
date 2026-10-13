@@ -1,0 +1,30 @@
+services:
+  redis:
+    image: redis:latest
+    container_name: redis
+    hostname: redis
+    restart: unless-stopped
+    labels:
+      stack.category: "cdb"
+      stack.port: "6379"
+    ports:
+      # default 6379 — Redis (Valkey como drop-in alternativo)
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - ./redis.conf:/etc/redis/redis.conf:ro
+      - redis-data:/data
+    command: redis-server /etc/redis/redis.conf
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "redis_password", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - stack
+
+volumes:
+  redis-data:
+
+networks:
+  stack:
+    name: stack

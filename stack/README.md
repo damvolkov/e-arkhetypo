@@ -47,11 +47,12 @@ Infra y aplicaciones:
 | `queue` | brokers, event bus | — vacío |
 | `proxy` | reverse proxy, gateway, túneles | — vacío |
 | `auth` | identidad, secretos | — vacío |
-| `watch` | métricas, logs, trazas | otel-collector, jaeger, prometheus, loki, grafana |
+| `watch` | métricas, logs, trazas | otel-collector, jaeger, phoenix, prometheus, loki, grafana |
 | `storage` | objetos/archivos, datalakes | minio |
-| `llm` | serving de modelos y embeddings | vllm, llamacpp, ellm, embed |
+| `llm` | serving de modelos y embeddings | vllm, jev, llamacpp, ellm, embed |
 | `speech` | STT / TTS | evoice, speaches, fwhisper, wlive, kokoro |
 | `rag` | retrieval: búsqueda, loaders, extracción, pipelines | searxng, docling, playwright, pipelines |
+| `mem` | memoria de agentes | mem0, agentmemory, cortexdb |
 | `front` | UIs y dashboards | openwebui |
 | `media` | WebRTC / tiempo real | livekit, sip |
 
@@ -66,6 +67,7 @@ Puerto = default en host (`:container`). GPU = necesita `nvidia` runtime.
 | vdb/qdrant | qdrant/qdrant:latest | 6333 / 6334 | | `config.yaml` |
 | storage/minio | minio/minio:latest | 9000 / 9001 | | |
 | llm/vllm | vllm/vllm-openai:latest | 8000 | ✓ | |
+| llm/jev | damvolkov/e-jev:latest | 45160 | | necesita `llm/vllm` |
 | llm/llamacpp | ggml-org/llama.cpp:server-cuda | 8080 | ✓ | `setup.sh` |
 | llm/ellm | damvolkov/e-llm:latest | 80 | ✓ | `config.yaml` |
 | llm/embed | hf/text-embeddings-inference:cpu-latest | 80 | | |
@@ -78,11 +80,15 @@ Puerto = default en host (`:container`). GPU = necesita `nvidia` runtime.
 | rag/docling | docling-project/docling-serve:latest | 5001 | | |
 | rag/playwright | playwright:latest | 3000 | | |
 | rag/pipelines | open-webui/pipelines:latest | 9099 | | |
+| mem/mem0 | build `mem0ai/mem0#main:server` | 8888 | | `config.json`, `Dockerfile`, `launch.py`; necesita postgres+qdrant+vllm+embed |
+| mem/agentmemory | build `rohitg00/agentmemory#main:deploy/coolify` | 3111 | | necesita embed (vllm opcional) |
+| mem/cortexdb | cortexdb/cortexdb:v0.10.4 (pin: formato de datos) + `cortexdb-mirror` (python:3-alpine) | 3141 (loopback) | | `cortex.toml`, `mirror.py` (grafo → markdown de Obsidian en `CORTEXDB_MIRROR_DIR`); necesita embed (lotes de 64) + vllm |
 | front/openwebui | open-webui/open-webui:latest | 8080 | | `static/` |
 | media/livekit | livekit/livekit-server:latest | 7880 | | `livekit.yaml` |
 | media/sip | livekit/sip:latest | 5060 | | red `host` |
 | watch/otel-collector | otel/opentelemetry-collector-contrib:latest | 4317 / 4318 / 8889 | | `otel-collector-config.yaml` |
 | watch/jaeger | jaegertracing/all-in-one:latest | 16686 | | |
+| watch/phoenix | arizephoenix/phoenix:latest | 6006 | | trazas LLM (OpenInference) |
 | watch/prometheus | prom/prometheus:latest | 9090 | | `prometheus.yml` |
 | watch/loki | grafana/loki:latest | 3100 | | |
 | watch/grafana | grafana/grafana:latest | 3000 | | `provisioning/` |
@@ -91,10 +97,11 @@ Puerto = default en host (`:container`). GPU = necesita `nvidia` runtime.
 
 ```
 redis:6379        postgres:5432     qdrant:6333      minio:9000
-vllm:8000/v1      llamacpp:8080     ellm:80          embed:80/v1
+vllm:8000/v1      jev:45160         llamacpp:8080     ellm:80          embed:80/v1
 kokoro:8880/v1    fwhisper:8000     evoice:80        speaches:8000
 searxng:8080      docling:5001      playwright:3000  pipelines:9099
-otel-collector:4317   jaeger:16686   prometheus:9090   loki:3100   grafana:3000
+otel-collector:4317   jaeger:16686   phoenix:6006/v1/traces   prometheus:9090   loki:3100   grafana:3000
+mem0:8000         agentmemory:3111   cortexdb:3141
 livekit:7880
 ```
 

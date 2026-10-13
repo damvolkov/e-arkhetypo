@@ -23,7 +23,7 @@ async def test_api_survives_concurrent_traffic() -> None:
         )
         assert created.status_code == 201
         user_id = created.json()["id"]
-        token = client.app.state.crypto.create_token({"sub": user_id}, expires_in=timedelta(minutes=1))
+        token = client.app.state.system.crypto.create_token({"sub": user_id}, expires_in=timedelta(minutes=1))
         headers = {"Authorization": f"Bearer {token}"}
 
         read = await client.get(f"/users/{user_id}", headers=headers)

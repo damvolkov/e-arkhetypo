@@ -9,6 +9,7 @@ is a self-contained system under `systems/`, and infrastructure stacks live unde
 systems/core/   # e-core — the common core: settings, logger, crypto, state, ops (+ common/: shared project files)
 systems/api/    # e-api  — Litestar + Granian API service template (full stack: Docker, compose, CI/CD)
 systems/graph/  # e-graph — LangGraph + rustworkx + React Flow graph system template (api + canvas)
+systems/mcp/    # e-mcp  — MCP server template: MCPServer over Streamable HTTP + granian, bearer gate on loopback
 stack/          # infrastructure services (auth, db, queue, proxy, ...) — containers, not Python projects
 ```
 

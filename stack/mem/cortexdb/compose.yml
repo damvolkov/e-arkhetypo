@@ -25,24 +25,25 @@ services:
       - CORTEX_EMBEDDING_URL=http://embed:80/v1
       - CORTEX_EMBEDDING_API_KEY=local
       - CORTEX_EMBEDDING_MODEL=${EMBED_MODEL:-Qwen/Qwen3-Embedding-0.6B}
+      - CORTEX_EMBEDDING_HTTP_TIMEOUT_SECS=${CORTEXDB_EMBED_TIMEOUT:-300}
       - CORTEX_EMBEDDING_DIMS=${CORTEXDB_EMBED_DIMS:-1024}
       # extraction, enrichment, answers, verification: vllm
       - OPENAI_API_KEY=${VLLM_API_KEY:-local-dev}
       - CORTEX_LLM_URL=http://vllm:8000/v1
       - CORTEX_ENTITY_API_KEY=${VLLM_API_KEY:-local-dev}
-      - CORTEX_LLM_MODEL=${LLM_SERVED_NAME:-qwen3-32b}
+      - CORTEX_LLM_MODEL=${LLM_SERVED_NAME:-demian-model}
       - CORTEX_ENRICHMENT_URL=http://vllm:8000/v1
       - CORTEX_ENRICHMENT_API_KEY=${VLLM_API_KEY:-local-dev}
-      - CORTEX_ENRICHMENT_MODEL=${LLM_SERVED_NAME:-qwen3-32b}
+      - CORTEX_ENRICHMENT_MODEL=${LLM_SERVED_NAME:-demian-model}
       # without a delay the fact/belief pipeline stays empty
       - CORTEX_ENRICHMENT_DELAY_SECONDS=0
       - CORTEX_ANSWER_PROVIDER=openai
       - CORTEX_ANSWER_URL=http://vllm:8000/v1
       - CORTEX_ANSWER_API_KEY=${VLLM_API_KEY:-local-dev}
-      - CORTEX_ANSWER_MODEL=${LLM_SERVED_NAME:-qwen3-32b}
+      - CORTEX_ANSWER_MODEL=${LLM_SERVED_NAME:-demian-model}
       - CORTEX_VERIFIER_URL=http://vllm:8000/v1
       - CORTEX_VERIFIER_API_KEY=${VLLM_API_KEY:-local-dev}
-      - CORTEX_VERIFIER_MODEL=${LLM_SERVED_NAME:-qwen3-32b}
+      - CORTEX_VERIFIER_MODEL=${LLM_SERVED_NAME:-demian-model}
       # keep the verifier's answer inside the served context
       - CORTEX_VERIFIER_MAX_TOKENS=${CORTEXDB_VERIFIER_TOKENS:-4096}
       # retrieval: graph-fused, belief layers auto-built, per-question routing

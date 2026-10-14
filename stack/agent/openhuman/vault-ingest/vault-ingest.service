@@ -1,0 +1,6 @@
+[Unit]
+Description=Convert documents dropped in the Obsidian vault inbox for OpenHuman
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/bin/vault-ingest

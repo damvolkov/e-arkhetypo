@@ -25,7 +25,10 @@ services:
             - driver: nvidia
               count: 1
               capabilities: [gpu, compute, utility]
-    # Sized for one RTX 4090 (24 GB, Ada), A/B 2026-10-14: Gemma 4 26B-A4B (MoE, 4B active) over Qwen3.6/3.8-27B,
+    # Sized for one RTX 4090 (24 GB, Ada), A/B 2026-10-14. The LLM slot: strata holds it by default (llm/strata);
+    # vllm is the teaching guest (jev's logprob reader needs /tokenize, which strata does not speak) and serves
+    # the same demian-model alias, so no consumer changes on the swap.
+    # Original A/B: Gemma 4 26B-A4B (MoE, 4B active) over Qwen3.6/3.8-27B,
     # Qwen3.5-9B and Qwen3.6-35B-A3B (OOM beside the desktop) — 722 tok/s at 16 seqs (Qwen 27B dense: 135 at 8),
     # TTFT ~130 ms single, tools 38/40, KV extraction on par. ~16 GiB weights leave room for CUDA graphs and a
     # 143k-token fp8 KV pool. 0.89 = total − ~2.2 GiB desktop slot (vLLM budgets over total VRAM, not free VRAM).
@@ -34,7 +37,7 @@ services:
     # chat_template_kwargs {enable_thinking: true}. Image pinned: a pull-on-start unit drifts on `latest`.
     command: >-
       --model ${VLLM_MODEL:-cyankiwi/gemma-4-26B-A4B-it-AWQ-4bit}
-      --served-model-name ${LLM_SERVED_NAME:-gemma4-26b-a4b}
+      --served-model-name ${LLM_SERVED_NAME:-gemma4-26b-a4b demian-model}
       --language-model-only
       --gpu-memory-utilization ${VLLM_GPU_UTIL:-0.89}
       --max-model-len ${VLLM_MAX_MODEL_LEN:-32768}

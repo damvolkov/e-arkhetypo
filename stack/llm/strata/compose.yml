@@ -1,0 +1,60 @@
+services:
+
+  strata:
+    # The LLM slot: exactly one of strata/vllm ever holds this card, network name and port.
+    # Qwen3.8-Flash-Next (125B MoE, 6B active) on a single 12-24 GB card: every expert lives
+    # in host RAM (IQ2_XS ~36 GiB, UD-Q4_K_XL ~72), the hot ones cache on the GPU, and the
+    # model's own MTP layer drafts the tokens the big model then verifies. A 14900K/4090/192 GB
+    # bench, 2026-10-14: IQ2_XS 142 tok/s decode, 4091 tok/s prompt 16K — gemma 26B-A4B AWQ
+    # speed with the next size up of brains (its vllm record: 138 tok/s single).
+    # The image is compiled by ./setup.sh (the engine is built at docker build, never at run);
+    # the model files and the prepared packs live in the strata-data volume.
+    # API: /v1/chat/completions (OpenAI), /v1/messages (Anthropic), /v1/responses — and the
+    # `aliases` list in /data/config/strata-<model>.json is what answers to demian-model.
+    image: strata:${STRATA_TAG:-0.1.44.1}
+    container_name: strata
+    hostname: strata
+    restart: unless-stopped
+    labels:
+      stack.category: "llm"
+      stack.port: "8000"
+    ports:
+      # default 8000 — the LLM slot, OpenAI + Anthropic compatible
+      - "${LLM_PORT:-8000}:8000"
+    volumes:
+      - strata-data:/data
+    environment:
+      - FAMILY=${STRATA_FAMILY:-qwen}
+      - MODEL=${STRATA_MODEL:-IQ2_XS}
+      - CONTEXT=${STRATA_CONTEXT:-32768}
+      - VISION=no
+      - KV=int8
+      - PORT=8000
+      - API_KEY=${LLM_API_KEY:-local-dev}
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu, compute, utility]
+    # The engine page-locks the experts (memlock must be unlimited) and needs >10 s to
+    # release them on stop: docker's default 10 s kills it (exit 137) — keep the grace.
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    stop_grace_period: 60s
+    networks:
+      stack:
+        aliases:
+          - vllm
+
+volumes:
+  strata-data:
+
+networks:
+  stack:
+    name: stack

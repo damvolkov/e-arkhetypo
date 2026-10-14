@@ -5,7 +5,7 @@ src/adapters/
 .venv/
 .env
 # materialized from ../core/common — run `make common`; do not edit or commit these
-.pre-commit-config.yaml
+prek.toml
 .gitattributes
 .python-version
 .github/dependabot.yml

@@ -1,4 +1,6 @@
-"""e-stack crypto engine: password hashing, JWT/JWE tokens, signatures and AEAD — joserfc (JOSE) over cryptography/bcrypt (Rust) and argon2 (PHC winner); async only where hashing is intentionally slow, everything else is microseconds."""
+"""core/crypto: password hashing, JWT/JWE tokens, signatures and AEAD — joserfc over cryptography.
+
+bcrypt is Rust-backed, argon2 the PHC winner; async only where hashing is intentionally slow, everything else is microseconds."""
 
 import hashlib
 import hmac
@@ -106,7 +108,7 @@ class Crypto:
             case None:
                 raise CryptoError(MISSING_ROOT)
             case secret:
-                self._secret = secret.encode()
+                self._secret = secret.get_secret_value().encode()
         self._alg, self._enc = settings.alg, settings.enc
         self._hasher, self._rounds = settings.hasher, settings.bcrypt_rounds
         self._argon2 = argon2.PasswordHasher()
@@ -228,7 +230,7 @@ class Crypto:
     @classmethod
     def load(cls, **overrides: Any) -> Self:
         """Alternative factory: layers the engine settings from the environment (SECRET, ALG, ...) — the app itself always passes the composite `st`."""
-        return cls(CryptoSettings.load(**overrides))
+        return cls(CryptoSettings(**overrides))
 
     @classmethod
     def generate_keys(cls, alg: TokenAlg = TokenAlg.HS256) -> CryptoSettings:

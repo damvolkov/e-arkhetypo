@@ -1,0 +1,18 @@
+kind: deterministic
+name: AUD-cusip
+description: The note's CUSIP carries its check digit — the weighted sum of its first eight characters.
+runner: agnostic/standard/checksum
+check: agnostic/context/present
+args:
+  runner:
+    scheme: cusip
+    value: extract/EXT-identifiers.cusip
+  check:
+    needs: [extract/EXT-identifiers]
+output:
+  type: object
+  properties:
+    value: {type: string}
+    holds: {type: boolean}
+  required: [value, holds]
+  additionalProperties: false

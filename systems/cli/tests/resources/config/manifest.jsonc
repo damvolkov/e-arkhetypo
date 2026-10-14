@@ -1,0 +1,5 @@
+{
+  // jsonc: e-serde tolera comentarios
+  "ok": true,
+  "retries": 3
+}

@@ -1,0 +1,43 @@
+services:
+  jev:
+    image: ghcr.io/damvolkov/e-jev:latest
+    container_name: jev
+    hostname: jev
+    restart: unless-stopped
+    labels:
+      stack.category: "llm"
+      stack.port: "45160"
+    ports:
+      # e-jev typed decisions over vLLM, escucha en 45160 (necesita llm/vllm)
+      - "${JEV_PORT:-45160}:45160"
+    volumes:
+      - jev-data:/data
+    environment:
+      - JEV_VLLM_URL=http://vllm:8000/v1
+      - JEV_VLLM_API_KEY=${VLLM_API_KEY:-local-dev}
+      - JEV_MODEL=${JEV_MODEL:-clef}
+      - JEV_PERMUTATIONS=${JEV_PERMUTATIONS:-1}
+      - JEV_OTLP_ENDPOINT=${JEV_OTLP_ENDPOINT:-http://phoenix:6006/v1/traces}
+      # e-jev = clef a secas: decide en una pasada, calibra por (backend, kind), 6.9 GB.
+      # Para re-abrir la vía LLM (estados largos / extract), añade a la lista
+      # {"id":"reading","kind":"reading","url":""} y arranca llm/vllm (o un servidor con el
+      # dialecto del reader). Un backend caído degrada a ruta que falla: jev sirve lo que puede.
+      - JEV_BACKENDS=${JEV_BACKENDS:-[{"id":"clef","kind":"systemone","url":"http://clef:8080","model":"clef","languages":["any"],"max_options":255,"max_state_tokens":4096}]}
+      # El corpus para re-ajustar y destilar: cada decisión cruda (estado, pregunta, scores, backend).
+      - JEV_DECISION_LOG=${JEV_DECISION_LOG:-/data/decisions.jsonl}
+      # Ajuste por (backend, kind, modelo): JEV_CALIBRATION=/data/calibration.json tras `ejev calibrate`.
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:45160/ready')"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+    networks:
+      - stack
+
+volumes:
+  jev-data:
+
+networks:
+  stack:
+    name: stack

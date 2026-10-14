@@ -1,0 +1,21 @@
+kind: semantic
+name: EXT-agents
+description: Who calculates and who distributes — the calculation agent and the selling agents.
+pre: agnostic/document/pages
+check: agnostic/context/present
+args:
+  pre: {first: 1, words: [calculation agent], most: 1}
+  check: {needs: [ingest/ING-document]}
+tier: medium
+timeout: PT6M
+instructions: >-
+  From the cover page and the Summary: the calculation agent named in its own Summary row (its exact
+  legal name, as the row expands it — the securities broker, not the issuing finance company), and the
+  exact legal names of the firms acting as selling agents in this offering.
+output:
+  type: object
+  properties:
+    calculation_agent: {type: string, minLength: 3, maxLength: 120}
+    selling_agents: {type: array, minItems: 1, maxItems: 6, items: {type: string, minLength: 3, maxLength: 120}}
+  required: [calculation_agent, selling_agents]
+  additionalProperties: false

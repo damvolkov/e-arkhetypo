@@ -13,8 +13,8 @@ from e_management.core.plan import Action, Copy, Materialize, Plan, PrunePaths, 
 from e_management.models.manifest import Group, Strip
 
 if TYPE_CHECKING:
+    from e_management.models.graph import Graph
     from e_management.models.manifest import Choice, Template
-    from e_management.ops.scan import Survey
 
 ##### DEFAULTS #####
 SLUG: re.Pattern[str] = re.compile(r"^[a-z][a-z0-9_]*$")
@@ -24,14 +24,14 @@ SLUG: re.Pattern[str] = re.compile(r"^[a-z][a-z0-9_]*$")
 class Blueprint:
     """What a template becomes for a concrete name: package, brand, and a plan over a choice and unit selection."""
 
-    __slots__ = ("_spec", "_survey", "name")
+    __slots__ = ("_graph", "_spec", "name")
 
-    def __init__(self, spec: Template, name: str, survey: Survey | None = None) -> None:
+    def __init__(self, spec: Template, name: str, graph: Graph | None = None) -> None:
         if not SLUG.match(name):
             msg = f"{name!r} is not a slug: lowercase letters, digits, underscores, starting with a letter"
             raise InvalidNameError(msg)
         self._spec = spec
-        self._survey = survey
+        self._graph = graph
         self.name = name
 
     ##### PRIVATE #####
@@ -58,12 +58,21 @@ class Blueprint:
         """The system's tree already carries the materialized common, so exporting only prunes what is unselected.
 
         Dropping a free unit removes it and its tests; the cascade removes everything importing it; a unit the
-        service itself imports is refused by ``Survey.cascade``. Nothing is re-materialized, so the committed
-        libcst rewrite of the system stays authoritative."""
-        survey = cast("Survey", self._survey)
-        full = survey.cascade(drop)
-        files = [path for key in sorted(full) for path in survey.unit(key).files]
-        return [PrunePaths(paths=tuple(files))] if files else []
+        service itself imports is refused by ``Graph.cascade`` unless its detach rules cut it out of the system —
+        those rules run here too. Nothing is re-materialized, so the committed rewrite of the system stays authoritative."""
+        graph = cast("Graph", self._graph)
+        full = graph.cascade(drop)
+        common = self._spec.common
+        rules = [rule for rule in (common.detach if common else ()) if rule.unit in full]
+        files = [
+            *(path for key in sorted(full) for path in graph.unit(key).paths),
+            *(p for r in rules for p in r.paths),
+        ]
+        prunes = tuple(prune for rule in rules for prune in rule.prunes)
+        return [
+            *([PrunePaths(paths=tuple(files))] if files else []),
+            *([PruneTexts(prunes=prunes)] if prunes else []),
+        ]
 
     ############################################################
 
@@ -97,7 +106,7 @@ class Blueprint:
         """The ordered actions: copy, prune dropped common, materialize dotfiles, prune choices, rename, finalize."""
         self._plan_check(off)
         actions: list[Action] = [Copy(src=self._spec.source, drops=self._spec.drops)]
-        if self._survey is not None:
+        if self._graph is not None:
             actions += self._common_actions(drop)
         actions += [Materialize(src=m.src, dst=m.dst, strip=m.strip, excludes=m.excludes) for m in self._spec.materials]
         dropped = [choice for choice in self._spec.choices if choice.name in off]
@@ -108,6 +117,7 @@ class Blueprint:
         actions.append(
             Rename(rules=(Strip(frm=self._spec.package, to=self.package), Strip(frm=self._spec.brand, to=self.brand)))
         )
-        if self._spec.finalize:
-            actions.append(PruneTexts(prunes=self._spec.finalize))
+        finalize = self._spec.finalize + self._spec.finalize_extra
+        if finalize:
+            actions.append(PruneTexts(prunes=finalize))
         return Plan(name=self.name, package=self.package, brand=self.brand, actions=tuple(actions))

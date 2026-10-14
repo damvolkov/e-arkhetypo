@@ -1,0 +1,14 @@
+services:
+  api:
+    image: example/api:2.0
+    environment:
+      LOG: debug
+      FEATURE: "on"
+    ports:
+      - "8081:81"
+      - "9999:9999/udp"
+    networks:
+      stack:
+        aliases: [api-alt]
+    labels:
+      tier: frontend

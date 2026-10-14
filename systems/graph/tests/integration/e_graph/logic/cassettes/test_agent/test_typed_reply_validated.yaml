@@ -1,0 +1,63 @@
+interactions:
+- request:
+    body: '{"model":"gemma4-26b-a4b","messages":[{"role":"system","content":"Extract
+      the invoice."},{"role":"user","content":"Invoice 42 from ACME: 2 x widget at
+      10.00 EUR, 1 x bolt at 2.50 EUR. Total 22.50 EUR."}],"max_completion_tokens":4096,"response_format":{"type":"json_schema","json_schema":{"name":"Invoice","schema":{"$ref":"#/$defs/Invoice","$defs":{"Invoice":{"title":"Invoice","type":"object","properties":{"number":{"type":"string"},"vendor":{"type":"string"},"total":{"type":"number"},"lines":{"type":"array","items":{"$ref":"#/$defs/Line"}}},"required":["number","vendor","total","lines"]},"Line":{"title":"Line","type":"object","properties":{"item":{"type":"string"},"quantity":{"type":"integer"},"price":{"type":"number"}},"required":["item","quantity","price"]}}},"strict":false}},"seed":7,"temperature":0.0}'
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate, zstd
+      authorization:
+      - REDACTED
+      connection:
+      - keep-alive
+      content-length:
+      - '815'
+      content-type:
+      - application/json
+      host:
+      - localhost:45100
+      user-agent:
+      - AsyncOpenAI/Python 3.24.0
+      x-stainless-arch:
+      - x64
+      x-stainless-async:
+      - async:asyncio
+      x-stainless-lang:
+      - python
+      x-stainless-os:
+      - Linux
+      x-stainless-package-version:
+      - 3.24.0
+      x-stainless-read-timeout:
+      - '600.0'
+      x-stainless-retry-count:
+      - '0'
+      x-stainless-runtime:
+      - CPython
+      x-stainless-runtime-version:
+      - 3.14.3
+    method: POST
+    uri: http://localhost:45100/v1/chat/completions
+  response:
+    body:
+      string: '{"id":"chatcmpl-bbd1fe38c6d7a9b5","object":"chat.completion","created":1791997786,"model":"gemma4-26b-a4b","choices":[{"index":0,"message":{"role":"assistant","content":"{\n  \"number\":
+        \"42\",\n  \"vendor\": \"ACME\",\n  \"total\": 22.50,\n  \"lines\": [\n    {\n      \"item\":
+        \"widget\",\n      \"quantity\": 2,\n      \"price\": 10.00\n    },\n    {\n      \"item\":
+        \"bolt\",\n      \"quantity\": 1,\n      \"price\": 2.50\n    }\n  ]\n}","refusal":null,"annotations":null,"audio":null,"function_call":null,"reasoning":null},"logprobs":null,"finish_reason":"stop","stop_reason":106,"token_ids":null,"routed_experts":null}],"service_tier":null,"system_fingerprint":"vllm-0.31.0-c9b9a0dd","usage":{"prompt_tokens":65,"total_tokens":173,"completion_tokens":108,"prompt_tokens_details":null,"completion_tokens_details":{"reasoning_tokens":0}},"prompt_logprobs":null,"prompt_token_ids":null,"prompt_text":null,"kv_transfer_params":null,"ec_transfer_params":null,"metrics":null}'
+    headers:
+      content-length:
+      - '979'
+      content-type:
+      - application/json
+      date:
+      - Wed, 14 Oct 2026 17:09:45 GMT
+      server:
+      - uvicorn
+      vary:
+      - Origin
+    status:
+      code: 200
+      message: OK
+version: 1

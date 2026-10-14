@@ -1,0 +1,21 @@
+kind: semantic
+name: EXT-risks
+description: The shape of the risk — how much can be lost, and what else besides market moves can cost the holder.
+pre: agnostic/document/pages
+check: agnostic/context/present
+args:
+  pre: {titles: [risk factors], words: [lose, 100%, creditworthiness, liquidity], most: 2}
+  check: {needs: [ingest/ING-document]}
+tier: low
+instructions: >-
+  From the Risk Factors and the cover notice: the worst loss the holder can suffer at maturity as a
+  percentage of the investment (a total loss is 100), and three short phrases naming the distinct risks
+  — the issuer's and guarantor's credit, the lack of an exchange listing or liquidity, and the market
+  risk of the underlying.
+output:
+  type: object
+  properties:
+    max_loss_percent: {type: number, minimum: 1, maximum: 100}
+    risks: {type: array, minItems: 3, maxItems: 3, items: {type: string, minLength: 4, maxLength: 120}}
+  required: [max_loss_percent, risks]
+  additionalProperties: false

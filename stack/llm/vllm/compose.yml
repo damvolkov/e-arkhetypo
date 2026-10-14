@@ -18,6 +18,10 @@ services:
       - NVIDIA_VISIBLE_DEVICES=all
       - NVIDIA_DRIVER_CAPABILITIES=compute,utility
       - PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+      # trazas a watch/phoenix, en el proyecto de jev: los spans de vLLM cuelgan del readout que los causó
+      - OTEL_SERVICE_NAME=vllm
+      - OTEL_RESOURCE_ATTRIBUTES=openinference.project.name=e-jev
+      - OTEL_EXPORTER_OTLP_TRACES_PROTOCOL=http/protobuf
     deploy:
       resources:
         reservations:
@@ -53,6 +57,7 @@ services:
       --tool-call-parser gemma4
       --port 8000
       --api-key ${VLLM_API_KEY:-local-dev}
+      --otlp-traces-endpoint ${VLLM_OTLP_ENDPOINT:-http://phoenix:6006/v1/traces}
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost:8000/health || exit 1"]
       interval: 30s

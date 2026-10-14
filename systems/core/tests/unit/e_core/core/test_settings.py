@@ -1,31 +1,39 @@
-"""e_core.core.settings: one reader for five layers, frozen msgspec.Struct, e-serde codecs, lazy singleton."""
+"""e_core.core.settings: five layered sources, frozen pydantic models, SecretStr, lazy singleton."""
 
-from typing import TYPE_CHECKING, Any, cast
+from datetime import timedelta
+from pathlib import Path
+from typing import Any
 
-if TYPE_CHECKING:
-    from pathlib import Path
-
-import msgspec
 import pytest
+from pydantic import BaseModel, ValidationError
+from pydantic_settings import SettingsConfigDict
 
-from e_core.core.errors import SettingsLoadError
 from e_core.core.settings import BaseSettings, Secret
 from e_core.core.settings import settings as st
 from e_core.core.settings.api import ApiSettings, HttpMethod
 from e_core.core.settings.app import AppSettings, Env
+from e_core.core.settings.crypto import CryptoSettings
+from e_core.core.settings.db import DbSettings
+from e_core.core.settings.http import HttpSettings
 
 
-class DB(msgspec.Struct):
+class DB(BaseModel):
     host: str = "localhost"
     port: int = 5432
 
 
-class Settings(BaseSettings, frozen=True):
-    env_prefix = "E_"
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix="E_", env_file=None)
+
     debug: bool = False
     port: int = 8000
     token: Secret = Secret("")
-    db: DB = msgspec.field(default_factory=DB)
+    db: DB = DB()
+
+
+def _config(**kw: Any) -> SettingsConfigDict:
+    """The test scope's config with one layer repointed."""
+    return SettingsConfigDict(**{"env_prefix": "E_", "env_file": None, **kw})
 
 
 ##### LOAD #####
@@ -33,134 +41,110 @@ async def test_load_env_layers(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("E_PORT", "9000")
     monkeypatch.setenv("E_DEBUG", "true")
     monkeypatch.setenv("E_DB__PORT", "6543")
-    settings = Settings.load()
+    settings = Settings()
     assert (settings.port, settings.debug, settings.db.port) == (9000, True, 6543)
+    assert settings.db.host == "localhost"  # nested partial update keeps untouched defaults
 
 
 async def test_load_overrides(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("E_PORT", "9000")
-    assert Settings.load(port=7000).port == 7000
+    assert Settings(port=7000).port == 7000
 
 
-async def test_load_file_layers_under_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    path = tmp_path / "c.toml"
-    path.write_text('port = 5555\n[db]\nhost = "tomlhost"\n')
-    monkeypatch.setattr(Settings, "config_file", path)
+@pytest.mark.parametrize(
+    ("name", "body", "attr"),
+    [
+        ("c.toml", 'port = 5555\ntoken = "filetok"\n', "toml_file"),
+        ("c.json", '{"port": 4321, "token": "filetok"}', "json_file"),
+        ("c.yaml", "port: 7777\ntoken: filetok\n", "yaml_file"),
+    ],
+    ids=["toml", "json", "yaml"],
+)
+async def test_load_config_file_under_env(
+    name: str, body: str, attr: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    path = tmp_path / name
+    path.write_text(body)
+    monkeypatch.setattr(Settings, "model_config", _config(**{attr: path}))
     monkeypatch.setenv("E_PORT", "6666")
-    settings = Settings.load()
-    assert (settings.port, settings.db.host) == (6666, "tomlhost")
+    settings = Settings()
+    assert (settings.port, settings.token.get_secret_value()) == (6666, "filetok")  # env beats file, file beats default
+
+
+async def test_load_absent_file_is_empty(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(Settings, "model_config", _config(toml_file=tmp_path / "absent.toml"))
+    assert Settings().port == 8000
+
+
+async def test_load_corrupt_config_file_raises(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    path = tmp_path / "c.toml"
+    path.write_text("port = = =\n")
+    monkeypatch.setattr(Settings, "model_config", _config(toml_file=path))
+    with pytest.raises(Exception, match="Invalid value"):
+        Settings()
 
 
 async def test_load_secrets_never_leaks(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    (tmp_path / "E_TOKEN").write_text("shh\n")
-    monkeypatch.setattr(Settings, "secrets_dir", tmp_path)
-    settings = Settings.load()
-    assert settings.token.reveal() == "shh"
+    (tmp_path / "E_token").write_text("shh\n")
+    monkeypatch.setattr(Settings, "model_config", _config(secrets_dir=tmp_path))
+    settings = Settings()
+    assert settings.token.get_secret_value() == "shh"
     assert "shh" not in repr(settings)
 
 
-##### READ: ANY FILE #####
-@pytest.mark.parametrize(
-    ("name", "body", "expected"),
-    [
-        ("c.toml", "[db]\nport = 1234\n", {"db": {"port": 1234}}),
-        ("c.json", '{"port": 4321}', {"port": 4321}),
-        ("c.jsonc", '{"port": 1} // comment\n', {"port": 1}),
-        ("c.yaml", "db:\n  host: yhost\n", {"db": {"host": "yhost"}}),
-        ("c.ini", "[db]\nport = 4321\n", {"db": {"port": "4321"}}),
-        ("c.env", "E_PORT=6000\n# junk line\n", {"port": "6000"}),
-    ],
-    ids=["toml", "json", "jsonc", "yaml", "ini", "dotenv"],
-)
-async def test_read_any_config_file(name: str, body: str, expected: object, tmp_path: Path) -> None:
-    path = tmp_path / name
-    path.write_text(body)
-    assert Settings.read(path) == expected
+async def test_load_dotenv_layers(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    (tmp_path / ".env").write_text("export E_PORT='8123'\nE_DEBUG = true\n# junk\n")
+    monkeypatch.setattr(Settings, "model_config", _config(env_file=tmp_path / ".env"))
+    settings = Settings()
+    assert (settings.port, settings.debug) == (8123, True)
 
 
-async def test_read_corrupt_file_raises(tmp_path: Path) -> None:
-    path = tmp_path / "c.toml"
-    path.write_text("port = = =\n")
-    with pytest.raises(SettingsLoadError, match="Cannot decode"):
-        Settings.read(path)
+async def test_env_json_decodes_complex(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("E_DB", '{"host": "fromjson", "port": 1}')
+    assert Settings().db.host == "fromjson"
 
 
-@pytest.mark.parametrize("path", [None, "absent.toml"], ids=["none", "missing"])
-async def test_read_absent_is_empty(path: Path | None, tmp_path: Path) -> None:
-    assert Settings.read(tmp_path / path if path else None) == {}
-
-
-async def test_read_directory_is_secrets(tmp_path: Path) -> None:
-    (tmp_path / "E_DB__HOST").write_text("fromfile\n")
-    assert Settings.read(tmp_path) == {"db": {"host": "fromfile"}}
-
-
-async def test_read_rejects_foreign_source() -> None:
-    with pytest.raises(TypeError):
-        Settings.read(cast("Any", "not-a-path"))
-
-
-##### NEST #####
-async def test_nest_filters_cases_and_splits() -> None:
-    flat = {"PATH": "/usr/bin", "E_DB__HOST": "h", "E_PORT": "1"}
-    assert Settings.nest(flat) == {"db": {"host": "h"}, "port": "1"}
-
-
-async def test_nest_decodes_json_values() -> None:
-    assert Settings.nest({"E_TAGS": '["a", "b"]', "E_LIMITS": '{"x": 1}'}) == {"tags": ["a", "b"], "limits": {"x": 1}}
-
-
-async def test_nest_strips_export_and_quotes(tmp_path: Path) -> None:
-    path = tmp_path / "e.env"
-    path.write_text("export A='one'\nB = two\njunk\n")
-    assert BaseSettings.nest(BaseSettings.dotenv(path)) == {"a": "one", "b": "two"}
-
-
-##### MERGE #####
-async def test_merge_deep() -> None:
-    base: dict[str, object] = {"db": {"host": "a", "port": 1}, "gone": True}
-    assert BaseSettings.merge(base, {"db": {"port": 2}, "gone": False}) == {
-        "db": {"host": "a", "port": 2},
-        "gone": False,
-    }
-
-
-##### DECODE #####
+##### TYPES #####
 async def test_secret_never_leaks() -> None:
     secret = Secret("hunter2")
     assert "hunter2" not in repr(secret)
     assert "hunter2" not in f"{secret}"
-    assert secret.reveal() == "hunter2"
+    assert secret.get_secret_value() == "hunter2"
 
 
-async def test_decode_secret() -> None:
-    assert Settings.decode(Secret, "x") == Secret("x")
+async def test_timedelta_and_path_coerced(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("HTTP_TIMEOUT", "PT12.5S")
+    monkeypatch.setenv("DB_PATH", "/data/app.db")
+    assert HttpSettings().http_timeout == timedelta(seconds=12.5)
+    assert DbSettings().db_path == Path("/data/app.db")
 
 
-async def test_decode_unsupported() -> None:
-    with pytest.raises(NotImplementedError, match="Unsupported settings type"):
-        Settings.decode(complex, 1)
+##### FROZEN #####
+async def test_frozen_blocks_mutation() -> None:
+    with pytest.raises(ValidationError):
+        Settings().port = 1
 
 
 ##### ENUMS #####
-async def test_app_env_decodes_to_typed_env() -> None:
-    assert AppSettings.load(app_env="local").app_env is Env.LOCAL
-    assert AppSettings.load().app_env in set(Env)
+async def test_app_env_decodes_to_typed_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("APP_ENV", "local")
+    assert AppSettings().app_env is Env.LOCAL
+    assert AppSettings(app_env="dev").app_env in set(Env)
 
 
 async def test_app_env_rejects_a_typo() -> None:
-    with pytest.raises(msgspec.ValidationError, match="Invalid enum value"):
-        AppSettings.load(app_env="deV")
+    with pytest.raises(ValidationError, match="validation error"):
+        AppSettings(app_env="deV")
 
 
 async def test_allow_methods_decode_to_typed_verbs() -> None:
-    assert ApiSettings.load(allow_methods=["GET", "DELETE"]).allow_methods == [HttpMethod.GET, HttpMethod.DELETE]
-    assert set(ApiSettings.load().allow_methods) <= set(HttpMethod)
+    assert ApiSettings(allow_methods=["GET", "DELETE"]).allow_methods == [HttpMethod.GET, HttpMethod.DELETE]
+    assert set(ApiSettings().allow_methods) <= set(HttpMethod)
 
 
 async def test_allow_methods_rejects_a_foreign_verb() -> None:
-    with pytest.raises(msgspec.ValidationError, match="Invalid enum value"):
-        ApiSettings.load(allow_methods=["BREW"])
+    with pytest.raises(ValidationError, match="BREW"):
+        ApiSettings(allow_methods=["BREW"])
 
 
 ##### LAZY SINGLETON #####
@@ -168,3 +152,20 @@ async def test_settings_proxy_loads_once_per_process() -> None:
     """The first attribute access builds the composite; later touches reuse the same instance."""
     assert st.app is st.app
     assert isinstance(st.app.app_env, Env)
+
+
+async def test_composite_scopes_discovered() -> None:
+    """Every settings module in the package became a scope on the composite."""
+    assert all(
+        hasattr(st, scope) for scope in ("api", "app", "cli", "crypto", "db", "http", "oauth", "otel", "redis", "ui")
+    )
+
+
+async def test_shared_dotenv_feeds_each_scope_its_own_keys(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """One .env for every scope: a key one scope owns (SECRET, HTTP_BASE_URL) never aborts another (ApiSettings)."""
+    (tmp_path / ".env").write_text("SECRET=dotenv-secret-0123456789\nHTTP_BASE_URL=https://dotenv.test\n")
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.delenv("SECRET", raising=False)
+    assert ApiSettings().allow_origins
+    assert HttpSettings().http_base_url == "https://dotenv.test"
+    assert CryptoSettings().secret is not None

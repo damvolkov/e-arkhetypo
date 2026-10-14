@@ -9,7 +9,7 @@ site
 docs
 tests
 Makefile
-.pre-commit-config.yaml
+prek.toml
 compose.yml
 Dockerfile
 .env

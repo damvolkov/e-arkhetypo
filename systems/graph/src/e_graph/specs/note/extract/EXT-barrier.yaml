@@ -1,0 +1,22 @@
+kind: semantic
+name: EXT-barrier
+description: The two protective levels — the Coupon Barrier and the Downside Threshold — and their share of the Initial Value.
+pre: agnostic/document/pages
+check: agnostic/context/present
+args:
+  pre: {first: 1, most: 0}
+  check: {needs: [ingest/ING-document]}
+tier: medium
+instructions: >-
+  From the cover page: the Coupon Barrier as a printed number, the Downside Threshold as a printed
+  number, and what share of the Initial Value they represent as a percentage number (75% of the Initial
+  Value is 75). If the two levels are equal, give the same number twice.
+wiki: [downside-threshold]
+output:
+  type: object
+  properties:
+    coupon_barrier: {type: number, minimum: 0.01}
+    downside_threshold: {type: number, minimum: 0.01}
+    share_of_initial_percent: {type: number, minimum: 1, maximum: 100}
+  required: [coupon_barrier, downside_threshold, share_of_initial_percent]
+  additionalProperties: false

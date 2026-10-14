@@ -1,0 +1,9 @@
+# no amount to extract: validate stays invalid, transform cannot map an empty amount
+name: receipt
+data:
+  document: "receipt without total"
+expect:
+  status: failed
+  kind: unknown
+  amount: ""
+  failed_at: transform

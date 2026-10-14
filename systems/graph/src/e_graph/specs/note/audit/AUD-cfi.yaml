@@ -1,0 +1,16 @@
+kind: deterministic
+name: AUD-cfi
+description: The CFI code is six capital letters opening with D, the group in the debt alphabet and only known attribute letters or X.
+runner: owned/cfi
+check: agnostic/context/present
+args:
+  check:
+    needs: [inference/INF-cfi]
+output:
+  type: object
+  properties:
+    code: {type: string}
+    holds: {type: boolean}
+    why: {type: string}
+  required: [code, holds, why]
+  additionalProperties: false

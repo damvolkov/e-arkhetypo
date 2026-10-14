@@ -1,0 +1,25 @@
+services:
+  app:
+    image: example/app:1
+    volumes:
+      - type: volume
+        source: scratch
+        target: /tmp/work
+        volume:
+          nocopy: true
+    tmpfs: [/run]
+    configs: [app-config]
+    secrets: [app-key]
+    networks: [stack]
+
+volumes:
+  scratch:
+    driver: local
+
+configs:
+  app-config:
+    file: ./config.toml
+
+secrets:
+  app-key:
+    external: true

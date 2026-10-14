@@ -49,14 +49,14 @@ core-check: ## fail if the materialized core/ops/adapters drifted from systems/c
 	@uv run python scripts/materialize.py --check
 
 common: ## materialize shared project files from systems/core/common into the project root
-	@cp $(COMMON_SRC)/pre-commit-config.yaml .pre-commit-config.yaml
+	@cp $(COMMON_SRC)/prek.toml prek.toml
 	@cp $(COMMON_SRC)/gitattributes .gitattributes
 	@cp $(COMMON_SRC)/python-version .python-version
 	@cp $(COMMON_SRC)/dependabot.yml .github/dependabot.yml
 	@cp $(COMMON_SRC)/CODEOWNERS .github/CODEOWNERS
 
 common-check: ## fail if the materialized shared files drifted from systems/core/common
-	@diff $(COMMON_SRC)/pre-commit-config.yaml .pre-commit-config.yaml \
+	@diff $(COMMON_SRC)/prek.toml prek.toml \
 	 && diff $(COMMON_SRC)/gitattributes .gitattributes \
 	 && diff $(COMMON_SRC)/python-version .python-version \
 	 && diff $(COMMON_SRC)/dependabot.yml .github/dependabot.yml \
@@ -65,8 +65,8 @@ common-check: ## fail if the materialized shared files drifted from systems/core
 
 # — gates —
 lint: ## ruff check + format
-	@uv run ruff check --fix $(PACKAGE) src/core src/ops src/adapters scripts tests
-	@uv run ruff format $(PACKAGE) src/core src/ops src/adapters scripts tests
+	@uv run ruff check --fix $(PACKAGE) src/core src/ops src/adapters src/processors scripts tests
+	@uv run ruff format $(PACKAGE) src/core src/ops src/adapters src/processors scripts tests
 
 type: ## ty type check
 	@uv run ty check
@@ -80,7 +80,7 @@ validate: ## validate pyproject.toml against schema
 harden: ## zizmor audit of GitHub Actions workflows
 	@uv run zizmor --persona=regular .github/workflows
 
-hooks: ## run all pre-commit hooks on every file (ruff, ty, tach, zizmor, gitleaks)
+hooks: ## run all prek hooks on every file (ruff, ty, tach, zizmor, gitleaks)
 	@uv run prek run --all-files
 
 # — tests —
@@ -133,7 +133,7 @@ logs: ## tail docker logs [args: service]
 
 clean: ## remove caches + build artifacts + materialized core
 	@find . -type d \( -name __pycache__ -o -name .pytest_cache -o -name .ruff_cache \) -exec rm -rf {} + 2>/dev/null || true
-	@rm -rf dist build *.egg-info .coverage .coverage.* .ty_cache site src/core src/ops src/adapters .pre-commit-config.yaml .gitattributes .python-version
+	@rm -rf dist build *.egg-info .coverage .coverage.* .ty_cache site src/core src/ops src/adapters src/processors prek.toml .gitattributes .python-version
 	@printf "$(GREEN)✓ clean$(RESET)\n"
 
 %:

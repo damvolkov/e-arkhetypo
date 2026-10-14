@@ -1,0 +1,21 @@
+kind: semantic
+name: EXT-underlier
+description: The index or equity the note is linked to.
+pre: agnostic/document/pages
+check: agnostic/context/present
+args:
+  pre: {first: 1, most: 0}
+  check: {needs: [ingest/ING-document]}
+tier: medium
+instructions: >-
+  From the cover page, the Underlying the notes are linked to: its printed name without the trademark
+  sign, its ticker symbol as printed next to the word "Ticker", and whether it is an index (versus a
+  single stock or a basket).
+output:
+  type: object
+  properties:
+    name: {type: string, minLength: 2, maxLength: 80}
+    ticker: {type: string, pattern: "^[A-Z^][A-Z0-9.^]{0,9}$"}
+    is_index: {type: boolean}
+  required: [name, ticker, is_index]
+  additionalProperties: false

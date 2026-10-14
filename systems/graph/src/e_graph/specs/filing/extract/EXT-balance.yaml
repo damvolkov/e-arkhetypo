@@ -1,0 +1,29 @@
+kind: semantic
+name: EXT-balance
+description: The balance sheet's headline figures at the end of the fiscal year the 10-K reports, in US dollars.
+pre: agnostic/document/pages
+post: agnostic/number/scale
+check: agnostic/context/present
+args:
+  pre:
+    titles: [consolidated balance sheets]
+    words: [total assets, total liabilities, equity, cash and cash equivalents]
+    most: 3
+  post:
+    fields: [total_assets, total_liabilities, equity, cash]
+  check:
+    needs: [ingest/ING-document]
+instructions: >-
+  From the consolidated balance sheet, the most recent year-end column: total assets, total liabilities,
+  total shareholders' (stockholders') equity attributable to the company, and cash and cash equivalents,
+  each in millions of US dollars exactly as printed.
+wiki: [statement-units]
+output:
+  type: object
+  properties:
+    total_assets: {type: number}
+    total_liabilities: {type: number}
+    equity: {type: number}
+    cash: {type: number}
+  required: [total_assets, total_liabilities, equity, cash]
+  additionalProperties: false

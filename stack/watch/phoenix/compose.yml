@@ -1,0 +1,31 @@
+services:
+  phoenix:
+    image: arizephoenix/phoenix:latest
+    container_name: phoenix
+    hostname: phoenix
+    restart: unless-stopped
+    labels:
+      stack.category: "watch"
+      stack.port: "6006"
+    environment:
+      PHOENIX_WORKING_DIR: /mnt/data
+    ports:
+      - "${PHOENIX_PORT:-6006}:6006"  # UI + OTLP/HTTP (/v1/traces); OTLP/gRPC interno en 4317 via red stack
+    volumes:
+      - phoenix-data:/mnt/data
+    healthcheck:
+      # imagen distroless: sin shell ni curl, el python de la propia imagen sondea
+      test: ["CMD", "/usr/bin/python3.13", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:6006/healthz')"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - stack
+
+volumes:
+  phoenix-data:
+
+networks:
+  stack:
+    name: stack

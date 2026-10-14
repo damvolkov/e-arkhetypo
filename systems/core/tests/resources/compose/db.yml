@@ -1,0 +1,16 @@
+services:
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: app
+      POSTGRES_PASSWORD: ${PG_PASSWORD:-dev}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    networks: [stack]
+
+volumes:
+  db-data:
+
+networks:
+  stack:
+    name: stack

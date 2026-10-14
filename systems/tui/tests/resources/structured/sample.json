@@ -1,0 +1,6 @@
+{
+  "id": "sample1",
+  "kind": "structured",
+  "items": [1, 2, 3],
+  "meta": { "ok": true, "score": 0.42 }
+}

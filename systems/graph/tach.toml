@@ -1,0 +1,107 @@
+##### ROOTS #####
+source_roots = ["src"]
+exclude = ["tests", "docs", "src/e_graph/ui"]
+
+##### RULES #####
+forbid_circular_dependencies = true
+exact = true
+root_module = "forbid"
+
+##### LAYERS #####
+# Ordered high → low: a layer may import lower layers, importing upward fails.
+# `api`: the HTTP/WS edge and the cli · `pipelines`: one folder per pipeline — its graph's wiring and one node
+# per section · `logic`: the DARTS engine (discover, rules, orchestrator) the nodes drive · `runners`: the
+# atomic async functions specs plug, owned by a pipeline's section or agnostic tools · `processors`: the stateless readers runners
+# drive (documents through the docling service) · `instrument`: the LangGraph wrapper
+# every node runs inside · `engine`: the DARTS pieces that stand alone — the agnostic agent and the engine's
+# own models — low enough for the RunState to type `infra.agent` · then the shared core, and data.
+layers = ["api", "pipelines", "logic", "runners", "instrument", "engine", "processors", "adapters", "core", "ops", "models"]
+
+[rules]
+unused_ignore_directives = "error"
+
+##### MODULES #####
+[[modules]]
+path = "e_graph"
+layer = "api"
+depends_on = ["e_graph.api"]
+
+[[modules]]
+path = "e_graph.api"
+layer = "api"
+depends_on = []
+
+[[modules]]
+path = "e_graph.cli"
+layer = "api"
+depends_on = []
+
+[[modules]]
+path = "e_graph.pipelines"
+layer = "pipelines"
+depends_on = []
+
+[[modules]]
+path = "e_graph.logic.orchestrator"
+layer = "logic"
+depends_on = ["e_graph.logic.discover"]
+
+[[modules]]
+path = "e_graph.logic.discover"
+layer = "logic"
+depends_on = ["e_graph.logic.rules"]
+
+[[modules]]
+path = "e_graph.logic.rules"
+layer = "logic"
+depends_on = []
+
+[[modules]]
+path = "e_graph.logic.agent"
+layer = "engine"
+depends_on = ["e_graph.logic.errors", "e_graph.logic.models"]
+
+[[modules]]
+path = "e_graph.logic.errors"
+layer = "engine"
+depends_on = []
+
+[[modules]]
+path = "e_graph.logic.models"
+layer = "engine"
+depends_on = ["e_graph.logic.errors"]
+
+[[modules]]
+path = "e_graph.runners"
+layer = "runners"
+depends_on = []
+
+[[modules]]
+path = "e_graph.instrument"
+layer = "instrument"
+depends_on = []
+
+[[modules]]
+path = "processors"
+layer = "processors"
+depends_on = []
+
+[[modules]]
+path = "adapters"
+layer = "adapters"
+depends_on = []
+
+[[modules]]
+path = "core"
+layer = "core"
+depends_on = []
+
+[[modules]]
+path = "ops"
+layer = "ops"
+depends_on = []
+
+[[modules]]
+path = "e_graph.models"
+layer = "models"
+depends_on = []

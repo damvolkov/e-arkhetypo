@@ -12,6 +12,7 @@ from litestar.exceptions import NotAuthorizedException
 from litestar.openapi.spec import SecurityScheme
 
 from core.errors import TokenError
+from e_api.api.state import AppState
 
 if TYPE_CHECKING:
     from litestar.connection import ASGIConnection
@@ -34,7 +35,7 @@ def bearer_claims(request: ASGIConnection) -> dict[str, Any]:
     match request.headers.get("authorization", "").split():
         case ["Bearer", token]:
             try:
-                return request.app.state.crypto.verify_token(token)
+                return AppState.of(request.app).system.crypto.verify_token(token)
             except TokenError as exc:
                 raise NotAuthorizedException(detail=str(exc)) from exc
         case _:

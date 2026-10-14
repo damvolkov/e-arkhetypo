@@ -48,7 +48,7 @@ class Scaffold:
             case Copy():
                 shutil.copytree(self.root / action.src, dest, ignore=lambda _d, n: SKIP & set(n))
                 for drop in action.drops:
-                    (dest / drop).unlink(missing_ok=True)
+                    self._apply_prune_path(dest / drop)
             case Materialize():
                 self._apply_materialize(action, dest)
             case PrunePaths():
@@ -61,7 +61,7 @@ class Scaffold:
                 self._apply_rename(action, dest)
 
     def _apply_prune_path(self, target: Path) -> None:
-        shutil.rmtree(target) if target.is_dir() else target.unlink()
+        shutil.rmtree(target) if target.is_dir() else target.unlink(missing_ok=True)
 
     def _apply_materialize(self, action: Materialize, dest: Path) -> None:
         src = self.root / action.src

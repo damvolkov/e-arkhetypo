@@ -7,7 +7,6 @@ Links run once per request, in resolved order; independent links run concurrentl
 """
 
 from enum import StrEnum, auto
-from typing import cast
 
 import msgspec
 from asgi_correlation_id import correlation_id as correlation_id_var
@@ -19,6 +18,7 @@ from litestar.exceptions import NotAuthorizedException
 from adapters.ports import StorePort
 from core.state import State
 from e_api.api.security import bearer_claims
+from e_api.api.state import AppState
 from e_api.models.user import User, UserRecord
 
 USER_KEY: str = "user:"
@@ -36,9 +36,10 @@ class DepKey(StrEnum):
 
 
 ##### LINKS — each names its injection parameter and consumes other links by name #####
-def graph(request: Request) -> State:
-    """Root of every chain: the app's dynamic state graph, filled by the lifespan and sealed."""
-    return cast("State", request.app.state)
+def graph(state: AppState) -> State:
+    """Root of every chain: the app's system graph, filled by the lifespans and sealed — read off Litestar's
+    reserved `state`, which Litestar builds as `AppState` itself."""
+    return state.system
 
 
 def oauth(graph: NamedDependency[State]) -> OAuth:

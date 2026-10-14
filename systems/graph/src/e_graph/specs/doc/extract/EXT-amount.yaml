@@ -1,0 +1,16 @@
+kind: deterministic
+name: EXT-amount
+description: The amount after the word total in the canonical text, and the extraction pass that read it.
+runner: owned/amount
+check: agnostic/context/present
+args:
+  check:
+    needs: [normalize/NOR-canonical]
+wiki: [amount]
+output:
+  type: object
+  properties:
+    amount: {type: string, pattern: "^(?:\\d+(?:\\.\\d+)?)?$"}
+    attempt: {type: integer, minimum: 1}
+  required: [amount, attempt]
+  additionalProperties: false

@@ -1,0 +1,13 @@
+# Optional CI/CD gates — GitHub Actions *variables*
+# (Settings → Secrets and variables → Actions → Variables).
+# Every gate ships inert: a repo enables only what it is.
+# tests/unit/test_ci_contract.py keeps this manifest, the workflows and the
+# inert-by-default rule from drifting apart.
+#
+# Enable:  gh variable set NAME --body true
+# Disable: gh variable delete NAME
+#
+# Always-on (not gates, the CI baseline): ruff · ty · tach · validate-pyproject ·
+# zizmor · pytest+coverage on every PR.
+
+PUBLISH_PYPI=false     # release.yml publishes sdist + wheel to PyPI (trusted publishing, environment "pypi")

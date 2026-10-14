@@ -1,0 +1,60 @@
+interactions:
+- request:
+    body: '{"model":"gemma4-26b-a4b","messages":[{"role":"system","content":"Answer
+      the question."},{"role":"user","content":"Capital of France?"}],"max_completion_tokens":4096,"response_format":{"type":"json_schema","json_schema":{"name":"Capital","schema":{"properties":{"city":{"title":"City","type":"string"}},"required":["city"],"title":"Capital","type":"object"},"strict":false}},"seed":7,"temperature":0.0}'
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate, zstd
+      authorization:
+      - REDACTED
+      connection:
+      - keep-alive
+      content-length:
+      - '402'
+      content-type:
+      - application/json
+      host:
+      - localhost:45100
+      user-agent:
+      - AsyncOpenAI/Python 3.24.0
+      x-stainless-arch:
+      - x64
+      x-stainless-async:
+      - async:asyncio
+      x-stainless-lang:
+      - python
+      x-stainless-os:
+      - Linux
+      x-stainless-package-version:
+      - 3.24.0
+      x-stainless-read-timeout:
+      - '600.0'
+      x-stainless-retry-count:
+      - '0'
+      x-stainless-runtime:
+      - CPython
+      x-stainless-runtime-version:
+      - 3.14.3
+    method: POST
+    uri: http://localhost:45100/v1/chat/completions
+  response:
+    body:
+      string: '{"id":"chatcmpl-be05291a1e7bc40f","object":"chat.completion","created":1791997786,"model":"gemma4-26b-a4b","choices":[{"index":0,"message":{"role":"assistant","content":"{\n  \"city\":
+        \"Paris\"\n}","refusal":null,"annotations":null,"audio":null,"function_call":null,"reasoning":null},"logprobs":null,"finish_reason":"stop","stop_reason":106,"token_ids":null,"routed_experts":null}],"service_tier":null,"system_fingerprint":"vllm-0.31.0-c9b9a0dd","usage":{"prompt_tokens":27,"total_tokens":39,"completion_tokens":12,"prompt_tokens_details":null,"completion_tokens_details":{"reasoning_tokens":0}},"prompt_logprobs":null,"prompt_token_ids":null,"prompt_text":null,"kv_transfer_params":null,"ec_transfer_params":null,"metrics":null}'
+    headers:
+      content-length:
+      - '730'
+      content-type:
+      - application/json
+      date:
+      - Wed, 14 Oct 2026 17:09:46 GMT
+      server:
+      - uvicorn
+      vary:
+      - Origin
+    status:
+      code: 200
+      message: OK
+version: 1

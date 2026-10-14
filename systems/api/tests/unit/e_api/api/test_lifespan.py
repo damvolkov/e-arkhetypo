@@ -17,6 +17,7 @@ from e_api.api.lifespan import adapters, sealed, services
 from e_api.api.lifespan.adapters import AdaptersState
 from e_api.api.lifespan.core import CoreState
 from e_api.api.lifespan.core import lifespan as core_lifespan
+from e_api.api.state import AppState
 from e_api.main import create_app
 
 if TYPE_CHECKING:
@@ -29,7 +30,7 @@ def test_lifespans_are_declared_not_built() -> None:
 
 
 def test_core_section_holds_the_loaded_singletons(client) -> None:
-    core = client.app.state.core
+    core = client.app.state.system.core
     assert isinstance(core, CoreState)
     assert core.settings is st
     assert core.logger is logger
@@ -38,12 +39,12 @@ def test_core_section_holds_the_loaded_singletons(client) -> None:
 def test_singleton_load_is_idempotent(client) -> None:
     """Two touches, one instance: the LazyProxy cache pins the build for the whole process."""
     ### the graph section is the same object a global import reaches, and a second touch reuses the one build.
-    assert client.app.state.core.settings.app is st.app
+    assert client.app.state.system.core.settings.app is st.app
     assert st.app is st.app
 
 
 def test_adapters_section_is_typed_and_ported(client) -> None:
-    edges = client.app.state.adapters
+    edges = client.app.state.system.adapters
     assert isinstance(edges, AdaptersState)
     assert isinstance(edges.store, StorePort)
     assert isinstance(edges.redis, StorePort)
@@ -54,7 +55,7 @@ def test_adapters_section_is_typed_and_ported(client) -> None:
 
 
 def test_graph_opens_sealed(client) -> None:
-    graph = client.app.state
+    graph = client.app.state.system
     assert {"core", "adapters", "crypto", "oauth"} <= set(graph)
     with pytest.raises(RuntimeError, match="Sealed"):
         graph.held_by_the_lifespan_only = 1
@@ -64,7 +65,7 @@ def test_graph_opens_sealed(client) -> None:
 
 async def test_adapters_close_when_the_lifespan_exits() -> None:
     with TestClient(create_app()) as client:
-        store = client.app.state.adapters.store
+        store = client.app.state.system.adapters.store
         assert client.get("/health").status_code == 200
         ### alive inside the cycle
         await store.get("anything")
@@ -82,7 +83,7 @@ async def test_services_register_configured_idp(monkeypatch: pytest.MonkeyPatch)
             oauth={"client_id": "cid", "client_secret": "sec", "server_metadata_url": "https://idp.test/openid"}
         ),
     )
-    app = SimpleNamespace(state=State())
+    app = SimpleNamespace(state=AppState({"system": State()}))
     async with services.lifespan(cast("Litestar", app)):
-        assert app.state.crypto is not None
-    assert registered_providers(app.state.oauth) == ["dev"]
+        assert app.state.system.crypto is not None
+    assert registered_providers(app.state.system.oauth) == ["dev"]

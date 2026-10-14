@@ -16,7 +16,7 @@ SHELL := bash
 MAKEFLAGS += --no-print-directory
 
 ##### TARGETS #####
-.PHONY: help install sync lock ops ops-check lint type arch validate test cov check plan gen drift clean
+.PHONY: help install sync lock ops ops-check lint type arch validate test cov check plan gen drift graph graph-check map stack stack-check clean
 
 help:
 	@printf "$(BOLD)$(CYAN)$(PROJECT)$(RESET) $(GRAY)· uv · ruff · ty · tach · pytest — internal tool: boilerplate engine over systems/$(RESET)\n\n"
@@ -68,7 +68,7 @@ cov: ## run tests with coverage gate (fail under 90%)
 	@uv run pytest tests --cov --cov-report=term-missing
 
 # — aggregate —
-check: lint type arch validate ops-check test ## fast local gate: lint + type + arch + validate + drift + test
+check: lint type arch validate ops-check graph-check stack-check test ## fast local gate: lint · type · arch · validate · drift · graph · stack · test
 
 # — tool —
 plan: ## show the generation plan: make plan T=api N=myapp [OFF=websockets]
@@ -79,6 +79,15 @@ gen: ## generate a project: make gen T=api N=myapp DEST=../myapp [OFF=websockets
 
 drift: ## report materialized drift for every system
 	@uv run python -m e_management drift
+
+graph: ## (re)generate every system's dependency lock from its sources
+	@uv run python -m e_management graph
+
+graph-check: ## fail if any committed dependency lock drifted from its sources
+	@uv run python -m e_management graph-check
+
+map: ## render the dependency map of every system to a temp HTML and open the browser
+	@uv run python -m e_management map
 
 clean: ## remove caches + build artifacts
 	@find . -type d \( -name __pycache__ -o -name .pytest_cache -o -name .ruff_cache \) -exec rm -rf {} + 2>/dev/null || true

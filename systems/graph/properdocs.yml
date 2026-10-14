@@ -1,0 +1,71 @@
+##### SITE #####
+site_name: e-graph
+site_description: "e-stack graph system: LangGraph runtime, rustworkx topology, React Flow canvas"
+site_url: https://damvolkov.github.io/e-graph/
+repo_url: https://github.com/damvolkov/e-graph
+edit_uri: edit/main/docs/
+
+##### THEME #####
+theme:
+  name: material
+  features:
+    - navigation.sections
+    - navigation.top
+    - navigation.footer
+    - navigation.instant
+    - toc.follow
+    - content.code.copy
+  palette:
+    - scheme: slate
+      primary: black
+      accent: teal
+      toggle: {icon: material/weather-night, name: Light mode}
+    - scheme: default
+      primary: white
+      accent: teal
+      toggle: {icon: material/weather-sunny, name: Dark mode}
+
+##### MARKDOWN #####
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - tables
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.tabbed: {alternate_style: true}
+  - pymdownx.highlight: {anchor_linenums: true}
+  - pymdownx.inlinehilite
+
+##### NAV #####
+nav:
+  - Home: index.md
+  - DARTS: darts.md
+  - Releasing: release.md
+  - Reference: reference/
+
+##### PLUGINS #####
+plugins:
+  - search
+  - autorefs
+  - gen-files:
+      scripts: [scripts/gen_ref_pages.py]
+  - literate-nav:
+      nav_file: SUMMARY.md
+  - section-index
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [src]
+          options:
+            docstring_style: google
+            docstring_section_style: table
+            merge_init_into_class: true
+            show_signature_annotations: true
+            separate_signature: true
+            signature_crossrefs: true
+            show_source: false
+            show_root_heading: true
+            show_symbol_type_heading: true
+            show_symbol_type_toc: true
+            filters: ["!^_[^_]"]

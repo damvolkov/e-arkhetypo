@@ -1,0 +1,235 @@
+retrieved: "2026-10-13"
+documents:
+- file: filings/aapl-10k-2025.pdf
+  family: filing
+  sha256: "63482180f7329616264fb4112a464509100c2fd37d2cadf0be5a98438ae632b3"
+  source: "https://www.sec.gov/Archives/edgar/data/320193/000032019325000079/aapl-20250927.htm"
+  license: "SEC EDGAR public filing content: free to access and reuse (sec.gov webmaster FAQ). PDF rendered from the official inline-XBRL HTML with Chromium."
+  truth:
+    company: Apple Inc.
+    cik: "0000320193"
+    accession: "0000320193-25-000079"
+    form: "10-K"
+    filed: "2025-10-31"
+    period_start: "2024-09-29"
+    period_end: "2025-09-27"
+    shares_outstanding:
+      value: 14776353000
+      as_of: "2025-10-17"
+    facts:
+      revenue:
+        value: 416161000000
+        unit: USD
+        concept: "us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax"
+      cost_of_revenue:
+        value: 220960000000
+        unit: USD
+        concept: "us-gaap:CostOfGoodsAndServicesSold"
+      gross_profit:
+        value: 195201000000
+        unit: USD
+        concept: "us-gaap:GrossProfit"
+      operating_income:
+        value: 133050000000
+        unit: USD
+        concept: "us-gaap:OperatingIncomeLoss"
+      net_income:
+        value: 112010000000
+        unit: USD
+        concept: "us-gaap:NetIncomeLoss"
+      eps_basic:
+        value: 7.49
+        unit: USD/shares
+        concept: "us-gaap:EarningsPerShareBasic"
+      eps_diluted:
+        value: 7.46
+        unit: USD/shares
+        concept: "us-gaap:EarningsPerShareDiluted"
+      total_assets:
+        value: 359241000000
+        unit: USD
+        concept: "us-gaap:Assets"
+      total_liabilities:
+        value: 285508000000
+        unit: USD
+        concept: "us-gaap:Liabilities"
+      equity:
+        value: 73733000000
+        unit: USD
+        concept: "us-gaap:StockholdersEquity"
+      cash:
+        value: 35934000000
+        unit: USD
+        concept: "us-gaap:CashAndCashEquivalentsAtCarryingValue"
+      operating_cash_flow:
+        value: 111482000000
+        unit: USD
+        concept: "us-gaap:NetCashProvidedByUsedInOperatingActivities"
+      dividends_per_share:
+        value: 1.02
+        unit: USD/shares
+        concept: "us-gaap:CommonStockDividendsPerShareDeclared"
+      rnd_expense:
+        value: 34550000000
+        unit: USD
+        concept: "us-gaap:ResearchAndDevelopmentExpense"
+    untagged: []
+- file: filings/ko-10k-2025.pdf
+  family: filing
+  sha256: "67effcecddcce0a3e17caf326a0df58e80957c62770f79e572bf8ff34b99ceaa"
+  source: "https://www.sec.gov/Archives/edgar/data/21344/000162828026010047/ko-20251231.htm"
+  license: "SEC EDGAR public filing content: free to access and reuse (sec.gov webmaster FAQ). PDF rendered from the official inline-XBRL HTML with Chromium."
+  truth:
+    company: COCA COLA CO
+    cik: "0000021344"
+    accession: "0001628280-26-010047"
+    form: "10-K"
+    filed: "2026-02-20"
+    period_start: "2025-01-01"
+    period_end: "2025-12-31"
+    shares_outstanding:
+      value: 4300723069
+      as_of: "2026-02-18"
+    facts:
+      revenue:
+        value: 47941000000
+        unit: USD
+        concept: "us-gaap:Revenues"
+      cost_of_revenue:
+        value: 18397000000
+        unit: USD
+        concept: "us-gaap:CostOfGoodsAndServicesSold"
+      gross_profit:
+        value: 29544000000
+        unit: USD
+        concept: "us-gaap:GrossProfit"
+      operating_income:
+        value: 13762000000
+        unit: USD
+        concept: "us-gaap:OperatingIncomeLoss"
+      net_income:
+        value: 13107000000
+        unit: USD
+        concept: "us-gaap:NetIncomeLoss"
+      eps_basic:
+        value: 3.05
+        unit: USD/shares
+        concept: "us-gaap:EarningsPerShareBasic"
+      eps_diluted:
+        value: 3.04
+        unit: USD/shares
+        concept: "us-gaap:EarningsPerShareDiluted"
+      total_assets:
+        value: 104816000000
+        unit: USD
+        concept: "us-gaap:Assets"
+      equity:
+        value: 32169000000
+        unit: USD
+        concept: "us-gaap:StockholdersEquity"
+      cash:
+        value: 10270000000
+        unit: USD
+        concept: "us-gaap:CashAndCashEquivalentsAtCarryingValue"
+      operating_cash_flow:
+        value: 7408000000
+        unit: USD
+        concept: "us-gaap:NetCashProvidedByUsedInOperatingActivities"
+    untagged:
+    - dividends_per_share
+    - rnd_expense
+    - total_liabilities
+- file: papers/arxiv-2505.24250.pdf
+  family: paper
+  sha256: "2d068bfcc6970e5b1b6aefc1d1c9910c4227fdf7b54cdde6107c89e633a775d6"
+  source: "https://arxiv.org/abs/2505.24250"
+  license: "http://creativecommons.org/licenses/by/4.0/"
+  truth:
+    arxiv: "2505.24250"
+    title: "Winners vs. Losers: Momentum-based Strategies with Intertemporal Choice for ESG Portfolios"
+    authors:
+    - Ayush Jha
+    - Abootaleb Shirvani
+    - Ali Jaffri
+    - Svetlozar T. Rachev
+    - Frank J. Fabozzi
+    categories:
+    - econ.GN
+    - q-fin.EC
+    submitted: "2025-05-30"
+    abstract: This paper introduces a state-dependent momentum framework that integrates ESG regime switching with tail-risk-aware reward-risk metrics. Using a dynamic programming approach and solving a finite-horizon Bellman equation, we construct long-short momentum portfolios that adjust to changing ESG sentiment regimes. Unlike traditional momentum strategies based on historical returns, our approach incorporates the Stable Tail Adjusted Return ratio and Rachev ratio to better capture downside risk in turbulent markets. We apply this framework across three asset classes, Russell 3000 equities, Dow Jones~30 stocks, and cryptocurrencies, under both pro- and anti-ESG market regimes. We find that ESG-loser portfolios significantly outperform ESG-winner portfolios in pro-ESG regimes, a counterintuitive result suggesting that market overreaction to ESG sentiment creates short-term pricing inefficiencies. This pattern is robust across tail-sensitive performance metrics and is most pronounced under a two-week formation and holding period. Our framework highlights how ESG considerations and sentiment regimes alter return dynamics, offering practical guidance for investors seeking to implement responsive momentum strategies under sustainability constraints. These findings challenge conventional assumptions about ESG investing and underscore the importance of dynamic, regime-aware portfolio construction in environments shaped by regulatory signals, investor flows, and behavioral biases.
+- file: papers/arxiv-2309.05783.pdf
+  family: paper
+  sha256: a1fd136fd09165a5068554a151b23b407a4d6c169c2eb08f74d7ad6122bc722f
+  source: "https://arxiv.org/abs/2309.05783"
+  license: "http://creativecommons.org/licenses/by/4.0/"
+  truth:
+    arxiv: "2309.05783"
+    title: A New Framework to Estimate Return on Investment for Player Salaries in the National Basketball Association
+    authors:
+    - Jackson P. Lautier
+    categories:
+    - q-fin.GN
+    - stat.AP
+    submitted: "2023-09-11"
+    abstract: "The National Basketball Association (NBA) imposes a player salary cap. It is therefore useful to develop tools to measure the relative realized return of a player&#39;s salary given their on court performance. Very few such studies exist, however. We thus present the first known framework to estimate a return on investment (ROI) for NBA player contracts. The framework operates in five parts: (1) decide on a measurement time horizon, such as the standard 82-game NBA regular season; (2) calculate the novel game contribution percentage (GCP) measure we propose, which is a single game summary statistic that sums to unity for each competing team and is comprised of traditional, playtype, hustle, box outs, defensive, tracking, and rebounding per game NBA statistics; (3) estimate the single game value (SGV) of each regular season NBA game using a standard currency conversion calculation; (4) multiply the SGV by the vector of realized GCPs to obtain a series of realized per-player single season cash flows; and (5) use the player salary as an initial investment to perform the traditional ROI calculation. We illustrate our framework by compiling a novel, sharable dataset of per game GCP statistics and salaries for the 2022-2023 NBA regular season. A scatter plot of ROI by salary for all players is presented, including the top and bottom 50 performers. Notably, missed games are treated as defaults because GCP is a per game metric. This allows for break-even calculations between high-performing players with frequent missed games and average performers with few missed games, which we demonstrate with a comparison of the 2023 NBA regular seasons of Anthony Davis and Brook Lopez. We conclude by suggesting uses of our framework, discussing its flexibility through customization, and outlining potential future improvements."
+- file: papers/arxiv-2402.01820.pdf
+  family: paper
+  sha256: "77d3e9da49efbaf7631304bdabd86c495c4c9c99f14762df9309a042425b5a8a"
+  source: "https://arxiv.org/abs/2402.01820"
+  license: "http://creativecommons.org/licenses/by/4.0/"
+  truth:
+    arxiv: "2402.01820"
+    title: "Signature volatility models: pricing and hedging with Fourier"
+    authors:
+    - Eduardo Abi Jaber
+    - Louis-Amand Gérard
+    categories:
+    - q-fin.PR
+    submitted: "2025-06-02"
+    abstract: We consider a stochastic volatility model where the dynamics of the volatility are given by a possibly infinite linear combination of the elements of the time extended signature of a Brownian motion. First, we show that the model is remarkably universal, as it includes, but is not limited to, the celebrated Stein-Stein, Bergomi, and Heston models, together with some path-dependent variants. Second, we derive the joint characteristic functional of the log-price and integrated variance provided that some infinite dimensional extended tensor algebra valued Riccati equation admits a solution. This allows us to price and (quadratically) hedge certain European and path-dependent options using Fourier inversion techniques. We highlight the efficiency and accuracy of these Fourier techniques in a comprehensive numerical study.
+- file: notes/bofa-autocall-2027.pdf
+  family: note
+  sha256: "e05bd1826f7319f473111a67918014f8e9ea6d9794ca560133eeda951a1554cd"
+  source: "https://www.sec.gov/Archives/edgar/data/70858/000191870425019416/form424b2.htm"
+  license: "SEC EDGAR public filing content: free to access and reuse (sec.gov webmaster FAQ). PDF rendered from the official 424B2 HTML with Chromium."
+  truth:
+    issuer: BofA Finance LLC
+    guarantor: Bank of America Corporation
+    form: "424B2"
+    registration_no: "333-268718"
+    filed: "2025-11-06"
+    cusip: "09711E688"
+    isin: "US09711E6885"
+    underlier: "S&P 500® Index"
+    underlier_ticker: SPX
+    pricing_date: "2025-11-06"
+    issue_date: "2025-11-12"
+    maturity_date: "2027-11-12"
+    final_observation_date: "2027-11-08"
+    currency: USD
+    denomination: 10.0
+    offering_price: 10.0
+    aggregate_principal: 6484400.0
+    underwriting_discount: 0.0
+    estimated_value: 9.938
+    coupon_rate: 9.60
+    coupon_payment: 0.24
+    initial_value: 6720.32
+    coupon_barrier: 5040.24
+    downside_threshold: 5040.24
+    call_threshold: 6720.32
+    calculation_agent: "BofA Securities, Inc."
+    selling_agents:
+    - "BofA Securities, Inc."
+    - "UBS Financial Services Inc."
+    listed: false
+    observations:
+    - {observation_date: "2026-02-06", payment_date: "2026-02-10"}
+    - {observation_date: "2026-05-06", payment_date: "2026-05-08"}
+    - {observation_date: "2026-08-06", payment_date: "2026-08-10"}
+    - {observation_date: "2026-11-06", payment_date: "2026-11-10"}
+    - {observation_date: "2027-02-08", payment_date: "2027-02-10"}
+    - {observation_date: "2027-05-06", payment_date: "2027-05-10"}
+    - {observation_date: "2027-08-06", payment_date: "2027-08-10"}
+    - {observation_date: "2027-11-08", payment_date: "2027-11-12"}

@@ -1,0 +1,15 @@
+kind: deterministic
+name: AUD-thresholds
+description: The protective levels stand in order — downside at or under the coupon barrier, the call at or over the Initial Value, the share of initial as the barrier says.
+runner: owned/thresholds
+check: agnostic/context/present
+args:
+  check:
+    needs: [extract/EXT-terms]
+output:
+  type: object
+  properties:
+    holds: {type: boolean}
+    order: {type: array, minItems: 4, maxItems: 4, items: {type: number}}
+  required: [holds, order]
+  additionalProperties: false

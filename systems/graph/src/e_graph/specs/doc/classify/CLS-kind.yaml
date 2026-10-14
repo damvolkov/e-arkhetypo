@@ -1,0 +1,16 @@
+kind: deterministic
+name: CLS-kind
+description: The document's type, which decides the schema and rules downstream.
+runner: owned/kind
+check: agnostic/context/present
+args:
+  runner:
+    kinds: [invoice]
+  check:
+    needs: [ingest/ING-document]
+output:
+  type: object
+  properties:
+    kind: {type: string}
+  required: [kind]
+  additionalProperties: false

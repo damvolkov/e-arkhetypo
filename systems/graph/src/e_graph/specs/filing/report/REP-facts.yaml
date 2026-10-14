@@ -1,0 +1,18 @@
+kind: deterministic
+name: REP-facts
+description: The filing's facts in one record, with the audits that did not hold.
+runner: owned/facts
+check: agnostic/context/present
+args:
+  check:
+    needs: [extract/EXT-cover, extract/EXT-income, extract/EXT-balance]
+output:
+  type: object
+  properties:
+    company: {type: string}
+    period_end: {type: string}
+    shares_outstanding: {type: integer}
+    facts: {type: object, additionalProperties: {type: number}}
+    broken: {type: array, items: {type: string}}
+  required: [company, period_end, shares_outstanding, facts, broken]
+  additionalProperties: false

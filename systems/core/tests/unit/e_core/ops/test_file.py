@@ -1,13 +1,17 @@
 """tests/unit: FileFinder — agnostic dispatch over installed packages (the settings composer's engine)."""
 
 import re
-from typing import Any, cast
+import types
+from typing import TYPE_CHECKING, Any, cast
 
 import pytest
 
 from e_core.core.settings import crypto as crypto_mod
 from e_core.core.settings.base import BaseSettings
-from e_core.ops.file import FileFinder, Kind
+from e_core.ops.file import FileError, FileFinder, Kind
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 CORE = FileFinder("e_core.core")
 SETTINGS = FileFinder("e_core.core.settings")
@@ -28,6 +32,8 @@ def test_classes_and_functions_are_own_symbols_only() -> None:
 
 def test_base_selects_subclasses_and_module_target_reads_one_file() -> None:
     assert {"CryptoSettings", "OAuthSettings"} <= set(SETTINGS.discover(BaseSettings))
+    ### `base.py` is part of the sweep: the base itself is still never a result.
+    assert "BaseSettings" not in SETTINGS.discover(BaseSettings)
     assert set(SETTINGS.discover(crypto_mod)) == {"CryptoSettings", "PasswordHasher", "TokenAlg", "TokenEnc"}
 
 
@@ -36,9 +42,42 @@ def test_predicate_and_pattern_filter_rejects_unknown_target() -> None:
     assert "CryptoSettings" in found
     assert "TokenAlg" not in found
     assert set(SETTINGS.discover(Kind.CLASSES, pattern=re.compile("^Crypto"))) == {"CryptoSettings"}
-    with pytest.raises(TypeError, match="Unsupported discover target"):
+    with pytest.raises(FileError, match="Unsupported discover target"):
         SETTINGS.discover(cast("Any", 42))
+
+
+def test_private_modules_are_never_imported_nor_seen(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    (tmp_path / "pkg").mkdir()
+    (tmp_path / "pkg" / "_hidden.py").write_text("class Hidden: ...")
+    (tmp_path / "pkg" / "shown.py").write_text("class Shown: ...")
+    monkeypatch.syspath_prepend(str(tmp_path))
+    finder = FileFinder("pkg")
+    assert set(finder.discover(Kind.MODULES)) == {"shown"}
+    assert "Hidden" not in finder.discover(Kind.CLASSES)
 
 
 async def test_adiscover_answers_like_discover() -> None:
     assert await CORE.adiscover(Kind.MODULES) == CORE.discover(Kind.MODULES)
+
+
+def test_summary_reads_the_top_description_line() -> None:
+    summary = FileFinder.summary(crypto_mod)
+    assert summary == "core/settings/crypto: crypto engine configuration, loaded from CRYPTO__*."
+    assert "\n" not in summary
+
+
+def test_summaries_answers_every_module_with_its_description() -> None:
+    found = SETTINGS.summaries()
+    assert set(found) == set(SETTINGS.discover(Kind.MODULES))
+    assert all(desc.startswith(f"core/settings/{name}: ") for name, desc in found.items())
+
+
+async def test_asummaries_answers_like_summaries() -> None:
+    assert await SETTINGS.asummaries() == SETTINGS.summaries()
+
+
+def test_summary_survives_missing_and_blank_docstrings() -> None:
+    assert FileFinder.summary(types.ModuleType("bare")) == ""
+    blank = types.ModuleType("blank")
+    blank.__doc__ = "   "
+    assert FileFinder.summary(blank) == ""

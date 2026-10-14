@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 
 
 def test_manifest_reader_loads_the_live_registry(spec: Manifest) -> None:
-    assert list(spec.templates) == ["api"]
+    assert list(spec.templates) == ["api", "cli"]
     api = spec.templates["api"]
     assert api.package == "e_api"
     assert len(api.materials) == 5

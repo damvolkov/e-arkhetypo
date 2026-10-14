@@ -1,0 +1,10 @@
+kind: deterministic
+name: VAL-amount
+description: Whether the extracted amount reads as a decimal number.
+runner: owned/amount
+output:
+  type: object
+  properties:
+    valid: {type: boolean}
+  required: [valid]
+  additionalProperties: false

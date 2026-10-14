@@ -1,0 +1,15 @@
+kind: deterministic
+name: AUD-dates
+description: The calendar holds its order — pricing on or before issue, every observation between issue and maturity, the final one on or before maturity.
+runner: owned/dates
+check: agnostic/context/present
+args:
+  check:
+    needs: [extract/EXT-terms, extract/EXT-schedule]
+output:
+  type: object
+  properties:
+    holds: {type: boolean}
+    violations: {type: array, items: {type: string}}
+  required: [holds, violations]
+  additionalProperties: false

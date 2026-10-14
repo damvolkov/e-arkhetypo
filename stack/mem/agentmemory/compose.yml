@@ -1,0 +1,47 @@
+services:
+  agentmemory:
+    # Single-container deploy upstream: agentmemory (npm) + iii engine. The build pins both
+    # releases together (the worker speaks the engine's wire protocol), so `latest` here is
+    # whatever pair upstream's Dockerfile declares on main.
+    image: agentmemory:latest
+    build:
+      context: https://github.com/rohitg00/agentmemory.git#main:deploy/coolify
+    container_name: agentmemory
+    hostname: agentmemory
+    restart: unless-stopped
+    labels:
+      stack.category: "mem"
+      stack.port: "3111"
+    ports:
+      # default 3111 — REST + MCP HTTP (/agentmemory/*); viewer 3113 stays container-local
+      - "${AGENTMEMORY_PORT:-3111}:3111"
+    volumes:
+      # state, vector index and the HMAC secret (/data/.hmac, printed once on first boot)
+      - agentmemory-data:/data
+    environment:
+      # embeddings: hybrid BM25 + vector recall over the shared TEI
+      - EMBEDDING_PROVIDER=openai
+      - OPENAI_EMBEDDING_BASE_URL=http://embed:80
+      - OPENAI_EMBEDDING_MODEL=${EMBED_MODEL:-Qwen/Qwen3-Embedding-0.6B}
+      - OPENAI_EMBEDDING_DIMENSIONS=${AGENTMEMORY_EMBED_DIMS:-1024}
+      # LLM (compression/summaries) over vllm; only used with AGENTMEMORY_AUTO_COMPRESS=true
+      - OPENAI_API_KEY=${VLLM_API_KEY:-local-dev}
+      - OPENAI_BASE_URL=http://vllm:8000
+      - OPENAI_MODEL=${LLM_SERVED_NAME:-gemma4-26b-a4b}
+      - AGENTMEMORY_AUTO_COMPRESS=${AGENTMEMORY_AUTO_COMPRESS:-false}
+      - III_TELEMETRY_ENABLED=false
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:3111/agentmemory/livez || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    networks:
+      - stack
+
+volumes:
+  agentmemory-data:
+
+networks:
+  stack:
+    name: stack

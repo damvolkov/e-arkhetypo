@@ -272,7 +272,7 @@ def test_unsupported_pem_rejected() -> None:
 def test_jwe_non_json_payload_rejected(crypto: Crypto) -> None:
     cek = OctKey.import_key(
         HKDF(algorithm=hashes.SHA256(), length=ENC_KEY_SIZES[TokenEnc.A256GCM], info=JWE_INFO, salt=None).derive(
-            SECRET.encode()
+            SECRET.get_secret_value().encode()
         )
     )
     forged = jwe.encrypt_compact({"alg": "dir", "enc": "A256GCM"}, b"legacy-not-json", cek)

@@ -1,0 +1,17 @@
+kind: deterministic
+name: TRF-record
+description: The output record, the document's kind, fingerprint and amount.
+runner: owned/record
+check: agnostic/context/present
+args:
+  check:
+    needs: [classify/CLS-kind, ingest/ING-document, extract/EXT-amount]
+wiki: [amount]
+output:
+  type: object
+  properties:
+    kind: {type: string}
+    digest: {type: string}
+    amount: {type: string, minLength: 1}
+  required: [kind, digest, amount]
+  additionalProperties: false

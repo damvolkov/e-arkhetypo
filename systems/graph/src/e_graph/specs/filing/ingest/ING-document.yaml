@@ -1,0 +1,21 @@
+kind: deterministic
+name: ING-document
+description: The filing read page by page, liteparse everywhere and docling on the pages that need it.
+runner: agnostic/document/read
+bound: io
+timeout: PT5M
+output:
+  type: object
+  properties:
+    name: {type: string}
+    pages:
+      type: array
+      minItems: 1
+      items:
+        type: object
+        properties:
+          number: {type: integer, minimum: 1}
+          markdown: {type: string}
+        required: [number, markdown]
+    deep: {type: array, items: {type: integer}}
+  required: [name, pages, deep]

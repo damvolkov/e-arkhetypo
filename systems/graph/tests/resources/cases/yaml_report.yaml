@@ -1,0 +1,10 @@
+# the report node serializes through e-serde in the requested format
+name: yaml_report
+data:
+  document: "invoice 7 total 3.50"
+  format: yaml
+expect:
+  status: succeeded
+  kind: invoice
+  amount: "3.50"
+  report: "kind: invoice\n"

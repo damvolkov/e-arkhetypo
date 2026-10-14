@@ -1,0 +1,21 @@
+kind: deterministic
+name: EXT-amounts
+description: The offering's money — aggregate principal, stated principal per note, public offering price.
+runner: agnostic/text/match
+check: agnostic/context/present
+args:
+  runner:
+    pages: [1]
+    many: true
+    pattern: 'BofA Finance LLC (?P<currency_symbol>\$)(?P<aggregate_principal>[\d,]+) Trigger|\$(?P<denomination>[\d.]+) in Stated Principal|Per Note\s+\|\s+\$(?P<offering_price>[\d,]+\.\d{2})'
+  check:
+    needs: [ingest/ING-document]
+output:
+  type: object
+  properties:
+    currency_symbol: {type: array, minItems: 1, items: {type: string, pattern: "^\\$"}}
+    aggregate_principal: {type: array, minItems: 1, items: {type: string, pattern: "^\\d[\\d,]*$"}}
+    denomination: {type: array, minItems: 1, items: {type: string, pattern: "^\\d+(\\.\\d{1,2})?$"}}
+    offering_price: {type: array, minItems: 1, items: {type: string, pattern: "^\\d[\\d,]*(\\.\\d{1,2})?$"}}
+  required: [currency_symbol, aggregate_principal, denomination, offering_price]
+  additionalProperties: false

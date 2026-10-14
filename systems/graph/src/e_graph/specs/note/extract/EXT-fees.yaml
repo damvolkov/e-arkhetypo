@@ -1,0 +1,21 @@
+kind: deterministic
+name: EXT-fees
+description: What the distribution costs — the underwriting discount per note and the offering-price row in full.
+runner: agnostic/text/match
+check: agnostic/context/present
+args:
+  runner:
+    pages: [1]
+    many: true
+    pattern: 'underwriting discount is \$(?P<underwriting_discount>[\d.]+) per Note|Total\s+\|\s+\$(?P<aggregate_offering>[\d,.]+)\s+\|\s+\$(?P<aggregate_discount>[\d,.]+)\s+\|\s+\$(?P<aggregate_proceeds>[\d,.]+)'
+  check:
+    needs: [ingest/ING-document]
+output:
+  type: object
+  properties:
+    underwriting_discount: {type: array, minItems: 1, items: {type: string, pattern: "^\\d+\\.\\d{2}$"}}
+    aggregate_offering: {type: array, minItems: 1, items: {type: string, pattern: "^\\d[\\d,.]*$"}}
+    aggregate_discount: {type: array, minItems: 1, items: {type: string, pattern: "^\\d[\\d,.]*$"}}
+    aggregate_proceeds: {type: array, minItems: 1, items: {type: string, pattern: "^\\d[\\d,.]*$"}}
+  required: [underwriting_discount, aggregate_offering, aggregate_discount, aggregate_proceeds]
+  additionalProperties: false

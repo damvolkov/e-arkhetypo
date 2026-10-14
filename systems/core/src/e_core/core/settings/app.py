@@ -1,4 +1,4 @@
-"""Auto-discoverable settings submodule: process-level knobs — APP_ENV, APP_HOST, APP_PORT."""
+"""core/settings/app: process-level knobs — APP_ENV, APP_HOST, APP_PORT."""
 
 from enum import StrEnum
 
@@ -12,7 +12,7 @@ class Env(StrEnum):
     LOCAL = "local"
 
 
-class AppSettings(BaseSettings, frozen=True):
+class AppSettings(BaseSettings):
     """APP_ENV (dev | local | prod) drives the logger; APP_HOST/APP_PORT drive the granian runner.
 
     The env is validated on decode: a typo (`deV`) fails the load, it never reaches runtime."""

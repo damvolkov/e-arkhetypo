@@ -1,0 +1,17 @@
+kind: deterministic
+name: INF-coupon
+description: The coupon per note — what the annual rate accrues per quarter, checked against what the note states.
+runner: owned/coupon
+check: agnostic/context/present
+args:
+  check:
+    needs: [extract/EXT-terms]
+output:
+  type: object
+  properties:
+    annual_per_note: {type: number, exclusiveMinimum: 0}
+    quarterly_computed: {type: number, exclusiveMinimum: 0}
+    quarterly_stated: {type: number, exclusiveMinimum: 0}
+    agrees: {type: boolean}
+  required: [annual_per_note, quarterly_computed, quarterly_stated, agrees]
+  additionalProperties: false

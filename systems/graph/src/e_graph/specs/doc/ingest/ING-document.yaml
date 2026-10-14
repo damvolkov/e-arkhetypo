@@ -1,0 +1,14 @@
+kind: deterministic
+name: ING-document
+description: The document the run received, with its fingerprint.
+runner: owned/document
+args:
+  runner:
+    digest: 8
+output:
+  type: object
+  properties:
+    text: {type: string, minLength: 1}
+    digest: {type: string, pattern: "^[0-9a-f]+$"}
+  required: [text, digest]
+  additionalProperties: false

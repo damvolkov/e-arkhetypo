@@ -1,0 +1,15 @@
+kind: deterministic
+name: AUD-value
+description: The estimated value sits under the offering price — the fee drag is real, not a typo.
+runner: owned/value
+check: agnostic/context/present
+args:
+  check:
+    needs: [extract/EXT-terms]
+output:
+  type: object
+  properties:
+    gap: {type: number}
+    holds: {type: boolean}
+  required: [gap, holds]
+  additionalProperties: false

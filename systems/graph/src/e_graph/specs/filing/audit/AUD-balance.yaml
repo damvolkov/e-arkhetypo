@@ -1,0 +1,18 @@
+kind: deterministic
+name: AUD-balance
+description: Whether the balance sheet read holds its identity, assets equal to liabilities plus equity.
+runner: owned/balance
+check: agnostic/context/present
+args:
+  runner:
+    tolerance: 0.05
+  check:
+    needs: [extract/EXT-balance]
+output:
+  type: object
+  properties:
+    gap: {type: number}
+    share: {type: number, minimum: 0}
+    holds: {type: boolean}
+  required: [gap, share, holds]
+  additionalProperties: false

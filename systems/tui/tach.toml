@@ -1,0 +1,86 @@
+##### ROOTS #####
+source_roots = ["src"]
+exclude = ["tests"]
+
+##### RULES #####
+forbid_circular_dependencies = true
+exact = true
+root_module = "forbid"
+
+##### LAYERS #####
+# Ordered high → low: a layer may import lower layers, importing upward fails.
+# `examples`: the reusable fake app (the demo flow + one module per page) — a copyable host, never wired into
+# the framework · `app`: the host application and its entrypoint (drives everything) · `templates`: the concrete
+# layout derivations · `flow`: the graph engine (page, graph, pages, state, walk) — domain, no widgets ·
+# `interact`: the interactive objects (toggle/choice/input/confirm/report) — widgets, no graph · `layout`: the
+# mini-framework (spec, render, frame, shape) · then the shared core, the ops helpers and data.
+layers = ["examples", "app", "templates", "flow", "interact", "layout", "processors", "adapters", "core", "ops", "models"]
+
+[rules]
+unused_ignore_directives = "error"
+
+##### MODULES #####
+[[modules]]
+path = "e_tui.pages"
+layer = "examples"
+depends_on = []
+
+[[modules]]
+path = "e_tui.demo"
+layer = "examples"
+depends_on = ["e_tui.pages"]
+
+[[modules]]
+path = "e_tui.app"
+layer = "app"
+depends_on = []
+
+[[modules]]
+path = "e_tui.__main__"
+layer = "examples"
+depends_on = ["e_tui.demo"]
+
+[[modules]]
+path = "e_tui.templates"
+layer = "templates"
+depends_on = []
+
+[[modules]]
+path = "e_tui.flow"
+layer = "flow"
+depends_on = []
+
+[[modules]]
+path = "e_tui.interact"
+layer = "interact"
+depends_on = []
+
+[[modules]]
+path = "e_tui.layout"
+layer = "layout"
+depends_on = []
+
+[[modules]]
+path = "e_tui.models"
+layer = "models"
+depends_on = []
+
+[[modules]]
+path = "processors"
+layer = "processors"
+depends_on = []
+
+[[modules]]
+path = "adapters"
+layer = "adapters"
+depends_on = []
+
+[[modules]]
+path = "core"
+layer = "core"
+depends_on = []
+
+[[modules]]
+path = "ops"
+layer = "ops"
+depends_on = []

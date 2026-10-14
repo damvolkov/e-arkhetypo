@@ -87,4 +87,4 @@ def test_plan_full_selection_has_no_prunes(spec) -> None:
     plan = Blueprint(spec.templates["api"], "myapp").plan()
     assert not any(isinstance(a, PrunePaths) for a in plan.actions)
     assert isinstance(plan.actions[0], Copy)
-    assert plan.actions[0].drops == ("uv.lock",)
+    assert plan.actions[0].drops == ("uv.lock", "scripts/materialize.py")

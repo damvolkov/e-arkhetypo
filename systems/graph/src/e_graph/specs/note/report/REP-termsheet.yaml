@@ -1,0 +1,101 @@
+kind: deterministic
+name: REP-termsheet
+description: The note's whole record — term sheet, classification, risk, scenarios, the plain-language brief and every audit verdict.
+runner: owned/termsheet
+check: agnostic/context/present
+args:
+  check:
+    needs:
+      - extract/EXT-terms
+      - extract/EXT-payoff
+      - inference/INF-product-type
+      - inference/INF-cfi
+      - inference/INF-risk-class
+      - inference/INF-tenor
+      - inference/INF-drag
+      - inference/INF-max-return
+      - inference/INF-summary
+      - inference/INF-scenarios
+      - audit/AUD-verdict
+      - audit/AUD-coherence
+output:
+  type: object
+  properties:
+    isin: {type: string}
+    cusip: {type: string}
+    issuer: {type: string, minLength: 3}
+    guarantor: {type: string, minLength: 3}
+    underlier:
+      type: object
+      properties:
+        name: {type: string}
+        ticker: {type: string}
+      required: [name, ticker]
+      additionalProperties: false
+    money:
+      type: object
+      properties:
+        currency: {type: string}
+        aggregate_principal: {type: number, exclusiveMinimum: 0}
+        denomination: {type: number, exclusiveMinimum: 0}
+        offering_price: {type: number, exclusiveMinimum: 0}
+        estimated_value: {type: number, exclusiveMinimum: 0}
+        fee_drag_percent: {type: number, minimum: 0}
+      required: [currency, aggregate_principal, denomination, offering_price, estimated_value, fee_drag_percent]
+      additionalProperties: false
+    coupon:
+      type: object
+      properties:
+        rate_percent: {type: number, exclusiveMinimum: 0}
+        quarterly_per_note: {type: number, exclusiveMinimum: 0}
+        payments: {type: integer, minimum: 1}
+      required: [rate_percent, quarterly_per_note, payments]
+      additionalProperties: false
+    calendar:
+      type: object
+      properties:
+        pricing_date: {type: string}
+        issue_date: {type: string}
+        maturity_date: {type: string}
+        term_years: {type: number, exclusiveMinimum: 0}
+      required: [pricing_date, issue_date, maturity_date, term_years]
+      additionalProperties: false
+    levels:
+      type: object
+      properties:
+        initial_value: {type: number}
+        coupon_barrier: {type: number}
+        downside_threshold: {type: number}
+        call_level: {type: number}
+      required: [initial_value, coupon_barrier, downside_threshold, call_level]
+      additionalProperties: false
+    classification:
+      type: object
+      properties:
+        eusipa: {type: string}
+        shape: {type: string}
+        cfi: {type: string}
+        risk_class: {type: integer, minimum: 1, maximum: 7}
+      required: [eusipa, shape, cfi, risk_class]
+      additionalProperties: false
+    outcome:
+      type: object
+      properties:
+        best_percent: {type: number}
+        worst_percent: {type: number}
+        scenarios: {type: integer, minimum: 1}
+      required: [best_percent, worst_percent, scenarios]
+      additionalProperties: false
+    summary: {type: string, minLength: 80}
+    verdict:
+      type: object
+      properties:
+        holds: {type: boolean}
+        broken: {type: array, items: {type: string}}
+        checks: {type: integer, minimum: 1}
+        coherent: {type: boolean}
+        conflicts: {type: integer, minimum: 0}
+      required: [holds, broken, checks, coherent, conflicts]
+      additionalProperties: false
+  required: [isin, cusip, issuer, guarantor, underlier, money, coupon, calendar, levels, classification, outcome, summary, verdict]
+  additionalProperties: false

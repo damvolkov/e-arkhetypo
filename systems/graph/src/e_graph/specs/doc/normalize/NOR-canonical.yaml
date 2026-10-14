@@ -1,0 +1,14 @@
+kind: deterministic
+name: NOR-canonical
+description: The document folded into its canonical form, lowercase with single spaces.
+runner: owned/canonical
+check: agnostic/context/present
+args:
+  check:
+    needs: [ingest/ING-document]
+output:
+  type: object
+  properties:
+    text: {type: string}
+  required: [text]
+  additionalProperties: false

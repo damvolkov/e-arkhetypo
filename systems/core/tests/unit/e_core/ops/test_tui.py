@@ -14,6 +14,17 @@ if TYPE_CHECKING:
 ##### SIZES: huge, wide, medium, narrow, tiny, absurd #####
 SIZES: list[tuple[int, int]] = [(200, 50), (90, 22), (40, 16), (20, 12), (8, 6), (3, 4)]
 FRAMED: list[tuple[int, int]] = [(200, 50), (60, 20), (10, 8)]
+PIXELS: dict[str, tuple[bool, bool]] = {" ": (False, False), "▀": (True, False), "▄": (False, True), "█": (True, True)}
+
+
+def _bands(lines: list[str]) -> list[int]:
+    """Heights in pixels of the inked row bands inside the frame: full-ink rows and full-ink columns are frame."""
+    grid = [[PIXELS.get(ch, (True, True)) for ch in line] for line in lines]
+    rows = [[cell[half] for cell in line] for line in grid for half in (0, 1)]
+    walls = {x for x in range(len(rows[0])) if all(row[x] for row in rows)}
+    inked = [not all(row) and any(on for x, on in enumerate(row) if x not in walls) for row in rows]
+    runs = "".join("#" if on else "." for on in inked).split(".")
+    return [len(run) for run in runs if run]
 
 
 @pytest.mark.parametrize(("width", "height"), SIZES, ids=["huge", "wide", "medium", "narrow", "tiny", "absurd"])
@@ -52,6 +63,32 @@ async def test_tui_sub_is_a_tagline_not_a_second_logo(host_app: Callable[[Header
     async with tagged.run_test(size=(120, 40)):
         full_rows = tagged.screen.query_one(HeaderTui).get_content_height(0, 0, 120)
     assert 0 < full_rows - title_rows < title_rows
+
+
+@pytest.mark.parametrize(("width", "height"), [(200, 50), (400, 120)], ids=["wide", "huge"])
+async def test_tui_title_is_four_times_the_tagline(
+    host_app: Callable[[HeaderTui], App[None]], width: int, height: int
+) -> None:
+    """Wherever the tagline is drawn as a bitmap, the title band is exactly four times taller."""
+    app = host_app(HeaderTui())
+    async with app.run_test(size=(width, height)):
+        lines = [line.strip() for line in str(app.screen.query_one(HeaderTui).render()).splitlines()]
+        title, tagline = _bands(lines)
+        assert title == 4 * tagline
+
+
+@pytest.mark.parametrize(("width", "height"), [(60, 20), (120, 30)], ids=["scale-1", "scale-2"])
+async def test_tui_tagline_is_one_sextant_row_where_half_blocks_cannot_quarter(
+    host_app: Callable[[HeaderTui], App[None]], width: int, height: int
+) -> None:
+    """Below scale 4 the tagline packs into sextants: a single text row, flush right against the frame."""
+    app = host_app(HeaderTui())
+    async with app.run_test(size=(width, height)):
+        lines = [line.strip() for line in str(app.screen.query_one(HeaderTui).render()).splitlines()]
+        tagline = [line for line in lines if any(0x1FB00 <= ord(ch) <= 0x1FB3B for ch in line)]
+        assert len(tagline) == 1
+        assert len(lines) - 2 > 2 * len(tagline), "the title must stand well above the tagline"
+        assert tagline[0].rstrip("█").endswith(" "), "flush right, inside the padding"
 
 
 async def test_tui_falls_back_to_compact_frame(host_app: Callable[[HeaderTui], App[None]]) -> None:

@@ -1,0 +1,52 @@
+services:
+  mem0:
+    image: mem0-server:latest
+    build:
+      context: .
+      additional_contexts:
+        upstream: https://github.com/mem0ai/mem0.git#main:server
+    container_name: mem0
+    hostname: mem0
+    restart: unless-stopped
+    labels:
+      stack.category: "mem"
+      stack.port: "8888"
+    ports:
+      # default 8888 (upstream) — Mem0 REST, OpenAPI en /docs
+      - "${MEM0_PORT:-8888}:8000"
+    volumes:
+      - ./config.json:/config/config.json:ro
+      - mem0-data:/data
+    environment:
+      - MEM0_PORT=8000
+      - MEM0_CONFIG=/config/config.json
+      - MEM0_DIR=/data/.mem0
+      - MEM0_TELEMETRY=false
+      - MEM0_TELEMETRY_STATE_PATH=/data/telemetry.json
+      # app DB (auth, api keys, config overrides) — se crea sola en el postgres compartido
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=${PG_DB:-postgres}
+      - POSTGRES_USER=${PG_USER:-postgres}
+      - POSTGRES_PASSWORD=${PG_PASSWORD:-postgres}
+      - APP_DB_NAME=mem0
+      # clave del LLM y del embedder OpenAI-compatibles (vllm, embed)
+      - OPENAI_API_KEY=${VLLM_API_KEY:-local-dev}
+      # clientes: cabecera X-API-Key
+      - ADMIN_API_KEY=${MEM0_API_KEY:-local-dev-mem0-admin}
+      - JWT_SECRET=${MEM0_JWT_SECRET:-local-dev-mem0-jwt-secret}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/docs')"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    networks:
+      - stack
+
+volumes:
+  mem0-data:
+
+networks:
+  stack:
+    name: stack

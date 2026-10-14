@@ -1,0 +1,11 @@
+kind: deterministic
+name: REP-serial
+description: The record serialized in the format the run asked for, JSON by default.
+runner: owned/serial
+output:
+  type: object
+  properties:
+    format: {type: string}
+    text: {type: string, minLength: 1}
+  required: [format, text]
+  additionalProperties: false

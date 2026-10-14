@@ -1,0 +1,19 @@
+kind: deterministic
+name: EXT-identifiers
+description: The note's CUSIP and ISIN, as printed on the cover.
+runner: agnostic/text/match
+check: agnostic/context/present
+args:
+  runner:
+    pages: [1]
+    pattern: '(?P<cusip>[0-9A-Z]{6}\d{2}[0-9A-Z]) / (?P<isin>[A-Z]{2}[A-Z0-9]{9}\d)'
+  check:
+    needs: [ingest/ING-document]
+output:
+  type: object
+  properties:
+    cusip: {type: string, pattern: "^[0-9A-Z]{6}\\d{2}[0-9A-Z]$"}
+    isin: {type: string, pattern: "^[A-Z]{2}[A-Z0-9]{9}\\d$"}
+  required: [cusip, isin]
+  additionalProperties: false
+fallback: EXT-identifiers-read

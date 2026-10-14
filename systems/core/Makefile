@@ -36,14 +36,14 @@ lock: ## refresh uv lockfile
 
 # — common —
 common: ## materialize shared project files from common/ into the project root
-	@cp common/pre-commit-config.yaml .pre-commit-config.yaml
+	@cp common/prek.toml prek.toml
 	@cp common/gitattributes .gitattributes
 	@cp common/python-version .python-version
 	@cp common/dependabot.yml .github/dependabot.yml
 	@cp common/CODEOWNERS .github/CODEOWNERS
 
 common-check: ## fail if the materialized shared files drifted from common/
-	@diff common/pre-commit-config.yaml .pre-commit-config.yaml \
+	@diff common/prek.toml prek.toml \
 	 && diff common/gitattributes .gitattributes \
 	 && diff common/python-version .python-version \
 	 && diff common/dependabot.yml .github/dependabot.yml \
@@ -67,7 +67,7 @@ validate: ## validate pyproject.toml against schema
 harden: ## zizmor audit of GitHub Actions workflows
 	@uv run zizmor --persona=regular .github/workflows
 
-hooks: ## run all pre-commit hooks on every file (ruff, ty, tach, zizmor, gitleaks)
+hooks: ## run all prek hooks on every file (ruff, ty, tach, zizmor, gitleaks)
 	@uv run prek run --all-files
 
 # — tests —
@@ -100,7 +100,7 @@ ci-vars: ## list optional CI/CD gates (all inert by default) and their defaults
 
 clean: ## remove caches + build artifacts + materialized shared files
 	@find . -type d \( -name __pycache__ -o -name .pytest_cache -o -name .ruff_cache \) -exec rm -rf {} + 2>/dev/null || true
-	@rm -rf dist build *.egg-info .coverage .coverage.* .ty_cache site .pre-commit-config.yaml .gitattributes .python-version
+	@rm -rf dist build *.egg-info .coverage .coverage.* .ty_cache site prek.toml .gitattributes .python-version
 	@printf "$(GREEN)✓ clean$(RESET)\n"
 
 %:

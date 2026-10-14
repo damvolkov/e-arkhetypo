@@ -1,7 +1,7 @@
 """scripts/materialize: the hardened sed — copy `systems/core` sections into `src/` with a structural rewrite.
 
 libcst parses each source file as real 3.14 syntax (PEP 695 included, verified against the whole
-`e_core` tree) and rewrites *only* the import nodes `e_core.{core,ops,adapters} → {core,ops,adapters}`;
+`e_core` tree) and rewrites *only* the import nodes `e_core.{core,ops,adapters,processors} → {core,ops,adapters,processors}`;
 every result is re-parsed with `ast.parse` and scanned for leftovers before it is written. `make core`
 materializes into `src/`; `make core-check` materializes into a throwaway tree under `/tmp` and diffs,
 so both modes run the exact same generation path and the drift-check cannot lie about a second one.
@@ -23,9 +23,10 @@ if TYPE_CHECKING:
 
 API_ROOT: Path = Path(__file__).resolve().parents[1]
 CORE_SRC: Path = API_ROOT.parent / "core" / "src" / "e_core"
-SECTIONS: tuple[str, ...] = ("adapters", "core", "ops")
+SECTIONS: tuple[str, ...] = ("adapters", "core", "ops", "processors")
 ### the TUI header belongs to the boilerplate wizard, not to a running service: same topology as the old sed.
-EXCLUDES: frozenset[str] = frozenset({"ops/tui.py"})
+### the compose tool belongs to stack management (management materializes the whole ops area), not to a running service.
+EXCLUDES: frozenset[str] = frozenset({"ops/tui.py", "ops/snap.py", "ops/compose.py"})
 
 
 ##### REWRITE #####

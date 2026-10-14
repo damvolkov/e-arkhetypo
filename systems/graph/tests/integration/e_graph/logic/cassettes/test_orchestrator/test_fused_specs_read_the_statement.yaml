@@ -1,0 +1,70 @@
+interactions:
+- request:
+    body: '{"model":"gemma4-26b-a4b","messages":[{"role":"system","content":"You answer
+      several specifications at once. Each one is introduced below by its name as
+      a heading, with what it asks. Reply with one JSON object holding one key per
+      specification name; each value is that specification''s answer, shaped exactly
+      as its schema says. Answer from the material given.\n\n### EXT-net-income\nEXT-net-income.\nThe
+      fiscal 2025 net income, in millions of US dollars, as a number.\n\n### EXT-revenue\nEXT-revenue.\nThe
+      fiscal 2025 total net sales, in millions of US dollars, as a number."},{"role":"user","content":"###
+      Material for EXT-net-income, EXT-revenue\nApple Inc. CONSOLIDATED STATEMENTS
+      OF OPERATIONS (In millions, except per-share amounts)\n| | 2025 | 2024 | 2023
+      |\n| Total net sales | 416,161 | 391,035 | 383,285 |\n| Total cost of sales
+      | 220,960 | 210,352 | 214,137 |\n| Gross margin | 195,201 | 180,683 | 169,148
+      |\n| Net income | $ 112,010 | $ 93,736 | $ 96,995 |"}],"response_format":{"type":"json_schema","json_schema":{"name":"fused","schema":{"type":"object","title":"fused","properties":{"EXT-net-income":{"type":"object","properties":{"millions":{"type":"number"}},"required":["millions"]},"EXT-revenue":{"type":"object","properties":{"millions":{"type":"number"}},"required":["millions"]}},"required":["EXT-net-income","EXT-revenue"],"additionalProperties":false},"strict":false}}}'
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate, zstd
+      authorization:
+      - REDACTED
+      connection:
+      - keep-alive
+      content-length:
+      - '1392'
+      content-type:
+      - application/json
+      host:
+      - localhost:45100
+      user-agent:
+      - AsyncOpenAI/Python 3.24.0
+      x-stainless-arch:
+      - x64
+      x-stainless-async:
+      - async:asyncio
+      x-stainless-lang:
+      - python
+      x-stainless-os:
+      - Linux
+      x-stainless-package-version:
+      - 3.24.0
+      x-stainless-read-timeout:
+      - '480.0'
+      x-stainless-retry-count:
+      - '0'
+      x-stainless-runtime:
+      - CPython
+      x-stainless-runtime-version:
+      - 3.14.3
+    method: POST
+    uri: http://localhost:45100/v1/chat/completions
+  response:
+    body:
+      string: '{"id":"chatcmpl-9c54c0f6e962578f","object":"chat.completion","created":1791997787,"model":"gemma4-26b-a4b","choices":[{"index":0,"message":{"role":"assistant","content":"{\n  \"EXT-net-income\":
+        \n  {\"millions\": 112010},\n  \"EXT-revenue\": \n  {\"millions\": 416161}\n}","refusal":null,"annotations":null,"audio":null,"function_call":null,"reasoning":null},"logprobs":null,"finish_reason":"stop","stop_reason":106,"token_ids":null,"routed_experts":null}],"service_tier":null,"system_fingerprint":"vllm-0.31.0-c9b9a0dd","usage":{"prompt_tokens":330,"total_tokens":382,"completion_tokens":52,"prompt_tokens_details":null,"completion_tokens_details":{"reasoning_tokens":0}},"prompt_logprobs":null,"prompt_token_ids":null,"prompt_text":null,"kv_transfer_params":null,"ec_transfer_params":null,"metrics":null}'
+    headers:
+      content-length:
+      - '807'
+      content-type:
+      - application/json
+      date:
+      - Wed, 14 Oct 2026 17:09:46 GMT
+      server:
+      - uvicorn
+      vary:
+      - Origin
+    status:
+      code: 200
+      message: OK
+version: 1

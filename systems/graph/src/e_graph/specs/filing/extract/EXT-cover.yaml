@@ -1,0 +1,24 @@
+kind: semantic
+name: EXT-cover
+description: Who filed the 10-K, for which fiscal year, and how many shares were outstanding.
+pre: agnostic/document/pages
+check: agnostic/context/present
+args:
+  pre:
+    first: 3
+    most: 0
+  check:
+    needs: [ingest/ING-document]
+instructions: >-
+  From the cover page of this Form 10-K: the registrant's exact name as printed; the last day of the
+  fiscal year the report covers, as an ISO date (YYYY-MM-DD); and the number of shares of common stock
+  outstanding at the latest date the cover states, as a whole number.
+wiki: [ten-k]
+output:
+  type: object
+  properties:
+    company: {type: string, minLength: 1}
+    period_end: {type: string, pattern: "^\\d{4}-\\d{2}-\\d{2}$"}
+    shares_outstanding: {type: integer, minimum: 1}
+  required: [company, period_end, shares_outstanding]
+  additionalProperties: false

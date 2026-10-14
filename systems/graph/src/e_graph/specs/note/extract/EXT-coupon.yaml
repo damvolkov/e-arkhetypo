@@ -1,0 +1,22 @@
+kind: semantic
+name: EXT-coupon
+description: The contingent coupon — its annual rate and what one payment is worth per note.
+pre: agnostic/document/pages
+check: agnostic/context/present
+args:
+  pre: {first: 1, most: 0}
+  check: {needs: [ingest/ING-document]}
+tier: medium
+instructions: >-
+  From the cover page and its Summary table: the Contingent Coupon Rate as a per-cent annual number
+  ("9.60% per annum" is 9.60), the Contingent Coupon Payment per note in US dollars as printed ("$0.24
+  for each $10.00 Stated Principal Amount" is 0.24), and how often a coupon is observed and paid.
+wiki: [contingent-coupon]
+output:
+  type: object
+  properties:
+    rate_percent: {type: number, minimum: 0.01, maximum: 100}
+    quarterly_payment: {type: number, minimum: 0.01}
+    frequency: {type: string, enum: [monthly, quarterly, semiannual, annual]}
+  required: [rate_percent, quarterly_payment, frequency]
+  additionalProperties: false

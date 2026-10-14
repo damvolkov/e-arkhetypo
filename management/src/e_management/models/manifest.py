@@ -29,12 +29,24 @@ class Prune(Struct, frozen=True, kw_only=True):
     to: str = ""
 
 
+class Detach(Struct, frozen=True, kw_only=True):
+    """How the system lets go of one common unit: the paths it deletes and the texts it rewrites when dropped.
+
+    A unit the system imports is pinned unless its detach rules erase every such import — the graph
+    checks that on the live sources, so a rule that stops matching re-pins the unit instead of breaking the export."""
+
+    unit: str
+    paths: tuple[str, ...] = ()
+    prunes: tuple[Prune, ...] = ()
+
+
 class Common(Struct, frozen=True, kw_only=True):
-    """The shared tree a system draws modules from: where it lives, its package, modules never exported."""
+    """The shared tree a system draws modules from: where it lives, its package, modules never exported, detachable units."""
 
     root: str
     package: str = "e_core"
     skip: tuple[str, ...] = ()
+    detach: tuple[Detach, ...] = ()
 
 
 class Material(Struct, frozen=True, kw_only=True):
@@ -80,6 +92,7 @@ class Template(Struct, frozen=True, kw_only=True):
     choices: tuple[Choice, ...] = ()
     mandatory: tuple[str, ...] = ()
     finalize: tuple[Prune, ...] = ()
+    finalize_extra: tuple[Prune, ...] = ()
     drops: tuple[str, ...] = ()
     verify: tuple[Verify, ...] = ()
 

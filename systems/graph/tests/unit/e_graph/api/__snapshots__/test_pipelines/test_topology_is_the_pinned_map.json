@@ -1,0 +1,128 @@
+{
+  "edges": [
+    {
+      "id": "extract>validate:direct:",
+      "kind": "direct",
+      "label": "",
+      "loop": false,
+      "source": "extract",
+      "target": "validate"
+    },
+    {
+      "id": "ingest>classify:direct:",
+      "kind": "direct",
+      "label": "",
+      "loop": false,
+      "source": "ingest",
+      "target": "classify"
+    },
+    {
+      "id": "ingest>normalize:direct:",
+      "kind": "direct",
+      "label": "",
+      "loop": false,
+      "source": "ingest",
+      "target": "normalize"
+    },
+    {
+      "id": "transform>report:direct:",
+      "kind": "direct",
+      "label": "",
+      "loop": false,
+      "source": "transform",
+      "target": "report"
+    },
+    {
+      "id": "normalize>extract:join:",
+      "kind": "join",
+      "label": "",
+      "loop": false,
+      "source": "normalize",
+      "target": "extract"
+    },
+    {
+      "id": "classify>extract:join:",
+      "kind": "join",
+      "label": "",
+      "loop": false,
+      "source": "classify",
+      "target": "extract"
+    },
+    {
+      "id": "validate>extract:conditional:",
+      "kind": "conditional",
+      "label": "",
+      "loop": true,
+      "source": "validate",
+      "target": "extract"
+    },
+    {
+      "id": "validate>transform:conditional:",
+      "kind": "conditional",
+      "label": "",
+      "loop": false,
+      "source": "validate",
+      "target": "transform"
+    }
+  ],
+  "lanes": 2,
+  "nodes": [
+    {
+      "category": "ingest",
+      "id": "ingest",
+      "lane": 0,
+      "rank": 0,
+      "role": "start",
+      "summary": "Receive the document and fingerprint it."
+    },
+    {
+      "category": "normalize",
+      "id": "normalize",
+      "lane": 0,
+      "rank": 1,
+      "role": "mid",
+      "summary": "Fold the document into its canonical form."
+    },
+    {
+      "category": "classify",
+      "id": "classify",
+      "lane": 1,
+      "rank": 1,
+      "role": "mid",
+      "summary": "Decide the document type, and with it the schema and rules."
+    },
+    {
+      "category": "extract",
+      "id": "extract",
+      "lane": 0,
+      "rank": 2,
+      "role": "mid",
+      "summary": "Pull the amount out of the canonical text."
+    },
+    {
+      "category": "validate",
+      "id": "validate",
+      "lane": 0,
+      "rank": 3,
+      "role": "mid",
+      "summary": "Check the extracted amount is a number."
+    },
+    {
+      "category": "transform",
+      "id": "transform",
+      "lane": 0,
+      "rank": 4,
+      "role": "mid",
+      "summary": "Map the extraction into the output record."
+    },
+    {
+      "category": "report",
+      "id": "report",
+      "lane": 0,
+      "rank": 5,
+      "role": "end",
+      "summary": "Serialize the record in the requested format (`format`, JSON by default) and confirm it."
+    }
+  ],
+  "ranks": 6
+}

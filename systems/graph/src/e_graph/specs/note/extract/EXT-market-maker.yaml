@@ -1,0 +1,21 @@
+kind: semantic
+name: EXT-market-maker
+description: Who may make a market in the notes, and whether anyone is obliged to.
+pre: agnostic/document/pages
+check: agnostic/context/present
+args:
+  pre: {first: 1, words: [market-maker, secondary market, liquidity], most: 1}
+  check: {needs: [ingest/ING-document]}
+tier: medium
+instructions: >-
+  From the cover notice and the risk section: the firm expected to act as market-maker for the notes
+  (its short printed name, e.g. "BofAS"), whether it or any party is required to do so or to buy the
+  notes at any price, and whether the notes may have limited or no liquidity — a yes-or-no.
+output:
+  type: object
+  properties:
+    market_maker: {type: string, minLength: 2, maxLength: 60}
+    obligated: {type: boolean}
+    limited_liquidity: {type: boolean}
+  required: [market_maker, obligated, limited_liquidity]
+  additionalProperties: false

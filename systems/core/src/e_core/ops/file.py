@@ -1,4 +1,12 @@
-"""ops/file: agnostic filesystem discovery over an installed package — modules, classes, functions."""
+"""ops/file: agnostic discovery over an installed package — modules, classes, functions.
+
+The sweep is single-level and import-based: files of the package directory, subpackages excluded;
+discovery means importing, so a module that fails on import fails the sweep. Symbols are *own* only:
+re-exported names never count. A leading underscore is private at file level too: ``_helpers.py`` is
+imported never and seen never. ``discover`` dispatches on the target's type: a ``Kind`` sweeps a
+category, a base class selects its subclasses (never itself), a module reads that module alone, a
+predicate decides freely; ``pattern`` filters the resulting names. ``adiscover``/``asummaries``
+offload the import walk to a thread."""
 
 import functools
 import importlib
@@ -16,6 +24,10 @@ if TYPE_CHECKING:
 
 
 ##### TYPES #####
+class FileError(TypeError):
+    """A discover target this tool refuses to interpret."""
+
+
 class Kind(StrEnum):
     MODULES = auto()
     CLASSES = auto()
@@ -24,18 +36,13 @@ class Kind(StrEnum):
 
 ##### FINDER #####
 class FileFinder:
-    """Walk a package once; ``discover`` answers whatever ``target`` asks and nothing else.
-
-    Agnostic dispatch on the target's type: a ``Kind`` sweeps a category, a class selects its
-    subclasses, a module reads that one module's own symbols, a predicate decides freely.
-    ``pattern`` filters the resulting names. ``adiscover`` offloads the import walk to a thread.
-    """
+    """Walk a package once; ``discover`` answers whatever ``target`` asks and nothing else."""
 
     __slots__ = ("_package", "_skip")
 
     def __init__(self, package: str, *, skip: frozenset[str] = frozenset()) -> None:
         self._package = package
-        self._skip = skip | {"__init__"}
+        self._skip = skip
 
     ##### PRIVATE #####
 
@@ -44,7 +51,7 @@ class FileFinder:
         return {
             info.name: importlib.import_module(f"{self._package}.{info.name}")
             for info in pkgutil.iter_modules(package.__path__)
-            if not info.ispkg and info.name not in self._skip
+            if not info.ispkg and not info.name.startswith("_") and info.name not in self._skip
         }
 
     @staticmethod
@@ -60,7 +67,8 @@ class FileFinder:
             name: obj
             for module in modules.values()
             for name, obj in self._own(module, inspect.isclass).items()
-            if of_base is None or issubclass(obj, of_base)
+            ### a base selects its subclasses, never itself — even when it lives in the swept package.
+            if of_base is None or (issubclass(obj, of_base) and obj is not of_base)
         }
 
     def _functions(self, modules: dict[str, ModuleType]) -> dict[str, Any]:
@@ -84,7 +92,7 @@ class FileFinder:
                 }
             case unknown:
                 msg = f"Unsupported discover target: {unknown!r}"
-                raise TypeError(msg)
+                raise FileError(msg)
         match pattern:
             case None:
                 return found
@@ -95,11 +103,24 @@ class FileFinder:
 
     ##### PUBLIC #####
 
+    @staticmethod
+    def summary(module: ModuleType) -> str:
+        """The module's top description — its first docstring line, ``<path>: <summary>.`` by contract."""
+        return lines[0] if (lines := (inspect.getdoc(module) or "").splitlines()) else ""
+
     def discover(
         self, target: Kind | type | ModuleType | Callable[[Any], bool], *, pattern: re.Pattern[str] | None = None
     ) -> dict[str, Any]:
         """Return ``{name: object}`` for whatever ``target`` selects across the package's modules."""
         return self._select(target, self._modules(), pattern)
+
+    def summaries(self) -> dict[str, str]:
+        """One-line description per module of the package — what a display surface renders."""
+        return {name: self.summary(mod) for name, mod in self._modules().items()}
+
+    async def asummaries(self) -> dict[str, str]:
+        """``summaries`` off the event loop, for the display surfaces that live inside a running app."""
+        return await anyio.to_thread.run_sync(self.summaries)
 
     async def adiscover(
         self, target: Kind | type | ModuleType | Callable[[Any], bool], *, pattern: re.Pattern[str] | None = None

@@ -1,0 +1,12 @@
+# Optional CI/CD gates — GitHub Actions *variables*
+# (Settings → Secrets and variables → Actions → Variables).
+# Every gate ships inert: a repo enables only what it is.
+#
+# Enable:  gh variable set NAME --body true
+# Disable: gh variable delete NAME
+#
+# Always-on (not gates, the CI baseline): ruff · ty · tach · validate-pyproject ·
+# zizmor · pytest+coverage at 100 %.
+
+PUBLISH_PYPI=false     # release.yml publishes sdist + wheel to PyPI (trusted publishing, environment "pypi")
+PUBLISH_IMAGE=false    # release.yml builds and pushes a ghcr.io image (:vX.Y.Z and :latest)

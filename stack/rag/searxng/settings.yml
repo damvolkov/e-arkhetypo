@@ -31,8 +31,340 @@ ui:
     simple_style: dark
 
 outgoing:
-  request_timeout: 5.0
-  max_request_timeout: 15.0
+  request_timeout: 3.0
+  max_request_timeout: 5.0
   useragent_suffix: ""
   pool_connections: 100
   pool_maxsize: 20
+
+# Every upstream engine on (image 2026.9.17, probed one by one 2026-10-07): keyless ones answer; keyed ones are left to upstream.
+# yacy: the bundled rag/yacy peer (global = its index plus the P2P network).
+# Off: shadow libraries, and engines broken upstream (parse errors, crashes, HTTP/SSL/API errors).
+# Timeouts cap a query near 5 s with ~35 engines answering: clients like OpenHuman cut at 10 s.
+engines:
+  - {name: "360search", disabled: false, inactive: false}
+  - {name: "360search videos", disabled: false, inactive: false}
+  - {name: "9gag", disabled: false, inactive: false}
+  - {name: "abcnyheter", disabled: false, inactive: false}
+  - {name: "acfun", disabled: false, inactive: false}
+  - {name: "alpine linux packages", disabled: false, inactive: false}
+  - {name: "ansa", disabled: false, inactive: false}
+  - {name: "apk mirror", disabled: false, inactive: false}
+  - {name: "apple app store", disabled: false, inactive: false}
+  - {name: "anaconda", disabled: false, inactive: false}
+  - {name: "arch linux wiki", disabled: false, inactive: false}
+  - {name: "nixos wiki", disabled: false, inactive: false}
+  - {name: "artic", disabled: false, inactive: false}
+  - {name: "artstation", disabled: false, inactive: false}
+  - {name: "arxiv", disabled: false, inactive: false}
+  - {name: "avalw", disabled: false, inactive: false}
+  - {name: "ayo", disabled: false, inactive: false}
+  - {name: "bandcamp", disabled: false, inactive: false}
+  - {name: "baidu", disabled: false, inactive: false}
+  - {name: "baidu images", disabled: false, inactive: false}
+  - {name: "baidu kaifa", disabled: false, inactive: false}
+  - {name: "wikipedia", disabled: false, inactive: false}
+  - {name: "bilibili", disabled: false, inactive: false}
+  - {name: "bing", disabled: false, inactive: false}
+  - {name: "bing images", disabled: false, inactive: false}
+  - {name: "bing news", disabled: false, inactive: false}
+  - {name: "bing videos", disabled: false, inactive: false}
+  - {name: "bitbucket", disabled: false, inactive: false}
+  - {name: "boardreader", disabled: false, inactive: false}
+  - {name: "bpb", disabled: false, inactive: false}
+  - {name: "btdigg", disabled: false, inactive: false}
+  - {name: "openverse", disabled: false, inactive: false}
+  - {name: "media.ccc.de", disabled: false, inactive: false}
+  - {name: "cachy os packages", disabled: false, inactive: false}
+  - {name: "chefkoch", disabled: false, inactive: false}
+  - {name: "chinaso news", disabled: false, inactive: false}
+  - {name: "cl0q", disabled: false, inactive: false}
+  - {name: "crossref", disabled: false, inactive: false}
+  - {name: "crowdview", disabled: false, inactive: false}
+  - {name: "yep", disabled: false, inactive: false}
+  - {name: "currency", disabled: false, inactive: false}
+  - {name: "deezer", disabled: false, inactive: false}
+  - {name: "destatis", disabled: false, inactive: false}
+  - {name: "deviantart", disabled: false, inactive: false}
+  - {name: "devicons", disabled: false, inactive: false}
+  - {name: "ddg definitions", disabled: false, inactive: false}
+  - {name: "docker hub", disabled: false, inactive: false}
+  - {name: "encyclosearch", disabled: false, inactive: false}
+  - {name: "europepmc", disabled: false, inactive: false}
+  - {name: "erowid", disabled: false, inactive: false}
+  - {name: "wikidata", disabled: false, inactive: false}
+  - {name: "dogpile", disabled: false, inactive: false}
+  - {name: "dogpile images", disabled: false, inactive: false}
+  - {name: "dogpile videos", disabled: false, inactive: false}
+  - {name: "dogpile news", disabled: false, inactive: false}
+  - {name: "duckduckgo", disabled: false, inactive: false}
+  - {name: "duckduckgo web", disabled: false, inactive: false}
+  - {name: "duckduckgo images", disabled: false, inactive: false}
+  - {name: "duckduckgo videos", disabled: false, inactive: false}
+  - {name: "duckduckgo news", disabled: false, inactive: false}
+  - {name: "duckduckgo weather", disabled: false, inactive: false}
+  - {name: "apple maps", disabled: false, inactive: false}
+  - {name: "emojipedia", disabled: false, inactive: false}
+  - {name: "tineye", disabled: false, inactive: false}
+  - {name: "etymonline", disabled: false, inactive: false}
+  - {name: "ebay", disabled: false, inactive: false}
+  - {name: "1x", disabled: false, inactive: false}
+  - {name: "fastbot", disabled: false, inactive: false}
+  - {name: "fdroid", disabled: false, inactive: false}
+  - {name: "findfiles", disabled: false, inactive: false}
+  - {name: "findfiles videos", disabled: false, inactive: false}
+  - {name: "findfiles music", disabled: false, inactive: false}
+  - {name: "findthatmeme", disabled: false, inactive: false}
+  - {name: "fireball", disabled: false, inactive: false}
+  - {name: "fireball news", disabled: false, inactive: false}
+  - {name: "fireball videos", disabled: false, inactive: false}
+  - {name: "flaticon", disabled: false, inactive: false}
+  - {name: "flickr", disabled: false, inactive: false}
+  - {name: "free software directory", disabled: false, inactive: false}
+  - {name: "frinkiac", disabled: false, inactive: false}
+  - {name: "fynd", disabled: false, inactive: false}
+  - {name: "fyyd", disabled: false, inactive: false}
+  - {name: "geizhals", disabled: false, inactive: false}
+  - {name: "genius", disabled: false, inactive: false}
+  - {name: "gentoo", disabled: false, inactive: false}
+  - {name: "github", disabled: false, inactive: false}
+  - {name: "codeberg", disabled: false, inactive: false}
+  - {name: "gitea.com", disabled: false, inactive: false}
+  - {name: "gmx", disabled: false, inactive: false}
+  - {name: "goodreads", disabled: false, inactive: false}
+  - {name: "google", disabled: false, inactive: false}
+  - {name: "google images", disabled: false, inactive: false}
+  - {name: "google news", disabled: false, inactive: false}
+  - {name: "google videos", disabled: false, inactive: false}
+  - {name: "google cse", disabled: false, inactive: false}
+  - {name: "google cse images", disabled: false, inactive: false}
+  - {name: "google scholar", disabled: false, inactive: false}
+  - {name: "google play apps", disabled: false, inactive: false}
+  - {name: "google play movies", disabled: false, inactive: false}
+  - {name: "grokipedia", disabled: false, inactive: false}
+  - {name: "material icons", disabled: false, inactive: false}
+  - {name: "habrahabr", disabled: false, inactive: false}
+  - {name: "hackernews", disabled: false, inactive: false}
+  - {name: "hex", disabled: false, inactive: false}
+  - {name: "crates.io", disabled: false, inactive: false}
+  - {name: "hoogle", disabled: false, inactive: false}
+  - {name: "iseek", disabled: false, inactive: false}
+  - {name: "il post", disabled: false, inactive: false}
+  - {name: "huggingface", disabled: false, inactive: false}
+  - {name: "huggingface datasets", disabled: false, inactive: false}
+  - {name: "huggingface spaces", disabled: false, inactive: false}
+  - {name: "imdb", disabled: false, inactive: false}
+  - {name: "imgur", disabled: false, inactive: false}
+  - {name: "ina", disabled: false, inactive: false}
+  - {name: "ipernity", disabled: false, inactive: false}
+  - {name: "kavunka demo", disabled: false, inactive: false}
+  - {name: "keenable", disabled: false, inactive: false}
+  - {name: "jisho", disabled: false, inactive: false}
+  - {name: "kickass", disabled: false, inactive: false}
+  - {name: "kukei", disabled: false, inactive: false}
+  - {name: "lemmy communities", disabled: false, inactive: false}
+  - {name: "lemmy users", disabled: false, inactive: false}
+  - {name: "lemmy posts", disabled: false, inactive: false}
+  - {name: "lemmy comments", disabled: false, inactive: false}
+  - {name: "libretranslate", disabled: false, inactive: false}
+  - {name: "lingva", disabled: false, inactive: false}
+  - {name: "lobste.rs", disabled: false, inactive: false}
+  - {name: "lucide", disabled: false, inactive: false}
+  - {name: "luxxle", disabled: false, inactive: false}
+  - {name: "luxxle images", disabled: false, inactive: false}
+  - {name: "luxxle videos", disabled: false, inactive: false}
+  - {name: "luxxle news", disabled: false, inactive: false}
+  - {name: "mastodon users", disabled: false, inactive: false}
+  - {name: "mastodon hashtags", disabled: false, inactive: false}
+  - {name: "mdn", disabled: false, inactive: false}
+  - {name: "microsoft learn", disabled: false, inactive: false}
+  - {name: "mixcloud", disabled: false, inactive: false}
+  - {name: "mozhi", disabled: false, inactive: false}
+  - {name: "mwmbl", disabled: false, inactive: false}
+  - {name: "neocities", disabled: false, inactive: false}
+  - {name: "niconico", disabled: false, inactive: false}
+  - {name: "npm", disabled: false, inactive: false}
+  - {name: "nyaa", disabled: false, inactive: false}
+  - {name: "mankier", disabled: false, inactive: false}
+  - {name: "odysee", disabled: false, inactive: false}
+  - {name: "ollama", disabled: false, inactive: false}
+  - {name: "openairedatasets", disabled: false, inactive: false}
+  - {name: "openairepublications", disabled: false, inactive: false}
+  - {name: "openalex", disabled: false, inactive: false}
+  - {name: "openclipart", disabled: false, inactive: false}
+  - {name: "openlibrary", disabled: false, inactive: false}
+  - {name: "openmeteo", disabled: false, inactive: false}
+  - {name: "openstreetmap", disabled: false, inactive: false}
+  - {name: "openrepos", disabled: false, inactive: false}
+  - {name: "packagist", disabled: false, inactive: false}
+  - {name: "pdbe", disabled: false, inactive: false}
+  - {name: "pexels", disabled: false, inactive: false}
+  - {name: "photon", disabled: false, inactive: false}
+  - {name: "picjumbo", disabled: false, inactive: false}
+  - {name: "pinterest", disabled: false, inactive: false}
+  - {name: "piped", disabled: false, inactive: false}
+  - {name: "piratebay", disabled: false, inactive: false}
+  - {name: "pixabay images", disabled: false, inactive: false}
+  - {name: "pixabay videos", disabled: false, inactive: false}
+  - {name: "pixiv", disabled: false, inactive: false}
+  - {name: "podchaser", disabled: false, inactive: false}
+  - {name: "pub.dev", disabled: false, inactive: false}
+  - {name: "public domain image archive", disabled: false, inactive: false}
+  - {name: "pubmed", disabled: false, inactive: false}
+  - {name: "pypi", disabled: false, inactive: false}
+  - {name: "quark", disabled: false, inactive: false}
+  - {name: "quark images", disabled: false, inactive: false}
+  - {name: "qwant", disabled: false, inactive: false}
+  - {name: "qwant news", disabled: false, inactive: false}
+  - {name: "qwant images", disabled: false, inactive: false}
+  - {name: "qwant videos", disabled: false, inactive: false}
+  - {name: "radio browser", disabled: false, inactive: false}
+  - {name: "rawweb", disabled: false, inactive: false}
+  - {name: "rottentomatoes", disabled: false, inactive: false}
+  - {name: "searchmysite", disabled: false, inactive: false}
+  - {name: "searchrockit", disabled: false, inactive: false}
+  - {name: "searchrockit images", disabled: false, inactive: false}
+  - {name: "searchrockit news", disabled: false, inactive: false}
+  - {name: "selfhst icons", disabled: false, inactive: false}
+  - {name: "sepiasearch", disabled: false, inactive: false}
+  - {name: "shopify stock", disabled: false, inactive: false}
+  - {name: "sogou images", disabled: false, inactive: false}
+  - {name: "sogou videos", disabled: false, inactive: false}
+  - {name: "sogou wechat", disabled: false, inactive: false}
+  - {name: "soundcloud", disabled: false, inactive: false}
+  - {name: "stackoverflow", disabled: false, inactive: false}
+  - {name: "stocksnap", disabled: false, inactive: false}
+  - {name: "askubuntu", disabled: false, inactive: false}
+  - {name: "superuser", disabled: false, inactive: false}
+  - {name: "discuss.python", disabled: false, inactive: false}
+  - {name: "caddy.community", disabled: false, inactive: false}
+  - {name: "pi-hole.community", disabled: false, inactive: false}
+  - {name: "privacywall", disabled: false, inactive: false}
+  - {name: "privacywall images", disabled: false, inactive: false}
+  - {name: "privacywall videos", disabled: false, inactive: false}
+  - {name: "seekninja", disabled: false, inactive: false}
+  - {name: "semantic scholar", disabled: false, inactive: false}
+  - {name: "startpage", disabled: false, inactive: false}
+  - {name: "startpage news", disabled: false, inactive: false}
+  - {name: "startpage images", disabled: false, inactive: false}
+  - {name: "steam", disabled: false, inactive: false}
+  - {name: "tokyotoshokan", disabled: false, inactive: false}
+  - {name: "solidtorrents", disabled: false, inactive: false}
+  - {name: "tagesschau", disabled: false, inactive: false}
+  - {name: "tiger", disabled: false, inactive: false}
+  - {name: "tiger news", disabled: false, inactive: false}
+  - {name: "tonline", disabled: false, inactive: false}
+  - {name: "tonline images", disabled: false, inactive: false}
+  - {name: "tonline videos", disabled: false, inactive: false}
+  - {name: "tonline news", disabled: false, inactive: false}
+  - {name: "unsplash", disabled: false, inactive: false}
+  - {name: "unobtanium", disabled: false, inactive: false}
+  - {name: "yandex", disabled: false, inactive: false}
+  - {name: "yandex images", disabled: false, inactive: false}
+  - {name: "yahoo", disabled: false, inactive: false}
+  - {name: "yahoo news", disabled: false, inactive: false}
+  - {name: "youtube", disabled: false, inactive: false}
+  - {name: "dailymotion", disabled: false, inactive: false}
+  - {name: "wiby", disabled: false, inactive: false}
+  - {name: "wikibooks", disabled: false, inactive: false}
+  - {name: "wikinews", disabled: false, inactive: false}
+  - {name: "wikiquote", disabled: false, inactive: false}
+  - {name: "wikisource", disabled: false, inactive: false}
+  - {name: "wikispecies", disabled: false, inactive: false}
+  - {name: "wiktionary", disabled: false, inactive: false}
+  - {name: "wikiversity", disabled: false, inactive: false}
+  - {name: "wikivoyage", disabled: false, inactive: false}
+  - {name: "wikicommons.images", disabled: false, inactive: false}
+  - {name: "wikicommons.videos", disabled: false, inactive: false}
+  - {name: "wikicommons.audio", disabled: false, inactive: false}
+  - {name: "wikicommons.files", disabled: false, inactive: false}
+  - {name: "wolframalpha", disabled: false, inactive: false}
+  - {name: "dictzone", disabled: false, inactive: false}
+  - {name: "mymemory translated", disabled: false, inactive: false}
+  - {name: "1337x", disabled: false, inactive: false}
+  - {name: "duden", disabled: false, inactive: false}
+  - {name: "seznam", disabled: false, inactive: false}
+  - {name: "mojeek", disabled: false, inactive: false}
+  - {name: "mojeek images", disabled: false, inactive: false}
+  - {name: "mojeek news", disabled: false, inactive: false}
+  - {name: "moviepilot", disabled: false, inactive: false}
+  - {name: "national vulnerability database", disabled: false, inactive: false}
+  - {name: "naver", disabled: false, inactive: false}
+  - {name: "naver images", disabled: false, inactive: false}
+  - {name: "naver news", disabled: false, inactive: false}
+  - {name: "naver videos", disabled: false, inactive: false}
+  - {name: "neosearch", disabled: false, inactive: false}
+  - {name: "rubygems", disabled: false, inactive: false}
+  - {name: "peertube", disabled: false, inactive: false}
+  - {name: "mediathekviewweb", disabled: false, inactive: false}
+  - {name: "yacy", base_url: ["http://yacy:8090"], enable_http: true, search_mode: global, disabled: false, inactive: false}
+  - {name: "yacy images", base_url: ["http://yacy:8090"], enable_http: true, search_mode: global, disabled: false, inactive: false}
+  - {name: "rumble", disabled: false, inactive: false}
+  - {name: "reloado", disabled: false, inactive: false}
+  - {name: "resulthunter", disabled: false, inactive: false}
+  - {name: "resulthunter images", disabled: false, inactive: false}
+  - {name: "searchch", disabled: false, inactive: false}
+  - {name: "startpagina", disabled: false, inactive: false}
+  - {name: "startpagina images", disabled: false, inactive: false}
+  - {name: "startpagina videos", disabled: false, inactive: false}
+  - {name: "startpagina news", disabled: false, inactive: false}
+  - {name: "swisscows", disabled: false, inactive: false}
+  - {name: "swisscows videos", disabled: false, inactive: false}
+  - {name: "swisscows news", disabled: false, inactive: false}
+  - {name: "wordnik", disabled: false, inactive: false}
+  - {name: "woxikon.de synonyme", disabled: false, inactive: false}
+  - {name: "tootfinder", disabled: false, inactive: false}
+  - {name: "uxwing", disabled: false, inactive: false}
+  - {name: "voidlinux", disabled: false, inactive: false}
+  - {name: "vuhuv", disabled: false, inactive: false}
+  - {name: "vuhuv images", disabled: false, inactive: false}
+  - {name: "vuhuv videos", disabled: false, inactive: false}
+  - {name: "wallhaven", disabled: false, inactive: false}
+  - {name: "wikimini", disabled: false, inactive: false}
+  - {name: "xonaly", disabled: false, inactive: false}
+  - {name: "zapmeta", disabled: false, inactive: false}
+  - {name: "brave", disabled: false, inactive: false}
+  - {name: "brave.images", disabled: false, inactive: false}
+  - {name: "brave.videos", disabled: false, inactive: false}
+  - {name: "brave.news", disabled: false, inactive: false}
+  - {name: "lib.rs", disabled: false, inactive: false}
+  - {name: "sourcehut", disabled: false, inactive: false}
+  - {name: "bt4g", disabled: false, inactive: false}
+  - {name: "pkg.go.dev", disabled: false, inactive: false}
+  - {name: "senscritique", disabled: false, inactive: false}
+  - {name: "minecraft wiki", disabled: false, inactive: false}
+  - {name: "sina", disabled: false, inactive: false}
+  - {name: "metacrawler", disabled: false, inactive: false}
+  - {name: "zoo search", disabled: false, inactive: false}
+  - {name: "s1search", disabled: false, inactive: false}
+  - {name: "500px", disabled: true}
+  - {name: "bitchute", disabled: true}
+  - {name: "cloudflareai", disabled: true}
+  - {name: "findfiles images", disabled: true}
+  - {name: "freesound", disabled: true}
+  - {name: "gabanza", disabled: true}
+  - {name: "giphy", disabled: true}
+  - {name: "gitlab", disabled: true}
+  - {name: "github code", disabled: true}
+  - {name: "iqiyi", disabled: true}
+  - {name: "kozmonavt", disabled: true}
+  - {name: "library of congress", disabled: true}
+  - {name: "magnific", disabled: true}
+  - {name: "metacpan", disabled: true}
+  - {name: "reuters", disabled: true}
+  - {name: "sogou", disabled: true}
+  - {name: "tmdb", disabled: true}
+  - {name: "tusksearch", disabled: true}
+  - {name: "tusksearch images", disabled: true}
+  - {name: "tusksearch videos", disabled: true}
+  - {name: "tusksearch news", disabled: true}
+  - {name: "yandex music", disabled: true}
+  - {name: "vimeo", disabled: true}
+  - {name: "repology", disabled: true}
+  - {name: "searchzee", disabled: true}
+  - {name: "searchzee news", disabled: true}
+  - {name: "swisscows images", disabled: true}
+  - {name: "wttr.in", disabled: true}
+  - {name: "annas archive", disabled: true}
+  - {name: "library genesis", disabled: true}
+  - {name: "z-library", disabled: true}

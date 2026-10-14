@@ -53,7 +53,7 @@ Infra y aplicaciones:
 | `auth` | identidad, secretos | — vacío |
 | `watch` | métricas, logs, trazas | otel-collector, jaeger, prometheus, loki, grafana |
 | `storage` | objetos/archivos, datalakes | minio |
-| `llm` | serving de modelos y embeddings | vllm, llamacpp, ellm, embed |
+| `llm` | serving de modelos y embeddings | strata, vllm, llamacpp, ellm, embed |
 | `speech` | STT / TTS | evoice, speaches, fwhisper, wlive, kokoro |
 | `rag` | retrieval: búsqueda, loaders, extracción, pipelines | searxng (+ yacy), docling, playwright, pipelines |
 | `mem` | memoria de agentes | cortexdb |
@@ -71,7 +71,8 @@ Puerto = default en host (`:container`). GPU = necesita `nvidia` runtime.
 | cdb/redis | redis:latest | 6379 | | `redis.conf` |
 | vdb/qdrant | qdrant/qdrant:latest | 6333 / 6334 | | `config.yaml` |
 | storage/minio | minio/minio:latest | 9000 / 9001 | | |
-| llm/vllm | vllm/vllm-openai:latest | 8000 | ✓ | |
+| llm/strata | build `strata:<tag>` (engine en local) | 8000 | ✓ | `setup.sh`; toma el hostname `vllm`: uno de {strata, vllm} en la tarjeta, nunca los dos |
+| llm/vllm | vllm/vllm-openai:latest | 8000 | ✓ | profesor de jev (reader de logprobs); sirve el alias `demian-model` |
 | llm/llamacpp | ggml-org/llama.cpp:server-cuda | 8080 | ✓ | `setup.sh` |
 | llm/ellm | damvolkov/e-llm:latest | 80 | ✓ | `config.yaml` |
 | llm/embed | hf/text-embeddings-inference:cpu-latest | 80 | | |
@@ -99,7 +100,7 @@ Puerto = default en host (`:container`). GPU = necesita `nvidia` runtime.
 
 ```
 redis:6379        postgres:5432     qdrant:6333      minio:9000
-vllm:8000/v1      llamacpp:8080     ellm:80          embed:80/v1
+strata|vllm:8000/v1  llamacpp:8080     ellm:80          embed:80/v1
 kokoro:8880/v1    fwhisper:8000     evoice:80        speaches:8000
 searxng:8080      yacy:8090         docling:5001      playwright:3000  pipelines:9099
 otel-collector:4317   jaeger:16686   prometheus:9090   loki:3100   grafana:3000
@@ -114,5 +115,5 @@ cd stack/cdb/redis && docker compose up -d   # un servicio
 cd stack/front/openwebui && docker compose up -d  # necesita llm+vdb+rag ya arriba
 ```
 
-`openwebui` referencia por hostname a `vllm`, `embed`, `qdrant`, `searxng`,
+`openwebui` referencia por hostname a `vllm` (el slot: alias de `strata` o de `vllm`), `embed`, `qdrant`, `searxng`,
 `playwright`, `docling`, `redis` y `kokoro`: levántalos antes o ajustá los env.

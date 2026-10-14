@@ -3,7 +3,7 @@
   "llm": {
     "provider": "openai",
     "config": {
-      "model": "qwen3.6-27b",
+      "model": "gemma4-26b-a4b",
       "openai_base_url": "http://vllm:8000/v1",
       "is_reasoning_model": true,
       "reasoning_effort": "none"

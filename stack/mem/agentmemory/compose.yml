@@ -27,7 +27,7 @@ services:
       # LLM (compression/summaries) over vllm; only used with AGENTMEMORY_AUTO_COMPRESS=true
       - OPENAI_API_KEY=${VLLM_API_KEY:-local-dev}
       - OPENAI_BASE_URL=http://vllm:8000
-      - OPENAI_MODEL=${LLM_SERVED_NAME:-qwen3.6-27b}
+      - OPENAI_MODEL=${LLM_SERVED_NAME:-gemma4-26b-a4b}
       - AGENTMEMORY_AUTO_COMPRESS=${AGENTMEMORY_AUTO_COMPRESS:-false}
       - III_TELEMETRY_ENABLED=false
     healthcheck:

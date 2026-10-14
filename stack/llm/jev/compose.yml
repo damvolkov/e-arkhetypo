@@ -15,7 +15,7 @@ services:
     environment:
       - JEV_VLLM_URL=http://vllm:8000/v1
       - JEV_VLLM_API_KEY=${VLLM_API_KEY:-local-dev}
-      - JEV_MODEL=${LLM_SERVED_NAME:-qwen3.6-27b}
+      - JEV_MODEL=${LLM_SERVED_NAME:-gemma4-26b-a4b}
       - JEV_PERMUTATIONS=${JEV_PERMUTATIONS:-1}
       - JEV_OTLP_ENDPOINT=${JEV_OTLP_ENDPOINT:-http://phoenix:6006/v1/traces}
     healthcheck:

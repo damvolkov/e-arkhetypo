@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# openhuman-ui — OpenHuman's UI as its own window: install to ~/.local/bin, with openhuman.desktop in
+# ~/.local/share/applications. The compose serves the app's web build on 127.0.0.1:1420, already connected to
+# the core; this starts the stack's unit (or nothing, if absent) and opens the UI in a dedicated app window.
+set -euo pipefail
+URL="http://127.0.0.1:${OPENHUMAN_UI_PORT:-1420}/"
+systemctl --user start openhuman 2>/dev/null || true
+for _ in $(seq 1 60); do curl -sf -o /dev/null "$URL" && break; sleep 1; done
+exec google-chrome --app="$URL" --user-data-dir="$HOME/.local/share/openhuman-ui" --class=OpenHuman \
+    --no-first-run --no-default-browser-check "$@"

@@ -1,0 +1,22 @@
+# The UI on loopback, opened straight onto the house core: seed.js writes the connection the
+# BootCheckGate picker would ask for (mode cloud, the core's RPC URL and token) before the app boots.
+server {
+    listen 80;
+    root /usr/share/nginx/html;
+
+    location = /seed.js {
+        default_type application/javascript;
+        add_header Cache-Control "no-store";
+        return 200 "localStorage.setItem('openhuman_core_mode','cloud');localStorage.setItem('openhuman_core_rpc_url','http://127.0.0.1:${OPENHUMAN_CORE_PORT}/rpc');localStorage.setItem('openhuman_core_rpc_token','${OPENHUMAN_CORE_TOKEN}');";
+    }
+
+    location = /index.html {
+        add_header Cache-Control "no-store";
+        sub_filter '<head>' '<head><script src="/seed.js"></script>';
+        sub_filter_once on;
+    }
+
+    location / {
+        try_files $uri /index.html;
+    }
+}

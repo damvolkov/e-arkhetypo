@@ -1,0 +1,9 @@
+[Unit]
+Description=Watch the Obsidian vault inbox (its top level is the drop zone; docs/ and files/ are results)
+
+[Path]
+PathChanged=%h/.config/memory/inbox
+MakeDirectory=true
+
+[Install]
+WantedBy=default.target

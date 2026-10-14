@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=OpenHuman
+Comment=OpenHuman - AI-powered Super Assistant (core and UI from its compose)
+Exec=openhuman-ui
+Icon=OpenHuman
+StartupWMClass=OpenHuman
+Categories=Utility;
+Terminal=false

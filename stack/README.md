@@ -57,6 +57,7 @@ Infra y aplicaciones:
 | `speech` | STT / TTS | evoice, speaches, fwhisper, wlive, kokoro |
 | `rag` | retrieval: búsqueda, loaders, extracción, pipelines | searxng (+ yacy), docling, playwright, pipelines |
 | `mem` | memoria de agentes | cortexdb |
+| `agent` | harnesses de agentes como servicio | openhuman (+ cortexdb) |
 | `front` | UIs y dashboards | openwebui |
 | `media` | WebRTC / tiempo real | livekit, sip |
 

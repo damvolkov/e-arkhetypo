@@ -86,7 +86,7 @@ Puerto = default en host (`:container`). GPU = necesita `nvidia` runtime.
 | rag/docling | docling-project/docling-serve:latest | 5001 | | |
 | rag/playwright | playwright:latest | 3000 | | |
 | rag/pipelines | open-webui/pipelines:latest | 9099 | | |
-| mem/cortexdb | cortexdb/cortexdb:v0.10.4 (pin: formato de datos) + `cortexdb-mirror` (python:3-alpine) | 3141 (loopback) | | `cortex.toml`, `mirror.py` (grafo → markdown de Obsidian en `CORTEXDB_MIRROR_DIR`); usa `llm/embed` (lotes de hasta 512) y `llm/vllm` |
+| mem/cortexdb | cortexdb/cortexdb:v0.10.4 (pin: formato de datos) + `cortexdb-mirror` (python:3-alpine) | 3141 (loopback) | | `cortex.toml`, `mirror.py` (grafo → markdown de Obsidian en `CORTEXDB_MIRROR_DIR`); usa `llm/embed` (lotes de hasta 512) y el slot LLM (`llm/strata` o `llm/vllm`) |
 | front/openwebui | open-webui/open-webui:latest | 8080 | | `static/` |
 | media/livekit | livekit/livekit-server:latest | 7880 | | `livekit.yaml` |
 | media/sip | livekit/sip:latest | 5060 | | red `host` |

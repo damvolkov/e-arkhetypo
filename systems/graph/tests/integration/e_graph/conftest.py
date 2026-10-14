@@ -37,15 +37,21 @@ def vcr_config() -> dict[str, Any]:
 
 
 @pytest.fixture
-def settings() -> Any:
-    """The agent's settings from the environment, the MEDIUM tier pointed at the local vLLM unless declared."""
+def settings(request: pytest.FixtureRequest) -> Any:
+    """The agent's settings: replayed runs are pinned to the cassettes' model; recording honors the environment.
+
+    The cassettes carry a model's answers and the body is part of the match: letting a local
+    `AGENT_MEDIUM__*` (today's live server may be another model) rewrite the request during a replay
+    would break every cassette for an accident of `.env`. Only the recorders (`make record`) may
+    retarget, and then the cassettes are rewritten to whatever the tiers point at."""
     declared = AgentSettings()
-    match declared.agent_medium:
-        case None:
-            local = {"provider": VLLM.provider, "model": VLLM.model, "api_base": VLLM.api_base}
-            return AgentSettings(agent_medium=local)
-        case _:
+    recording = str(request.config.getoption("--record-mode", "none")).lower() in {"all", "rewrite", "new_episodes"}
+    match declared.agent_medium is not None and recording:
+        case True:
             return declared
+        case _:
+            local = {"provider": VLLM.provider, "model": VLLM.model, "api_base": VLLM.api_base}
+            return AgentSettings(agent_medium=local, agent_high=local, agent_low=local)
 
 
 @pytest.fixture

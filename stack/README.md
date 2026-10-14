@@ -87,7 +87,7 @@ Puerto = default en host (`:container`). GPU = necesita `nvidia` runtime.
 | rag/pipelines | open-webui/pipelines:latest | 9099 | | |
 | mem/mem0 | build `mem0ai/mem0#main:server` | 8888 | | `config.json`, `Dockerfile`, `launch.py`; necesita postgres+qdrant+vllm+embed |
 | mem/agentmemory | build `rohitg00/agentmemory#main:deploy/coolify` | 3111 | | necesita embed (vllm opcional) |
-| mem/cortexdb | cortexdb/cortexdb:v0.10.4 (pin: formato de datos) + `cortexdb-mirror` (python:3-alpine) | 3141 (loopback) | | `cortex.toml`, `mirror.py` (grafo → markdown de Obsidian en `CORTEXDB_MIRROR_DIR`); necesita `llm/embed` (lotes de hasta 512) + `llm/vllm` |
+| mem/cortexdb | cortexdb/cortexdb:v0.10.4 (pin: formato de datos) + `cortexdb-mirror` (python:3-alpine) | 3141 (loopback) | | `cortex.toml`, `mirror.py` (grafo → markdown de Obsidian en `CORTEXDB_MIRROR_DIR`); necesita `llm/embed` (lotes de hasta 512) + `llm/vllm` (razonamiento off por defecto) |
 | front/openwebui | open-webui/open-webui:latest | 8080 | | `static/` |
 | media/livekit | livekit/livekit-server:latest | 7880 | | `livekit.yaml` |
 | media/sip | livekit/sip:latest | 5060 | | red `host` |

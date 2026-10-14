@@ -1,0 +1,19 @@
+kind: deterministic
+name: AUD-schedule
+description: Eight observations, quarterly and monotonic, each payment landing after its observation and before the next.
+runner: owned/schedule
+check: agnostic/context/present
+args:
+  runner:
+    months: 3
+    spread: 21
+  check:
+    needs: [extract/EXT-schedule]
+output:
+  type: object
+  properties:
+    holds: {type: boolean}
+    count: {type: integer, minimum: 0}
+    gaps: {type: array, items: {type: string}}
+  required: [holds, count, gaps]
+  additionalProperties: false

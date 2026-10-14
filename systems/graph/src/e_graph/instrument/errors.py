@@ -2,7 +2,8 @@
 
 Every violation is caught while the graph is declared, before compile and long before a run: a
 graph that loads is a graph whose every node is `async def node_<name>(state: RunState) -> str | None`
-living in `nodes/<category>/node.py`, and whose every router names the targets it can reach."""
+living in `pipelines/<pipeline>/nodes/<category>/node.py` of the graph's own pipeline, one per category,
+and whose every router names the targets it can reach."""
 
 from enum import StrEnum, auto
 
@@ -19,6 +20,8 @@ class ContractRule(StrEnum):
     STATE = auto()
     RETURN = auto()
     ROUTE = auto()
+    PIPELINE = auto()
+    SECTION = auto()
 
 
 class ContractError(TypeError):

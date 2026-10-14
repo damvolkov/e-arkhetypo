@@ -1,0 +1,21 @@
+kind: semantic
+name: EXT-estimated-value
+description: What the issuer estimates the note is worth on the pricing date, per $10 of principal.
+pre: agnostic/document/pages
+check: agnostic/context/present
+args:
+  pre: {first: 1, most: 0}
+  check: {needs: [ingest/ING-document]}
+tier: medium
+instructions: >-
+  From the cover page, the initial estimated value of the notes as of the Trade Date, stated in dollars
+  per $10 of Stated Principal Amount ("$9.938 per $10 in Stated Principal Amount" is 9.938), and the
+  public offering price per note in dollars as printed in the offering table.
+wiki: [estimated-value]
+output:
+  type: object
+  properties:
+    estimated_value: {type: number, minimum: 0.01}
+    offering_price: {type: number, minimum: 0.01}
+  required: [estimated_value, offering_price]
+  additionalProperties: false

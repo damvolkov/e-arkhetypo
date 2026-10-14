@@ -132,6 +132,13 @@ def test_text_pages_stay_with_liteparse(read: dict[str, tuple[Document, GoldenPo
     assert document.items.filter(pl.col("backend") == "liteparse").height > 0
 
 
+def test_markdown_keeps_pictures_as_markers_never_as_bytes(read: dict[str, tuple[Document, GoldenPort]]) -> None:
+    ### a picture's bytes are the document's pictures: inlined in the text, they would reach every prompt.
+    pages = [page for document, _ in read.values() for page in document.pages if page.backend is Backend.DOCLING]
+    assert not [page.number for page in pages if "data:image" in page.markdown]
+    assert any("<!-- image -->" in page.markdown for page in pages)
+
+
 async def test_lite_mode_reads_a_filing_without_docling(corpus: list[dict[str, Any]]) -> None:
     port = GoldenPort()
     path = next(entry["path"] for entry in corpus if entry["path"].stem == "aapl-10k-2025")

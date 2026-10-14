@@ -1,0 +1,15 @@
+kind: deterministic
+name: AUD-identity
+description: The ISIN is the CUSIP wrapped in its country code and closed with its own Luhn digit.
+runner: owned/identity
+check: agnostic/context/present
+args:
+  check:
+    needs: [extract/EXT-identifiers]
+output:
+  type: object
+  properties:
+    expected: {type: string}
+    holds: {type: boolean}
+  required: [expected, holds]
+  additionalProperties: false

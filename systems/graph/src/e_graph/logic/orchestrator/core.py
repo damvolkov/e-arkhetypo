@@ -19,7 +19,7 @@ DARTS_FUSION_SPECS) is exceeded. Fallbacks are never scheduled: they wait for th
 Every spec, deterministic or fused, crosses the same gates, in order:
 
     inputs ──▶ check ──▶ produce ──────────────────────▶ validate ──▶ write context.<section>[<spec>]
-      │          │       D: run(state)                       │
+      │          │       D: run(state, call)                 │
       │          │       S: pre_run ▶ fused call ▶ post_run  │
       ▼          ▼          ▼ (error · timeout)              ▼ (output breaks `output`)
     skipped   blocked     fallback ──▶ rescued (written under the parent's name) · or failed
@@ -43,8 +43,8 @@ import anyio
 from core.logger import logger
 from core.settings import settings as st
 from e_graph.logic.discover import KINDS, RUNNERS, SPECS, SpecDiscover
-from e_graph.logic.errors import BlockedError, OrchestratorError
-from e_graph.logic.models import Bound, Hook, SectionRun, SemanticSpec, SpecOutcome, SpecStatus
+from e_graph.logic.errors import BlockedError, OrchestratorError, SectionError
+from e_graph.logic.models import AgentCall, Bound, Call, SectionRun, SemanticSpec, Slot, SpecOutcome, SpecStatus
 from e_graph.logic.orchestrator.fusion import SpecFusion
 from e_graph.logic.orchestrator.plan import DagPlan
 
@@ -58,18 +58,21 @@ if TYPE_CHECKING:
     from e_graph.models.section import Section
 
 MS_PER_SECOND: Final[float] = 1000.0
+LOST: Final[frozenset[SpecStatus]] = frozenset({SpecStatus.FAILED, SpecStatus.BLOCKED})
 
 
 @dataclass(frozen=True, slots=True)
 class ScopeCore:
     """What one section run shares across its steps: the run's state, the catalog and the discovery that
-    loads its runners, the ledger of outcomes so far, the gates bounding what runs at once, the call counter."""
+    loads its runners, the ledger of outcomes so far, the agent calls issued, the gates bounding what runs at
+    once, the call counter."""
 
     state: RunState
     discover: SpecDiscover
     catalog: Catalog
     plan: SectionPlan
     ledger: dict[str, SpecOutcome]
+    issued: list[AgentCall]
     specs: anyio.Semaphore
     calls: anyio.Semaphore
     counter: Iterator[int]
@@ -162,7 +165,7 @@ class OrchestratorCore:
         telemetry = scope.state.infra.telemetry
         with telemetry.spec(name, scope.catalog.section, self._spec_kind(node.spec), scope.state.id) as span:
             try:
-                self._spec_write(scope, name, await self._spec_produce(node, scope))
+                self._spec_write(scope, name, await self._spec_produce(node, step, scope))
                 outcome = self._spec_outcome(node, step, SpecStatus.SUCCEEDED, started)
             except BlockedError as refused:
                 outcome = self._spec_outcome(node, step, SpecStatus.BLOCKED, started, reason=str(refused))
@@ -171,7 +174,7 @@ class OrchestratorCore:
             telemetry.settle(span, outcome)
         return outcome
 
-    async def _spec_produce(self, node: SpecNode, scope: ScopeCore) -> dict[str, Any]:
+    async def _spec_produce(self, node: SpecNode, step: int, scope: ScopeCore) -> dict[str, Any]:
         """A spec's output, alone, within its deadline: its check, then its run — or its own one-spec call."""
         await self._spec_check(node, scope)
         with self._common_deadline(self._spec_timeout(node), node.spec.name):
@@ -179,18 +182,19 @@ class OrchestratorCore:
                 case SemanticSpec(tier=tier):
                     name = node.spec.name
                     material = {name: await self._spec_material(node, scope)}
-                    reply = await self._fused_ask([node], tier, material, scope)
+                    call = self._fused_call([node], tier, material, scope, index=next(scope.counter), step=step)
+                    reply = await self._fused_ask(call, scope)
                     return await self._spec_finish(node, SpecFusion.split(reply.output, [name])[name], scope)
                 case _:
-                    return self._spec_validate(node, await self._spec_call(node, Hook.RUN, scope))
+                    return self._spec_validate(node, await self._spec_call(node, Slot.RUNNER, scope))
 
     async def _spec_check(self, node: SpecNode, scope: ScopeCore) -> None:
         """The spec's integrity gate: its `check` must return True for the spec to read the state at all."""
-        match node.hooks.get(Hook.CHECK):
+        match node.runners.get(Slot.CHECK):
             case None:
                 return
             case _:
-                match await self._spec_call(node, Hook.CHECK, scope):
+                match await self._spec_call(node, Slot.CHECK, scope):
                     case True:
                         return
                     case refused:
@@ -199,29 +203,45 @@ class OrchestratorCore:
 
     async def _spec_material(self, node: SpecNode, scope: ScopeCore) -> str:
         """What a semantic spec's `pre_run` prepared for the prompt; nothing without one."""
-        match node.hooks.get(Hook.PRE):
+        match node.runners.get(Slot.PRE):
             case None:
                 return ""
             case _:
-                return str(await self._spec_call(node, Hook.PRE, scope))
+                return str(await self._spec_call(node, Slot.PRE, scope))
 
     async def _spec_finish(self, node: SpecNode, answer: Any, scope: ScopeCore) -> dict[str, Any]:
         """A semantic spec's answer, reshaped by its `post_run` if it has one, then held to its `output`."""
-        match node.hooks.get(Hook.POST):
+        match node.runners.get(Slot.POST):
             case None:
                 return self._spec_validate(node, answer)
             case _:
-                return self._spec_validate(node, await self._spec_call(node, Hook.POST, scope, answer))
+                return self._spec_validate(node, await self._spec_call(node, Slot.POST, scope, answer))
 
-    async def _spec_call(self, node: SpecNode, hook: Hook, scope: ScopeCore, *args: Any) -> Any:
-        """One of the spec's hooks on the run's state: on the loop, or — `bound: cpu` — on a thread's own loop."""
-        function = await scope.discover.load(node.hooks[hook])
+    async def _spec_call(self, node: SpecNode, slot: Slot, scope: ScopeCore, *extra: Any) -> Any:
+        """The runner in one of the spec's slots, on the state and its `Call`: on the loop, or — `bound: cpu` —
+        on a thread's own loop."""
+        function = await scope.discover.load(node.runners[slot])
+        call = self._spec_bind(node, slot, scope)
         match node.spec.bound:
             case Bound.CPU:
                 ### abandon_on_cancel: a deadline stops the wait at once; the thread finishes on its own.
-                return await anyio.to_thread.run_sync(asyncio.run, function(scope.state, *args), abandon_on_cancel=True)
+                coroutine = function(scope.state, call, *extra)
+                return await anyio.to_thread.run_sync(asyncio.run, coroutine, abandon_on_cancel=True)
             case _:
-                return await function(scope.state, *args)
+                return await function(scope.state, call, *extra)
+
+    @staticmethod
+    def _spec_bind(node: SpecNode, slot: Slot, scope: ScopeCore) -> Call:
+        """What the runner is handed beside the state: who calls, its validated args, its dependencies' outputs."""
+        written = getattr(scope.state.context, scope.catalog.section)
+        return Call(
+            pipeline=scope.catalog.pipeline,
+            section=scope.catalog.section,
+            spec=node.spec.name,
+            slot=slot,
+            args=node.args[slot],
+            inputs={dependency: written[dependency] for dependency in node.spec.depends},
+        )
 
     async def _spec_rescue(
         self, name: str, step: int, error: BaseException, scope: ScopeCore, started: float
@@ -234,7 +254,7 @@ class OrchestratorCore:
                 return self._spec_outcome(node, step, SpecStatus.FAILED, started, error=failure)
             case rescuer:
                 try:
-                    self._spec_write(scope, name, await self._spec_produce(scope.catalog.nodes[rescuer], scope))
+                    self._spec_write(scope, name, await self._spec_produce(scope.catalog.nodes[rescuer], step, scope))
                 except Exception as second:  # noqa: BLE001 — the fallback failing too is the spec failing, both reasons kept
                     lost = f"{failure}; fallback {rescuer}: {type(second).__name__}: {second}"
                     return self._spec_outcome(node, step, SpecStatus.FAILED, started, error=lost, rescuer=rescuer)
@@ -320,9 +340,16 @@ class OrchestratorCore:
             with telemetry.spec(f"call-{index}", scope.catalog.section, "fused", scope.state.id) as span:
                 try:
                     with self._common_deadline(max(self._spec_timeout(nodes[name]) for name in names), f"call-{index}"):
-                        reply = await self._fused_ask(
-                            [nodes[name] for name in names], tier, {name: material[name] for name in names}, scope
+                        call = self._fused_call(
+                            [nodes[name] for name in names],
+                            tier,
+                            {name: material[name] for name in names},
+                            scope,
+                            index=index,
+                            step=step,
                         )
+                        span.record({"input.value": call.prompt, "spec.instructions": call.instructions})
+                        reply = await self._fused_ask(call, scope)
                 except Exception as error:  # noqa: BLE001 — a failed call is each of its specs' fallback cue
                     outcomes = {name: await self._spec_rescue(name, step, error, scope, started) for name in names}
                 else:
@@ -342,14 +369,36 @@ class OrchestratorCore:
                 )
         scope.ledger.update(outcomes)
 
-    async def _fused_ask(
-        self, nodes: Sequence[SpecNode], tier: Tier, material: Mapping[str, str], scope: ScopeCore
-    ) -> Reply[dict[str, Any]]:
-        """The agent asked once for every spec: fused instructions, fused prompt, fused schema, at the specs' tier."""
+    def _fused_call(
+        self,
+        nodes: Sequence[SpecNode],
+        tier: Tier,
+        material: Mapping[str, str],
+        scope: ScopeCore,
+        *,
+        index: int,
+        step: int,
+    ) -> AgentCall:
+        """The call for every spec, kept in the run: fused instructions, fused prompt, fused schema, their weights."""
         wiki = scope.catalog.wiki
-        return await scope.state.infra.agent.run(
-            SpecFusion.instructions(nodes, wiki), SpecFusion.prompt(material), SpecFusion.schema(nodes), endpoint=tier
+        call = AgentCall(
+            index=index,
+            step=step,
+            tier=tier,
+            specs=tuple(node.spec.name for node in nodes),
+            instructions=SpecFusion.instructions(nodes, wiki),
+            prompt=SpecFusion.prompt(material),
+            schema=dict(SpecFusion.schema(nodes)),
+            weights={node.spec.name: SpecFusion.weight(node, wiki, material.get(node.spec.name, "")) for node in nodes},
+            budget=self._conf.darts_fusion_tokens,
         )
+        scope.issued.append(call)
+        return call
+
+    @staticmethod
+    async def _fused_ask(call: AgentCall, scope: ScopeCore) -> Reply[dict[str, Any]]:
+        """The agent asked once, exactly as the call says: what it answers is what the run was given."""
+        return await scope.state.infra.agent.run(call.instructions, call.prompt, call.schema, endpoint=call.tier)
 
     async def _fused_finish(
         self,
@@ -374,6 +423,15 @@ class OrchestratorCore:
 
     ##### PUBLIC #####
 
+    @property
+    def conf(self) -> DartsSettings:
+        """The DARTS settings the orchestrator plans and runs by."""
+        return self._conf
+
+    async def catalog(self, pipeline: str, section: Section) -> Catalog:
+        """A pipeline's section as judged coherent — built on first use, then kept."""
+        return await self._run_discover(pipeline).catalog(section)
+
     async def plan(self, pipeline: str, section: Section) -> SectionPlan:
         """How a pipeline's section would run — its steps and fused calls — without running anything."""
         return DagPlan.build(await self._run_discover(pipeline).catalog(section), self._conf)
@@ -395,6 +453,7 @@ class OrchestratorCore:
             catalog=catalog,
             plan=plan,
             ledger={},
+            issued=[],
             specs=anyio.Semaphore(self._conf.darts_concurrency),
             calls=anyio.Semaphore(self._conf.darts_calls),
             counter=count(),
@@ -406,6 +465,21 @@ class OrchestratorCore:
             plan=plan,
             outcomes=tuple(scope.ledger[name] for step in plan.steps for name in step.specs),
             latency_ms=(time.perf_counter() - started) * MS_PER_SECOND,
+            calls=tuple(sorted(scope.issued, key=lambda call: call.index)),
         )
         logger.info("section run", pipeline=pipeline, section=section, summary=run.summary, step="DARTS")
         return run
+
+    async def node(self, section: Section, state: RunState, *, strict: bool = True) -> dict[str, Any]:
+        """A section run as its node reports it: the summary, and each spec's status as the output's extra.
+
+        Strict (the default), a spec that failed or was blocked fails the node, every lost spec named;
+        `strict=False` lets the node succeed on what was delivered, the dependents reading only that."""
+        run = await self.run(section, state)
+        lost = [outcome for outcome in run.outcomes if outcome.status in LOST]
+        match (strict, lost):
+            case (True, [_, *_]):
+                reasons = "; ".join(f"{o.spec} {o.status}: {o.error or o.reason}" for o in lost)
+                raise SectionError(reasons)
+            case _:
+                return {"summary": run.summary, "specs": {o.spec: str(o.status) for o in run.outcomes}}

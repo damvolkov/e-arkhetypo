@@ -1,6 +1,6 @@
 interactions:
 - request:
-    body: '{"model":"qwen3.6-27b","messages":[{"role":"system","content":"Classify
+    body: '{"model":"gemma4-26b-a4b","messages":[{"role":"system","content":"Classify
       the document."},{"role":"user","content":"Invoice 42 from ACME: 2 x widget at
       10.00 EUR, 1 x bolt at 2.50 EUR. Total 22.50 EUR."}],"max_completion_tokens":4096,"response_format":{"type":"json_schema","json_schema":{"name":"kind","schema":{"title":"kind","type":"object","properties":{"kind":{"type":"string","enum":["invoice","receipt","contract"]}},"required":["kind"]},"strict":false}},"seed":7,"temperature":0.0}'
     headers:
@@ -13,7 +13,7 @@ interactions:
       connection:
       - keep-alive
       content-length:
-      - '487'
+      - '490'
       content-type:
       - application/json
       host:
@@ -31,7 +31,7 @@ interactions:
       x-stainless-package-version:
       - 3.24.0
       x-stainless-read-timeout:
-      - '60.0'
+      - '600.0'
       x-stainless-retry-count:
       - '0'
       x-stainless-runtime:
@@ -42,35 +42,15 @@ interactions:
     uri: http://localhost:45100/v1/chat/completions
   response:
     body:
-      string: "{\"id\":\"chatcmpl-ac4adddde5bc4aec\",\"object\":\"chat.completion\",\"created\":1791895011,\"model\":\"qwen3.6-27b\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"{\\n
-        \ \\\"kind\\\": \\\"invoice\\\"\\n}\",\"refusal\":null,\"annotations\":null,\"audio\":null,\"function_call\":null,\"reasoning\":\"Here's
-        a thinking process:\\n\\n1.  **Analyze User Input:**\\n   - Input text: \\\"Invoice
-        42 from ACME: 2 x widget at 10.00 EUR, 1 x bolt at 2.50 EUR. Total 22.50 EUR.\\\"\\n
-        \  - Task: \\\"Classify the document.\\\"\\n\\n2.  **Identify Key Elements
-        in the Input:**\\n   - Explicitly states \\\"Invoice 42\\\"\\n   - Contains
-        vendor/supplier name: \\\"ACME\\\"\\n   - Lists items with quantities and
-        prices: \\\"2 x widget at 10.00 EUR, 1 x bolt at 2.50 EUR\\\"\\n   - Shows
-        a total amount: \\\"Total 22.50 EUR\\\"\\n   - Currency: EUR\\n\\n3.  **Determine
-        Document Type:**\\n   - The text explicitly says \\\"Invoice\\\".\\n   - The
-        structure matches a standard invoice (itemized list, quantities, unit prices,
-        total, currency).\\n   - Therefore, the classification is clearly \\\"Invoice\\\".\\n\\n4.
-        \ **Consider Possible Classification Categories:**\\n   - Common document
-        types in business/finance: Invoice, Receipt, Purchase Order, Quote/Estimate,
-        Contract, Statement, etc.\\n   - This matches \\\"Invoice\\\" perfectly.\\n\\n5.
-        \ **Formulate Output:**\\n   - Keep it concise as requested.\\n   - State
-        the classification clearly.\\n   - Optionally add a brief reason if needed,
-        but direct answer is best.\\n   - Output: \\\"Invoice\\\" or \\\"Document
-        Type: Invoice\\\"\\n\\n   I'll go with a direct, clear classification.\\n\\n6.
-        \ **Self-Correction/Verification:**\\n   - Does it match any other type? No,
-        it's explicitly an invoice.\\n   - Is there any ambiguity? No.\\n   - Format:
-        Just the classification is sufficient.\\n\\n   Final answer: Invoice.\u2705\\n\"},\"logprobs\":null,\"finish_reason\":\"stop\",\"stop_reason\":null,\"token_ids\":null,\"routed_experts\":null}],\"service_tier\":null,\"system_fingerprint\":\"vllm-0.31.0-0ace834d\",\"usage\":{\"prompt_tokens\":62,\"total_tokens\":482,\"completion_tokens\":420,\"prompt_tokens_details\":null,\"completion_tokens_details\":{\"reasoning_tokens\":407}},\"prompt_logprobs\":null,\"prompt_token_ids\":null,\"prompt_text\":null,\"kv_transfer_params\":null,\"ec_transfer_params\":null,\"metrics\":null}"
+      string: '{"id":"chatcmpl-a733d7ab4dc21e61","object":"chat.completion","created":1791997786,"model":"gemma4-26b-a4b","choices":[{"index":0,"message":{"role":"assistant","content":"{\n  \"kind\":
+        \"invoice\"\n}","refusal":null,"annotations":null,"audio":null,"function_call":null,"reasoning":null},"logprobs":null,"finish_reason":"stop","stop_reason":106,"token_ids":null,"routed_experts":null}],"service_tier":null,"system_fingerprint":"vllm-0.31.0-c9b9a0dd","usage":{"prompt_tokens":66,"total_tokens":78,"completion_tokens":12,"prompt_tokens_details":null,"completion_tokens_details":{"reasoning_tokens":0}},"prompt_logprobs":null,"prompt_token_ids":null,"prompt_text":null,"kv_transfer_params":null,"ec_transfer_params":null,"metrics":null}'
     headers:
       content-length:
-      - '2217'
+      - '732'
       content-type:
       - application/json
       date:
-      - Tue, 13 Oct 2026 12:36:50 GMT
+      - Wed, 14 Oct 2026 17:09:46 GMT
       server:
       - uvicorn
       vary:

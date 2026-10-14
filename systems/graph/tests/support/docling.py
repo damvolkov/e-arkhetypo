@@ -1,9 +1,10 @@
-"""tests/support/docling: docling-serve, offline — the golden conversions of the corpus, served as the port serves.
+"""tests/support/docling: docling-serve, offline — the corpus's recorded spans, served as the port serves.
 
-`GoldenPort` satisfies `DocumentPort` by shape. Asked to convert a corpus document (matched by file
-name stem), it answers with what the live docling-serve made of it (`tests/resources/conversions`,
-`make conversions`): the whole conversion, whose nodes carry their own page numbers — the processor
-keeps only the pages of the span it asked for. Every call is recorded, so a test sees what was routed."""
+`GoldenPort` satisfies `DocumentPort` by shape. Asked to convert a span of a corpus document (matched by
+file name stem and `page_range`), it answers with what the live docling-serve answered for that very
+span (`tests/resources/conversions`, `make conversions`): its nodes, its tables, its markdown. A span
+never recorded fails as the service would, and the processor falls back to liteparse for it. Every
+call is recorded, so a test sees what was routed."""
 
 import gzip
 from pathlib import Path
@@ -17,21 +18,29 @@ CONVERSIONS: Final[Path] = Path(__file__).resolve().parents[1] / "resources" / "
 
 
 class GoldenPort:
-    """A document port backed by the golden conversions; `calls` keeps every request's filename and options."""
+    """A document port backed by the recorded spans; `calls` keeps every request's filename and options."""
 
     name: ClassVar[str] = "docling"
 
     def __init__(self) -> None:
         self.calls: list[dict[str, Any]] = []
-        self._cache: dict[str, DocumentConversion] = {}
+        self._spans: dict[str, dict[str, DocumentConversion]] = {}
+
+    def _convert_spans(self, stem: str) -> dict[str, DocumentConversion]:
+        match self._spans.get(stem):
+            case None:
+                raw = gzip.decompress((CONVERSIONS / f"{stem}.json.gz").read_bytes())
+                spans = self._spans[stem] = msgspec.json.decode(raw, type=dict[str, DocumentConversion])
+                return spans
+            case spans:
+                return spans
 
     async def convert(self, source: Any, *, filename: str = "", options: Any = None) -> DocumentConversion:
         self.calls.append({"filename": filename, "options": dict(options or {})})
-        stem = filename.removesuffix(".pdf")
-        match self._cache.get(stem):
+        first, last = dict(options or {})["page_range"]
+        match self._convert_spans(filename.removesuffix(".pdf")).get(f"{first}-{last}"):
             case None:
-                raw = gzip.decompress((CONVERSIONS / f"{stem}.json.gz").read_bytes())
-                conversion = self._cache[stem] = msgspec.json.decode(raw, type=DocumentConversion)
+                msg = f"{filename}: span {first}-{last} was never recorded (make conversions)"
+                raise KeyError(msg)
+            case conversion:
                 return conversion
-            case cached:
-                return cached

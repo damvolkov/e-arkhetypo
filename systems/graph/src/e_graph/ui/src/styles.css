@@ -258,3 +258,196 @@ body,
   font-size: 10px;
   line-height: 1.4;
 }
+
+.levels,
+.tabs {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.tab {
+  flex: 1;
+  padding: 3px 8px;
+  color: var(--mute);
+  background: none;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.tab-on {
+  color: var(--ink);
+  border-color: var(--succeeded);
+}
+
+.panel .tab {
+  background: none;
+  border-color: var(--line);
+}
+
+.panel .tab-on {
+  border-color: var(--succeeded);
+}
+
+.spec {
+  width: 210px;
+  padding: 8px 10px;
+  border: 1.5px solid var(--pending);
+  border-radius: 2px;
+  background: var(--surface);
+  text-align: left;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease;
+  cursor: pointer;
+}
+
+.kind-semantic {
+  border-radius: 12px;
+}
+
+.spec-fallback {
+  border-style: dashed;
+}
+
+.spec-kind {
+  color: var(--mute);
+  font-size: 10px;
+}
+
+.spec-runners {
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 10px;
+  overflow-wrap: anywhere;
+}
+
+.spec-slot {
+  color: #8fb3d9;
+}
+
+.status-rescued {
+  border-color: var(--running);
+  box-shadow: 0 0 10px -2px var(--running);
+}
+
+.status-blocked {
+  border-color: var(--failed);
+  border-style: dotted;
+}
+
+.status-text-rescued {
+  color: var(--running);
+}
+
+.status-text-blocked,
+.status-text-skipped {
+  color: var(--mute);
+}
+
+.call {
+  box-sizing: border-box;
+  border: 1px dashed #6b5aa8;
+  border-radius: 14px;
+  background: rgb(107 90 168 / 6%);
+  cursor: pointer;
+}
+
+.call-label {
+  display: block;
+  padding: 6px 12px;
+  color: #a594e0;
+  font-size: 10px;
+}
+
+.react-flow__node-call {
+  pointer-events: all;
+}
+
+.react-flow__edge.link-fallback path.react-flow__edge-path {
+  stroke: var(--running);
+  stroke-dasharray: 5 4;
+}
+
+.data {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: var(--mute);
+}
+
+.data textarea {
+  padding: 4px 6px;
+  color: var(--ink);
+  background: #22262c;
+  border: 1px solid var(--pending);
+  border-radius: 6px;
+  font: inherit;
+  font-size: 11px;
+  resize: vertical;
+}
+
+.panel a {
+  color: #8fb3d9;
+}
+
+.panel-error {
+  color: var(--failed);
+  overflow-wrap: anywhere;
+}
+
+.runs {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.panel .call-chip {
+  text-align: left;
+  color: #a594e0;
+  border-color: #6b5aa8;
+}
+
+.card {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: min(560px, 45vw);
+  max-height: calc(100% - 32px);
+  padding: 12px 14px;
+  background: var(--surface);
+  border: 1.5px solid var(--line);
+  border-radius: 10px;
+  box-sizing: border-box;
+}
+
+.card-text {
+  margin: 0;
+  color: var(--ink);
+  line-height: 1.4;
+}
+
+.card-title {
+  color: var(--mute);
+}
+
+.card-pre {
+  flex: 1;
+  min-height: 0;
+  margin: 0;
+  padding: 8px;
+  overflow: auto;
+  background: #15181b;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  font-size: 11px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

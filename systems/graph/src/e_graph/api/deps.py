@@ -1,7 +1,8 @@
 """api.deps: chained dependency providers — litestar resolves the graph recursively per request.
 
 No FastAPI `Depends()` sugar: binding is by *name*. Each link declares what it consumes in its own
-signature (`store` and `graphs` take `system`, `graph` takes `graphs` and the path's id), every route wires the chains it uses in a local
+signature (`store` and `graphs` take `system`, `graph` takes `graphs` and the path's id, `section` takes `graph`
+and the path's section, `lab` takes `system`), every route wires the chains it uses in a local
 `dependencies` mapping, and the app itself registers nothing. Links run once per request, in
 resolved order. The root is `system` — the same name the RunState gives it — read off Litestar's
 reserved `state` kwarg, annotated `AppState` so Litestar builds the typed class itself, on HTTP and
@@ -20,6 +21,8 @@ from adapters.ports import StorePort
 from core.state import State
 from e_graph.api.state import AppState
 from e_graph.instrument.graph import InstrumentGraph
+from e_graph.logic.orchestrator.lab import SectionLab
+from e_graph.models.section import Section
 
 
 ##### DEPENDENCY KEYS — the wiring vocabulary: a typo is an attribute error at import, never a silent runtime miss #####
@@ -28,6 +31,8 @@ class DepKey(StrEnum):
     STORE = auto()
     GRAPHS = auto()
     GRAPH = auto()
+    SECTION = auto()
+    LAB = auto()
     CORRELATION_ID = auto()
 
 
@@ -54,6 +59,21 @@ def graph(pipeline_id: FromPath[str], graphs: NamedDependency[Mapping[str, Instr
             raise NotFoundException(detail=f"no pipeline {pipeline_id!r}; known: {sorted(graphs)}")
         case found:
             return found
+
+
+def section(section_id: FromPath[str], graph: NamedDependency[InstrumentGraph]) -> Section:
+    """The section the path names, mounted by the path's pipeline, or 404 listing those it mounts. Chain: graph."""
+    mounted = {str(found): found for found in graph.sections}
+    match mounted.get(section_id):
+        case None:
+            raise NotFoundException(detail=f"{graph.name} mounts no {section_id!r}; mounted: {sorted(mounted)}")
+        case found:
+            return found
+
+
+def lab(system: NamedDependency[State]) -> SectionLab:
+    """The orchestrator's sections seen from outside, over the app's own orchestrator and graphs. Chain: system."""
+    return SectionLab(system.infra.orchestrator, system.infra.graphs)
 
 
 def correlation_id() -> str:

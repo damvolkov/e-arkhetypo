@@ -1,0 +1,27 @@
+kind: deterministic
+name: INF-scenarios
+description: What the holder ends with if the index closes each way from -60% to +40% at maturity, flat through the term.
+runner: owned/scenarios
+check: agnostic/context/present
+args:
+  check:
+    needs: [extract/EXT-terms]
+depends: [INF-max-return, INF-ladder]
+output:
+  type: object
+  properties:
+    scenarios:
+      type: array
+      minItems: 6
+      items:
+        type: object
+        properties:
+          move_percent: {type: number}
+          final_level: {type: number, exclusiveMinimum: 0}
+          called: {type: boolean}
+          coupon_paid: {type: boolean}
+          payout: {type: number, minimum: 0}
+        required: [move_percent, final_level, called, coupon_paid, payout]
+        additionalProperties: false
+  required: [scenarios]
+  additionalProperties: false

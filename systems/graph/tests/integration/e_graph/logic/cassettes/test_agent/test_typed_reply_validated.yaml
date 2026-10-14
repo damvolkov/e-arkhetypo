@@ -1,6 +1,6 @@
 interactions:
 - request:
-    body: '{"model":"qwen3.6-27b","messages":[{"role":"system","content":"Extract
+    body: '{"model":"gemma4-26b-a4b","messages":[{"role":"system","content":"Extract
       the invoice."},{"role":"user","content":"Invoice 42 from ACME: 2 x widget at
       10.00 EUR, 1 x bolt at 2.50 EUR. Total 22.50 EUR."}],"max_completion_tokens":4096,"response_format":{"type":"json_schema","json_schema":{"name":"Invoice","schema":{"$ref":"#/$defs/Invoice","$defs":{"Invoice":{"title":"Invoice","type":"object","properties":{"number":{"type":"string"},"vendor":{"type":"string"},"total":{"type":"number"},"lines":{"type":"array","items":{"$ref":"#/$defs/Line"}}},"required":["number","vendor","total","lines"]},"Line":{"title":"Line","type":"object","properties":{"item":{"type":"string"},"quantity":{"type":"integer"},"price":{"type":"number"}},"required":["item","quantity","price"]}}},"strict":false}},"seed":7,"temperature":0.0}'
     headers:
@@ -13,7 +13,7 @@ interactions:
       connection:
       - keep-alive
       content-length:
-      - '812'
+      - '815'
       content-type:
       - application/json
       host:
@@ -31,7 +31,7 @@ interactions:
       x-stainless-package-version:
       - 3.24.0
       x-stainless-read-timeout:
-      - '60.0'
+      - '600.0'
       x-stainless-retry-count:
       - '0'
       x-stainless-runtime:
@@ -42,75 +42,17 @@ interactions:
     uri: http://localhost:45100/v1/chat/completions
   response:
     body:
-      string: "{\"id\":\"chatcmpl-a09e0e4047b572c0\",\"object\":\"chat.completion\",\"created\":1791894966,\"model\":\"qwen3.6-27b\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"{\\n
-        \ \\\"number\\\": \\\"42\\\",\\n  \\\"vendor\\\": \\\"ACME\\\",\\n  \\\"total\\\":
-        22.50,\\n  \\\"lines\\\": [\\n    {\\n      \\\"item\\\": \\\"widget\\\",\\n
-        \     \\\"quantity\\\": 2,\\n      \\\"price\\\": 10.00\\n    },\\n    {\\n
-        \     \\\"item\\\": \\\"bolt\\\",\\n      \\\"quantity\\\": 1,\\n      \\\"price\\\":
-        2.50\\n    }\\n  ]\\n}\",\"refusal\":null,\"annotations\":null,\"audio\":null,\"function_call\":null,\"reasoning\":\"Here's
-        a thinking process:\\n\\n1.  **Analyze User Input:**\\n   - Input: \\\"Invoice
-        42 from ACME: 2 x widget at 10.00 EUR, 1 x bolt at 2.50 EUR. Total 22.50 EUR.\\\"\\n
-        \  - Task: Extract the invoice information.\\n\\n2.  **Identify Key Components
-        of an Invoice:**\\n   - Invoice Number\\n   - Vendor/Supplier Name\\n   -
-        Line Items (Quantity, Description, Unit Price)\\n   - Total Amount\\n   -
-        Currency\\n\\n3.  **Extract Information from Input:**\\n   - Invoice Number:
-        42\\n   - Vendor: ACME\\n   - Line Item 1: 2 x widget at 10.00 EUR\\n   -
-        Line Item 2: 1 x bolt at 2.50 EUR\\n   - Total: 22.50 EUR\\n   - Currency:
-        EUR\\n\\n4.  **Structure the Extracted Data:**\\n   I'll format it clearly,
-        typically as a structured list or JSON/table format for readability. Since
-        the prompt just says \\\"Extract the invoice.\\\", a clean, structured format
-        is best.\\n\\n   Structure:\\n   - Invoice Number: 42\\n   - Vendor: ACME\\n
-        \  - Items:\\n     - Quantity: 2, Description: widget, Unit Price: 10.00 EUR,
-        Line Total: 20.00 EUR\\n     - Quantity: 1, Description: bolt, Unit Price:
-        2.50 EUR, Line Total: 2.50 EUR\\n   - Total Amount: 22.50 EUR\\n   - Currency:
-        EUR\\n\\n5.  **Verify Calculations (Optional but good practice):**\\n   -
-        2 * 10.00 = 20.00\\n   - 1 * 2.50 = 2.50\\n   - 20.00 + 2.50 = 22.50\\n   -
-        Matches the provided total.\\n\\n6.  **Format Output:**\\n   I'll present
-        it in a clear, structured format. JSON is often preferred for data extraction
-        tasks, but a clean markdown table/list works well too. I'll provide a structured
-        markdown format.\\n\\n   Draft:\\n   **Invoice Details:**\\n   - **Invoice
-        Number:** 42\\n   - **Vendor:** ACME\\n   - **Currency:** EUR\\n   - **Line
-        Items:**\\n     - 2 x widget @ 10.00 EUR = 20.00 EUR\\n     - 1 x bolt @ 2.50
-        EUR = 2.50 EUR\\n   - **Total Amount:** 22.50 EUR\\n\\n   Alternatively, JSON
-        format:\\n   ```json\\n   {\\n     \\\"invoice_number\\\": \\\"42\\\",\\n
-        \    \\\"vendor\\\": \\\"ACME\\\",\\n     \\\"currency\\\": \\\"EUR\\\",\\n
-        \    \\\"line_items\\\": [\\n       {\\n         \\\"quantity\\\": 2,\\n         \\\"description\\\":
-        \\\"widget\\\",\\n         \\\"unit_price\\\": 10.00,\\n         \\\"line_total\\\":
-        20.00\\n       },\\n       {\\n         \\\"quantity\\\": 1,\\n         \\\"description\\\":
-        \\\"bolt\\\",\\n         \\\"unit_price\\\": 2.50,\\n         \\\"line_total\\\":
-        2.50\\n       }\\n     ],\\n     \\\"total_amount\\\": 22.50\\n   }\\n   ```\\n\\n
-        \  I'll provide a clean, structured text format as it's more universally readable,
-        but I can also offer JSON if needed. The prompt is simple, so a straightforward
-        structured extraction is best.\\n\\n7.  **Final Output Generation:** (Self-Correction/Refinement
-        during thought)\\n   I'll stick to a clear markdown structure. It's direct
-        and matches the request. I'll make sure all extracted fields are explicitly
-        labeled.\\n\\n   Structure:\\n   - **Invoice Number:** 42\\n   - **Vendor/Supplier:**
-        ACME\\n   - **Currency:** EUR\\n   - **Items:**\\n     - Quantity: 2 | Description:
-        widget | Unit Price: 10.00 EUR | Subtotal: 20.00 EUR\\n     - Quantity: 1
-        | Description: bolt | Unit Price: 2.50 EUR | Subtotal: 2.50 EUR\\n   - **Total
-        Amount:** 22.50 EUR\\n\\n   This covers everything accurately. Ready.\u2705\\n
-        \  Output matches the refined structure.\u2705\\n   Proceed. \\n   Output
-        Generation. \\n   [Done] \\n   *Self-Correction/Verification during generation
-        prep:* \\n   The prompt says \\\"Extract the invoice.\\\" I will present it
-        in a clean, structured format. I'll also add a JSON version for programmatic
-        use, as that's common for extraction tasks. But I'll keep it concise. Actually,
-        just a clean markdown table/list is fine. I'll stick to that. All data points
-        are correctly extracted. Calculations verified. Currency noted. Vendor noted.
-        Invoice number noted. Line items detailed. Total noted. Perfect. \\n   Output
-        matches response.\u2705\\n   Proceeds. \\n   [Output Generation] -> *See response.*
-        \\n   *(Note: I'll format it clearly as requested.)*\\n   ```\\n   **Invoice
-        Number:** 42\\n   **Vendor:** ACME\\n   **Currency:** EUR\\n   **Line Items:**\\n
-        \  - 2 x widget @ 10.00 EUR = 20.00 EUR\\n   - 1 x bolt @ 2.50 EUR = 2.50
-        EUR\\n   **Total Amount:** 22.50 EUR\\n   ```\\n   This is concise and accurate.
-        I'll output this.\u2705\\n   All steps complete.\u2705\\n   Output matches
-        the final refined version.\u2705\\n   [Done]\\n\"},\"logprobs\":null,\"finish_reason\":\"stop\",\"stop_reason\":null,\"token_ids\":null,\"routed_experts\":null}],\"service_tier\":null,\"system_fingerprint\":\"vllm-0.31.0-0ace834d\",\"usage\":{\"prompt_tokens\":61,\"total_tokens\":1432,\"completion_tokens\":1371,\"prompt_tokens_details\":null,\"completion_tokens_details\":{\"reasoning_tokens\":1261}},\"prompt_logprobs\":null,\"prompt_token_ids\":null,\"prompt_text\":null,\"kv_transfer_params\":null,\"ec_transfer_params\":null,\"metrics\":null}"
+      string: '{"id":"chatcmpl-bbd1fe38c6d7a9b5","object":"chat.completion","created":1791997786,"model":"gemma4-26b-a4b","choices":[{"index":0,"message":{"role":"assistant","content":"{\n  \"number\":
+        \"42\",\n  \"vendor\": \"ACME\",\n  \"total\": 22.50,\n  \"lines\": [\n    {\n      \"item\":
+        \"widget\",\n      \"quantity\": 2,\n      \"price\": 10.00\n    },\n    {\n      \"item\":
+        \"bolt\",\n      \"quantity\": 1,\n      \"price\": 2.50\n    }\n  ]\n}","refusal":null,"annotations":null,"audio":null,"function_call":null,"reasoning":null},"logprobs":null,"finish_reason":"stop","stop_reason":106,"token_ids":null,"routed_experts":null}],"service_tier":null,"system_fingerprint":"vllm-0.31.0-c9b9a0dd","usage":{"prompt_tokens":65,"total_tokens":173,"completion_tokens":108,"prompt_tokens_details":null,"completion_tokens_details":{"reasoning_tokens":0}},"prompt_logprobs":null,"prompt_token_ids":null,"prompt_text":null,"kv_transfer_params":null,"ec_transfer_params":null,"metrics":null}'
     headers:
       content-length:
-      - '5157'
+      - '979'
       content-type:
       - application/json
       date:
-      - Tue, 13 Oct 2026 12:36:05 GMT
+      - Wed, 14 Oct 2026 17:09:45 GMT
       server:
       - uvicorn
       vary:

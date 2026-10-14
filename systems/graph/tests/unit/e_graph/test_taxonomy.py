@@ -1,25 +1,14 @@
-"""tests/unit: the DARTS taxonomy on disk — `specs/<pipeline>/` and `runners/<pipeline>/` hold one folder per section."""
+"""tests/unit: the DARTS taxonomy on disk — the real system passes its own static check, clean, nothing idle."""
 
-from pathlib import Path
-
-import pytest
-
+from e_graph.logic.discover import SystemDiscover
 from e_graph.models.section import ORDER, Section
+from e_graph.pipelines.base import PipelineRegistry
 
-PACKAGE: Path = Path(__file__).resolve().parents[3] / "src" / "e_graph"
 
-
-@pytest.mark.parametrize("tree", ["specs", "runners"])
-def test_each_pipeline_mirrors_the_sections(tree: str) -> None:
-    pipelines = [
-        path for path in (PACKAGE / tree).iterdir() if path.is_dir() and path.name not in {"wiki", "__pycache__"}
-    ]
-    assert pipelines, f"{tree}/ holds one folder per pipeline"
-    for pipeline in pipelines:
-        folders = {
-            path.name for path in pipeline.iterdir() if path.is_dir() and path.name not in {"wiki", "__pycache__"}
-        }
-        assert folders == set(Section), f"{tree}/{pipeline.name} must mirror Section: {sorted(folders ^ set(Section))}"
+async def test_the_system_passes_its_static_check() -> None:
+    report = await SystemDiscover(await PipelineRegistry().mounts()).check()
+    assert (report.ok, report.breaches) == (True, ()), [f"{b.rule} {b.subject}: {b.detail}" for b in report.breaches]
+    assert report.pipelines == ("doc", "filing", "note")
 
 
 def test_sections_keep_their_fixed_order() -> None:

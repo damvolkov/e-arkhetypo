@@ -11,6 +11,7 @@ from e_graph.instrument.errors import ContractError, ContractRule
 from e_graph.instrument.graph import InstrumentGraph
 from e_graph.instrument.models import EdgeKind, NodeOutput, NodeRole, NodeStatus, RunEnd, RunStatus
 from e_graph.instrument.state import RunState
+from e_graph.models.section import Section
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -78,6 +79,26 @@ def chain(located: Place) -> InstrumentGraph:
 def test_add_node_derives_and_accepts_names(located: Place) -> None:
     graph = InstrumentGraph().add_node(located(node_alpha)).add_node("second", located(node_beta))
     assert list(graph.nodes) == ["alpha", "second"]
+
+
+def test_a_pipeline_graph_mounts_its_own_nodes_one_per_section(located: Place) -> None:
+    graph = InstrumentGraph(name="doc").add_node(located(node_alpha, "ingest")).add_node(located(node_beta, "probe"))
+    assert graph.sections == {Section.INGEST}
+    assert graph.nodes["alpha"].pipeline == "doc"  # ty: ignore[unresolved-attribute]
+
+
+@pytest.mark.parametrize(
+    ("second", "rule"),
+    [(("extract", "filing"), ContractRule.PIPELINE), (("ingest", "doc"), ContractRule.SECTION)],
+    ids=["foreign-pipeline", "section-taken"],
+)
+def test_a_pipeline_graph_refuses_what_is_not_its_own(
+    located: Place, second: tuple[str, str], rule: ContractRule
+) -> None:
+    graph = InstrumentGraph(name="doc").add_node(located(node_alpha, "ingest"))
+    with pytest.raises(ContractError) as caught:
+        graph.add_node(located(node_beta, *second))
+    assert (caught.value.rule, caught.value.subject) == (rule, "beta")
 
 
 def test_add_node_rejects_bad_explicit_name(located: Place) -> None:

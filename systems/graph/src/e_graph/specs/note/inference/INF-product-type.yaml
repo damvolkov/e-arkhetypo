@@ -1,0 +1,24 @@
+kind: semantic
+name: INF-product-type
+description: The note's family in the EUSIPA map, by what its printed terms do.
+pre: owned/classify
+check: agnostic/context/present
+args:
+  check:
+    needs: [extract/EXT-terms, extract/EXT-payoff]
+tier: medium
+instructions: >-
+  Classify this note with the EUSIPA derivative map: pick the one family whose definition its terms fit,
+  name the specific product shape inside it (one phrase, as the market calls it), and say whether the
+  principal is at risk below a threshold. Answer in the JSON shape asked, nothing else.
+wiki: [eusipa, autocall, contingent-coupon]
+output:
+  type: object
+  properties:
+    family:
+      type: string
+      enum: [capital protected, yield enhancement, participation, reference entity, leveraged without knock-out, leveraged with knock-out, constant leverage]
+    shape: {type: string, minLength: 4, maxLength: 120}
+    capital_at_risk: {type: boolean}
+  required: [family, shape, capital_at_risk]
+  additionalProperties: false

@@ -4,7 +4,7 @@ Each test meets several random pipelines (the `crafter` fixture is seeded three 
 applied to a coherent crafted section and the discovery must name exactly it — its rule and its
 subject — with no cascade: a spec that fails to decode is reported once, never again as a missing
 dependency or an orphaned runner. Then laziness: what is not consumed is never read, what is read
-is read once, and no runner is ever imported by discovering it."""
+is read once, and only the runners a coherent section plugs are ever executed — once, off the import path."""
 
 import asyncio
 import random
@@ -17,8 +17,9 @@ import pytest
 
 from e_graph.logic.discover import SpecDiscover
 from e_graph.logic.errors import AuditError, CatalogError, Rule
-from e_graph.logic.models import DeterministicSpec, Hook, SemanticSpec
+from e_graph.logic.models import DeterministicSpec, Role, SemanticSpec, Slot
 from e_graph.models.section import ORDER, Section
+from support.crafter import plug, stem
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -83,17 +84,25 @@ async def test_crafted_pipeline_reads_back_as_crafted(crafter: SpecCrafter) -> N
         section: {name: node.spec for name, node in catalog.nodes.items()} for section, catalog in catalogs.items()
     } == {section: bp.specs for section, bp in crafted.items()}
     assert {
-        section: {name: set(node.hooks) for name, node in catalog.nodes.items()}
+        section: {
+            name: {slot: runner.ref for slot, runner in node.runners.items()} for name, node in catalog.nodes.items()
+        }
         for section, catalog in catalogs.items()
-    } == {section: {name: set(hooks) for name, hooks in bp.hooks.items()} for section, bp in crafted.items()}
+    } == {section: bp.plugs for section, bp in crafted.items()}
 
 
-async def test_every_crafted_hook_carries_its_doc(crafter: SpecCrafter, blueprint: Blueprint) -> None:
+async def test_every_crafted_runner_carries_its_doc_and_role(crafter: SpecCrafter, blueprint: Blueprint) -> None:
     catalog = await crafter.discover().catalog(SECTION)
-    runners = [runner for node in catalog.nodes.values() for runner in node.hooks.values()]
+    runners = [(slot, runner) for node in catalog.nodes.values() for slot, runner in node.runners.items()]
     assert runners
-    assert {runner.doc for runner in runners} == {"Crafted hook."}
-    assert all(runner.name == f"{runner.spec}.{runner.hook}" for runner in runners)
+    assert {runner.doc for _, runner in runners} == {"Crafted runner."}
+    assert all(runner.file == str(crafter.runner_file(SECTION, runner.ref.partition("/")[2])) for _, runner in runners)
+    assert {(slot, runner.role) for slot, runner in runners} <= {
+        (Slot.RUNNER, Role.RUN),
+        (Slot.CHECK, Role.CHECK),
+        (Slot.PRE, Role.PRE),
+        (Slot.POST, Role.POST),
+    }
 
 
 ##### FIELD BREACHES — one document, caught by msgspec while decoding #####
@@ -151,6 +160,15 @@ FIELDS: dict[str, Field] = {
         "examples [0] do not match output",
     ),
     "examples-on-deterministic": Field(det, lambda _: {"examples": [{}]}, "unknown field `examples`"),
+    "runner-missing": Field(det, lambda _: {"runner": ...}, "missing required field `runner`"),
+    "runner-on-semantic": Field(sem, lambda _: {"runner": "owned/x"}, "unknown field `runner`"),
+    "pre-on-deterministic": Field(det, lambda _: {"pre": "owned/x"}, "unknown field `pre`"),
+    "post-on-deterministic": Field(det, lambda _: {"post": "owned/x"}, "unknown field `post`"),
+    "ref-unscoped": Field(det, lambda _: {"check": "helpers/x"}, "at `$.check`"),
+    "ref-two-words": Field(sem, lambda _: {"pre": "owned/net_total"}, "at `$.pre`"),
+    "ref-agnostic-flat": Field(sem, lambda _: {"post": "agnostic/scale"}, "at `$.post`"),
+    "args-unknown-slot": Field(det, lambda _: {"args": {"magic": {}}}, "in `$.args`"),
+    "args-unplugged-slot": Field(sem, lambda _: {"pre": ..., "args": {"pre": {}}}, "args name slots it does not plug"),
 }
 
 
@@ -241,69 +259,100 @@ def cycle(crafter: SpecCrafter, bp: Blueprint) -> Breaches:
     return {(Rule.CYCLE, str(SECTION))}
 
 
+def plugged(crafter: SpecCrafter, name: str, slot: Slot, role: Role | None, **parts: Any) -> str:
+    """The spec's `slot` plugged with its own owned module, written with `role` (or none) and `parts`."""
+    module = plug(name, slot).partition("/")[2]
+    crafter.write_runner(SECTION, module, role, **parts)
+    crafter.patch(SECTION, name, **{slot.value: plug(name, slot)})
+    return module
+
+
 def runner_deleted(crafter: SpecCrafter, bp: Blueprint) -> Breaches:
     name = det(bp)
-    crafter.runner_file(SECTION, name).unlink()
-    return {(Rule.RUNNER, name)}
+    crafter.runner_file(SECTION, stem(name)).unlink()
+    return {(Rule.RUNNER, f"{name}.runner")}
 
 
-def runner_without_run(crafter: SpecCrafter, bp: Blueprint) -> Breaches:
+def runner_unloadable(crafter: SpecCrafter, bp: Blueprint) -> Breaches:
     name = det(bp)
-    crafter.write_runner(SECTION, name, {Hook.CHECK})
-    return {(Rule.RUNNER, name)}
+    crafter.write_runner(SECTION, stem(name), Role.RUN, imports="import no_such_module\n")
+    return {(Rule.RUNNER, f"{name}.runner")}
+
+
+def tool_ghost(crafter: SpecCrafter, bp: Blueprint) -> Breaches:
+    name = sem(bp)
+    crafter.patch(SECTION, name, check="agnostic/ghost/tool")
+    return {(Rule.RUNNER, f"{name}.check")}
 
 
 def runner_orphaned(crafter: SpecCrafter, bp: Blueprint) -> Breaches:
-    crafter.write_runner(SECTION, "EXT-retired-1", {Hook.RUN})
-    return {(Rule.ORPHAN, "EXT-retired-1")}
+    crafter.write_runner(SECTION, "retired1", Role.RUN)
+    return {(Rule.ORPHAN, "retired1")}
 
 
-def hook_helper(crafter: SpecCrafter, bp: Blueprint) -> Breaches:
+def shape_helper(crafter: SpecCrafter, bp: Blueprint) -> Breaches:
     name = det(bp)
-    helper = 'async def helper(state: RunState) -> None:\n    """Help."""\n'
-    crafter.write_runner(SECTION, name, bp.hooks[name], functions=helper)
-    return {(Rule.HOOK, f"{name}.helper")}
+    helper = 'async def helper(state: RunState, call: Call) -> None:\n    """Help."""\n'
+    crafter.write_runner(SECTION, stem(name), Role.RUN, functions=helper)
+    return {(Rule.SHAPE, stem(name))}
 
 
-def hook_run_on_semantic(crafter: SpecCrafter, bp: Blueprint) -> Breaches:
+def role_check_in_runner(crafter: SpecCrafter, bp: Blueprint) -> Breaches:
+    name = det(bp)
+    crafter.write_runner(SECTION, stem(name), Role.CHECK)
+    return {(Rule.ROLE, f"{name}.runner")}
+
+
+def role_post_in_pre(crafter: SpecCrafter, bp: Blueprint) -> Breaches:
     name = sem(bp)
-    crafter.write_runner(SECTION, name, {Hook.RUN})
-    return {(Rule.HOOK, f"{name}.run")}
+    plugged(crafter, name, Slot.PRE, Role.POST)
+    return {(Rule.ROLE, f"{name}.pre")}
 
 
-def hook_pre_on_deterministic(crafter: SpecCrafter, bp: Blueprint) -> Breaches:
+def role_run_in_check(crafter: SpecCrafter, bp: Blueprint) -> Breaches:
+    name = sem(bp)
+    plugged(crafter, name, Slot.CHECK, Role.RUN)
+    return {(Rule.ROLE, f"{name}.check")}
+
+
+def args_refused(crafter: SpecCrafter, bp: Blueprint) -> Breaches:
     name = det(bp)
-    crafter.write_runner(SECTION, name, bp.hooks[name] | {Hook.PRE})
-    return {(Rule.HOOK, f"{name}.pre_run")}
+    crafter.patch(SECTION, name, args={"runner": {"scale": 2}})
+    return {(Rule.ARGS, f"{name}.runner")}
+
+
+def args_wrong(crafter: SpecCrafter, bp: Blueprint) -> Breaches:
+    name = det(bp)
+    crafter.write_runner(SECTION, stem(name), Role.RUN, args="    scale: int\n")
+    crafter.patch(SECTION, name, args={"runner": {"scale": "two"}})
+    return {(Rule.ARGS, f"{name}.runner")}
 
 
 def signature_sync(crafter: SpecCrafter, bp: Blueprint) -> Breaches:
     name = det(bp)
-    sync = crafter.render(Hook.RUN, signature="def run(state: RunState) -> dict[str, Any]")
-    crafter.write_runner(SECTION, name, bp.hooks[name] - {Hook.RUN}, functions=sync)
-    return {(Rule.SIGNATURE, f"{name}.run")}
+    sync = crafter.render(Role.RUN, signature="def run(state: RunState, call: Call) -> dict[str, Any]")
+    crafter.write_runner(SECTION, stem(name), None, functions=sync)
+    return {(Rule.SIGNATURE, stem(name))}
 
 
 def signature_params(crafter: SpecCrafter, bp: Blueprint) -> Breaches:
     name = sem(bp)
-    short = crafter.render(Hook.POST, signature="async def post_run(state: RunState) -> dict[str, Any]").replace(
-        "output", "{}"
+    short = crafter.render(
+        Role.POST, signature="async def post_run(state: RunState, call: Call) -> dict[str, Any]", body="return {}"
     )
-    crafter.write_runner(SECTION, name, bp.hooks[name] - {Hook.POST}, functions=short)
-    return {(Rule.SIGNATURE, f"{name}.post_run")}
+    return {(Rule.SIGNATURE, plugged(crafter, name, Slot.POST, None, functions=short))}
 
 
 def signature_return(crafter: SpecCrafter, bp: Blueprint) -> Breaches:
     name = det(bp)
-    check = crafter.render(Hook.CHECK, signature="async def check(state: RunState) -> str")
-    crafter.write_runner(SECTION, name, bp.hooks[name] - {Hook.CHECK}, functions=check)
-    return {(Rule.SIGNATURE, f"{name}.check")}
+    check = crafter.render(Role.CHECK, signature="async def check(state: RunState, call: Call) -> str")
+    return {(Rule.SIGNATURE, plugged(crafter, name, Slot.CHECK, None, functions=check))}
 
 
 def doc_missing(crafter: SpecCrafter, bp: Blueprint) -> Breaches:
     name = det(bp)
-    crafter.write_runner(SECTION, name, bp.hooks[name] - {Hook.RUN}, functions=crafter.render(Hook.RUN, doc=None))
-    return {(Rule.DOC, f"{name}.run")}
+    crafter.write_runner(SECTION, stem(name), Role.RUN, doc=None)
+    return {(Rule.DOC, stem(name))}
 
 
 def wiki_ghost(crafter: SpecCrafter, bp: Blueprint) -> Breaches:
@@ -328,11 +377,15 @@ SECTION_BREACHES: dict[str, Callable[[SpecCrafter, Blueprint], Breaches]] = {
     "fallback-depended-on": fallback_depended_on,
     "cycle": cycle,
     "runner-deleted": runner_deleted,
-    "runner-without-run": runner_without_run,
+    "runner-unloadable": runner_unloadable,
+    "tool-ghost": tool_ghost,
     "runner-orphaned": runner_orphaned,
-    "hook-helper": hook_helper,
-    "hook-run-on-semantic": hook_run_on_semantic,
-    "hook-pre-on-deterministic": hook_pre_on_deterministic,
+    "shape-helper": shape_helper,
+    "role-check-in-runner": role_check_in_runner,
+    "role-post-in-pre": role_post_in_pre,
+    "role-run-in-check": role_run_in_check,
+    "args-refused": args_refused,
+    "args-wrong": args_wrong,
     "signature-sync": signature_sync,
     "signature-params": signature_params,
     "signature-return": signature_return,
@@ -351,9 +404,7 @@ async def test_a_section_law_names_exactly_its_breach(
 
 
 async def test_independent_breaches_reported_together(crafter: SpecCrafter, blueprint: Blueprint) -> None:
-    expected = (
-        runner_orphaned(crafter, blueprint) | wiki_ghost(crafter, blueprint) | signature_return(crafter, blueprint)
-    )
+    expected = tool_ghost(crafter, blueprint) | wiki_ghost(crafter, blueprint) | signature_return(crafter, blueprint)
     name = next(
         name
         for name in blueprint.specs
@@ -370,7 +421,7 @@ async def test_audit_judges_the_tree_beside_the_sections(crafter: SpecCrafter, b
     (crafter.specs / "doc" / "misc").mkdir()
     (crafter.specs / "doc" / "extract" / "nested").mkdir()
     crafter.spec_file(SECTION, det(blueprint)).with_suffix(".yml").write_text("kind: deterministic\n")
-    (crafter.runners / "doc" / "extract" / "notes.txt").write_text("")
+    (crafter.runners / "owned" / "doc" / "extract" / "notes.txt").write_text("")
     with pytest.raises(AuditError) as caught:
         await crafter.discover().audit()
     (tree,) = caught.value.catalogs
@@ -427,29 +478,28 @@ async def test_a_broken_section_stops_the_walk_where_it_stands(
     assert decode.call_count == sum(len(wide[section].specs) for section in read)
 
 
-async def test_discovering_imports_no_runner(crafter: SpecCrafter, wide: dict[Section, Blueprint]) -> None:
-    ### every runner module explodes on import: discovering the pipeline must never set one off.
-    files = sorted((crafter.runners / "doc").rglob("*.py"))
-    _ = [file.write_text(file.read_text() + '\nraise RuntimeError("imported")\n') for file in files]
-    catalogs = await crafter.discover().audit()
-    assert sum(len(node.hooks) for catalog in catalogs for node in catalog.nodes.values()) > 0
-    runner = next(runner for catalog in catalogs for node in catalog.nodes.values() for runner in node.hooks.values())
-    with pytest.raises(RuntimeError, match="imported"):
-        await crafter.discover().load(runner)
+async def test_discovering_executes_only_what_a_coherent_section_plugs(
+    crafter: SpecCrafter, wide: dict[Section, Blueprint]
+) -> None:
+    ### an idle tool and every module of a broken section explode on load: discovering must never set one off.
+    crafter.write_tool("table", "figure", Role.RUN, imports='raise RuntimeError("imported")\n')
+    broken = sorted((crafter.runners / "owned" / "doc" / "classify").glob("*.py"))
+    _ = [file.write_text(file.read_text() + '\nraise RuntimeError("imported")\n') for file in broken]
+    crafter.patch(Section.CLASSIFY, next(iter(wide[Section.CLASSIFY].specs)), version=0)
+    with pytest.raises(AuditError) as caught:
+        await crafter.discover().audit()
+    assert [group.message for group in caught.value.catalogs] == ["doc/classify: 1 broken laws"]
 
 
-async def test_a_runner_loads_alone_once_and_leaves_no_module_behind(
+async def test_a_runner_loads_once_and_leaves_no_module_behind(
     crafter: SpecCrafter, blueprint: Blueprint, mocker: MockerFixture
 ) -> None:
     discover = crafter.discover()
     catalog = await discover.catalog(SECTION)
-    load = mocker.spy(SpecDiscover, "_load_hook")
-    runner = catalog.nodes[det(blueprint)].hooks[Hook.RUN]
-    hooks = await asyncio.gather(*(discover.load(runner) for _ in range(8)))
-    await discover.load(runner)
-    assert len({id(hook) for hook in hooks}) == 1
-    assert load.call_count == 1
-    assert not [module for module in sys.modules if module.startswith("e_graph.runners.")]
+    runner = catalog.nodes[det(blueprint)].runners[Slot.RUNNER]
+    functions = await asyncio.gather(*(discover.load(runner) for _ in range(8)))
+    assert len({id(function) for function in functions}) == 1
+    assert not [module for module in sys.modules if module.startswith("darts.")]
 
 
 def test_crafted_specs_are_validated_at_birth(crafter: SpecCrafter) -> None:

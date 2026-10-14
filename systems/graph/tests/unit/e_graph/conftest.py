@@ -79,17 +79,17 @@ def run_state(system: State) -> RunState:
 
 @pytest.fixture
 def located() -> Callable[..., Any]:
-    """A clone of a test-local function, placed where the node contract demands: `nodes/<category>/node.py`.
+    """A clone of a test-local function, placed where the node contract demands: `pipelines/<pipeline>/nodes/<category>/node.py`.
 
     A clone, never the original: the module-level function stays where it was for every other test.
     Typed `Any` on purpose — the same helper feeds valid nodes to the graph and broken ones to the contract."""
 
-    def place(func: types.FunctionType, category: str = "extract") -> Any:
+    def place(func: types.FunctionType, category: str = "extract", pipeline: str = "doc") -> Any:
         clone = types.FunctionType(func.__code__, func.__globals__, func.__name__, func.__defaults__, func.__closure__)
         clone.__qualname__, clone.__doc__ = func.__qualname__, func.__doc__
         ### 3.14 annotations are lazy: the clone shares the original's annotate function, never evaluates it here.
         clone.__annotate__ = func.__annotate__  # ty: ignore[invalid-assignment] — typeshed types getter and setter apart
-        clone.__module__ = f"e_graph.nodes.{category}.node"
+        clone.__module__ = f"e_graph.pipelines.{pipeline}.nodes.{category}.node"
         return clone
 
     return place

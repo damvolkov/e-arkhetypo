@@ -22,7 +22,7 @@ from e_graph.logic.errors import (
     SchemaError,
     TruncatedError,
 )
-from e_graph.logic.models import Endpoint, Message, Provider, Role, Tier, Usage
+from e_graph.logic.models import Endpoint, Message, Provider, Speaker, Tier, Usage
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -108,6 +108,17 @@ async def test_run_tier_resolved_from_settings(settings: Callable[..., Any], cre
     create.assert_called_once_with("vllm", api_key=DUMMY_KEY, api_base="http://h/v1")
 
 
+def test_resolve_names_where_a_call_would_go(settings: Callable[..., Any]) -> None:
+    agent = AgnosticAgent(settings(agent_medium={"provider": "vllm", "model": "m", "api_base": "http://v/v1"}))
+    endpoint = agent.resolve(Tier.MEDIUM)
+    assert (endpoint.provider, endpoint.model, endpoint.api_base, endpoint.api_key) == (
+        Provider.VLLM,
+        "m",
+        "http://v/v1",
+        DUMMY_KEY,
+    )
+
+
 async def test_run_tier_carries_its_key_and_options(settings: Callable[..., Any], create: MockType) -> None:
     tier = {"provider": "openai", "model": "m", "api_key": "k-tier", "options": {"organization": "o"}}
     await AgnosticAgent(settings(agent_low=tier)).run("i", "p", Ack, endpoint=Tier.LOW)
@@ -187,7 +198,7 @@ async def test_schema_raw_mapping_named_by_title(agent: AgnosticAgent, client: M
 
 
 async def test_generation_options_and_turns_reach_the_provider(agent: AgnosticAgent, client: MockType) -> None:
-    turns = [Message(Role.USER, "q"), Message(Role.ASSISTANT, "a"), Message(Role.USER, "again")]
+    turns = [Message(Speaker.USER, "q"), Message(Speaker.ASSISTANT, "a"), Message(Speaker.USER, "again")]
     reply = await agent.run("sys", turns, Ack, endpoint=VLLM, temperature=0.0, seed=7)
     request = sent(client)
     assert (reply.output, request["stream"]) == (Ack(ok=True), False)
@@ -219,7 +230,7 @@ async def test_invalid_reply_retried_with_the_error(agent: AgnosticAgent, client
     reply = await agent.run("i", "p", Invoice, endpoint=VLLM)
     assert (reply.attempts, reply.usage) == (2, Usage(input_tokens=6, output_tokens=4, total_tokens=10, calls=2))
     retried = sent(client)["messages"]
-    assert retried[-2] == {"role": Role.ASSISTANT, "content": '{"total": "x"}'}
+    assert retried[-2] == {"role": Speaker.ASSISTANT, "content": '{"total": "x"}'}
     assert retried[-1]["content"].startswith(RETRY_PROMPT.split("{", 1)[0])
     assert "Expected `float`" in retried[-1]["content"]
 

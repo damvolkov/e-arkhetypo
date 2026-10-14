@@ -1,0 +1,28 @@
+kind: semantic
+name: EXT-coupon-schedule
+description: Each scheduled Coupon Payment Date with the contingent amount payable on it, if the barrier is met.
+check: agnostic/context/present
+args:
+  check: {needs: [extract/EXT-coupon, extract/EXT-schedule-table]}
+depends: [EXT-coupon, EXT-schedule-table]
+tier: low
+instructions: >-
+  Pair the coupon with the schedule: for every Coupon Payment Date listed, the amount in US dollars paid
+  per note if the related Observation Date closes at or above the Coupon Barrier. Copy the dates exactly
+  as the schedule prints them.
+output:
+  type: object
+  properties:
+    payments:
+      type: array
+      minItems: 1
+      maxItems: 12
+      items:
+        type: object
+        properties:
+          payment_date: {type: string, minLength: 6, maxLength: 40}
+          amount: {type: number, minimum: 0.01}
+        required: [payment_date, amount]
+        additionalProperties: false
+  required: [payments]
+  additionalProperties: false

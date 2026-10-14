@@ -66,7 +66,7 @@ def test_state_opens_sealed(client) -> None:
 
 def test_graphs_section_holds_built_singletons(client) -> None:
     graphs = client.app.state.system.graphs
-    assert list(graphs) == ["doc"]
+    assert list(graphs) == ["doc", "filing", "note"]
     graph = graphs["doc"]
     assert isinstance(graph, InstrumentGraph)
     assert (graph.name, graph._compiled is not None) == ("doc", True)

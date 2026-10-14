@@ -1,0 +1,17 @@
+kind: deterministic
+name: INF-max-return
+description: The best and worst outcome for a holder — total return percent, and how long the best one takes.
+runner: owned/peak
+check: agnostic/context/present
+args:
+  check:
+    needs: [extract/EXT-terms, extract/EXT-schedule]
+depends: [INF-coupon, INF-tenor]
+output:
+  type: object
+  properties:
+    best_percent: {type: number, exclusiveMinimum: 0}
+    best_years: {type: number, exclusiveMinimum: 0}
+    worst_percent: {type: number, maximum: 0}
+  required: [best_percent, best_years, worst_percent]
+  additionalProperties: false

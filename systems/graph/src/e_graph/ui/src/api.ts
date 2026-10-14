@@ -104,3 +104,140 @@ export function streamRun(id: string, data: Record<string, unknown>, onFrame: (f
   socket.onmessage = (event: MessageEvent<string>) => onFrame(JSON.parse(event.data));
   return () => socket.close();
 }
+
+export type Slot = "runner" | "check" | "pre" | "post";
+export type LinkKind = "depends" | "fallback";
+export type SpecStatus = "pending" | "succeeded" | "rescued" | "failed" | "blocked" | "skipped";
+
+export interface SectionInfo {
+  pipeline: string;
+  section: string;
+  specs: number;
+  steps: number;
+  calls: number;
+}
+
+export interface SpecPoint {
+  id: string;
+  kind: "deterministic" | "semantic";
+  description: string;
+  rank: number;
+  lane: number;
+  tier: string;
+  call: number;
+  rescues: string;
+  runners: Partial<Record<Slot, string>>;
+  wiki: string[];
+  output: Record<string, unknown>;
+}
+
+export interface SpecLink {
+  id: string;
+  source: string;
+  target: string;
+  kind: LinkKind;
+}
+
+export interface CallGroup {
+  index: number;
+  rank: number;
+  tier: string;
+  specs: string[];
+  weight: number;
+  budget: number;
+}
+
+export interface SectionMap {
+  pipeline: string;
+  section: string;
+  nodes: SpecPoint[];
+  edges: SpecLink[];
+  calls: CallGroup[];
+  ranks: number;
+  lanes: number;
+}
+
+export interface AgentCall {
+  index: number;
+  step: number;
+  tier: string;
+  specs: string[];
+  instructions: string;
+  prompt: string;
+  schema: Record<string, unknown>;
+  weights: Record<string, number>;
+  budget: number;
+}
+
+export interface SpecOutcome {
+  spec: string;
+  kind: string;
+  step: number;
+  status: Exclude<SpecStatus, "pending">;
+  latency_ms: number;
+  reason: string;
+  error: string;
+  rescuer: string;
+  call: number;
+}
+
+export interface SectionRun {
+  pipeline: string;
+  section: string;
+  outcomes: SpecOutcome[];
+  latency_ms: number;
+  calls: AgentCall[];
+}
+
+export interface Route {
+  provider: string;
+  model: string;
+  api_base: string;
+  error: string;
+}
+
+export interface Simulation {
+  pipeline: string;
+  section: string;
+  live: boolean;
+  runs: SectionRun[];
+  calls: AgentCall[];
+  routes: Record<string, Route>;
+  written: Record<string, unknown>;
+  latency_ms: number;
+}
+
+export interface SpecData extends Record<string, unknown> {
+  point: SpecPoint;
+  status: SpecStatus;
+  latency_ms?: number;
+}
+
+export interface CallData extends Record<string, unknown> {
+  group: CallGroup;
+  width: number;
+  height: number;
+}
+
+export type SpecNode = Node<SpecData, "spec">;
+export type CallNode = Node<CallData, "call">;
+export type LinkEdge = Edge<{ kind: LinkKind }>;
+
+async function send<T>(path: string, body: unknown): Promise<T> {
+  const response = await fetch(`${API}${path}`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) throw new Error(`${path}: ${response.status} ${await response.text()}`);
+  return response.json();
+}
+
+const at = (pipeline: string, section: string) => `${encodeURIComponent(pipeline)}/${encodeURIComponent(section)}`;
+
+export const listSections = () => read<SectionInfo[]>("/specs/list");
+export const fetchSectionMap = (pipeline: string, section: string) =>
+  read<SectionMap>(`/specs/topology/${at(pipeline, section)}`);
+export const svgUrl = (pipeline: string, section: string) => `${API}/specs/svg/${at(pipeline, section)}`;
+export const simulate = (pipeline: string, section: string, data: Record<string, unknown>, live: boolean) =>
+  send<Simulation>(`/specs/simulate/${at(pipeline, section)}`, { data, live });

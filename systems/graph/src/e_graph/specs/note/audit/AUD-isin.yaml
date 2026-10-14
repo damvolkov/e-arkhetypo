@@ -1,0 +1,18 @@
+kind: deterministic
+name: AUD-isin
+description: The note's ISIN carries its check digit — Luhn over the letters-expanded body, ISO 6166.
+runner: agnostic/standard/checksum
+check: agnostic/context/present
+args:
+  runner:
+    scheme: isin
+    value: extract/EXT-identifiers.isin
+  check:
+    needs: [extract/EXT-identifiers]
+output:
+  type: object
+  properties:
+    value: {type: string}
+    holds: {type: boolean}
+  required: [value, holds]
+  additionalProperties: false

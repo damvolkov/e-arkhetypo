@@ -1,0 +1,18 @@
+kind: semantic
+name: EXT-listing
+description: Whether the notes trade on an exchange.
+pre: agnostic/document/pages
+check: agnostic/context/present
+args:
+  pre: {first: 1, most: 0}
+  check: {needs: [ingest/ING-document]}
+tier: low
+instructions: >-
+  From the cover page: whether the notes are or will be listed on any securities exchange — a plain
+  yes-or-no — and the exchange's name only if they are.
+output:
+  type: object
+  properties:
+    listed: {type: boolean}
+  required: [listed]
+  additionalProperties: false

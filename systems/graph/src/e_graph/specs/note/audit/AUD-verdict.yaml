@@ -1,0 +1,38 @@
+kind: deterministic
+name: AUD-verdict
+description: The note's whole audit — every check's verdict and the names of the ones that did not hold.
+runner: owned/verdict
+check: agnostic/context/present
+args:
+  check:
+    needs:
+      - audit/AUD-isin
+      - audit/AUD-cusip
+      - audit/AUD-identity
+      - audit/AUD-currency
+      - audit/AUD-dates
+      - audit/AUD-schedule
+      - audit/AUD-thresholds
+      - audit/AUD-value
+      - audit/AUD-cfi
+      - audit/AUD-eusipa
+depends:
+  - AUD-isin
+  - AUD-cusip
+  - AUD-identity
+  - AUD-currency
+  - AUD-dates
+  - AUD-schedule
+  - AUD-thresholds
+  - AUD-value
+  - AUD-cfi
+  - AUD-eusipa
+bound: cpu
+output:
+  type: object
+  properties:
+    holds: {type: boolean}
+    broken: {type: array, items: {type: string}}
+    checks: {type: integer, minimum: 1}
+  required: [holds, broken, checks]
+  additionalProperties: false

@@ -1,0 +1,15 @@
+kind: deterministic
+name: AUD-margin
+description: Whether the income statement read holds its identity, revenue less cost of revenue equal to gross profit.
+runner: owned/margin
+check: agnostic/context/present
+args:
+  check:
+    needs: [extract/EXT-income]
+output:
+  type: object
+  properties:
+    gap: {type: number}
+    holds: {type: boolean}
+  required: [gap, holds]
+  additionalProperties: false

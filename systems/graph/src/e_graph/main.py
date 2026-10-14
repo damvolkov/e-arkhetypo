@@ -22,7 +22,7 @@ from e_graph.api.lifespan import adapters, sealed, services
 from e_graph.api.lifespan.core import lifespan as core_lifespan
 from e_graph.api.lifespan.graphs import lifespan as graphs_lifespan
 from e_graph.api.middlewares import MIDDLEWARES, cors_config
-from e_graph.api.router import health, pipelines, ui
+from e_graph.api.router import health, pipelines, specs, ui
 from e_graph.api.state import AppState
 
 
@@ -46,6 +46,7 @@ def create_app() -> Litestar:
     ##### ROUTERS #####
     app.register(Router(path="/", route_handlers=list(health.ROUTES)))
     app.register(Router(path=pipelines.PREFIX, route_handlers=list(pipelines.ROUTES)))
+    app.register(Router(path=specs.PREFIX, route_handlers=list(specs.ROUTES)))
     app.register(Router(path="/", route_handlers=list(ui.ROUTES)))
     app.register(Router(path="/", route_handlers=list(docs.routes())))
     app.register(ui.router())

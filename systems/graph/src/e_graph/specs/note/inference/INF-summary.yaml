@@ -1,0 +1,23 @@
+kind: semantic
+name: INF-summary
+description: The note explained to a person in ten lines of plain language.
+pre: owned/brief
+check: agnostic/context/present
+args:
+  check:
+    needs: [extract/EXT-terms, inference/INF-scenarios]
+depends: [INF-scenarios]
+tier: low
+timeout: PT6M
+instructions: >-
+  Write what this note is to a retail investor who has read nothing, in under a hundred and fifty words: what they put in, what pays them
+  and when, what kicks it out early, what happens if the index falls and by how much it must fall
+  before their capital does, and the two or three ways it can hurt. Short sentences, no jargon left
+  unexplained, no advice.
+wiki: [contingent-coupon, autocall, downside-threshold, estimated-value]
+output:
+  type: object
+  properties:
+    summary: {type: string, minLength: 120, maxLength: 1200}
+  required: [summary]
+  additionalProperties: false

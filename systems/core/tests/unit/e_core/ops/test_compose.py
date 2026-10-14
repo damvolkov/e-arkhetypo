@@ -144,7 +144,7 @@ async def test_merged_is_deterministic_and_idempotent(tool: StackCompose) -> Non
 async def test_full_stack(repo: Path, snap: Callable[[str, bytes], None]) -> None:
     """The whole real stack through the tool: catalog with resolved edges and the merged model, pinned."""
     live = StackCompose(repo / "stack")
-    assert len(live.discover(dependencies=True)) == 30
+    assert len(live.discover(dependencies=True)) == 31
     merged = live.merge()
     snap("full_stack", merged.snapshot())
     assert list(merged.services) == sorted(merged.services)

@@ -18,6 +18,7 @@ The processor holds the document port (docling) and its own liteparse parser —
 state per document: `process` returns a `Document` whose objects are engine-neutral."""
 
 import base64
+import re
 from itertools import pairwise, takewhile
 from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, Final
@@ -50,6 +51,9 @@ type Rows = list[dict[str, Any]]
 LANE: Final[int] = 2
 ### the break docling writes between pages in markdown: it splits a span's markdown back into its pages.
 BREAK: Final[str] = "<!-- page-break -->"
+### a picture embedded in markdown is bytes in a text: the bytes live in `Document.pictures`, the text keeps a marker.
+EMBEDDED: Final[re.Pattern[str]] = re.compile(r"!\[[^\]]*\]\(data:[^)]*\)")
+IMAGE: Final[str] = "<!-- image -->"
 HEADINGS: Final[frozenset[str]] = frozenset({"title", "section_header"})
 BODY: Final[frozenset[str]] = frozenset({"text", "list_item", "paragraph"})
 ### liteparse block kinds onto docling's labels; a `rule` (a drawn line) carries no text and is dropped.
@@ -263,8 +267,10 @@ class DocProcessor:
 
     @staticmethod
     def _deep_markdown(conversion: DocumentConversion, span: Span) -> dict[int, str]:
-        """The span's markdown split back into its pages, when docling wrote one break per page."""
-        parts = [part.strip() for part in conversion.markdown.split(BREAK)]
+        """The span's markdown split back into its pages, when docling wrote one break per page — none when it wrote
+        nothing — every embedded picture left as a marker: its bytes are the document's pictures, never its text."""
+        text = EMBEDDED.sub(IMAGE, conversion.markdown)
+        parts = [part.strip() for part in text.split(BREAK)] if text.strip() else []
         pages = range(span[0], span[1] + 1)
         return dict(zip(pages, parts, strict=True)) if len(parts) == len(pages) else {}
 

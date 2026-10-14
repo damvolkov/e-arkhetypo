@@ -1,18 +1,17 @@
-"""nodes.report.node: serialize the record in the requested format and confirm delivery."""
+"""pipelines.doc.nodes.report.node: serialize the record in the requested format and confirm delivery."""
 
-import asyncio
-from typing import cast
+from typing import Any, cast
 
-import eserde
-from eserde import Format
+import anyio
 
 from e_graph.instrument.state import RunState
+from e_graph.models.section import Section
 
 
-async def node_report(state: RunState) -> str:
-    """Serialize the record in the requested format (`data.format`, JSON by default) and confirm it."""
-    await asyncio.sleep(cast("float", state.context.get("pace", 0.0)))
-    ### an unknown format is a KeyError: the node answers FAILED, the run's verdict names it.
-    codec = Format[cast("str", state.context.get("format", "json")).upper()]
-    state.context.report = report = await eserde.adumps(state.context.record, format=codec)
-    return f"delivered {len(report)} bytes as {codec.name.lower()}"
+async def node_report(state: RunState) -> dict[str, Any]:
+    """Serialize the record in the requested format (`format`, JSON by default) and confirm it."""
+    await anyio.sleep(cast("float", state.context.get("pace", 0.0)))
+    report = await state.infra.orchestrator.node(Section.REPORT, state)
+    ### the section's own words for the canvas: what was delivered, and how.
+    serial = state.context.report["REP-serial"]
+    return {**report, "summary": f"delivered {len(serial['text'])} bytes as {serial['format']}"}

@@ -1,0 +1,16 @@
+kind: deterministic
+name: INF-tenor
+description: The note's term in days and years under both day-count conventions.
+runner: owned/tenor
+check: agnostic/context/present
+args:
+  check:
+    needs: [extract/EXT-terms]
+output:
+  type: object
+  properties:
+    days_act: {type: integer, minimum: 1}
+    years_act365: {type: number, exclusiveMinimum: 0}
+    years_30360: {type: number, exclusiveMinimum: 0}
+  required: [days_act, years_act365, years_30360]
+  additionalProperties: false

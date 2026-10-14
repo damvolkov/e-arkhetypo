@@ -1,0 +1,15 @@
+kind: deterministic
+name: INF-drag
+description: The fee drag — what the buyer pays above the issuer's own estimate, per note and as a share of price.
+runner: owned/drag
+check: agnostic/context/present
+args:
+  check:
+    needs: [extract/EXT-terms]
+output:
+  type: object
+  properties:
+    per_note: {type: number, minimum: 0}
+    share: {type: number, minimum: 0, maximum: 1}
+  required: [per_note, share]
+  additionalProperties: false

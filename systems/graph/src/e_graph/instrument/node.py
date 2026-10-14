@@ -1,7 +1,7 @@
 """instrument.node: InstrumentNode — LangGraph's own node spec, narrowed to one contract and instrumented.
 
 Two contracts, one per side. The user's *function* is exactly
-`async def node_<name>(state: RunState) -> NodeResult`, defined in `nodes/<category>/node.py` — it types
+`async def node_<name>(state: RunState) -> NodeResult`, defined in `pipelines/<pipeline>/nodes/<category>/node.py` — it types
 the RunState and nothing else, and may report what it did: a `str` is its summary; a `dict` fills the
 output's slots by name (`summary`, `usage`…) and carries every other key as `extra`; a `NodeOutput` (even
 a partial one) merges the same way; `None` reports nothing. The *node* wraps it and always answers
@@ -43,7 +43,9 @@ type NodeResult = str | dict[str, Any] | NodeOutput | None
 type NodeFunc = Callable[[RunState], Awaitable[NodeResult]]
 
 FUNC_RE: Final = re.compile(r"^node_(?P<name>[a-z][a-z0-9_]*)$")
-LOCATION_RE: Final = re.compile(r"(?:^|\.)nodes\.(?P<category>[a-z][a-z0-9_]*)\.node$")
+LOCATION_RE: Final = re.compile(
+    r"(?:^|\.)pipelines\.(?P<pipeline>[a-z][a-z0-9]*)\.nodes\.(?P<category>[a-z][a-z0-9_]*)\.node$"
+)
 ### what a node may hand back, member by member: `str | dict[str, Any] | NodeOutput | None` or any part of it.
 RETURNS: Final[frozenset[type]] = frozenset({NoneType, str, dict, NodeOutput})
 UNIONS: Final[frozenset[object]] = frozenset({Union, UnionType})
@@ -63,10 +65,11 @@ LEVELS: Final[Mapping[NodeStatus, str]] = MappingProxyType(
 ##### NODE #####
 @dataclass(slots=True, kw_only=True)
 class InstrumentNode(StateNodeSpec[Channels, None]):
-    """A LangGraph node spec that knows its function, name, category and headline, and runs instrumented."""
+    """A LangGraph node spec that knows its function, name, pipeline, category and headline, and runs instrumented."""
 
     func: NodeFunc
     name: str
+    pipeline: str
     category: str
     doc: str
     ### the graph fills it at compile time, from its edges to and from LangGraph's START/END sentinels.
@@ -186,7 +189,11 @@ class InstrumentNode(StateNodeSpec[Channels, None]):
         rules: tuple[tuple[ContractRule, Callable[[Callable[..., object]], bool], str], ...] = (
             (ContractRule.ASYNC, cls._validate_async, "must be `async def`"),
             (ContractRule.NAME, cls._validate_name, "must be named `node_<name>`"),
-            (ContractRule.LOCATION, cls._validate_location, "must live in `nodes/<category>/node.py`"),
+            (
+                ContractRule.LOCATION,
+                cls._validate_location,
+                "must live in `pipelines/<pipeline>/nodes/<category>/node.py`",
+            ),
             (ContractRule.SIGNATURE, cls._validate_signature, "must take exactly one positional parameter"),
             (ContractRule.STATE, cls._validate_state, "its parameter must be annotated `RunState`"),
             (ContractRule.RETURN, cls._validate_return, "must return `NodeResult`: str | dict | NodeOutput | None"),
@@ -203,12 +210,14 @@ class InstrumentNode(StateNodeSpec[Channels, None]):
     def wrap(cls, spec: StateNodeSpec[Any, Any], func: NodeFunc, name: str) -> Self:
         """Promote the spec LangGraph built for `func` into an InstrumentNode; the graph bridges its runnable."""
         ### validate ran before wrap: the location matched, the group is the category folder.
-        raw = cast("re.Match[str]", LOCATION_RE.search(func.__module__))["category"]
+        location = cast("re.Match[str]", LOCATION_RE.search(func.__module__))
+        raw = location["category"]
         headline = (inspect.getdoc(func) or "").partition("\n")[0]
         return cls(
             **{field.name: getattr(spec, field.name) for field in fields(StateNodeSpec)},
             func=func,
             name=name,
+            pipeline=location["pipeline"],
             category=Section(raw) if raw in SECTIONS else raw,
             doc=headline,
         )

@@ -1,0 +1,26 @@
+kind: deterministic
+name: EXT-schedule-table
+description: The table of Observation Dates and Coupon Payment Dates, read as rows.
+runner: agnostic/table/rows
+check: agnostic/context/present
+args:
+  runner:
+    header: [observation dates, coupon payment dates]
+    columns: [observation_date, payment_date]
+  check:
+    needs: [ingest/ING-document]
+output:
+  type: object
+  properties:
+    rows:
+      type: array
+      minItems: 2
+      items:
+        type: object
+        properties:
+          observation_date: {type: string, minLength: 6}
+          payment_date: {type: string, minLength: 6}
+        required: [observation_date, payment_date]
+        additionalProperties: false
+  required: [rows]
+  additionalProperties: false

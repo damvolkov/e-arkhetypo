@@ -1,0 +1,25 @@
+kind: semantic
+name: AUD-coherence
+description: Does the payoff text the note states agree with the numbers the section extracted — no contradiction between prose and term sheet.
+pre: owned/compare
+depends: [AUD-identity, AUD-thresholds, AUD-value]
+check: agnostic/context/present
+args:
+  check:
+    needs: [extract/EXT-terms, extract/EXT-payoff]
+tier: high
+timeout: PT8M
+instructions: >-
+  You are given the note's payoff as the document words it and the term sheet extracted from the same
+  document. Count the contradictions between the two — a level named in the prose that differs from the
+  sheet, a payment the numbers cannot produce, a condition reversed. Answer with whether the two agree,
+  the number of contradictions found (zero if none), and the term-sheet field of the worst one, as the
+  sheet spells it; an empty field when there are none.
+output:
+  type: object
+  properties:
+    coherent: {type: boolean}
+    conflicts: {type: integer, minimum: 0, maximum: 8}
+    worst_field: {type: string, maxLength: 60}
+  required: [coherent, conflicts, worst_field]
+  additionalProperties: false

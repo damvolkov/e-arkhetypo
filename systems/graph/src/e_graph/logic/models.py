@@ -13,9 +13,12 @@ SPECS. A spec is a YAML file, `specs/<pipeline>/<section>/<name>.yaml`, decoded 
 `Spec` is generic over its name type: `Spec.named(section)` is the section's own regex (`EXT-…` for
 extract), so a name, every `depends` entry and the `fallback` are validated against the section the
 file lives in — by msgspec, while decoding. What one document can say about itself is checked here, in
-`__post_init__`; what only the whole section can answer is `logic.rules`' work. A spec's runners live
-in the module of the same name, `runners/<pipeline>/<section>/<name>.py`, as fixed hook functions:
-`run`, `check`, `pre_run`, `post_run` — discovered, never declared."""
+`__post_init__`; what only the whole section can answer is `logic.rules`' work. A spec plugs runners by
+reference, one per `Slot`: `owned/<name>` (`runners/owned/<pipeline>/<section>/<name>.py`) or
+`agnostic/<capability>/<name>` (`runners/agnostic/<capability>/<name>.py`). A runner module holds one
+function named by its `Role` (`run`, `check`, `pre_run`, `post_run`), with the role's `SIGNATURES` entry.
+
+REPORT. `Report` is the static check of the whole system: every `Breach`, errors and warnings, as data."""
 
 import annotationlib
 from collections.abc import Callable
@@ -29,6 +32,7 @@ import jsonschema_rs
 import msgspec
 
 from core.struct import CheckedStruct
+from e_graph.logic.errors import Rule, Severity
 from e_graph.models.section import PREFIXES, Section
 
 if TYPE_CHECKING:
@@ -117,7 +121,7 @@ class Tier(StrEnum):
     LOW = auto()
 
 
-class Role(StrEnum):
+class Speaker(StrEnum):
     """Who speaks a message, in the chat standard every provider accepts."""
 
     SYSTEM = auto()
@@ -150,7 +154,7 @@ class Endpoint(msgspec.Struct, frozen=True, kw_only=True):
 class Message(msgspec.Struct, frozen=True):
     """One turn of a conversation."""
 
-    role: Role
+    role: Speaker
     content: str
 
 
@@ -244,8 +248,8 @@ class Bound(StrEnum):
     CPU = auto()
 
 
-class Hook(StrEnum):
-    """A runner's role, and the one name its function may have inside the spec's runner module."""
+class Role(StrEnum):
+    """What a runner does — and the one name its single function may have in its module."""
 
     RUN = "run"
     CHECK = "check"
@@ -253,15 +257,43 @@ class Hook(StrEnum):
     POST = "post_run"
 
 
-### each hook's whole contract, as its signature reads — the discovery compares it verbatim, importing nothing.
-SIGNATURES: Final[Mapping[Hook, str]] = MappingProxyType(
+class Slot(StrEnum):
+    """Where a spec plugs a runner: `runner` produces (deterministic), `pre`/`post` frame the agent's answer
+    (semantic), `check` gates the state (both)."""
+
+    RUNNER = "runner"
+    CHECK = "check"
+    PRE = "pre"
+    POST = "post"
+
+
+class Scope(StrEnum):
+    """Where a runner lives: `owned` by one pipeline and section, or `agnostic` — a tool any spec may plug."""
+
+    OWNED = auto()
+    AGNOSTIC = auto()
+
+
+### the role a slot accepts: a runner plugged in the wrong slot is refused — a check never prepares, a pre never gates.
+ROLES: Final[Mapping[Slot, Role]] = MappingProxyType(
+    {Slot.RUNNER: Role.RUN, Slot.CHECK: Role.CHECK, Slot.PRE: Role.PRE, Slot.POST: Role.POST}
+)
+### each role's whole contract, as its signature reads — the discovery compares it verbatim, by AST.
+SIGNATURES: Final[Mapping[Role, str]] = MappingProxyType(
     {
-        Hook.RUN: "async def run(state: RunState) -> dict[str, Any]",
-        Hook.CHECK: "async def check(state: RunState) -> bool",
-        Hook.PRE: "async def pre_run(state: RunState) -> str",
-        Hook.POST: "async def post_run(state: RunState, output: dict[str, Any]) -> dict[str, Any]",
+        Role.RUN: "async def run(state: RunState, call: Call) -> dict[str, Any]",
+        Role.CHECK: "async def check(state: RunState, call: Call) -> bool",
+        Role.PRE: "async def pre_run(state: RunState, call: Call) -> str",
+        Role.POST: "async def post_run(state: RunState, call: Call, output: dict[str, Any]) -> dict[str, Any]",
     }
 )
+### a runner reference: `owned/<name>` (the spec's own pipeline and section) or `agnostic/<capability>/<name>`.
+REF: Final[str] = r"^(?:owned/[a-z][a-z0-9]*|agnostic/[a-z][a-z0-9]*/[a-z][a-z0-9]*)$"
+
+type RunnerRef = Annotated[str, msgspec.Meta(pattern=REF, description="owned/<name> or agnostic/<capability>/<name>")]
+### where a spec's output lives in a run's context: `<section>/<spec>` — `state.context.<section>[<spec>]`.
+ADDRESS: Final[str] = rf"^[a-z]+/(?:{'|'.join(PREFIXES.values())})-{WORDS}$"
+type Address = Annotated[str, msgspec.Meta(pattern=ADDRESS, description="<section>/<spec>: an output in the context")]
 
 
 class Spec[N: AnyName](CheckedStruct, frozen=True, kw_only=True, forbid_unknown_fields=True, tag_field="kind"):
@@ -271,18 +303,20 @@ class Spec[N: AnyName](CheckedStruct, frozen=True, kw_only=True, forbid_unknown_
     (`JsonSchema`, the name regex), the fields against each other in `_check`. Built in code, its names
     are held to any section's prefix (the `AnyName` bound); decoded into a section, to that section's.
     `output` is the JSON Schema of what the spec produces. `depends` and `fallback` name specs of the same
-    section; `fallback` runs only when this spec fails. `wiki` names terms explained under
-    `specs/[<pipeline>/]wiki/<term>.md`. Extend by subclassing with a new `tag` (and `frozen=True,
+    section; `fallback` runs only when this spec fails. Runners are plugged by reference, one per slot
+    (`check` here; `runner`, `pre`, `post` by kind), each configured by its `args[slot]`. `wiki` names
+    terms explained under `specs/wiki/<term>.md`. Extend by subclassing with a new `tag` (and `frozen=True,
     kw_only=True`); redefining an inherited field is refused."""
 
-    HOOKS: ClassVar[frozenset[Hook]] = frozenset({Hook.CHECK})
-    REQUIRED: ClassVar[frozenset[Hook]] = frozenset()
+    SLOTS: ClassVar[tuple[Slot, ...]] = (Slot.CHECK,)
 
     name: N
     description: Text
     output: JsonSchema
     depends: tuple[N, ...] = ()
     fallback: N | None = None
+    check: RunnerRef | None = None
+    args: dict[Slot, dict[str, Any]] = msgspec.field(default_factory=dict)
     wiki: tuple[WikiTerm, ...] = ()
     bound: Bound = Bound.IO
     timeout: timedelta | None = None
@@ -309,6 +343,10 @@ class Spec[N: AnyName](CheckedStruct, frozen=True, kw_only=True, forbid_unknown_
                 (self.fallback in self.depends, "the fallback cannot also be a dependency"),
                 (len(set(self.wiki)) < len(self.wiki), "wiki repeats a term"),
                 (self.timeout is not None and self.timeout <= timedelta(0), "timeout must be positive"),
+                (
+                    not set(self.args) <= set(self.plugs),
+                    f"args name slots it does not plug: {sorted(str(slot) for slot in set(self.args) - set(self.plugs))}",
+                ),
             )
             if broken
         ]
@@ -320,6 +358,11 @@ class Spec[N: AnyName](CheckedStruct, frozen=True, kw_only=True, forbid_unknown_
 
     ############################################################
 
+    @property
+    def plugs(self) -> dict[Slot, str]:
+        """The runners this spec plugs, by slot — only the slots its kind has, only those it fills."""
+        return {slot: ref for slot in self.SLOTS if (ref := getattr(self, slot.value)) is not None}
+
     @classmethod
     @cache
     def named(cls, section: Section) -> Any:
@@ -328,21 +371,25 @@ class Spec[N: AnyName](CheckedStruct, frozen=True, kw_only=True, forbid_unknown_
         return Annotated[str, msgspec.Meta(pattern=pattern, description=f"a {section} spec name")]
 
 
-class DeterministicSpec[N: AnyName](Spec[N], frozen=True, tag="deterministic"):
-    """A spec computed by code: its runner module must define `run`, may define `check`."""
+class DeterministicSpec[N: AnyName](Spec[N], frozen=True, kw_only=True, tag="deterministic"):
+    """A spec computed by code: `runner` (role `run`) produces its output; `check` may gate it."""
 
-    HOOKS: ClassVar[frozenset[Hook]] = frozenset({Hook.RUN, Hook.CHECK})
-    REQUIRED: ClassVar[frozenset[Hook]] = frozenset({Hook.RUN})
+    SLOTS: ClassVar[tuple[Slot, ...]] = (Slot.RUNNER, Slot.CHECK)
+
+    runner: RunnerRef
 
 
 class SemanticSpec[N: AnyName](Spec[N], frozen=True, kw_only=True, tag="semantic"):
     """A spec answered by the agent: `instructions` asked at `tier`, `output` its structured reply.
 
-    Its runner module is optional: `pre_run` prepares what the prompt carries, `post_run` reshapes the
-    validated reply, `check` gates it. `examples` are few-shot replies, each valid against `output`."""
+    Its runners are optional: `pre` (role `pre_run`) prepares what the prompt carries, `post` (role
+    `post_run`) reshapes the validated reply, `check` gates the state. `examples` are few-shot replies,
+    each valid against `output`."""
 
-    HOOKS: ClassVar[frozenset[Hook]] = frozenset({Hook.PRE, Hook.POST, Hook.CHECK})
+    SLOTS: ClassVar[tuple[Slot, ...]] = (Slot.PRE, Slot.POST, Slot.CHECK)
 
+    pre: RunnerRef | None = None
+    post: RunnerRef | None = None
     instructions: Text
     tier: Tier = Tier.MEDIUM
     examples: tuple[dict[str, Any], ...] = ()
@@ -358,39 +405,63 @@ class SemanticSpec[N: AnyName](Spec[N], frozen=True, kw_only=True, tag="semantic
 
 
 ##### CATALOG #####
+class Call(msgspec.Struct, frozen=True, kw_only=True):
+    """What a runner is handed beside the state: who calls it, how it is configured, what its spec reads.
+
+    `args` is the runner's own `Args` (a `CheckedStruct` its module declares), validated from the spec's
+    `args[slot]` — or `{}` for a runner that takes none. `inputs` are the outputs of the spec's
+    dependencies, by name: a runner reads its inputs here, never by guessing paths in the context."""
+
+    pipeline: str
+    section: Section
+    spec: str
+    slot: Slot
+    args: Any = msgspec.field(default_factory=dict)
+    inputs: dict[str, Any] = msgspec.field(default_factory=dict)
+
+
 class Function(msgspec.Struct, frozen=True, kw_only=True):
     """A top-level function of a runner module, as the source says it — read by AST, never imported."""
 
     name: str
     signature: str
     doc: str
+
+
+class Module(msgspec.Struct, frozen=True, kw_only=True):
+    """A runner module as found: where it is, and its top-level functions (absent file: `exists` False)."""
+
+    ref: str
     file: str
+    exists: bool
+    functions: tuple[Function, ...] = ()
 
 
 class Runner(msgspec.Struct, frozen=True, kw_only=True):
-    """One hook of one spec, discovered: its role, where it lives, and its docstring — required."""
+    """A runner plugged in a slot, resolved: its reference, role, file and docstring — required."""
 
-    spec: str
-    hook: Hook
+    ref: str
+    role: Role
     file: str
     doc: Text
 
     @property
-    def name(self) -> str:
-        """`<spec>.<hook>` — the runner named by what it serves and the role it plays."""
-        return f"{self.spec}.{self.hook}"
+    def scope(self) -> Scope:
+        return Scope(self.ref.partition("/")[0])
 
 
 class Draft(msgspec.Struct, frozen=True, kw_only=True):
-    """A section as found on disk, before the rules judge it: decoded specs, runner functions, wiki terms.
+    """A section as found on disk, before the rules judge it: decoded specs, the runner modules they plug,
+    the owned modules of the section, the wiki terms in reach.
 
     `broken` names the spec files that exist but did not decode: their own breach is already reported,
-    so the section laws count them as present — no orphan runner, no missing dependency in cascade."""
+    so the section laws count them as present — no missing dependency in cascade."""
 
     pipeline: str
     section: Section
     specs: dict[str, Spec[str]]
-    functions: dict[str, tuple[Function, ...]]
+    modules: dict[str, Module]
+    owned: frozenset[str]
     wiki: frozenset[str]
     broken: frozenset[str] = frozenset()
 
@@ -399,13 +470,24 @@ class Draft(msgspec.Struct, frozen=True, kw_only=True):
         """Every spec name the section holds a file for, decoded or not."""
         return frozenset(self.specs) | self.broken
 
+    @property
+    def plugged(self) -> frozenset[str]:
+        """Every owned module name some spec of the section plugs."""
+        return frozenset(
+            ref.partition("/")[2]
+            for spec in self.specs.values()
+            for ref in spec.plugs.values()
+            if ref.startswith("owned/")
+        )
+
 
 class SpecNode(msgspec.Struct, frozen=True, kw_only=True):
-    """A spec and its runners: the unit the orchestrator schedules."""
+    """A spec, the runners it plugs by slot, and each slot's validated `args`: the unit the orchestrator schedules."""
 
     spec: Spec[str]
     file: str
-    hooks: dict[Hook, Runner] = msgspec.field(default_factory=dict)
+    runners: dict[Slot, Runner] = msgspec.field(default_factory=dict)
+    args: dict[Slot, Any] = msgspec.field(default_factory=dict)
 
 
 class Catalog(msgspec.Struct, frozen=True, kw_only=True):
@@ -416,6 +498,37 @@ class Catalog(msgspec.Struct, frozen=True, kw_only=True):
     section: Section
     nodes: dict[str, SpecNode]
     wiki: dict[str, str] = msgspec.field(default_factory=dict)
+
+
+##### REPORT #####
+class Breach(msgspec.Struct, frozen=True, kw_only=True):
+    """One broken law, as data: what a `RuleError` says, ready to print or serialize."""
+
+    rule: Rule
+    subject: str
+    detail: str
+    severity: Severity = Severity.ERROR
+
+
+class Report(msgspec.Struct, frozen=True, kw_only=True):
+    """The static check of the whole system: what was judged, and every breach found — errors fail it."""
+
+    pipelines: tuple[str, ...]
+    sections: int
+    specs: int
+    breaches: tuple[Breach, ...] = ()
+
+    @property
+    def errors(self) -> tuple[Breach, ...]:
+        return tuple(breach for breach in self.breaches if breach.severity is Severity.ERROR)
+
+    @property
+    def warnings(self) -> tuple[Breach, ...]:
+        return tuple(breach for breach in self.breaches if breach.severity is Severity.WARNING)
+
+    @property
+    def ok(self) -> bool:
+        return not self.errors
 
 
 ##### ORCHESTRATION #####
@@ -485,14 +598,30 @@ class SpecOutcome(msgspec.Struct, frozen=True, kw_only=True):
     usage: Usage | None = None
 
 
+class AgentCall(msgspec.Struct, frozen=True, kw_only=True):
+    """One agent call exactly as the orchestrator issued it: the fused instructions, prompt and schema, the
+    tier it went to, the specs it answers, what each weighed against the budget — the payload, whole."""
+
+    index: int
+    step: int
+    tier: Tier
+    specs: tuple[str, ...]
+    instructions: str
+    prompt: str
+    schema: dict[str, Any]
+    weights: dict[str, int] = msgspec.field(default_factory=dict)
+    budget: int = 0
+
+
 class SectionRun(msgspec.Struct, frozen=True, kw_only=True):
-    """A section run: its plan, every spec's outcome in plan order, and how long it took."""
+    """A section run: its plan, every spec's outcome in plan order, every agent call it issued, and how long it took."""
 
     pipeline: str
     section: Section
     plan: SectionPlan
     outcomes: tuple[SpecOutcome, ...]
     latency_ms: float
+    calls: tuple[AgentCall, ...] = ()
 
     @property
     def counts(self) -> dict[SpecStatus, int]:
@@ -508,3 +637,96 @@ class SectionRun(msgspec.Struct, frozen=True, kw_only=True):
         """One line: specs, steps, and how they ended."""
         ended = ", ".join(f"{count} {status}" for status, count in self.counts.items())
         return f"{len(self.outcomes)} specs in {len(self.plan.steps)} steps: {ended or 'nothing to run'}"
+
+
+##### LAB #####
+class LinkKind(StrEnum):
+    """What ties two specs in a section's drawing: a dependency it reads, or the fallback it holds."""
+
+    DEPENDS = auto()
+    FALLBACK = auto()
+
+
+class SpecPoint(msgspec.Struct, frozen=True, kw_only=True):
+    """A spec placed on the section's map: its step is its rank, its lane its place in the step.
+
+    `call` is the planned fused call that answers a semantic spec (-1 otherwise); `rescues` names the parent
+    a fallback stands in for (it sits in its parent's step, after the rest)."""
+
+    id: str
+    kind: str
+    description: str
+    rank: int
+    lane: int
+    tier: str = ""
+    call: int = -1
+    rescues: str = ""
+    runners: dict[Slot, str] = msgspec.field(default_factory=dict)
+    wiki: tuple[str, ...] = ()
+    output: dict[str, Any] = msgspec.field(default_factory=dict)
+
+
+class SpecLink(msgspec.Struct, frozen=True, kw_only=True):
+    """An arc of the section's map."""
+
+    id: str
+    source: str
+    target: str
+    kind: LinkKind
+
+
+class CallGroup(msgspec.Struct, frozen=True, kw_only=True):
+    """A planned fused call: the specs one agent call answers, in which step and tier, weighed against the budget."""
+
+    index: int
+    rank: int
+    tier: Tier
+    specs: tuple[str, ...]
+    weight: int
+    budget: int
+
+
+class SectionMap(msgspec.Struct, frozen=True, kw_only=True):
+    """A section as the orchestrator will run it, placed for drawing: specs by step and lane, their arcs, the calls."""
+
+    pipeline: str
+    section: Section
+    nodes: tuple[SpecPoint, ...]
+    edges: tuple[SpecLink, ...]
+    calls: tuple[CallGroup, ...]
+    ranks: int
+    lanes: int
+
+
+class SectionInfo(msgspec.Struct, frozen=True, kw_only=True):
+    """A pipeline's section as the lab lists it: how many specs, steps and planned calls."""
+
+    pipeline: str
+    section: Section
+    specs: int
+    steps: int
+    calls: int
+
+
+class Route(msgspec.Struct, frozen=True, kw_only=True):
+    """Where a tier's calls go, the key never shown: provider, model, base — or why the tier has none."""
+
+    provider: str = ""
+    model: str = ""
+    api_base: str = ""
+    error: str = ""
+
+
+class Simulation(msgspec.Struct, frozen=True, kw_only=True):
+    """A section rehearsed: the pipeline run up to it, every section's run, the target's agent calls whole,
+    where each tier routes, and what the target section wrote. `live` calls the model; otherwise the agent
+    answers each spec from its first example, or the least its schema accepts."""
+
+    pipeline: str
+    section: Section
+    live: bool
+    runs: tuple[SectionRun, ...]
+    calls: tuple[AgentCall, ...]
+    routes: dict[str, Route]
+    written: dict[str, Any]
+    latency_ms: float

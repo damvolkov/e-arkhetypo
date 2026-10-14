@@ -1,16 +1,14 @@
-"""nodes.ingest.node: the demo pipeline's entry — receive the document and fingerprint it."""
+"""pipelines.doc.nodes.ingest.node: the pipeline's entry: receive the document and fingerprint it."""
 
-import asyncio
-import hashlib
-from typing import cast
+from typing import Any, cast
+
+import anyio
 
 from e_graph.instrument.state import RunState
+from e_graph.models.section import Section
 
 
-async def node_ingest(state: RunState) -> str:
+async def node_ingest(state: RunState) -> dict[str, Any]:
     """Receive the document and fingerprint it."""
-    await asyncio.sleep(cast("float", state.context.get("pace", 0.0)))
-    document = cast("str", state.context.get("document", "invoice 42 · total 1250.00 EUR"))
-    state.context.document = document
-    state.context.digest = hashlib.blake2b(document.encode(), digest_size=8).hexdigest()
-    return f"registered {state.context.digest}"
+    await anyio.sleep(cast("float", state.context.get("pace", 0.0)))
+    return await state.infra.orchestrator.node(Section.INGEST, state)

@@ -1,10 +1,8 @@
 import { Background, Panel, ReactFlow, useEdgesState, useNodesState } from "@xyflow/react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import {
   type CableEdge,
   fetchTopology,
-  fetchUi,
-  listPipelines,
   type NodeOutput,
   type PipelineInfo,
   type RunFrame,
@@ -24,14 +22,22 @@ function patch(node: StageNode, data: Partial<StageData>): StageNode {
   return { ...node, data: { ...node.data, ...data } };
 }
 
-export function App() {
-  const [ui, setUi] = useState<UiView | null>(null);
-  const [pipelines, setPipelines] = useState<PipelineInfo[]>([]);
-  const [selected, setSelected] = useState("");
+export interface PipelineProps {
+  ui: UiView;
+  pipelines: PipelineInfo[];
+  selected: string;
+  setSelected: (id: string) => void;
+  levels: ReactNode;
+  onOpen: (pipeline: string, section: string) => void;
+}
+
+export function PipelineView({ ui, pipelines, selected, setSelected, levels, onOpen }: PipelineProps) {
   const [nodes, setNodes, onNodesChange] = useNodesState<StageNode>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<CableEdge>([]);
   const [running, setRunning] = useState(false);
   const [fail, setFail] = useState(false);
+  const [data, setData] = useState("{}");
+  const [error, setError] = useState("");
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [outcome, setOutcome] = useState<Outcome | null>(null);
   const close = useRef<() => void>(() => {});
@@ -39,11 +45,6 @@ export function App() {
   const finals = useRef<NodeOutput[]>([]);
 
   useEffect(() => {
-    Promise.all([fetchUi(), listPipelines()]).then(([view, found]) => {
-      setUi(view);
-      setPipelines(found);
-      setSelected(found[0]?.id ?? "");
-    });
     const pending = timers.current;
     return () => {
       close.current();
@@ -52,7 +53,9 @@ export function App() {
   }, []);
 
   useEffect(() => {
-    if (ui === null || selected === "") return;
+    if (selected === "") return;
+    setData(window.localStorage.getItem(`e-graph:data:${selected}`) ?? "{}");
+    setError("");
     close.current();
     setOutcome(null);
     setRunning(false);
@@ -70,7 +73,7 @@ export function App() {
       const timer = window.setTimeout(() => {
         setToasts((current) => current.filter((item) => item.key !== key));
         timers.current.delete(timer);
-      }, ui?.toast_ms ?? 0);
+      }, ui.toast_ms);
       timers.current.add(timer);
     },
     [ui],
@@ -101,14 +104,23 @@ export function App() {
   );
 
   const run = useCallback(() => {
+    let seeded: Record<string, unknown>;
+    try {
+      seeded = JSON.parse(data);
+    } catch (failure) {
+      setError(`data is no JSON: ${(failure as Error).message}`);
+      return;
+    }
+    window.localStorage.setItem(`e-graph:data:${selected}`, data);
+    setError("");
     close.current();
     finals.current = [];
     setOutcome(null);
     setToasts([]);
     setRunning(true);
     setNodes((current) => current.map((node) => patch(node, { status: "pending", latency_ms: undefined })));
-    close.current = streamRun(selected, { pace: ui?.pace ?? 0, fail }, onFrame);
-  }, [selected, ui, fail, onFrame, setNodes]);
+    close.current = streamRun(selected, { pace: ui.pace, ...seeded, fail }, onFrame);
+  }, [selected, ui, fail, data, onFrame, setNodes]);
 
   const status = new Map(nodes.map((node) => [node.id, node.data.status]));
   const lit = edges.map((edge) => ({ ...edge, className: `cable cable-${status.get(edge.source) ?? "pending"}` }));
@@ -121,6 +133,7 @@ export function App() {
       nodeTypes={NODE_TYPES}
       onNodesChange={onNodesChange}
       onEdgesChange={onEdgesChange}
+      onNodeDoubleClick={(_, node) => node.data.category && onOpen(selected, node.data.category)}
       nodesConnectable={false}
       nodeOrigin={[0.5, 0.5]}
       colorMode="dark"
@@ -130,6 +143,7 @@ export function App() {
     >
       <Background gap={24} size={1} />
       <Panel position="top-left" className="panel">
+        {levels}
         <label className="field">
           pipeline
           <select value={selected} onChange={(event) => setSelected(event.target.value)} disabled={running}>
@@ -141,12 +155,17 @@ export function App() {
           </select>
         </label>
         <div className="pipeline-summary">{summary}</div>
+        <label className="data">
+          data
+          <textarea value={data} onChange={(event) => setData(event.target.value)} rows={2} spellCheck={false} />
+        </label>
         <button type="button" onClick={run} disabled={running || selected === ""}>
           {running ? "running…" : "run"}
         </button>
         <label>
           <input type="checkbox" checked={fail} onChange={(event) => setFail(event.target.checked)} /> inject failure
         </label>
+        {error && <div className="panel-error">{error}</div>}
       </Panel>
       <Toasts toasts={toasts} />
       {outcome && <OutcomeModal outcome={outcome} onClose={() => setOutcome(null)} />}

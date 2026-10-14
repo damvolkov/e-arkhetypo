@@ -121,7 +121,7 @@
       "lane": 0,
       "rank": 5,
       "role": "end",
-      "summary": "Serialize the record in the requested format (`data.format`, JSON by default) and confirm it."
+      "summary": "Serialize the record in the requested format (`format`, JSON by default) and confirm it."
     }
   ],
   "ranks": 6

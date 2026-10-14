@@ -47,6 +47,7 @@ from e_graph.instrument.models import (
 )
 from e_graph.instrument.node import InstrumentNode, NodeFunc
 from e_graph.instrument.state import Channels, ChannelUpdate, RunState
+from e_graph.models.section import Section
 from ops.wrappers import LatencyWrapper
 
 type Route = Callable[[RunState], Hashable | Awaitable[Hashable]]
@@ -116,10 +117,24 @@ class InstrumentGraph(StateGraph[Channels, None, Channels, Channels]):
         ### LangGraph builds its spec around the bare function (RunState in) only for wrap to swap the runnable.
         super().add_node(name, cast("Any", func), input_schema=Channels, **policies)
         instrumented = InstrumentNode.wrap(self.nodes[name], func, name)
+        self._add_own(instrumented)
         ### LangGraph schedules the bridge, never the bare function: channels in, the node's output appended.
         instrumented.runnable = coerce_to_runnable(self._add_channel(instrumented), name=name, trace=False)
         self.nodes[name] = instrumented
         return name
+
+    def _add_own(self, node: InstrumentNode) -> None:
+        """A pipeline's graph (a named one) mounts only its own pipeline's nodes, one per category: a section has one node."""
+        taken = {other.category for other in self._common_instrumented().values()}
+        match (self.name, node.pipeline == self.name, node.category in taken):
+            case ("", _, _) | (_, True, False):
+                return
+            case (own, False, _):
+                msg = f"belongs to pipeline {node.pipeline!r}: graph {own!r} mounts only pipelines/{own}/nodes"
+                raise ContractError(ContractRule.PIPELINE, node.name, msg)
+            case _:
+                msg = f"category {node.category!r} already has its node: one node per section"
+                raise ContractError(ContractRule.SECTION, node.name, msg)
 
     @staticmethod
     def _add_channel(node: InstrumentNode) -> Callable[[Channels], Awaitable[ChannelUpdate]]:
@@ -272,6 +287,15 @@ class InstrumentGraph(StateGraph[Channels, None, Channels, Channels]):
             node.role = roles[name]
         self._compiled = super().compile(**options)
         return self._compiled
+
+    @property
+    def sections(self) -> frozenset[Section]:
+        """The DARTS sections this graph mounts a node for — where its specs may run."""
+        return frozenset(
+            Section(node.category)
+            for node in self._common_instrumented().values()
+            if node.category in frozenset(Section)
+        )
 
     def topology(self) -> Topology:
         """The declared graph as a placed map: O(V + E) for roles, loops and ranks, O(V log V) for lanes.

@@ -1,6 +1,6 @@
 interactions:
 - request:
-    body: '{"model":"qwen3.6-27b","messages":[{"role":"system","content":"You answer
+    body: '{"model":"gemma4-26b-a4b","messages":[{"role":"system","content":"You answer
       several specifications at once. Each one is introduced below by its name as
       a heading, with what it asks. Reply with one JSON object holding one key per
       specification name; each value is that specification''s answer, shaped exactly
@@ -22,7 +22,7 @@ interactions:
       connection:
       - keep-alive
       content-length:
-      - '1389'
+      - '1392'
       content-type:
       - application/json
       host:
@@ -51,65 +51,19 @@ interactions:
     uri: http://localhost:45100/v1/chat/completions
   response:
     body:
-      string: '{"id":"chatcmpl-bd96cd327c5e955a","object":"chat.completion","created":1791931415,"model":"qwen3.6-27b","choices":[{"index":0,"message":{"role":"assistant","content":"{\n  \"EXT-net-income\":  {\n  \"millions\":
-        112010\n},\n  \"EXT-revenue\": {\n    \"millions\": 416161\n  }\n}","refusal":null,"annotations":null,"audio":null,"function_call":null,"reasoning":null},"logprobs":null,"finish_reason":"stop","stop_reason":null,"token_ids":null,"routed_experts":null}],"service_tier":null,"system_fingerprint":"vllm-0.31.0-ed05f633","usage":{"prompt_tokens":321,"total_tokens":374,"completion_tokens":53,"prompt_tokens_details":null,"completion_tokens_details":{"reasoning_tokens":0}},"prompt_logprobs":null,"prompt_token_ids":null,"prompt_text":null,"kv_transfer_params":null,"ec_transfer_params":null,"metrics":null}'
+      string: '{"id":"chatcmpl-9c54c0f6e962578f","object":"chat.completion","created":1791997787,"model":"gemma4-26b-a4b","choices":[{"index":0,"message":{"role":"assistant","content":"{\n  \"EXT-net-income\":
+        \n  {\"millions\": 112010},\n  \"EXT-revenue\": \n  {\"millions\": 416161}\n}","refusal":null,"annotations":null,"audio":null,"function_call":null,"reasoning":null},"logprobs":null,"finish_reason":"stop","stop_reason":106,"token_ids":null,"routed_experts":null}],"service_tier":null,"system_fingerprint":"vllm-0.31.0-c9b9a0dd","usage":{"prompt_tokens":330,"total_tokens":382,"completion_tokens":52,"prompt_tokens_details":null,"completion_tokens_details":{"reasoning_tokens":0}},"prompt_logprobs":null,"prompt_token_ids":null,"prompt_text":null,"kv_transfer_params":null,"ec_transfer_params":null,"metrics":null}'
     headers:
       content-length:
-      - '814'
+      - '807'
       content-type:
       - application/json
       date:
-      - Tue, 13 Oct 2026 22:43:34 GMT
+      - Wed, 14 Oct 2026 17:09:46 GMT
       server:
       - uvicorn
       vary:
       - Origin
-    status:
-      code: 200
-      message: OK
-- request:
-    body: !!binary |
-      CvEHCvEBCiIKFnRlbGVtZXRyeS5zZGsubGFuZ3VhZ2USCAoGcHl0aG9uCiUKEnRlbGVtZXRyeS5z
-      ZGsubmFtZRIPCg1vcGVudGVsZW1ldHJ5CiEKFXRlbGVtZXRyeS5zZGsudmVyc2lvbhIICgYxLjQ1
-      LjAKPQoTc2VydmljZS5pbnN0YW5jZS5pZBImCiRlZThjNTAxMS01NDBlLTQ0MDItYjBlOS1jNmU5
-      OTI1ODU4YWEKJwoab3BlbmluZmVyZW5jZS5wcm9qZWN0Lm5hbWUSCQoHZS1ncmFwaAoZCgxzZXJ2
-      aWNlLm5hbWUSCQoHZS1ncmFwaBL6BQoJCgdlLXN0YWNrEukCChAAXFWlHMOZ7D+can8csB4REgiB
-      SiO41pIepCoLc3BlYy5jYWxsLTAwATkghx7MIDjeGEGxAYdqITjeGEoiChdvcGVuaW5mZXJlbmNl
-      LnNwYW4ua2luZBIHCgVDSEFJTkoVCglzcGVjLm5hbWUSCAoGY2FsbC0wShkKDHNwZWMuc2VjdGlv
-      bhIJCgdleHRyYWN0ShQKCXNwZWMua2luZBIHCgVmdXNlZEosCgZydW4uaWQSIgogMDFhMTM3NmY3
-      YWQzNzM0NTk0NDg1YmM5YTY2MzJlZTJKKwoKc3BlYy5zcGVjcxIdChtFWFQtbmV0LWluY29tZSwg
-      RVhULXJldmVudWVKFQoJc3BlYy50aWVyEggKBm1lZGl1bUpCCg1zcGVjLnN0YXR1c2VzEjEKL0VY
-      VC1uZXQtaW5jb21lPXN1Y2NlZWRlZCwgRVhULXJldmVudWU9c3VjY2VlZGVkegIYAYUBAAEAABKA
-      AwoQVvP6gmEE/oq+R9yrn45h+BIIjWHyMyMuh38qD3NwZWMuRVhULW1hcmdpbjABOZ5vimohON4Y
-      QVWkk2ohON4YSiIKF29wZW5pbmZlcmVuY2Uuc3Bhbi5raW5kEgcKBUNIQUlOShkKCXNwZWMubmFt
-      ZRIMCgpFWFQtbWFyZ2luShkKDHNwZWMuc2VjdGlvbhIJCgdleHRyYWN0ShwKCXNwZWMua2luZBIP
-      Cg1kZXRlcm1pbmlzdGljSiwKBnJ1bi5pZBIiCiAwMWExMzc2ZjdhZDM3MzQ1OTQ0ODViYzlhNjYz
-      MmVlMkoaCgtzcGVjLnN0YXR1cxILCglzdWNjZWVkZWRKDwoJc3BlYy5zdGVwEgIYAUocCg9zcGVj
-      LmxhdGVuY3lfbXMSCSEAAEANhKvkP0oRCgtzcGVjLnJlYXNvbhICCgBKEgoMc3BlYy5yZXNjdWVy
-      EgIKAEobCgxvdXRwdXQudmFsdWUSCwoJc3VjY2VlZGVkegIYAYUBAAEAAA==
-    headers:
-      content-type:
-      - application/x-protobuf
-      user-agent:
-      - OTel-OTLP-Exporter-Python/1.45.0
-    method: POST
-    uri: http://localhost:45900/v1/traces
-  response:
-    body:
-      string: ''
-    headers:
-      content-length:
-      - '0'
-      content-type:
-      - application/x-protobuf
-      date:
-      - Tue, 13 Oct 2026 22:43:37 GMT
-      server:
-      - uvicorn
-      x-colab-notebook-cache-control:
-      - no-cache
-      x-phoenix-server-version:
-      - 20.21.2
     status:
       code: 200
       message: OK

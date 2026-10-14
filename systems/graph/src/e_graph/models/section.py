@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 
 
 class Section(StrEnum):
-    """One stage of the pipeline; the value is the folder name under `nodes/`."""
+    """One stage of the pipeline; the value is the folder name under `pipelines/<pipeline>/nodes/`, `specs/<pipeline>/` and `runners/owned/<pipeline>/`."""
 
     INGEST = auto()
     NORMALIZE = auto()

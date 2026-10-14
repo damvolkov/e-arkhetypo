@@ -10,8 +10,8 @@ from typing import TYPE_CHECKING
 import anyio
 import pytest
 
-from e_graph.logic.errors import CatalogError, OrchestratorError
-from e_graph.logic.models import SpecStatus
+from e_graph.logic.errors import CatalogError, OrchestratorError, SectionError
+from e_graph.logic.models import Role, SpecStatus
 from support.darts import SECTION, USAGE
 
 if TYPE_CHECKING:
@@ -63,6 +63,26 @@ async def test_downstream_specs_read_what_upstream_wrote(darts: DartsHarness) ->
     darts.runner("EXT-b", run='return {"n": state.context.extract["EXT-a"]["n"] * 10}')
     _, state = await darts.run()
     assert darts.written(state) == {"EXT-a": {"n": 2}, "EXT-b": {"n": 20}}
+
+
+async def test_a_runner_reads_its_call(darts: DartsHarness) -> None:
+    darts.deterministic("EXT-a", output=NUMBER)
+    darts.runner("EXT-a", run='return {"n": 2}')
+    darts.deterministic("EXT-b", depends=("EXT-a",))
+    darts.runner(
+        "EXT-b", run='return {"seen": [call.pipeline, call.section, call.spec, call.slot, call.inputs, call.args]}'
+    )
+    _, state = await darts.run()
+    assert darts.written(state)["EXT-b"] == {"seen": ["doc", "extract", "EXT-b", "runner", {"EXT-a": {"n": 2}}, {}]}
+
+
+async def test_a_runner_takes_its_args_validated(darts: DartsHarness) -> None:
+    darts.deterministic("EXT-a", output=NUMBER, args={"runner": {"factor": 3}})
+    darts.crafter.write_runner(
+        SECTION, "a", Role.RUN, args="    factor: int\n", body='return {"n": call.args.factor * 2}'
+    )
+    run, state = await darts.run()
+    assert (run.summary, darts.written(state)) == ("1 specs in 1 steps: 1 succeeded", {"EXT-a": {"n": 6}})
 
 
 ##### GATES #####
@@ -281,3 +301,54 @@ async def test_every_spec_and_call_leaves_its_span(darts: DartsHarness, exporter
     lines = dict(spans["spec.EXT-lines"].attributes or {})
     assert (lines["spec.status"], lines["spec.section"], lines["spec.kind"]) == ("failed", "extract", "deterministic")
     assert dict(spans["spec.call-0"].attributes or {})["spec.statuses"] == "EXT-kind=succeeded, EXT-party=succeeded"
+
+
+##### THE NODE #####
+async def test_a_strict_node_fails_naming_every_lost_spec(darts: DartsHarness) -> None:
+    darts.deterministic("EXT-a")
+    darts.runner("EXT-a", run='raise RuntimeError("boom")')
+    darts.deterministic("EXT-b")
+    darts.runner("EXT-b", run="return {}", check="return False")
+    darts.deterministic("EXT-c")
+    darts.runner("EXT-c", run="return {}")
+    with pytest.raises(SectionError) as caught:
+        await darts.orchestrator.node(SECTION, darts.state())
+    assert str(caught.value) == (
+        "EXT-a failed: RuntimeError: boom; EXT-b blocked: EXT-b: check refused the state (False)"
+    )
+
+
+async def test_a_lenient_node_reports_what_was_delivered(darts: DartsHarness) -> None:
+    darts.deterministic("EXT-a")
+    darts.runner("EXT-a", run='raise RuntimeError("boom")')
+    darts.deterministic("EXT-c")
+    darts.runner("EXT-c", run="return {}")
+    report = await darts.orchestrator.node(SECTION, darts.state(), strict=False)
+    assert report == {
+        "summary": "2 specs in 1 steps: 1 succeeded, 1 failed",
+        "specs": {"EXT-a": "failed", "EXT-c": "succeeded"},
+    }
+
+
+async def test_every_agent_call_is_kept_whole_as_sent(darts: DartsHarness, exporter: InMemorySpanExporter) -> None:
+    darts.semantic("EXT-a", output=TOTAL)
+    darts.runner("EXT-a", pre_run='return "page 44 says 416,161"')
+    darts.semantic("EXT-b", output=TOTAL)
+    darts.deterministic("EXT-c", fallback="EXT-s")
+    darts.runner("EXT-c", run='raise RuntimeError("parser broke")')
+    darts.semantic("EXT-s")
+    run, _ = await darts.run()
+    fused, alone = sorted(run.calls, key=lambda call: len(call.specs), reverse=True)
+    sent = {call["specs"]: call for call in darts.agent.calls}
+    assert (fused.specs, fused.step, fused.tier, fused.budget) == (("EXT-a", "EXT-b"), 0, "medium", 8000)
+    assert (fused.prompt, fused.instructions, fused.schema) == (
+        sent[fused.specs]["prompt"],
+        sent[fused.specs]["instructions"],
+        sent[fused.specs]["schema"],
+    )
+    assert fused.weights["EXT-a"] > fused.weights["EXT-b"]
+    assert alone.specs == ("EXT-s",)
+    assert sorted(call.index for call in run.calls) == [0, 1]
+    spans = {span.name: dict(span.attributes or {}) for span in exporter.get_finished_spans()}
+    call = spans[f"spec.call-{fused.index}"]
+    assert (call["input.value"], call["spec.instructions"]) == (fused.prompt, fused.instructions)

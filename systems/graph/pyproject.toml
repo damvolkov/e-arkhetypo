@@ -57,7 +57,13 @@ dependencies = [
     "redis>=6.2",
     "aiosqlite>=0.20",
     "beartype>=0.22.9",
+    "cyclopts>=4.25.3",
+    "wasi-graphviz[wasmtime]>=0.1.4",
+    "rstr>=3.2.2",
 ]
+
+[project.scripts]
+e-graph = "e_graph.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/damvolkov/e-templates"
@@ -161,8 +167,11 @@ ignore = ["E501", "ISC001", "PLR0913"]
 "src/e_graph/api/**" = ["TC001", "TC002", "TC003"]
 "src/e_graph/models/**" = ["TC001", "TC002", "TC003"]
 "src/e_graph/main.py" = ["TC001", "TC002", "TC003"]
+"src/e_graph/cli.py" = ["TC001", "TC002", "TC003", "FBT"]
 "src/e_graph/instrument/**" = ["TC001", "TC002", "TC003"]
-"src/e_graph/nodes/**" = ["TC001", "TC002", "TC003"]
+"src/e_graph/pipelines/*/nodes/**" = ["TC001", "TC002", "TC003"]
+### a runner's signature is its role's contract, read as source: `state` and `call` are taken, used or not.
+"src/e_graph/runners/**" = ["TC001", "TC002", "TC003", "ARG001"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["e_graph", "core", "ops", "adapters"]

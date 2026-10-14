@@ -7,7 +7,18 @@ import msgspec
 import pytest
 
 from core.struct import CheckedStruct
-from e_graph.logic.models import Bound, DeterministicSpec, Hook, JsonSchema, Runner, SemanticSpec, Spec, Tier
+from e_graph.logic.models import (
+    Bound,
+    DeterministicSpec,
+    JsonSchema,
+    Role,
+    Runner,
+    Scope,
+    SemanticSpec,
+    Slot,
+    Spec,
+    Tier,
+)
 from e_graph.models.section import PREFIXES, Section
 
 OUTPUT: dict[str, Any] = {"type": "object", "properties": {"total": {"type": "number"}}, "required": ["total"]}
@@ -23,6 +34,7 @@ DETERMINISTIC: dict[str, Any] = {
     "kind": "deterministic",
     "name": "EXT-line-sum",
     "description": "Sum of the lines.",
+    "runner": "owned/linesum",
     "output": OUTPUT,
 }
 
@@ -107,9 +119,47 @@ def test_name_type_is_the_sections_own(section: Section) -> None:
     assert Spec.named(section) is Spec.named(section)
 
 
-def test_kinds_admit_their_hooks() -> None:
-    assert ({Hook.RUN, Hook.CHECK}, {Hook.RUN}) == (DeterministicSpec.HOOKS, DeterministicSpec.REQUIRED)
-    assert ({Hook.PRE, Hook.POST, Hook.CHECK}, frozenset()) == (SemanticSpec.HOOKS, SemanticSpec.REQUIRED)
+def test_kinds_have_their_slots() -> None:
+    assert DeterministicSpec.SLOTS == (Slot.RUNNER, Slot.CHECK)
+    assert SemanticSpec.SLOTS == (Slot.PRE, Slot.POST, Slot.CHECK)
+
+
+def test_plugs_are_the_slots_filled() -> None:
+    spec = decode({**DETERMINISTIC, "check": "agnostic/context/present", "args": {"check": {"needs": []}}})
+    assert spec.plugs == {Slot.RUNNER: "owned/linesum", Slot.CHECK: "agnostic/context/present"}
+    assert decode(SEMANTIC).plugs == {}
+    assert decode({**SEMANTIC, "post": "agnostic/number/scale"}).plugs == {Slot.POST: "agnostic/number/scale"}
+
+
+@pytest.mark.parametrize(
+    ("raw", "error"),
+    [
+        ({**SEMANTIC, "runner": "owned/x"}, "unknown field `runner`"),
+        ({**DETERMINISTIC, "pre": "owned/x"}, "unknown field `pre`"),
+        ({**DETERMINISTIC, "post": "owned/x"}, "unknown field `post`"),
+        ({k: v for k, v in DETERMINISTIC.items() if k != "runner"}, "missing required field `runner`"),
+        ({**DETERMINISTIC, "runner": "owned/line_sum"}, "at `$.runner`"),
+        ({**DETERMINISTIC, "check": "agnostic/present"}, "at `$.check`"),
+        ({**SEMANTIC, "pre": "tools/pages"}, "at `$.pre`"),
+        ({**SEMANTIC, "args": {"pre": {}}}, "args name slots it does not plug: ['pre']"),
+        ({**DETERMINISTIC, "args": {"post": {}}}, "args name slots it does not plug: ['post']"),
+    ],
+    ids=[
+        "runner-on-semantic",
+        "pre-on-deterministic",
+        "post-on-deterministic",
+        "runner-missing",
+        "ref-two-words",
+        "ref-agnostic-without-capability",
+        "ref-unscoped",
+        "args-unplugged",
+        "args-foreign-slot",
+    ],
+)
+def test_slots_are_rigid_per_kind(raw: dict[str, Any], error: str) -> None:
+    with pytest.raises(msgspec.ValidationError) as caught:
+        decode(raw)
+    assert error in str(caught.value)
 
 
 def test_a_pipeline_extends_a_spec_with_its_own_kind() -> None:
@@ -132,9 +182,10 @@ def test_an_extension_cannot_reshape_inherited_fields() -> None:
             instructions: int
 
 
-def test_runner_named_by_spec_and_hook() -> None:
-    runner = Runner(spec="EXT-line-sum", hook=Hook.RUN, file="x.py", doc="Sum.")
-    assert runner.name == "EXT-line-sum.run"
+def test_a_runner_knows_its_scope() -> None:
+    owned = Runner(ref="owned/linesum", role=Role.RUN, file="x.py", doc="Sum.")
+    tool = Runner(ref="agnostic/number/scale", role=Role.POST, file="y.py", doc="Scale.")
+    assert (owned.scope, tool.scope) == (Scope.OWNED, Scope.AGNOSTIC)
 
 
 ##### BUILT IN CODE — the same validation as decoding, never skipped #####

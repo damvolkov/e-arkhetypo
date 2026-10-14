@@ -106,7 +106,7 @@ snap: bundle ## accept the canvas snapshots after a reviewed visual change (rewr
 record: ## re-record the agent's integration cassettes against the live model (AGENT_MEDIUM, else the local vLLM; its key from VLLM_API_KEY)
 	@uv run pytest tests/integration -q -p no:randomly -p no:xdist --record-mode=rewrite
 
-conversions: ## re-convert the test corpus through the live docling-serve into tests/resources/conversions (golden, gzipped)
+conversions: ## re-record the corpus spans through the live docling-serve into tests/resources/conversions (golden, gzipped)
 	@uv run python scripts/conversions.py
 
 stress: ## soak stress-marked tests for ARGS seconds (pytest-stress)

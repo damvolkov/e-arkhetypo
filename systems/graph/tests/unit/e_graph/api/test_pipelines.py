@@ -25,9 +25,11 @@ def snapshot_json(snapshot: SnapshotAssertion) -> SnapshotAssertion:
 def test_list_names_every_pipeline(client) -> None:
     response = client.get("/api/pipelines/list")
     assert response.status_code == 200
-    (doc,) = response.json()
+    doc, filing, note = response.json()
     assert (doc["id"], doc["nodes"]) == ("doc", 7)
     assert doc["summary"].startswith("Document intake")
+    assert (filing["id"], filing["nodes"]) == ("filing", 4)
+    assert (note["id"], note["nodes"]) == ("note", 5)
 
 
 def test_topology_is_the_pinned_map(client, snapshot_json: SnapshotAssertion) -> None:
@@ -44,7 +46,7 @@ def test_topology_is_the_pinned_map(client, snapshot_json: SnapshotAssertion) ->
 def test_unknown_id_is_a_404_naming_the_known(client, method: str, path: str) -> None:
     response = client.request(method, path, json={"data": {}})
     assert response.status_code == 404
-    assert "known: ['doc']" in response.json()["detail"]
+    assert "known: ['doc', 'filing', 'note']" in response.json()["detail"]
 
 
 def test_batch_succeeds(client, resources: Resources) -> None:

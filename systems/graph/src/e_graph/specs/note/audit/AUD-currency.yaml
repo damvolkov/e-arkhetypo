@@ -1,0 +1,15 @@
+kind: deterministic
+name: AUD-currency
+description: Every dollar figure is in one real currency — the note speaks USD, the ISO 4217 code of the US dollar.
+runner: owned/currency
+check: agnostic/context/present
+args:
+  check:
+    needs: [extract/EXT-terms]
+output:
+  type: object
+  properties:
+    currency: {type: string}
+    holds: {type: boolean}
+  required: [currency, holds]
+  additionalProperties: false

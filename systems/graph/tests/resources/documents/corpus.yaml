@@ -188,3 +188,48 @@ documents:
     - q-fin.PR
     submitted: "2025-06-02"
     abstract: We consider a stochastic volatility model where the dynamics of the volatility are given by a possibly infinite linear combination of the elements of the time extended signature of a Brownian motion. First, we show that the model is remarkably universal, as it includes, but is not limited to, the celebrated Stein-Stein, Bergomi, and Heston models, together with some path-dependent variants. Second, we derive the joint characteristic functional of the log-price and integrated variance provided that some infinite dimensional extended tensor algebra valued Riccati equation admits a solution. This allows us to price and (quadratically) hedge certain European and path-dependent options using Fourier inversion techniques. We highlight the efficiency and accuracy of these Fourier techniques in a comprehensive numerical study.
+- file: notes/bofa-autocall-2027.pdf
+  family: note
+  sha256: "e05bd1826f7319f473111a67918014f8e9ea6d9794ca560133eeda951a1554cd"
+  source: "https://www.sec.gov/Archives/edgar/data/70858/000191870425019416/form424b2.htm"
+  license: "SEC EDGAR public filing content: free to access and reuse (sec.gov webmaster FAQ). PDF rendered from the official 424B2 HTML with Chromium."
+  truth:
+    issuer: BofA Finance LLC
+    guarantor: Bank of America Corporation
+    form: "424B2"
+    registration_no: "333-268718"
+    filed: "2025-11-06"
+    cusip: "09711E688"
+    isin: "US09711E6885"
+    underlier: "S&P 500® Index"
+    underlier_ticker: SPX
+    pricing_date: "2025-11-06"
+    issue_date: "2025-11-12"
+    maturity_date: "2027-11-12"
+    final_observation_date: "2027-11-08"
+    currency: USD
+    denomination: 10.0
+    offering_price: 10.0
+    aggregate_principal: 6484400.0
+    underwriting_discount: 0.0
+    estimated_value: 9.938
+    coupon_rate: 9.60
+    coupon_payment: 0.24
+    initial_value: 6720.32
+    coupon_barrier: 5040.24
+    downside_threshold: 5040.24
+    call_threshold: 6720.32
+    calculation_agent: "BofA Securities, Inc."
+    selling_agents:
+    - "BofA Securities, Inc."
+    - "UBS Financial Services Inc."
+    listed: false
+    observations:
+    - {observation_date: "2026-02-06", payment_date: "2026-02-10"}
+    - {observation_date: "2026-05-06", payment_date: "2026-05-08"}
+    - {observation_date: "2026-08-06", payment_date: "2026-08-10"}
+    - {observation_date: "2026-11-06", payment_date: "2026-11-10"}
+    - {observation_date: "2027-02-08", payment_date: "2027-02-10"}
+    - {observation_date: "2027-05-06", payment_date: "2027-05-10"}
+    - {observation_date: "2027-08-06", payment_date: "2027-08-10"}
+    - {observation_date: "2027-11-08", payment_date: "2027-11-12"}

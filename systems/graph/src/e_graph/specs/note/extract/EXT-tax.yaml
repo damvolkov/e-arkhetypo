@@ -1,0 +1,21 @@
+kind: semantic
+name: EXT-tax
+description: How the issuer intends to treat the notes for US federal income tax, and the plain-English warning attached.
+pre: agnostic/document/pages
+check: agnostic/context/present
+args:
+  pre: {titles: [u.s. federal income tax], words: [contingent income-bearing, withholding, 30%], most: 1}
+  check: {needs: [ingest/ING-document]}
+tier: low
+instructions: >-
+  From the tax section: the issuer's intended characterization of the notes for US federal income tax
+  (one sentence), whether that treatment is described as uncertain, and the US federal withholding rate
+  the issuer will apply to Contingent Coupon Payments as a per-cent number (30% is 30).
+output:
+  type: object
+  properties:
+    position: {type: string, minLength: 20, maxLength: 320}
+    uncertain: {type: boolean}
+    withholding_percent: {type: number, minimum: 0, maximum: 100}
+  required: [position, uncertain, withholding_percent]
+  additionalProperties: false

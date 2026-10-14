@@ -3,16 +3,20 @@
 `SpecCrafter` builds specs the way production code would: in Python, as `CheckedStruct`s, so every
 crafted spec is validated at birth. pytest-resources (`resources.make`, polyfactory) fills every
 free field at random — description, instructions, tier, bound, version — while the crafter pins
-the structure it must control: names, the dependency DAG, fallbacks, wiki terms, schemas, timeouts.
-Each spec is written as YAML (e-serde), its runner module rendered from the hook contracts, its
-wiki terms as markdown: a tree `SpecDiscover` reads exactly as it would read a real pipeline.
+the structure it must control: names, the dependency DAG, fallbacks, wiki terms, schemas, timeouts and
+the runners each spec plugs. Each spec is written as YAML (e-serde), each runner it plugs as an owned
+module holding its one role function, each wiki term as markdown: a tree `SpecDiscover` reads exactly as
+it would read a real pipeline.
 
-The `Blueprint` remembers what was crafted — the specs, the hooks each runner defines, the edges —
-so a test compares the catalog against intent, and picks the spec a breach should hit."""
+A crafted spec `EXT-total-3` plugs owned modules named after it: `total3` (its `run`), `total3check`,
+`total3pre`, `total3post` — whichever slots it fills. The `Blueprint` remembers what was crafted — the
+specs and the runners each plugs, by slot — so a test compares the catalog against intent, and picks
+the spec a breach should hit."""
 
 import random
 from dataclasses import dataclass, field
 from datetime import timedelta
+from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, Final
 
 import eserde
@@ -20,7 +24,7 @@ import msgspec
 
 from core.struct import CheckedStruct
 from e_graph.logic.discover import SpecDiscover
-from e_graph.logic.models import SIGNATURES, DeterministicSpec, Hook, JsonSchema, SemanticSpec, Spec
+from e_graph.logic.models import ROLES, SIGNATURES, DeterministicSpec, JsonSchema, Role, SemanticSpec, Slot, Spec
 from e_graph.models.section import PREFIXES, Section
 
 if TYPE_CHECKING:
@@ -37,22 +41,40 @@ PROPERTIES: Final[Mapping[str, dict[str, Any]]] = {
     "date": {"type": "string"},
     "pages": {"type": "integer", "minimum": 0},
 }
-BODIES: Final[Mapping[Hook, str]] = {
-    Hook.RUN: "return {}",
-    Hook.CHECK: "return True",
-    Hook.PRE: 'return ""',
-    Hook.POST: "return output",
-}
+BODIES: Final[Mapping[Role, str]] = MappingProxyType(
+    {
+        Role.RUN: "return {}",
+        Role.CHECK: "return True",
+        Role.PRE: 'return ""',
+        Role.POST: "return output",
+    }
+)
+### the module a spec's slot is plugged with: `<stem><suffix>`, `total3` · `total3check` · `total3pre` · `total3post`.
+SUFFIXES: Final[Mapping[Slot, str]] = MappingProxyType(
+    {Slot.RUNNER: "", Slot.CHECK: "check", Slot.PRE: "pre", Slot.POST: "post"}
+)
+HEADER: Final[str] = (
+    "from typing import Any\n\nfrom e_graph.instrument.state import RunState\nfrom e_graph.logic.models import Call\n"
+)
 WORDS: Final[tuple[str, ...]] = ("total", "net", "tax", "line", "page", "party", "date", "fee", "sum", "ratio")
+
+
+def stem(name: str) -> str:
+    """The one-word module stem of a spec: `EXT-net-income-3` → `netincome3`."""
+    return "".join(name.split("-")[1:])
+
+
+def plug(name: str, slot: Slot) -> str:
+    """The owned reference a spec's slot is plugged with."""
+    return f"owned/{stem(name)}{SUFFIXES[slot]}"
 
 
 @dataclass(slots=True)
 class Blueprint:
-    """What was crafted for one section: the specs by name and the hooks each runner module defines."""
+    """What was crafted for one section: the specs by name, each with the runners it plugs by slot."""
 
     section: Section
     specs: dict[str, Spec[str]] = field(default_factory=dict)
-    hooks: dict[str, frozenset[Hook]] = field(default_factory=dict)
 
     @property
     def deterministic(self) -> list[str]:
@@ -61,6 +83,11 @@ class Blueprint:
     @property
     def semantic(self) -> list[str]:
         return [name for name, spec in self.specs.items() if isinstance(spec, SemanticSpec)]
+
+    @property
+    def plugs(self) -> dict[str, dict[Slot, str]]:
+        """Spec → the runners it plugs, by slot."""
+        return {name: spec.plugs for name, spec in self.specs.items()}
 
     @property
     def fallbacks(self) -> dict[str, str]:
@@ -98,16 +125,19 @@ class SpecCrafter:
         timeout = timedelta(seconds=self._rng.randint(1, 600)) if self._rng.random() < 0.5 else None
         extra = {"examples": ({},) if self._rng.random() < 0.3 else ()} if kind is SemanticSpec else {}
         seed = self._rng.randrange(2**32)
-        return self._resources.make(kind, seed=seed, name=name, timeout=timeout, **extra, **pins)
+        return self._resources.make(kind, seed=seed, name=name, timeout=timeout, args={}, **extra, **pins)
 
     def _craft_kind(self, semantic: float) -> type[Spec[str]]:
         return SemanticSpec if self._rng.random() < semantic else DeterministicSpec
 
-    def _craft_hooks(self, spec: Spec[str]) -> frozenset[Hook]:
-        """The hooks its runner module will define: `run` always for deterministic, any optional subset beside."""
-        optional = sorted(type(spec).HOOKS - type(spec).REQUIRED)
-        chosen = {hook for hook in optional if self._rng.random() < 0.5}
-        return frozenset(type(spec).REQUIRED | chosen)
+    def _craft_plugs(self, kind: type[Spec[str]], name: str) -> dict[str, str | None]:
+        """The runners a spec plugs: a deterministic one its `runner` always, every optional slot at even odds."""
+        optional = {slot.value: plug(name, slot) if self._rng.random() < 0.5 else None for slot in kind.SLOTS}
+        return optional | ({Slot.RUNNER.value: plug(name, Slot.RUNNER)} if kind is DeterministicSpec else {})
+
+    def _craft_one(self, semantic: float, name: str, **pins: Any) -> Spec[str]:
+        kind = self._craft_kind(semantic)
+        return self._craft_spec(kind, name, output=self._craft_output(), **self._craft_plugs(kind, name), **pins)
 
     ############################################################
 
@@ -125,32 +155,28 @@ class SpecCrafter:
     ) -> Blueprint:
         """A coherent section: `n` specs (a `semantic` share of them), a random DAG of `density` edges per
         earlier spec, `fallbacks` fallback-only specs each serving one parent, wiki terms sprinkled — then
-        written, with their runners and the wiki pages they name."""
+        written, with the runners they plug and the wiki pages they name."""
         names = self._craft_names(section, n)
         regular, spare = names[: n - fallbacks], names[n - fallbacks :]
         terms = tuple(wiki)
         backup = dict(zip(self._rng.sample(regular, k=min(fallbacks, len(regular))), spare, strict=False))
         crafted = {
-            name: self._craft_spec(
-                self._craft_kind(semantic),
+            name: self._craft_one(
+                semantic,
                 name,
                 depends=tuple(earlier for earlier in regular[:index] if self._rng.random() < density),
                 fallback=backup.get(name),
                 wiki=tuple(term for term in terms if self._rng.random() < 0.5),
-                output=self._craft_output(),
             )
             for index, name in enumerate(regular)
-        } | {
-            name: self._craft_spec(
-                self._craft_kind(semantic), name, depends=(), fallback=None, wiki=(), output=self._craft_output()
-            )
-            for name in spare
-        }
-        blueprint = Blueprint(
-            section=section, specs=crafted, hooks={name: self._craft_hooks(spec) for name, spec in crafted.items()}
-        )
+        } | {name: self._craft_one(semantic, name, depends=(), fallback=None, wiki=()) for name in spare}
+        blueprint = Blueprint(section=section, specs=crafted)
         _ = [self.write_spec(section, spec) for spec in crafted.values()]
-        _ = [self.write_runner(section, name, hooks) for name, hooks in blueprint.hooks.items()]
+        _ = [
+            self.write_runner(section, ref.partition("/")[2], ROLES[slot])
+            for plugs in blueprint.plugs.values()
+            for slot, ref in plugs.items()
+        ]
         _ = [self.write_wiki(term) for term in terms]
         return blueprint
 
@@ -162,8 +188,11 @@ class SpecCrafter:
     def spec_file(self, section: Section, name: str) -> Path:
         return self.specs / self.pipeline / section / f"{name}.yaml"
 
-    def runner_file(self, section: Section, name: str) -> Path:
-        return self.runners / self.pipeline / section / f"{name}.py"
+    def runner_file(self, section: Section, module: str) -> Path:
+        return self.runners / "owned" / self.pipeline / section / f"{module}.py"
+
+    def tool_file(self, capability: str, module: str) -> Path:
+        return self.runners / "agnostic" / capability / f"{module}.py"
 
     def write_spec(self, section: Section, spec: Spec[str], name: str | None = None) -> Path:
         """A spec as YAML, encoded through the checked hooks — exactly what a human would commit."""
@@ -182,23 +211,40 @@ class SpecCrafter:
         document = {**self.read_raw(section, spec), **changes}
         return self.write_raw(section, spec, {key: value for key, value in document.items() if value is not ...})
 
-    def write_runner(
-        self, section: Section, name: str, hooks: Iterable[Hook], *, functions: str = "", imports: str = ""
-    ) -> Path | None:
-        """A runner module defining `hooks` by their contracts (plus raw `functions`); none when nothing to define."""
-        rendered = [self.render(hook) for hook in sorted(hooks)]
-        match [*rendered, functions] if functions else rendered:
-            case []:
-                return None
-            case blocks:
-                header = f'"""{name}: crafted runner."""\n\n{imports}from typing import Any\n\nfrom e_graph.instrument.state import RunState\n'
-                return self._write(self.runner_file(section, name), "\n\n".join([header, *blocks]) + "\n")
+    def write_runner(self, section: Section, module: str, role: Role | None, **parts: Any) -> Path:
+        """An owned runner module of the section: its role function by contract (`render`), plus raw parts."""
+        return self._write(self.runner_file(section, module), self.module(module, role, **parts))
+
+    def write_tool(self, capability: str, module: str, role: Role | None, **parts: Any) -> Path:
+        """An agnostic tool module of a capability, written as an owned one is."""
+        return self._write(self.tool_file(capability, module), self.module(module, role, **parts))
+
+    @classmethod
+    def module(
+        cls,
+        name: str,
+        role: Role | None,
+        *,
+        functions: str = "",
+        imports: str = "",
+        args: str = "",
+        **render: Any,
+    ) -> str:
+        """A runner module's source: imports, an optional `Args` body, the role's function, any extra functions."""
+        declared = f"\n\nclass Args(CheckedStruct, frozen=True, kw_only=True):\n{args}" if args else ""
+        checked = "from core.struct import CheckedStruct\n" if args else ""
+        blocks = [cls.render(role, **render)] if role is not None else []
+        body = "\n\n".join([*blocks, functions] if functions else blocks)
+        return f'"""{name}: crafted runner."""\n\n{imports}{checked}{HEADER}{declared}\n\n{body}\n'
 
     @staticmethod
-    def render(hook: Hook, *, signature: str | None = None, doc: str | None = "Crafted hook.") -> str:
-        """One hook function from its contract; `signature`/`doc` override it to break the contract on purpose."""
+    def render(
+        role: Role, *, signature: str | None = None, doc: str | None = "Crafted runner.", body: str | None = None
+    ) -> str:
+        """One role function from its contract; `signature`/`doc`/`body` override it — to break it on purpose."""
         docstring = f'    """{doc}"""\n' if doc else ""
-        return f"{signature or SIGNATURES[hook]}:\n{docstring}    {BODIES[hook]}\n"
+        lines = "".join(f"    {line}\n" for line in (body or BODIES[role]).splitlines())
+        return f"{signature or SIGNATURES[role]}:\n{docstring}{lines}"
 
     def write_wiki(self, term: str, *, shared: bool = True) -> Path:
         folder = self.specs / "wiki" if shared else self.specs / self.pipeline / "wiki"

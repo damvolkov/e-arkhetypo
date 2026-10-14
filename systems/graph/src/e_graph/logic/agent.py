@@ -63,8 +63,8 @@ from e_graph.logic.models import (
     Message,
     Provider,
     Reply,
-    Role,
     Shape,
+    Speaker,
     Tier,
     Usage,
 )
@@ -299,10 +299,10 @@ class AgnosticAgent:
     @staticmethod
     def _run_messages(instructions: str, prompt: Prompt) -> list[dict[str, str]]:
         """The chat the provider receives: the instructions as system, then the prompt's turns."""
-        turns = [Message(Role.USER, prompt)] if isinstance(prompt, str) else list(prompt)
+        turns = [Message(Speaker.USER, prompt)] if isinstance(prompt, str) else list(prompt)
         return [
             {"role": message.role, "content": message.content}
-            for message in (Message(Role.SYSTEM, instructions), *turns)
+            for message in (Message(Speaker.SYSTEM, instructions), *turns)
         ]
 
     async def _run_call(
@@ -463,8 +463,8 @@ class AgnosticAgent:
                     case _:
                         messages.extend(
                             (
-                                {"role": Role.ASSISTANT, "content": done.raw},
-                                {"role": Role.USER, "content": RETRY_PROMPT.format(error=error)},
+                                {"role": Speaker.ASSISTANT, "content": done.raw},
+                                {"role": Speaker.USER, "content": RETRY_PROMPT.format(error=error)},
                             )
                         )
                         continue
@@ -476,6 +476,10 @@ class AgnosticAgent:
                 latency_ms=(time.perf_counter() - started) * MS_PER_SECOND,
                 attempts=attempts,
             )
+
+    def resolve(self, target: Target) -> Endpoint:
+        """Where a call to `target` would go, every connection field resolved — what `run` itself would reach."""
+        return self._run_endpoint(target, None, None)
 
     async def close(self) -> None:
         """Close every pooled client; the agent stays usable — the next call simply opens a fresh one."""

@@ -1,0 +1,16 @@
+kind: deterministic
+name: AUD-eusipa
+description: The EUSIPA family is one of the map's seven, and it fits the shape — a contingent-coupon autocall with capital at risk is yield enhancement.
+runner: owned/eusipa
+check: agnostic/context/present
+args:
+  check:
+    needs: [inference/INF-product-type, extract/EXT-terms]
+output:
+  type: object
+  properties:
+    family: {type: string}
+    holds: {type: boolean}
+    why: {type: string}
+  required: [family, holds, why]
+  additionalProperties: false

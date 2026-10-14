@@ -1,4 +1,6 @@
-"""tests/unit: pipelines.doc — the demo builder end to end: its declaration, then one run per `resources/cases` case."""
+"""tests/unit: pipelines.doc.graph — the demo graph end to end: its declaration, then one run per `resources/cases` case.
+
+Every node runs its section's specs through the real orchestrator over the real `specs/doc` and its runners."""
 
 from typing import TYPE_CHECKING, Any, cast
 
@@ -8,7 +10,7 @@ import pytest
 from e_graph.instrument.models import NodeRole, NodeStatus, RunStatus
 from e_graph.instrument.state import RunState
 from e_graph.models.section import ORDER, Section
-from e_graph.pipelines.doc import DocBuilder
+from e_graph.pipelines.doc.graph import DocGraph
 
 if TYPE_CHECKING:
     from pytest_resources import Resources
@@ -21,11 +23,11 @@ ALL: tuple[str, ...] = ("ingest", "normalize", "classify", "extract", "validate"
 
 @pytest.fixture
 def pipeline() -> InstrumentGraph:
-    return DocBuilder().build()
+    return DocGraph().build()
 
 
 def test_builder_names_and_summarizes_its_graph(pipeline: InstrumentGraph) -> None:
-    assert (pipeline.name, pipeline.summary) == ("doc", DocBuilder().summary)
+    assert (pipeline.name, pipeline.summary) == ("doc", DocGraph().summary)
     assert pipeline.summary.startswith("Document intake")
 
 
@@ -55,27 +57,30 @@ async def test_documents_meet_their_expectations(
     cases = cast("list[dict[str, Any]]", list(resources.cases))
     assert len(cases) >= 4
     for case in cases:
-        state = RunState(system)
+        state = RunState(system, pipeline="doc")
         state.context.update(case["data"])
         result = await pipeline.run(state, retain=True)
         expect = case["expect"]
         assert (case["name"], result.end.status) == (case["name"], RunStatus(expect["status"]))
-        assert (state.context.kind, state.context.amount) == (expect["kind"], expect["amount"])
+        context = state.context
+        found = (context.classify["CLS-kind"]["kind"], context.extract["EXT-amount"]["amount"])
+        assert found == (expect["kind"], expect["amount"])
         assert result.outputs[-1].status is NodeStatus(expect["status"])
         match expect:
             case {"failed_at": failed_at}:
                 assert result.outputs[-1].name == failed_at
             case {"report": report}:
-                assert eserde.loads(state.context.report, format=case["data"]["format"])["kind"] == "invoice"
-                assert cast("bytes", state.context.report).decode().startswith(report)
+                text = cast("str", context.report["REP-serial"]["text"])
+                assert eserde.loads(text, format=case["data"]["format"])["kind"] == "invoice"
+                assert text.startswith(report)
             case {"extractions": extractions}:
                 assert [output.name for output in result.outputs].count("extract") == extractions
 
 
 async def test_injected_failure_skips_the_tail(pipeline: InstrumentGraph, system: State) -> None:
-    state = RunState(system)
+    state = RunState(system, pipeline="doc")
     state.context.fail = True
     result = await pipeline.run(state)
     assert result.end.status is RunStatus.FAILED
-    assert result.end.error == "RuntimeError: extraction failed on purpose"
+    assert result.end.error == "SectionError: EXT-amount failed: RuntimeError: extraction failed on purpose"
     assert result.end.skipped == ("validate", "transform", "report")

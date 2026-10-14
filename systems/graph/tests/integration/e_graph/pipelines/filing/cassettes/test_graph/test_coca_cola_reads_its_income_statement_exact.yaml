@@ -1,0 +1,316 @@
+interactions:
+- request:
+    body: "{\"model\":\"gemma4-26b-a4b\",\"messages\":[{\"role\":\"system\",\"content\":\"You
+      answer several specifications at once. Each one is introduced below by its name
+      as a heading, with what it asks. Reply with one JSON object holding one key
+      per specification name; each value is that specification's answer, shaped exactly
+      as its schema says. Answer from the material given.\\n\\n### EXT-balance\\nThe
+      balance sheet's headline figures at the end of the fiscal year the 10-K reports,
+      in US dollars.\\nFrom the consolidated balance sheet, the most recent year-end
+      column: total assets, total liabilities, total shareholders' (stockholders')
+      equity attributable to the company, and cash and cash equivalents, each in millions
+      of US dollars exactly as printed.\\nGlossary, statement-units:\\n# statement-units\\n\\nFinancial
+      statements print most figures in millions of US dollars (\\\"In millions, except
+      per-share\\namounts\\\"): read them as printed, without adding zeros. Per-share
+      amounts are in dollars. A figure in\\nparentheses is negative.\\n\\n### EXT-cover\\nWho
+      filed the 10-K, for which fiscal year, and how many shares were outstanding.\\nFrom
+      the cover page of this Form 10-K: the registrant's exact name as printed; the
+      last day of the fiscal year the report covers, as an ISO date (YYYY-MM-DD);
+      and the number of shares of common stock outstanding at the latest date the
+      cover states, as a whole number.\\nGlossary, ten-k:\\n# ten-k\\n\\nForm 10-K:
+      the annual report a US public company files with the SEC. Its cover page names
+      the\\nregistrant, the fiscal year it covers (\\\"For the fiscal year ended ...\\\")
+      and the shares of common stock\\noutstanding at a date shortly before filing.\\n\\n###
+      EXT-income\\nThe income statement's headline figures for the fiscal year the
+      10-K reports, in US dollars.\\nFrom the consolidated statement of operations
+      (or of income), the most recent fiscal year's column: total revenue (net sales
+      or net operating revenues), cost of revenue (cost of sales or of goods sold),
+      gross profit (gross margin), operating income, and net income attributable to
+      the company's shareholders (after noncontrolling interests, when the statement
+      shows them), each in millions of US dollars exactly as printed; basic and diluted
+      earnings per share in US dollars.\\nGlossary, statement-units:\\n# statement-units\\n\\nFinancial
+      statements print most figures in millions of US dollars (\\\"In millions, except
+      per-share\\namounts\\\"): read them as printed, without adding zeros. Per-share
+      amounts are in dollars. A figure in\\nparentheses is negative.\"},{\"role\":\"user\",\"content\":\"###
+      Material for EXT-cover\\n## Page 1\\n(Mark One)\\n\\n\u2612 ANNUAL REPORT PURSUANT
+      TO SECTION 13 OR 15(d) OF THE SECURITIES EXCHANGE ACT OF 1934 For the fiscal
+      year ended December 31, 2025 OR \u2610 TRANSITION REPORT PURSUANT TO SECTION
+      13 OR 15(d) OF THE SECURITIES EXCHANGE ACT OF 1934\\n\\nFor the transition period
+      from to\\n\\nCommission File Number: 001-02217\\n\\n<!-- image -->\\n\\nCOCA
+      COLA CO\\n\\n(Exact name of Registrant as specified in its charter)\\n\\n##
+      Delaware 58-0628465\\n\\n(State or other jurisdiction of incorporation) (I.R.S.
+      Employer Identification No.)\\n\\n## One Coca-Cola Plaza Atlanta, Georgia\\n\\n##
+      30313\\n\\n(Address of principal executive offices) (Zip Code)\\n\\n## Registrant's
+      telephone number, including area code: (404) 676-2121\\n\\n## Securities registered
+      pursuant to Section 12(b) of the Act:\\n\\n## UNITED STATES SECURITIES AND EXCHANGE
+      COMMISSION\\n\\n## WASHINGTON, D.C. 20549\\n\\n## FORM 10-K\\n\\n## Page 2\\nTitle
+      of each class Trading Symbol(s) Name of each exchange on which registered Common
+      Stock, $0.25 Par Value KO New York Stock Exchange 1.875% Notes Due 2026 KO26
+      New York Stock Exchange 0.750% Notes Due 2026 KO26C New York Stock Exchange
+      1.125% Notes Due 2027 KO27 New York Stock Exchange 0.125% Notes Due 2029 KO29A
+      New York Stock Exchange 0.125% Notes Due 2029 KO29B New York Stock Exchange
+      0.400% Notes Due 2030 KO30B New York Stock Exchange 1.250% Notes Due 2031 KO31
+      New York Stock Exchange 3.125% Notes Due 2032 KO32 New York Stock Exchange 0.375%
+      Notes Due 2033 KO33 New York Stock Exchange 0.500% Notes Due 2033 KO33A New
+      York Stock Exchange 1.625% Notes Due 2035 KO35 New York Stock Exchange 1.100%
+      Notes Due 2036 KO36 New York Stock Exchange 0.950% Notes Due 2036 KO36A New
+      York Stock Exchange 3.375% Notes Due 2037 KO37 New York Stock Exchange 0.800%
+      Notes Due 2040 KO40B New York Stock Exchange 1.000% Notes Due 2041 KO41 New
+      York Stock Exchange 3.500% Notes Due 2044 KO44 New York Stock Exchange 3.750%
+      Notes Due 2053 KO53 New York Stock Exchange\\n\\nSecurities registered pursuant
+      to Section 12(g) of the Act: None \\\\_\\\\_\\\\_\\\\_\\\\_\\\\_\\\\_\\\\_\\\\_\\\\_\\\\_\\\\_\\\\_\\\\_\\\\_\\\\_\\\\_\\\\_\\\\_\\\\_\\\\_\\\\_\\\\_\\\\_\\\\_\\\\_\\\\_\\\\_\\\\_\\\\_\\\\_\\\\_\\\\_\\\\_\\\\_\\\\_\\\\_\\\\_\\\\_\\\\_\\\\_\\\\_\\\\_\\\\_\\\\_\\\\_\\\\_\\\\_\\\\_\\\\_\\n\\nIndicate
+      by check mark if the Registrant is a well-known seasoned issuer, as defined
+      in Rule 405 of the Securities Act. Yes \u2612 No \u2610\\n\\nIndicate by check
+      mark if the Registrant is not required to file reports pursuant to Section 13
+      or Section 15(d) of the Act. Yes \u2610 No \u2612\\n\\nIndicate by check mark
+      whether the Registrant (1) has filed all reports required to be filed by Section
+      13 or 15(d) of the Securities Exchange Act of 1934 during the preceding 12 months
+      (or for such shorter period that the Registrant was required to file such reports),
+      and (2) has been subject to such filing requirements for the past 90 days. Yes
+      \u2612 No \u2610\\n\\nIndicate by check mark whether the Registrant has submitted
+      electronically every Interactive Data File required to be submitted pursuant
+      to Rule 405 of Regulation S-T (\xA7 232.405 of this chapter) during the preceding
+      12 months (or for such shorter period that the Registrant was required to submit
+      such files). Yes \u2612 No \u2610\\n\\nIndicate by check mark whether the Registrant
+      is a large accelerated filer, an accelerated filer, a non-accelerated filer,
+      a smaller reporting company or an emerging growth company. See the definitions
+      of \\\"large accelerated filer,\\\" \\\"accelerated filer,\\\" \\\"smaller reporting
+      company\\\" and \\\"emerging growth company\\\" in Rule 12b-2 of the Exchange
+      Act.\\n\\n- [ ] Large accelerated filer \u2612 Accelerated filer \u2610 Non-accelerated
+      filer \u2610 Smaller reporting company \u2610 Emerging growth company \u2610\\n\\nIf
+      an emerging growth company, indicate by check mark if the Registrant has elected
+      not to use the extended transition period for complying with any new or revised
+      financial accounting standards provided pursuant to Section 13(a) of the Exchange
+      Act. \u2610\\n\\nIndicate by check mark whether the Registrant has filed a report
+      on and attestation to its management's assessment of the effectiveness of its
+      internal control over financial reporting under Section 404(b) of the Sarbanes-Oxley
+      Act (15 U.S.C. 7262(b)) by the registered public accounting firm that prepared
+      or issued its audit report. \u2612\\n\\nIf securities are registered pursuant
+      to Section 12(b) of the Act, indicate by check mark whether the financial statements
+      of the Registrant included in the filing reflect the correction of an error
+      to previously issued financial statements. \u2610\\n\\nIndicate by check mark
+      whether any of those error corrections are restatements that required a recovery
+      analysis of incentive-based compensation received by any of the Registrant's
+      executive officers during the relevant recovery period pursuant to \xA7 240.10D-1(b).
+      \u2610\\n\\nIndicate by check mark whether the Registrant is a shell company
+      (as defined in Rule 12b-2 of the Exchange Act). Yes \u2610 No \u2612\\n\\nThe
+      aggregate market value of the common equity held by non-affiliates of the Registrant
+      (assuming for these purposes, but without conceding, that all executive officers
+      and Directors are \\\"affiliates\\\" of the Registrant) as of June 27, 2025,
+      the last business day of the Registrant's most recently completed second fiscal
+      quarter, was $300,552,956,545 (based on the closing sale price of the Registrant's
+      Common Stock on that date as reported on the New York Stock Exchange).\\n\\nThe
+      number of shares outstanding of the Registrant's Common Stock as of February
+      18, 2026 was 4,300,723,069.\\n\\n## DOCUMENTS INCORPORATED BY REFERENCE\\n\\nPortions
+      of the Company's Proxy Statement for the 2026 Annual Meeting of Shareowners
+      are incorporated by reference in Part III.\\n\\n## Page 3\\n\\n\\n### Material
+      for EXT-income\\n## Page 112\\n**ITEM 8. FINANCIAL STATEMENTS AND SUPPLEMENTARY
+      DATA**\\n\\n# Table of Contents\\n\\n## Page\\n\\nConsolidated Statements of
+      Income 61 Consolidated Statements of Comprehensive Income 62 Consolidated Balance
+      Sheets 63 Consolidated Statements of Cash Flows 64 Consolidated Statements of
+      Shareowners' Equity 65 Notes to Consolidated Financial Statements 66\\n\\n|
+      Note 1 | Business and Summary of Significant Accounting Policies | 66 |\\n|---|---|---|\\n|
+      Note 2 | Acquisitions and Divestitures | 73 |\\n| Note 3 | Net Operating Revenues
+      | 74 |\\n| Note 4 | Investments | 76 |\\n| Note 5 | Hedging Transactions and
+      Derivative Financial Instruments | 78 |\\n| Note 6 | Equity Method Investments
+      | 85 |\\n| Note 7 | Goodwill | 86 |\\n| Note 8 | Accounts Payable and Accrued
+      Expenses | 86 |\\n| Note 9 | Supply Chain Finance Program | 87 |\\n| Note 10
+      | Leases | 87 |\\n| Note 11 | Debt and Borrowing Arrangements | 88 |\\n| Note
+      12 | Commitments and Contingencies | 89 |\\n| Note 13 | Stock-Based Compensation
+      Plans | 92 |\\n| Note 14 | Pension and Other Postretirement Benefit Plans |
+      95 |\\n| Note 15 | Income Taxes | 101 |\\n| Note 16 | Other Comprehensive Income
+      | 106 |\\n| Note 17 | Fair Value Measurements | 109 |\\n| Note 18 | Significant
+      Operating and Nonoperating Items | 114 |\\n| Note 19 | Restructuring | 115 |\\n|
+      Note 20 | Operating Segments | 116 |\\n| Note 21 | Net Change in Operating Assets
+      and Liabilities | 118 |\\n\\nReport of Management 119 Report of Independent
+      Registered Public Accounting Firm (PCAOB ID: 42) 121 Report of Independent Registered
+      Public Accounting Firm on Internal Control Over Financial Reporting 123\\n\\n##
+      Page 113\\n## THE COCA-COLA COMPANY AND SUBSIDIARIES CONSOLIDATED STATEMENTS
+      OF INCOME\\n\\n(In millions except per share data)\\n\\nYear Ended December
+      31, **2025** 2024 2023\\n\\n| Net Operating Revenues | $ | 47,941 | $ 47,061
+      | $ 45,754 |\\n|---|---|---|---|---|\\n| Cost of goods sold |  | 18,397 | 18,324
+      | 18,520 |\\n| Gross Profit |  | 29,544 | 28,737 | 27,234 |\\n| Selling, general
+      and administrative expenses |  | 14,521 | 14,582 | 13,972 |\\n| Other operating
+      charges |  | 1,261 | 4,163 | 1,951 |\\n| Operating Income |  | 13,762 | 9,992
+      | 11,311 |\\n| Interest income |  | 786 | 988 | 907 |\\n| Interest expense |
+      \ | 1,654 | 1,656 | 1,527 |\\n| Equity income (loss) - net |  | 2,031 | 1,770
+      | 1,691 |\\n| Other income (loss) - net |  | 1,073 | 1,992 | 570 |\\n| Income
+      Before Income Taxes |  | 15,998 | 13,086 | 12,952 |\\n| Income taxes |  | 2,861
+      | 2,437 | 2,249 |\\n| Consolidated Net Income |  | 13,137 | 10,649 | 10,703
+      |\\n| Less: Net income (loss) attributable to noncontrolling interests |  |
+      30 | 18 | (11) |\\n| Net Income Attributable to Shareowners of The Coca-Cola
+      Company | $ | 13,107 | $ 10,631 | $ 10,714 |\\n| Basic Net Income Per Share1
+      | $ | 3.05 | $ 2.47 | $ 2.48 |\\n| Diluted Net Income Per Share1 | $ | 3.04
+      | $ 2.46 | $ 2.47 |\\n| Average Shares Outstanding - Basic |  | 4,303 | 4,309
+      | 4,323 |\\n| Effect of dilutive securities |  | 10 | 11 | 16 |\\n| Average
+      Shares Outstanding - Diluted |  | 4,313 | 4,320 | 4,339 |\\n| 1 Calculated based
+      on net income attributable to shareowners of The Coca-Cola Company. Refer to
+      Notes to Consolidated Financial Statements. |  |  |  |  |\\n\\n## Page 233\\n101
+      The following financial information from The Coca-Cola Company's Annual Report
+      on Form 10-K for the year\\n\\nended December 31, 2025, formatted in iXBRL (Inline
+      Extensible Business Reporting Language): (i) Consolidated Statements of Income
+      for the years ended December 31, 2025, 2024 and 2023; (ii) Consolidated Statements
+      of Comprehensive Income for the years ended December 31, 2025, 2024 and 2023;
+      (iii) Consolidated Balance Sheets as of December 31, 2025 and 2024; (iv) Consolidated
+      Statements of Cash Flows for the years ended December 31, 2025, 2024 and 2023;
+      (v) Consolidated Statements of Shareowners' Equity for the years ended December
+      31, 2025, 2024 and 2023; and (vi) Notes to Consolidated Financial Statements.
+      104 Cover Page Interactive Data File (the cover page XBRL tags are embedded
+      within the iXBRL document). \\\\*Management contracts and compensatory plans
+      and arrangements required to be filed as exhibits pursuant to Item 15(b) of
+      Form 10-K.\\n\\n## ITEM 16. FORM 10-K SUMMARY\\n\\nNone.\\n\\n135\\n\\n### Material
+      for EXT-balance\\n## Page 112\\n**ITEM 8. FINANCIAL STATEMENTS AND SUPPLEMENTARY
+      DATA**\\n\\n# Table of Contents\\n\\n## Page\\n\\nConsolidated Statements of
+      Income 61 Consolidated Statements of Comprehensive Income 62 Consolidated Balance
+      Sheets 63 Consolidated Statements of Cash Flows 64 Consolidated Statements of
+      Shareowners' Equity 65 Notes to Consolidated Financial Statements 66\\n\\n|
+      Note 1 | Business and Summary of Significant Accounting Policies | 66 |\\n|---|---|---|\\n|
+      Note 2 | Acquisitions and Divestitures | 73 |\\n| Note 3 | Net Operating Revenues
+      | 74 |\\n| Note 4 | Investments | 76 |\\n| Note 5 | Hedging Transactions and
+      Derivative Financial Instruments | 78 |\\n| Note 6 | Equity Method Investments
+      | 85 |\\n| Note 7 | Goodwill | 86 |\\n| Note 8 | Accounts Payable and Accrued
+      Expenses | 86 |\\n| Note 9 | Supply Chain Finance Program | 87 |\\n| Note 10
+      | Leases | 87 |\\n| Note 11 | Debt and Borrowing Arrangements | 88 |\\n| Note
+      12 | Commitments and Contingencies | 89 |\\n| Note 13 | Stock-Based Compensation
+      Plans | 92 |\\n| Note 14 | Pension and Other Postretirement Benefit Plans |
+      95 |\\n| Note 15 | Income Taxes | 101 |\\n| Note 16 | Other Comprehensive Income
+      | 106 |\\n| Note 17 | Fair Value Measurements | 109 |\\n| Note 18 | Significant
+      Operating and Nonoperating Items | 114 |\\n| Note 19 | Restructuring | 115 |\\n|
+      Note 20 | Operating Segments | 116 |\\n| Note 21 | Net Change in Operating Assets
+      and Liabilities | 118 |\\n\\nReport of Management 119 Report of Independent
+      Registered Public Accounting Firm (PCAOB ID: 42) 121 Report of Independent Registered
+      Public Accounting Firm on Internal Control Over Financial Reporting 123\\n\\n##
+      Page 115\\n## THE COCA-COLA COMPANY AND SUBSIDIARIES CONSOLIDATED BALANCE SHEETS\\n\\n(In
+      millions except par value)\\n\\nDecember 31,\\n\\n|  |\\n|---|\\n| Current Assets
+      |\\n| Cash and cash equivalents |\\n| Short-term investments |\\n| Total Cash,
+      Cash Equivalents and Short-Term Investments |\\n| Marketable securities |\\n|
+      Trade accounts receivable, less allowances of $495 and $506, respectively |\\n|
+      Inventories |\\n| Prepaid expenses and other current assets |\\n| Assets held
+      for sale |\\n| Total Current Assets |\\n| Equity method investments |\\n| Deferred
+      income tax assets |\\n| Property, plant and equipment - net |\\n| Trademarks
+      with indefinite lives |\\n| Goodwill |\\n| Other noncurrent assets |\\n| Total
+      Assets |\\n| LIABILITIES AND EQUITY |\\n| Current Liabilities |\\n| Accounts
+      payable and accrued expenses |\\n| Loans and notes payable |\\n| Current maturities
+      of long-term debt |\\n| Accrued income taxes |\\n| Liabilities held for sale
+      |\\n| Total Current Liabilities |\\n| Long-term debt |\\n| Other noncurrent
+      liabilities |\\n| Deferred income tax liabilities |\\n| The Coca-Cola Company
+      Shareowners' Equity |\\n| Common stock, $0.25 par value; authorized - 11,200
+      shares; issued - 7,040 shares |\\n| Capital surplus |\\n| Reinvested earnings
+      |\\n| Accumulated other comprehensive income (loss) |\\n| Treasury stock, at
+      cost - 2,738 and 2,738 shares, respectively |\\n| Equity Attributable to Shareowners
+      of The Coca-Cola Company |\\n| Equity attributable to noncontrolling interests
+      |\\n| Total Equity |\\n| Total Liabilities and Equity |\\n\\nRefer to Notes
+      to Consolidated Financial Statements.\\n\\nASSETS\\n\\n|  | 2025 | 2024 |\\n|---|---|---|\\n|
+      $ | 10,270 $ 3,602 | 10,828 2,020 |\\n|  | 13,872 1,934 | 12,848 1,723 |\\n|
+      \ | 3,038 4,425 | 3,569 4,728 |\\n|  | 2,433 5,342 | 2,998 131 |\\n|  | 31,044
+      20,235 | 25,997 18,087 |\\n|  | 1,206 9,613 | 1,319 10,303 |\\n|  | 12,531 15,491
+      | 13,301 18,139 |\\n|  | 14,696 | 13,403 |\\n| $ | 104,816 $ | 100,549 |\\n\\n|
+      $ | 14,813 $ 1,551 | 21,712 1,499 |\\n|---|---|---|\\n|  | 1,822 525 | 648 1,387
+      |\\n|  | 2,570 21,281 | 3 25,249 |\\n|  | 42,119 4,735 | 42,375 4,084 |\\n|
+      \ | 2,406 | 2,469 |\\n|  | 1,760 20,581 | 1,760 19,801 |\\n|  | 80,382 (14,131)
+      | 76,054 (16,843) |\\n|  | (56,423) 32,169 | (55,916) 24,856 |\\n|  | 2,106
+      34,275 | 1,516 26,372 |\\n| $ | 104,816 $ | 100,549 |\\n\\n## Page 171\\nPension
+      and other postretirement benefit plan amounts recognized in our consolidated
+      balance sheets were as follows (in millions):\\n\\nPension Plans Other Postretirement
+      Benefit Plans\\n\\nDecember 31, **2025** 2024 **2025** 2024\\n\\n| Other noncurrent
+      assets | $ | 1,046 | $ | 1,219 | $ - | $ - |\\n|---|---|---|---|---|---|---|\\n|
+      Accounts payable and accrued expenses |  | (70) |  | (68) | (8) | (6) |\\n|
+      Other noncurrent liabilities |  | (681) |  | (761) | (104) | (110) |\\n| Net
+      asset (liability) recognized | $ | 295 | $ | 390 | $ (112) | $ (116) |\\n\\nCertain
+      of our pension plans have a projected benefit obligation in excess of the fair
+      value of plan assets. For these plans, the projected benefit obligation and
+      the fair value of plan assets were as follows (in millions):\\n\\nDecember 31,
+      **2025** 2024\\n\\n| Projected benefit obligation |  |  | $ 4,829 | $ 4,902
+      |\\n|---|---|---|---|---|\\n| Fair value of plan assets |  |  | 4,078 | 4,072
+      |\\n\\nCertain of our pension plans have an accumulated benefit obligation in
+      excess of the fair value of plan assets. For these plans, the accumulated benefit
+      obligation and the fair value of plan assets were as follows (in millions):\\n\\nDecember
+      31, **2025** 2024\\n\\n| Accumulated benefit obligation |  |  | $ 4,770 | $
+      4,882 |\\n|---|---|---|---|---|\\n| Fair value of plan assets |  |  | 4,045
+      | 4,072 |\\n\\nAll of our other postretirement benefit plans have an accumulated
+      postretirement benefit obligation in excess of the fair value of plan assets.\\n\\n##
+      Pension Plan Assets\\n\\nThe following table presents total assets by asset
+      class for our U.S. and non-U.S. pension plans (in millions):\\n\\nU.S. Pension
+      Plans Non-U.S. Pension Plans\\n\\n| December 31, |  | 2025 |  | 2024 | 2025
+      | 2024 |\\n|---|---|---|---|---|---|---|\\n| Cash and cash equivalents | $ |
+      171 | $ | 160 | $ 958 | $ 419 |\\n| Equity securities: |  |  |  |  |  |  |\\n|
+      U.S.-based companies |  | 471 |  | 469 | 61 | 582 |\\n| International-based
+      companies |  | 325 |  | 248 | 56 | 455 |\\n| Fixed-income securities: |  |  |
+      \ |  |  |  |\\n| Government bonds |  | 906 |  | 626 | 444 | 383 |\\n| Corporate
+      bonds and debt securities |  | 210 |  | 442 | 174 | 104 |\\n| Mutual, pooled
+      and commingled funds1 |  | 297 |  | 210 | 375 | 477 |\\n| Hedge funds/limited
+      partnerships |  | 883 |  | 1,004 | 16 | 19 |\\n| Real assets |  | 343 |  | 341
+      | - | - |\\n| Derivative financial instruments |  | (2) |  | - | (7) | (63)
+      |\\n| Other |  | 292 |  | 261 | 550 | 298 |\\n| Total pension plan assets2 |
+      $ | 3,896 | $ | 3,761 | $ 2,627 | $ 2,674 |\\n\\n1 Mutual, pooled and commingled
+      funds include investments in equity securities, fixed-income securities and
+      combinations of both. There are a significant number of mutual, pooled and commingled
+      funds from which investors can choose. The selection of the type of fund is
+      dictated by the specific investment objectives and needs of a given plan. These
+      objectives and needs vary greatly between plans.\\n\\n2 Fair value disclosures
+      related to our pension plan assets are included in Note 17. Fair value disclosures
+      include, but are not limited to, the levels\\n\\nwithin the fair value hierarchy
+      in which the fair value measurements in their entirety fall; a reconciliation
+      of the beginning and ending balances of Level 3 assets; and information about
+      the valuation techniques and inputs used to measure the fair value of our pension
+      plan assets.\"}],\"response_format\":{\"type\":\"json_schema\",\"json_schema\":{\"name\":\"fused\",\"schema\":{\"type\":\"object\",\"title\":\"fused\",\"properties\":{\"EXT-balance\":{\"type\":\"object\",\"properties\":{\"total_assets\":{\"type\":\"number\"},\"total_liabilities\":{\"type\":\"number\"},\"equity\":{\"type\":\"number\"},\"cash\":{\"type\":\"number\"}},\"required\":[\"total_assets\",\"total_liabilities\",\"equity\",\"cash\"],\"additionalProperties\":false},\"EXT-cover\":{\"type\":\"object\",\"properties\":{\"company\":{\"type\":\"string\",\"minLength\":1},\"period_end\":{\"type\":\"string\",\"pattern\":\"^\\\\d{4}-\\\\d{2}-\\\\d{2}$\"},\"shares_outstanding\":{\"type\":\"integer\",\"minimum\":1}},\"required\":[\"company\",\"period_end\",\"shares_outstanding\"],\"additionalProperties\":false},\"EXT-income\":{\"type\":\"object\",\"properties\":{\"revenue\":{\"type\":\"number\"},\"cost_of_revenue\":{\"type\":\"number\"},\"gross_profit\":{\"type\":\"number\"},\"operating_income\":{\"type\":\"number\"},\"net_income\":{\"type\":\"number\"},\"eps_basic\":{\"type\":\"number\"},\"eps_diluted\":{\"type\":\"number\"}},\"required\":[\"revenue\",\"cost_of_revenue\",\"gross_profit\",\"operating_income\",\"net_income\",\"eps_basic\",\"eps_diluted\"],\"additionalProperties\":false}},\"required\":[\"EXT-balance\",\"EXT-cover\",\"EXT-income\"],\"additionalProperties\":false},\"strict\":false}}}"
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate, zstd
+      authorization:
+      - REDACTED
+      connection:
+      - keep-alive
+      content-length:
+      - '21084'
+      content-type:
+      - application/json
+      host:
+      - localhost:45100
+      user-agent:
+      - AsyncOpenAI/Python 3.24.0
+      x-stainless-arch:
+      - x64
+      x-stainless-async:
+      - async:asyncio
+      x-stainless-lang:
+      - python
+      x-stainless-os:
+      - Linux
+      x-stainless-package-version:
+      - 3.24.0
+      x-stainless-read-timeout:
+      - '600.0'
+      x-stainless-retry-count:
+      - '0'
+      x-stainless-runtime:
+      - CPython
+      x-stainless-runtime-version:
+      - 3.14.3
+    method: POST
+    uri: http://localhost:45100/v1/chat/completions
+  response:
+    body:
+      string: '{"id":"chatcmpl-b284ff19db35f480","object":"chat.completion","created":1791997790,"model":"gemma4-26b-a4b","choices":[{"index":0,"message":{"role":"assistant","content":"{\"EXT-balance\":
+        {\"total_assets\": 104816, \"total_liabilities\": 56423, \"equity\": 32169,
+        \"cash\": 10270}, \"EXT-cover\": {\"company\": \"COCA COLA CO\", \"period_end\":
+        \"2025-12-31\", \"shares_outstanding\": 4300723069}, \"EXT-income\": {\"revenue\":
+        47941, \"cost_of_revenue\": 18397, \"gross_profit\": 29544, \"operating_income\":
+        13762, \"net_income\": 13107, \"eps_basic\": 3.05, \"eps_diluted\": 3.04}}","refusal":null,"annotations":null,"audio":null,"function_call":null,"reasoning":null},"logprobs":null,"finish_reason":"stop","stop_reason":106,"token_ids":null,"routed_experts":null}],"service_tier":null,"system_fingerprint":"vllm-0.31.0-c9b9a0dd","usage":{"prompt_tokens":6242,"total_tokens":6431,"completion_tokens":189,"prompt_tokens_details":null,"completion_tokens_details":{"reasoning_tokens":0}},"prompt_logprobs":null,"prompt_token_ids":null,"prompt_text":null,"kv_transfer_params":null,"ec_transfer_params":null,"metrics":null}'
+    headers:
+      content-length:
+      - '1122'
+      content-type:
+      - application/json
+      date:
+      - Wed, 14 Oct 2026 17:09:50 GMT
+      server:
+      - uvicorn
+      vary:
+      - Origin
+    status:
+      code: 200
+      message: OK
+version: 1

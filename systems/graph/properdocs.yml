@@ -40,6 +40,7 @@ markdown_extensions:
 ##### NAV #####
 nav:
   - Home: index.md
+  - DARTS: darts.md
   - Releasing: release.md
   - Reference: reference/
 

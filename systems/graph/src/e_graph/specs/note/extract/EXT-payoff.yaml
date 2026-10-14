@@ -1,0 +1,27 @@
+kind: semantic
+name: EXT-payoff
+description: The full payment logic of the note — coupons, the automatic call and the three maturity outcomes — as the document states it.
+pre: agnostic/document/pages
+check: agnostic/context/present
+args:
+  pre: {first: 1, most: 0}
+  check: {needs: [ingest/ING-document]}
+instructions: >-
+  From the Investment Description on the cover page, state the payment rules of the note, one sentence
+  of at most twenty-five words each, naming the amounts as printed: (1) when a quarterly Observation
+  Date closes at or above the Coupon Barrier but below the call level, (2) when the notes are
+  automatically called, (3) at maturity without a prior call and the Final Value is at or above the
+  Downside Threshold, (4) at maturity below the Downside Threshold, and (5) the formula for the loss.
+wiki: [contingent-coupon, autocall, downside-threshold]
+tier: high
+timeout: PT8M
+output:
+  type: object
+  properties:
+    coupon: {type: string, minLength: 20, maxLength: 160}
+    auto_call: {type: string, minLength: 20, maxLength: 160}
+    maturity_at_or_above: {type: string, minLength: 20, maxLength: 160}
+    maturity_below: {type: string, minLength: 20, maxLength: 160}
+    loss_formula: {type: string, minLength: 10, maxLength: 160}
+  required: [coupon, auto_call, maturity_at_or_above, maturity_below, loss_formula]
+  additionalProperties: false

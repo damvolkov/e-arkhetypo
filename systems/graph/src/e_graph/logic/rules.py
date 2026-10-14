@@ -3,13 +3,15 @@
 Each rule reads what was found and yields a `RuleError` per breach, never raises: the discovery runs
 them all and reports every breach at once. Three scopes, in the order the discovery meets them:
 
-- TREE — the pipeline's folders: one per `Section` (plus `wiki`), spec files `.yaml`, runner files `.py`.
+- TREE — the folders: `specs/<pipeline>/<section>` of `.yaml`, `runners/owned/<pipeline>/<section>` and
+  `runners/agnostic/<capability>` of one-word `.py` modules.
 - SOURCE — one spec file's text, before decoding: no YAML merge keys (`<<`), which the parser leaves
   unresolved. Anchors and aliases resolve, and stay allowed.
 - SECTION — a decoded `Draft`, as a whole (a spec file that failed to decode counts as present, never
   as missing — its own breach is enough): file named as its spec, dependencies and fallbacks that exist
-  and keep their shape, an acyclic dependency graph, runner modules that pair one-to-one with specs and
-  define only their spec kind's hooks, each with the exact signature and a docstring, wiki terms that exist.
+  and keep their shape, an acyclic dependency graph; every runner a spec plugs exists, defines exactly one
+  function whose role fits the slot, with its role's exact signature and a docstring; every owned runner of
+  the section is plugged by some spec (else it is deprecated); wiki terms that exist.
 
 What one spec can say about itself (its name's regex, its schema, its examples) is msgspec's job while
 decoding, never repeated here."""
@@ -22,7 +24,7 @@ from typing import TYPE_CHECKING, Final
 import rustworkx as rx
 
 from e_graph.logic.errors import Rule, RuleError
-from e_graph.logic.models import SIGNATURES, Draft, Hook
+from e_graph.logic.models import ROLES, SIGNATURES, Draft, Role
 from e_graph.models.section import Section
 
 if TYPE_CHECKING:
@@ -35,25 +37,30 @@ WIKI: Final[str] = "wiki"
 SPEC_SUFFIX: Final[str] = ".yaml"
 RUNNER_SUFFIX: Final[str] = ".py"
 SECTIONS: Final[frozenset[str]] = frozenset(Section)
-HOOKS: Final[frozenset[str]] = frozenset(Hook)
+ROLE_NAMES: Final[frozenset[str]] = frozenset(Role)
+### a runner module, a capability, a pipeline: one lowercase word.
+WORD: Final[re.Pattern[str]] = re.compile(r"[a-z][a-z0-9]*")
 MERGE_KEY: Final[re.Pattern[str]] = re.compile(r"^\s*-?\s*<<\s*:", re.MULTILINE)
 
 
 ##### TREE #####
-def rule_tree(root: Path, suffix: str) -> Violations:
-    """A pipeline folder holds section folders (and `wiki`), each holding only files of its tree's suffix."""
+def rule_tree(
+    root: Path, suffix: str, folders: Callable[[str], object], *, skip: frozenset[str] = frozenset()
+) -> Violations:
+    """A root holds only folders `folders` admits; each (but `skip`) only files of `suffix`, named as a module is."""
     entries = sorted(root.iterdir()) if root.is_dir() else []
     yield from (
-        RuleError(Rule.TREE, str(entry), "neither a section folder nor wiki")
+        RuleError(Rule.TREE, str(entry), "not a folder this root admits")
         for entry in entries
-        if not entry.is_dir() or (entry.name not in SECTIONS and entry.name != WIKI)
+        if not entry.name.startswith((".", "__")) and (not entry.is_dir() or not folders(entry.name))
     )
     yield from (
-        RuleError(Rule.TREE, str(file), f"a {root.parent.name} folder holds only {suffix} files")
+        RuleError(Rule.TREE, str(file), f"holds only {suffix} files named in one word ({WORD.pattern})")
         for entry in entries
-        if entry.is_dir() and entry.name in SECTIONS
+        if entry.is_dir() and folders(entry.name) and entry.name not in skip
         for file in sorted(entry.iterdir())
-        if not file.name.startswith((".", "__")) and (file.is_dir() or file.suffix != suffix)
+        if not file.name.startswith((".", "__"))
+        and (file.is_dir() or file.suffix != suffix or (suffix == RUNNER_SUFFIX and not WORD.fullmatch(file.stem)))
     )
 
 
@@ -127,8 +134,9 @@ def rule_cycle(draft: Draft) -> Violations:
     index = {name: graph.add_node(name) for name in draft.specs}
     graph.add_edges_from_no_data(
         [
-            (index[dependency], index[spec.name])
-            for spec in draft.specs.values()
+            ### keyed by file, as `draft.specs` is: a misnamed file is FILENAME's breach, never a crash here.
+            (index[dependency], index[stem])
+            for stem, spec in draft.specs.items()
             for dependency in spec.depends
             if dependency in index
         ]
@@ -144,53 +152,69 @@ def rule_cycle(draft: Draft) -> Violations:
 
 ##### SECTION · RUNNERS #####
 def rule_runner(draft: Draft) -> Violations:
-    """Every hook a spec kind requires is defined in the runner module named as the spec's file."""
+    """Every runner a spec plugs exists: `owned/<name>` in the section's owned folder, `agnostic/...` in the tools."""
     yield from (
-        RuleError(Rule.RUNNER, stem, f"a {spec.__struct_config__.tag} spec needs `{hook}` in {stem}.py")
+        RuleError(Rule.RUNNER, f"{stem}.{slot}", f"plugs {ref}: no module at {draft.modules[ref].file}")
         for stem, spec in draft.specs.items()
-        for hook in sorted(type(spec).REQUIRED - {function.name for function in draft.functions.get(stem, ())})
+        for slot, ref in spec.plugs.items()
+        if not draft.modules[ref].exists
     )
 
 
-def rule_orphan(draft: Draft) -> Violations:
-    """Every runner module serves a spec of its name; one serving none is deprecated, and refused."""
+def rule_shape(draft: Draft) -> Violations:
+    """A runner module defines exactly one function — its role — and nothing else to call."""
     yield from (
-        RuleError(Rule.ORPHAN, stem, f"no spec {stem!r} in {draft.section}: deprecated runner")
-        for stem in draft.functions
-        if stem not in draft.known
+        RuleError(
+            Rule.SHAPE, ref, f"a runner module defines exactly one function, found {[f.name for f in module.functions]}"
+        )
+        for ref, module in draft.modules.items()
+        if module.exists and len(module.functions) != 1
     )
 
 
-def rule_hook(draft: Draft) -> Violations:
-    """A runner module defines only the hooks its spec's kind admits — no other function, no other name."""
+def rule_role(draft: Draft) -> Violations:
+    """A runner is plugged only where its role belongs: a `check` slot takes a `check`, a `pre` a `pre_run`..."""
     yield from (
-        RuleError(Rule.HOOK, f"{stem}.{function.name}", f"not a hook of a {spec.__struct_config__.tag} spec: {allowed}")
-        for stem, functions in draft.functions.items()
-        if (spec := draft.specs.get(stem)) is not None
-        for allowed in (", ".join(sorted(type(spec).HOOKS)),)
-        for function in functions
-        if function.name not in type(spec).HOOKS
+        RuleError(
+            Rule.ROLE, f"{stem}.{slot}", f"plugs {ref}, a `{function.name}`: the {slot} slot takes a `{ROLES[slot]}`"
+        )
+        for stem, spec in draft.specs.items()
+        for slot, ref in spec.plugs.items()
+        if (module := draft.modules[ref]).exists and len(module.functions) == 1
+        for function in module.functions
+        if function.name != ROLES[slot]
     )
 
 
 def rule_signature(draft: Draft) -> Violations:
-    """Each hook reads exactly as its contract: async, the RunState in, the hook's own type out."""
+    """A runner reads exactly as its role's contract: async, the RunState and the Call in, the role's type out."""
     yield from (
-        RuleError(Rule.SIGNATURE, f"{stem}.{function.name}", f"must read `{expected}`, reads `{function.signature}`")
-        for stem, functions in draft.functions.items()
-        for function in functions
-        if function.name in HOOKS
-        if (expected := SIGNATURES[Hook(function.name)]) != function.signature
+        RuleError(Rule.SIGNATURE, ref, f"must read `{SIGNATURES[Role(function.name)]}`, reads `{function.signature}`")
+        for ref, module in draft.modules.items()
+        if len(module.functions) == 1
+        for function in module.functions
+        if function.name in ROLE_NAMES and function.signature != SIGNATURES[Role(function.name)]
     )
 
 
 def rule_doc(draft: Draft) -> Violations:
-    """Each hook says what it does: its docstring becomes the runner's description."""
+    """A runner says what it does: its docstring becomes its description."""
     yield from (
-        RuleError(Rule.DOC, f"{stem}.{function.name}", "a runner needs a docstring")
-        for stem, functions in draft.functions.items()
-        for function in functions
-        if function.name in HOOKS and not function.doc.strip()
+        RuleError(Rule.DOC, ref, "a runner needs a docstring")
+        for ref, module in draft.modules.items()
+        for function in module.functions
+        if not function.doc.strip()
+    )
+
+
+def rule_orphan(draft: Draft) -> Violations:
+    """Every owned runner of the section is plugged by one of its specs; one plugged by none is deprecated.
+    A spec that did not decode plugs what nobody can tell: the law waits until the section decodes whole."""
+    yield from (
+        RuleError(
+            Rule.ORPHAN, f"owned/{name}", f"no spec of {draft.pipeline}/{draft.section} plugs it: deprecated runner"
+        )
+        for name in sorted(draft.owned - draft.plugged if not draft.broken else ())
     )
 
 
@@ -213,11 +237,12 @@ SECTION_RULES: Final[Mapping[Rule, Callable[[Draft], Violations]]] = MappingProx
         Rule.FALLBACK: rule_fallback,
         Rule.CYCLE: rule_cycle,
         Rule.RUNNER: rule_runner,
-        Rule.ORPHAN: rule_orphan,
-        Rule.HOOK: rule_hook,
+        Rule.SHAPE: rule_shape,
+        Rule.ROLE: rule_role,
         Rule.SIGNATURE: rule_signature,
         Rule.DOC: rule_doc,
         Rule.WIKI: rule_wiki,
+        Rule.ORPHAN: rule_orphan,
     }
 )
 

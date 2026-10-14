@@ -1,12 +1,13 @@
 """tests/support/darts: a section to run — specs and runners written to disk, the orchestrator over them, a scripted agent.
 
-`DartsHarness` writes specs (built in code, so validated at birth) and runner modules (hook bodies given
-as code) through the `SpecCrafter`, runs a section with a real `OrchestratorCore` and a real telemetry
-edge, and answers every agent call with `ScriptedAgent` (or the real agent it is handed): each fused call is recorded (its specs, tier,
-prompt) and answered per spec — `{}` by default, a scripted answer, or a provider failure.
-`diagram` writes the section drawn at the top of `logic/orchestrator/core.py`."""
+`DartsHarness` writes specs (built in code, so validated at birth) and the owned runners they plug (role
+bodies given as code) through the `SpecCrafter`, runs a section with a real `OrchestratorCore` and a real
+telemetry edge, and answers every agent call with `ScriptedAgent` (or the real agent it is handed): each
+fused call is recorded (its specs, tier, prompt) and answered per spec — `{}` by default, a scripted
+answer, or a provider failure. A deterministic spec plugs `owned/<stem>` from birth; `runner` writes the
+modules and plugs every other slot it is given a body for. `diagram` writes the section drawn at the top
+of `logic/orchestrator/core.py`."""
 
-import textwrap
 from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, ClassVar, Final
 
@@ -16,17 +17,20 @@ from e_graph.instrument.state import ContextState, InfraState, RunState
 from e_graph.instrument.telemetry import InstrumentTelemetry
 from e_graph.logic.errors import ProviderError
 from e_graph.logic.models import (
-    SIGNATURES,
+    ROLES,
     DeterministicSpec,
-    Hook,
+    Endpoint,
     JsonSchema,
     Provider,
     Reply,
+    Role,
     SemanticSpec,
+    Slot,
     Usage,
 )
 from e_graph.logic.orchestrator.core import OrchestratorCore
 from e_graph.models.section import Section
+from support.crafter import plug
 
 if TYPE_CHECKING:
     from adapters.otel import OtelAdapter
@@ -47,6 +51,11 @@ class ScriptedAgent:
         self.calls: list[dict[str, Any]] = []
         self.answers: dict[str, Any] = {}
         self.down: set[str] = set()
+
+    @staticmethod
+    def resolve(target: Any) -> Endpoint:
+        """Where a tier would go: a scripted endpoint, no key."""
+        return Endpoint(provider=Provider.VLLM, model=f"scripted-{target}", api_base="http://scripted/v1")
 
     async def run(
         self, instructions: str, prompt: str, output: Any, *, endpoint: Any = None, **_: Any
@@ -84,7 +93,8 @@ class DartsHarness:
     ##### WRITING #####
 
     def deterministic(self, name: str, output: dict[str, Any] = OBJECT, **fields: Any) -> None:
-        spec = DeterministicSpec(name=name, description=f"{name}.", output=JsonSchema(output), **fields)
+        values: dict[str, Any] = {"runner": plug(name, Slot.RUNNER), **fields}
+        spec = DeterministicSpec(name=name, description=f"{name}.", output=JsonSchema(output), **values)
         self.crafter.write_spec(SECTION, spec)
 
     def semantic(self, name: str, output: dict[str, Any] = OBJECT, **fields: Any) -> None:
@@ -93,14 +103,22 @@ class DartsHarness:
         self.crafter.write_spec(SECTION, spec)
 
     def runner(self, name: str, imports: str = "", **bodies: str) -> None:
-        """A runner module whose hooks run the given bodies (`run="return {}"`), each with its docstring;
-        `imports` (one statement per line) open the module."""
-        functions = [
-            f'{SIGNATURES[Hook(hook)]}:\n    """{hook} of {name}."""\n{textwrap.indent(body, "    ")}\n'
-            for hook, body in bodies.items()
-        ]
+        """The spec's owned runners, one module per role given (`run="return {}"`, `check=...`), each with its
+        docstring, `imports` (one statement per line) opening every module — and each slot plugged in the spec."""
+        slots = {ROLES[slot]: slot for slot in Slot}
         lines = "".join(f"{line}\n" for line in imports.splitlines())
-        self.crafter.write_runner(SECTION, name, (), functions="\n\n".join(functions), imports=lines)
+        _ = [
+            self.crafter.write_runner(
+                SECTION,
+                plug(name, slots[Role(role)]).partition("/")[2],
+                Role(role),
+                body=body,
+                doc=f"{role} of {name}.",
+                imports=lines,
+            )
+            for role, body in bodies.items()
+        ]
+        self.crafter.patch(SECTION, name, **{slots[Role(role)].value: plug(name, slots[Role(role)]) for role in bodies})
 
     def diagram(self) -> None:
         """The section drawn at the top of core.py: four inputs, two semantic aggregates, an audit and its fallback."""

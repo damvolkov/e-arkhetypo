@@ -1,0 +1,22 @@
+kind: semantic
+name: INF-cfi
+description: The note's ISO 10962 CFI code, built letter by letter from its terms.
+pre: owned/classify
+check: agnostic/context/present
+args:
+  check:
+    needs: [extract/EXT-terms, extract/EXT-payoff]
+tier: medium
+instructions: >-
+  Propose the six-letter CFI code (ISO 10962) for this note: category D for debt, the group letter for
+  the kind of debt instrument it is, then the four attribute positions — use the documented letters, and
+  X for any attribute that is unknown or does not apply. Give the code and one short reason per letter
+  group (the first two letters).
+wiki: [cfi]
+output:
+  type: object
+  properties:
+    code: {type: string, pattern: "^[A-Z]{6}$"}
+    reason: {type: string, minLength: 10, maxLength: 240}
+  required: [code, reason]
+  additionalProperties: false

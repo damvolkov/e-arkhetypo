@@ -55,6 +55,8 @@ class Rule(StrEnum):
     """Each law a pipeline's specs and runners are judged by."""
 
     TREE = auto()
+    PIPELINE = auto()
+    UNMOUNTED = auto()
     DECODE = auto()
     MERGE = auto()
     FILENAME = auto()
@@ -62,18 +64,28 @@ class Rule(StrEnum):
     FALLBACK = auto()
     CYCLE = auto()
     RUNNER = auto()
-    ORPHAN = auto()
-    HOOK = auto()
+    SHAPE = auto()
+    ROLE = auto()
     SIGNATURE = auto()
     DOC = auto()
+    ARGS = auto()
     WIKI = auto()
+    ORPHAN = auto()
+    IDLE = auto()
+
+
+class Severity(StrEnum):
+    """How much a breach weighs: an `error` fails the check, a `warning` is reported and let through."""
+
+    ERROR = auto()
+    WARNING = auto()
 
 
 class RuleError(ValueError):
     """One broken law: which `rule`, the `subject` (a file, a spec, a function) and what is wrong with it."""
 
-    def __init__(self, rule: Rule, subject: str, detail: str) -> None:
-        self.rule, self.subject, self.detail = rule, subject, detail
+    def __init__(self, rule: Rule, subject: str, detail: str, severity: Severity = Severity.ERROR) -> None:
+        self.rule, self.subject, self.detail, self.severity = rule, subject, detail, severity
         super().__init__(f"[{rule}] {subject}: {detail}")
 
 
@@ -98,6 +110,10 @@ class AuditError(ExceptionGroup[CatalogError]):
 ##### ORCHESTRATOR #####
 class OrchestratorError(Exception):
     """Anything a section run could not do with a spec."""
+
+
+class SectionError(OrchestratorError):
+    """A strict section run left specs without output: the node fails, naming each one and why."""
 
 
 class BlockedError(OrchestratorError):

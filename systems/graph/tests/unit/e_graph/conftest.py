@@ -24,6 +24,7 @@ from e_graph.instrument.graph import InstrumentGraph
 from e_graph.instrument.state import AdaptersState, ContextState, InfraState, ProcessorsState, RunState
 from e_graph.instrument.telemetry import InstrumentTelemetry
 from e_graph.logic.agent import AgnosticAgent
+from e_graph.logic.orchestrator.core import OrchestratorCore
 from e_graph.main import create_app
 from processors.doc import DocProcessor
 from support.docling import GoldenPort
@@ -62,6 +63,7 @@ async def system(exporter: InMemorySpanExporter) -> AsyncIterator[State]:
             adapters=AdaptersState(store=None, telemetry=telemetry, redis=None, http=None, docling=port),  # ty: ignore[invalid-argument-type]
             processors=ProcessorsState(doc=DocProcessor(port)),
             agent=agent,
+            orchestrator=OrchestratorCore(),
             telemetry=InstrumentTelemetry(telemetry),
             graphs=MappingProxyType({"probe": InstrumentGraph(name="probe")}),
         )

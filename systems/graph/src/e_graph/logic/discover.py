@@ -80,17 +80,20 @@ class SpecDiscover:
     def _catalog_build(self, section: Section) -> Catalog:
         """The section judged whole: a coherent catalog, or every breach at once."""
         specs, failures = self._catalog_specs(section)
+        pages = self._catalog_wiki()
         draft = Draft(
             pipeline=self._pipeline,
             section=section,
             specs=specs,
             functions=self._catalog_functions(section),
-            wiki=self._catalog_wiki(),
+            wiki=frozenset(pages),
             broken=frozenset(Path(failure.subject).stem for failure in failures),
         )
         match [*failures, *judge_section(draft)]:
             case []:
-                return Catalog(pipeline=self._pipeline, section=section, nodes=self._catalog_nodes(draft))
+                terms = {term for spec in draft.specs.values() for term in spec.wiki}
+                wiki = {term: pages[term].read_text(encoding="utf-8") for term in sorted(terms)}
+                return Catalog(pipeline=self._pipeline, section=section, nodes=self._catalog_nodes(draft), wiki=wiki)
             case breaches:
                 msg = f"{self._pipeline}/{section}: {len(breaches)} broken laws"
                 raise CatalogError(msg, breaches)
@@ -147,10 +150,10 @@ class SpecDiscover:
                     for file in files
                 }
 
-    def _catalog_wiki(self) -> frozenset[str]:
-        """Every wiki term in reach: the pipeline's own, then the shared ones."""
-        folders = (self._specs / self._pipeline / WIKI, self._specs / WIKI)
-        return frozenset(file.stem for folder in folders if folder.is_dir() for file in folder.glob("*.md"))
+    def _catalog_wiki(self) -> dict[str, Path]:
+        """Every wiki page in reach, by term: the shared ones, then the pipeline's own, which win."""
+        folders = (self._specs / WIKI, self._specs / self._pipeline / WIKI)
+        return {file.stem: file for folder in folders if folder.is_dir() for file in sorted(folder.glob("*.md"))}
 
     def _catalog_nodes(self, draft: Draft) -> dict[str, SpecNode]:
         """Each spec paired with the hooks its runner module defines — the rules already proved they fit."""

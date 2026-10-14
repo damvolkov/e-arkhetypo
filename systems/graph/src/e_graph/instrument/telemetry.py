@@ -22,6 +22,7 @@ import msgspec
 
 from adapters.ports import AttributeValue, SpanKind, SpanPort, SpanStatus
 from e_graph.instrument.models import NodeOutput, RunEnd, RunStatus
+from e_graph.logic.models import SpecOutcome, SpecStatus
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -151,6 +152,33 @@ class InstrumentTelemetry:
         )
         extra = {"node.extra": self._common_json(output.extra)} if output.extra else {}
         span.record({"node.summary": output.summary, "output.value": output.summary, **usage, **extra})
+
+    def spec(self, name: str, section: str, kind: str, run_id: str) -> AbstractContextManager[SpanPort]:
+        """The span around one spec — or one fused call (`name` = the call, `kind` = `fused`) — inside its node."""
+        attributes = {**CHAIN, "spec.name": name, "spec.section": section, "spec.kind": kind, "run.id": run_id}
+        return self._provider.span(f"spec.{name}", attributes)
+
+    def settle(self, span: SpanPort, outcome: SpecOutcome) -> None:
+        """Close a spec's span with how it ended: status, step, latency, the fallback that rescued it, its error."""
+        tokens = outcome.usage
+        usage = (
+            {} if tokens is None else {"llm.token_count.total": tokens.total_tokens, "spec.agent.calls": tokens.calls}
+        )
+        span.record(
+            {
+                "spec.status": outcome.status,
+                "spec.step": outcome.step,
+                "spec.latency_ms": outcome.latency_ms,
+                "spec.reason": outcome.reason,
+                "spec.rescuer": outcome.rescuer,
+                "output.value": outcome.reason or outcome.status,
+                **usage,
+            }
+        )
+        span.status(
+            SpanStatus.OK if outcome.status.delivered or outcome.status is SpecStatus.SKIPPED else SpanStatus.ERROR,
+            outcome.error,
+        )
 
     def verdict(self, span: SpanPort, end: RunEnd, context: Mapping[str, object]) -> None:
         """Close a run's span: verdict as output, the context as it stood (recoverable after its release), status."""

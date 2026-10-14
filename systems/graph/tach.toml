@@ -44,7 +44,7 @@ depends_on = []
 [[modules]]
 path = "e_graph.logic.orchestrator"
 layer = "logic"
-depends_on = []
+depends_on = ["e_graph.logic.discover"]
 
 [[modules]]
 path = "e_graph.logic.discover"

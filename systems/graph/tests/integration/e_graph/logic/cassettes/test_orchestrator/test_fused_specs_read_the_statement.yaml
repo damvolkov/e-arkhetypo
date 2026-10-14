@@ -1,0 +1,116 @@
+interactions:
+- request:
+    body: '{"model":"qwen3.6-27b","messages":[{"role":"system","content":"You answer
+      several specifications at once. Each one is introduced below by its name as
+      a heading, with what it asks. Reply with one JSON object holding one key per
+      specification name; each value is that specification''s answer, shaped exactly
+      as its schema says. Answer from the material given.\n\n### EXT-net-income\nEXT-net-income.\nThe
+      fiscal 2025 net income, in millions of US dollars, as a number.\n\n### EXT-revenue\nEXT-revenue.\nThe
+      fiscal 2025 total net sales, in millions of US dollars, as a number."},{"role":"user","content":"###
+      Material for EXT-net-income, EXT-revenue\nApple Inc. CONSOLIDATED STATEMENTS
+      OF OPERATIONS (In millions, except per-share amounts)\n| | 2025 | 2024 | 2023
+      |\n| Total net sales | 416,161 | 391,035 | 383,285 |\n| Total cost of sales
+      | 220,960 | 210,352 | 214,137 |\n| Gross margin | 195,201 | 180,683 | 169,148
+      |\n| Net income | $ 112,010 | $ 93,736 | $ 96,995 |"}],"response_format":{"type":"json_schema","json_schema":{"name":"fused","schema":{"type":"object","title":"fused","properties":{"EXT-net-income":{"type":"object","properties":{"millions":{"type":"number"}},"required":["millions"]},"EXT-revenue":{"type":"object","properties":{"millions":{"type":"number"}},"required":["millions"]}},"required":["EXT-net-income","EXT-revenue"],"additionalProperties":false},"strict":false}}}'
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate, zstd
+      authorization:
+      - REDACTED
+      connection:
+      - keep-alive
+      content-length:
+      - '1389'
+      content-type:
+      - application/json
+      host:
+      - localhost:45100
+      user-agent:
+      - AsyncOpenAI/Python 3.24.0
+      x-stainless-arch:
+      - x64
+      x-stainless-async:
+      - async:asyncio
+      x-stainless-lang:
+      - python
+      x-stainless-os:
+      - Linux
+      x-stainless-package-version:
+      - 3.24.0
+      x-stainless-read-timeout:
+      - '480.0'
+      x-stainless-retry-count:
+      - '0'
+      x-stainless-runtime:
+      - CPython
+      x-stainless-runtime-version:
+      - 3.14.3
+    method: POST
+    uri: http://localhost:45100/v1/chat/completions
+  response:
+    body:
+      string: '{"id":"chatcmpl-bd96cd327c5e955a","object":"chat.completion","created":1791931415,"model":"qwen3.6-27b","choices":[{"index":0,"message":{"role":"assistant","content":"{\n  \"EXT-net-income\":  {\n  \"millions\":
+        112010\n},\n  \"EXT-revenue\": {\n    \"millions\": 416161\n  }\n}","refusal":null,"annotations":null,"audio":null,"function_call":null,"reasoning":null},"logprobs":null,"finish_reason":"stop","stop_reason":null,"token_ids":null,"routed_experts":null}],"service_tier":null,"system_fingerprint":"vllm-0.31.0-ed05f633","usage":{"prompt_tokens":321,"total_tokens":374,"completion_tokens":53,"prompt_tokens_details":null,"completion_tokens_details":{"reasoning_tokens":0}},"prompt_logprobs":null,"prompt_token_ids":null,"prompt_text":null,"kv_transfer_params":null,"ec_transfer_params":null,"metrics":null}'
+    headers:
+      content-length:
+      - '814'
+      content-type:
+      - application/json
+      date:
+      - Tue, 13 Oct 2026 22:43:34 GMT
+      server:
+      - uvicorn
+      vary:
+      - Origin
+    status:
+      code: 200
+      message: OK
+- request:
+    body: !!binary |
+      CvEHCvEBCiIKFnRlbGVtZXRyeS5zZGsubGFuZ3VhZ2USCAoGcHl0aG9uCiUKEnRlbGVtZXRyeS5z
+      ZGsubmFtZRIPCg1vcGVudGVsZW1ldHJ5CiEKFXRlbGVtZXRyeS5zZGsudmVyc2lvbhIICgYxLjQ1
+      LjAKPQoTc2VydmljZS5pbnN0YW5jZS5pZBImCiRlZThjNTAxMS01NDBlLTQ0MDItYjBlOS1jNmU5
+      OTI1ODU4YWEKJwoab3BlbmluZmVyZW5jZS5wcm9qZWN0Lm5hbWUSCQoHZS1ncmFwaAoZCgxzZXJ2
+      aWNlLm5hbWUSCQoHZS1ncmFwaBL6BQoJCgdlLXN0YWNrEukCChAAXFWlHMOZ7D+can8csB4REgiB
+      SiO41pIepCoLc3BlYy5jYWxsLTAwATkghx7MIDjeGEGxAYdqITjeGEoiChdvcGVuaW5mZXJlbmNl
+      LnNwYW4ua2luZBIHCgVDSEFJTkoVCglzcGVjLm5hbWUSCAoGY2FsbC0wShkKDHNwZWMuc2VjdGlv
+      bhIJCgdleHRyYWN0ShQKCXNwZWMua2luZBIHCgVmdXNlZEosCgZydW4uaWQSIgogMDFhMTM3NmY3
+      YWQzNzM0NTk0NDg1YmM5YTY2MzJlZTJKKwoKc3BlYy5zcGVjcxIdChtFWFQtbmV0LWluY29tZSwg
+      RVhULXJldmVudWVKFQoJc3BlYy50aWVyEggKBm1lZGl1bUpCCg1zcGVjLnN0YXR1c2VzEjEKL0VY
+      VC1uZXQtaW5jb21lPXN1Y2NlZWRlZCwgRVhULXJldmVudWU9c3VjY2VlZGVkegIYAYUBAAEAABKA
+      AwoQVvP6gmEE/oq+R9yrn45h+BIIjWHyMyMuh38qD3NwZWMuRVhULW1hcmdpbjABOZ5vimohON4Y
+      QVWkk2ohON4YSiIKF29wZW5pbmZlcmVuY2Uuc3Bhbi5raW5kEgcKBUNIQUlOShkKCXNwZWMubmFt
+      ZRIMCgpFWFQtbWFyZ2luShkKDHNwZWMuc2VjdGlvbhIJCgdleHRyYWN0ShwKCXNwZWMua2luZBIP
+      Cg1kZXRlcm1pbmlzdGljSiwKBnJ1bi5pZBIiCiAwMWExMzc2ZjdhZDM3MzQ1OTQ0ODViYzlhNjYz
+      MmVlMkoaCgtzcGVjLnN0YXR1cxILCglzdWNjZWVkZWRKDwoJc3BlYy5zdGVwEgIYAUocCg9zcGVj
+      LmxhdGVuY3lfbXMSCSEAAEANhKvkP0oRCgtzcGVjLnJlYXNvbhICCgBKEgoMc3BlYy5yZXNjdWVy
+      EgIKAEobCgxvdXRwdXQudmFsdWUSCwoJc3VjY2VlZGVkegIYAYUBAAEAAA==
+    headers:
+      content-type:
+      - application/x-protobuf
+      user-agent:
+      - OTel-OTLP-Exporter-Python/1.45.0
+    method: POST
+    uri: http://localhost:45900/v1/traces
+  response:
+    body:
+      string: ''
+    headers:
+      content-length:
+      - '0'
+      content-type:
+      - application/x-protobuf
+      date:
+      - Tue, 13 Oct 2026 22:43:37 GMT
+      server:
+      - uvicorn
+      x-colab-notebook-cache-control:
+      - no-cache
+      x-phoenix-server-version:
+      - 20.21.2
+    status:
+      code: 200
+      message: OK
+version: 1

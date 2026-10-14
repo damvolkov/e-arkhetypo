@@ -22,6 +22,7 @@ async def lifespan(app: Litestar) -> AsyncIterator[None]:
         adapters=system.adapters,
         processors=system.processors,
         agent=system.agent,
+        orchestrator=system.orchestrator,
         telemetry=system.telemetry,
         graphs=system.graphs,
     )

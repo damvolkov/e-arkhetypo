@@ -1,6 +1,6 @@
 """tests/integration/e_graph/logic: the agent against a real model — recorded once, replayed offline.
 
-The endpoint defaults to the local vLLM; AGENT_MEDIUM points it anywhere else when recording. Cassettes
+The MEDIUM tier defaults to the local vLLM; AGENT_MEDIUM__* point it anywhere else when recording. Cassettes
 never hold a credential: every auth header is redacted before a request is written."""
 
 from typing import Any, Final
@@ -26,13 +26,20 @@ def vcr_config() -> dict[str, Any]:
 
 @pytest.fixture
 def settings() -> Any:
-    return AgentSettings()
+    """The agent's settings from the environment, the MEDIUM tier pointed at the local vLLM unless declared."""
+    declared = AgentSettings()
+    match declared.agent_medium:
+        case None:
+            local = {"provider": VLLM.provider, "model": VLLM.model, "api_base": VLLM.api_base}
+            return AgentSettings(agent_medium=local)
+        case _:
+            return declared
 
 
 @pytest.fixture
-def endpoint(settings: Any) -> Endpoint | Tier:
-    """The MEDIUM tier when its sub-settings declare one, else the local vLLM."""
-    return VLLM if settings.agent_medium is None else Tier.MEDIUM
+def endpoint() -> Tier:
+    """The MEDIUM tier: the local vLLM unless AGENT_MEDIUM__* declare another."""
+    return Tier.MEDIUM
 
 
 @pytest.fixture

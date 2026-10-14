@@ -409,8 +409,102 @@ class SpecNode(msgspec.Struct, frozen=True, kw_only=True):
 
 
 class Catalog(msgspec.Struct, frozen=True, kw_only=True):
-    """One section of one pipeline, judged coherent: every spec paired with its runners, by name."""
+    """One section of one pipeline, judged coherent: every spec paired with its runners, by name, and the
+    wiki pages its specs name (term → markdown), handed to the agent beside their instructions."""
 
     pipeline: str
     section: Section
     nodes: dict[str, SpecNode]
+    wiki: dict[str, str] = msgspec.field(default_factory=dict)
+
+
+##### ORCHESTRATION #####
+class SpecStatus(StrEnum):
+    """How a spec ended in a run.
+
+    `succeeded` — it produced a valid output; `rescued` — it failed and its fallback produced one in its
+    place; `failed` — it (and its fallback, if any) produced none; `blocked` — its `check` refused the
+    data in the state, so it never ran on corrupt input; `skipped` — a dependency did not deliver."""
+
+    SUCCEEDED = auto()
+    RESCUED = auto()
+    FAILED = auto()
+    BLOCKED = auto()
+    SKIPPED = auto()
+
+    @property
+    def delivered(self) -> bool:
+        """Whether an output exists under the spec's name for its dependents to read."""
+        return self in {SpecStatus.SUCCEEDED, SpecStatus.RESCUED}
+
+
+class FusedCall(msgspec.Struct, frozen=True, kw_only=True):
+    """Semantic specs of one step and one tier, answered by one agent call."""
+
+    tier: Tier
+    specs: tuple[str, ...]
+
+
+class Step(msgspec.Struct, frozen=True, kw_only=True):
+    """One topological generation of the section's DAG: everything in it runs at once."""
+
+    index: int
+    deterministic: tuple[str, ...] = ()
+    fused: tuple[FusedCall, ...] = ()
+
+    @property
+    def specs(self) -> tuple[str, ...]:
+        """Every spec the step runs, deterministic first."""
+        return (*self.deterministic, *(name for call in self.fused for name in call.specs))
+
+
+class SectionPlan(msgspec.Struct, frozen=True, kw_only=True):
+    """How a section runs: its steps in order, and the fallbacks held back for their parents (parent → fallback)."""
+
+    pipeline: str
+    section: Section
+    steps: tuple[Step, ...]
+    fallbacks: dict[str, str] = msgspec.field(default_factory=dict)
+
+
+class SpecOutcome(msgspec.Struct, frozen=True, kw_only=True):
+    """One spec in one run: where it ran, how it ended, what it cost — the ledger line the audit reads.
+
+    `rescuer` names the fallback that produced the output of a rescued spec; `call` the fused call that
+    answered a semantic one (its `usage` is that call's, shared by the specs it answered)."""
+
+    spec: str
+    kind: str
+    step: int
+    status: SpecStatus
+    latency_ms: float = 0.0
+    reason: str = ""
+    error: str = ""
+    rescuer: str = ""
+    call: int = -1
+    usage: Usage | None = None
+
+
+class SectionRun(msgspec.Struct, frozen=True, kw_only=True):
+    """A section run: its plan, every spec's outcome in plan order, and how long it took."""
+
+    pipeline: str
+    section: Section
+    plan: SectionPlan
+    outcomes: tuple[SpecOutcome, ...]
+    latency_ms: float
+
+    @property
+    def counts(self) -> dict[SpecStatus, int]:
+        """How many specs ended in each status."""
+        return {
+            status: sum(o.status is status for o in self.outcomes)
+            for status in SpecStatus
+            if any(o.status is status for o in self.outcomes)
+        }
+
+    @property
+    def summary(self) -> str:
+        """One line: specs, steps, and how they ended."""
+        ended = ", ".join(f"{count} {status}" for status, count in self.counts.items())
+        return f"{len(self.outcomes)} specs in {len(self.plan.steps)} steps: {ended or 'nothing to run'}"

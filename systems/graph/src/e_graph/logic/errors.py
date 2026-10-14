@@ -93,3 +93,12 @@ class AuditError(ExceptionGroup[CatalogError]):
     def catalogs(self) -> tuple[CatalogError, ...]:
         """One group per incoherent part, flat."""
         return cast("tuple[CatalogError, ...]", self.exceptions)
+
+
+##### ORCHESTRATOR #####
+class OrchestratorError(Exception):
+    """Anything a section run could not do with a spec."""
+
+
+class BlockedError(OrchestratorError):
+    """A spec's `check` refused the state: running it would feed it corrupt data — so it never runs."""

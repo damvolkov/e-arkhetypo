@@ -204,6 +204,8 @@ filterwarnings = [
     "error",
     ### joserfc warns on every EdDSA JWT per RFC 9864 (non-committing signature); kept as an offered alg.
     "ignore::joserfc.errors.SecurityWarning",
+    ### any-llm warns, while raising, that its exceptions will be unified: as an error it would mask the real one.
+    "ignore:Provider-specific exceptions will be converted:DeprecationWarning",
 ]
 timeout = "60"
 asyncio_mode = "auto"

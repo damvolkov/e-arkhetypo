@@ -182,14 +182,16 @@ class SpecCrafter:
         document = {**self.read_raw(section, spec), **changes}
         return self.write_raw(section, spec, {key: value for key, value in document.items() if value is not ...})
 
-    def write_runner(self, section: Section, name: str, hooks: Iterable[Hook], *, functions: str = "") -> Path | None:
+    def write_runner(
+        self, section: Section, name: str, hooks: Iterable[Hook], *, functions: str = "", imports: str = ""
+    ) -> Path | None:
         """A runner module defining `hooks` by their contracts (plus raw `functions`); none when nothing to define."""
         rendered = [self.render(hook) for hook in sorted(hooks)]
         match [*rendered, functions] if functions else rendered:
             case []:
                 return None
             case blocks:
-                header = f'"""{name}: crafted runner."""\n\nfrom typing import Any\n\nfrom e_graph.instrument.state import RunState\n'
+                header = f'"""{name}: crafted runner."""\n\n{imports}from typing import Any\n\nfrom e_graph.instrument.state import RunState\n'
                 return self._write(self.runner_file(section, name), "\n\n".join([header, *blocks]) + "\n")
 
     @staticmethod

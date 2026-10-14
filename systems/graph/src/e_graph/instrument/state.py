@@ -29,6 +29,7 @@ if TYPE_CHECKING:
     from e_graph.instrument.graph import InstrumentGraph
     from e_graph.instrument.telemetry import InstrumentTelemetry
     from e_graph.logic.agent import AgnosticAgent
+    from e_graph.logic.orchestrator.core import OrchestratorCore
     from processors.doc import DocProcessor
 
 
@@ -62,6 +63,7 @@ class InfraState:
     adapters: AdaptersState
     processors: ProcessorsState
     agent: AgnosticAgent
+    orchestrator: OrchestratorCore
     telemetry: InstrumentTelemetry
     graphs: Mapping[str, InstrumentGraph]
 
@@ -113,11 +115,11 @@ class RunState(State):
 
     __slots__ = ()
 
-    def __init__(self, system: State, run_id: str = "", correlation: str = "") -> None:
+    def __init__(self, system: State, run_id: str = "", correlation: str = "", pipeline: str = "") -> None:
         identity = run_id or uuid.uuid7().hex
         contexts = cast("ContextState", system.contexts)
         contexts.open(identity)
-        super().__init__(id=identity, correlation=correlation, infra=system.infra, contexts=contexts)
+        super().__init__(id=identity, correlation=correlation, pipeline=pipeline, infra=system.infra, contexts=contexts)
         ### only this level seals: the context stays open for the nodes, infra was sealed by the lifespan.
         object.__setattr__(self, "_sealed", True)
 
@@ -132,6 +134,11 @@ class RunState(State):
     def correlation(self) -> str:
         """The request that started the run (its correlation id), empty outside a request; links log to trace."""
         return cast("str", self["correlation"])
+
+    @property
+    def pipeline(self) -> str:
+        """The pipeline the run executes — where the orchestrator finds its specs and runners; empty outside one."""
+        return cast("str", self["pipeline"])
 
     @property
     def infra(self) -> InfraState:

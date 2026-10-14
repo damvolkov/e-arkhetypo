@@ -154,7 +154,16 @@ def test_run_closes_with_its_verdict(status: RunStatus, error: str, verdict: Spa
 
 async def test_a_node_runs_untraced_without_a_provider(located: Callable[..., Any]) -> None:
     ### nothing but the instrument's tracer: a node needs no adapter to be traced, or not traced.
-    infra = InfraState(adapters=None, processors=None, agent=None, telemetry=InstrumentTelemetry(), graphs={})  # ty: ignore[invalid-argument-type]
+    ### no edge, no processor, no agent, no orchestrator: only the tracer is real.
+    absent: Any = None
+    infra = InfraState(
+        adapters=absent,
+        processors=absent,
+        agent=absent,
+        orchestrator=absent,
+        telemetry=InstrumentTelemetry(),
+        graphs={},
+    )
     system = State(infra=infra, contexts=ContextState())
     system.seal()
     node = InstrumentGraph().add_node(located(node_quiet)).nodes["quiet"]

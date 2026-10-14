@@ -11,7 +11,7 @@ from processors.doc import DocProcessor
 
 
 def test_run_state_shape_fixed_at_birth(run_state: RunState) -> None:
-    assert set(run_state) == {"id", "correlation", "infra", "contexts"}
+    assert set(run_state) == {"id", "correlation", "pipeline", "infra", "contexts"}
     with pytest.raises(RuntimeError, match="Sealed"):
         run_state["infra"] = State()
     with pytest.raises(AttributeError, match="Sealed state has no node"):

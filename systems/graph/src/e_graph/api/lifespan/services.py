@@ -17,6 +17,7 @@ from e_graph.api.state import AppState
 from e_graph.instrument.state import ProcessorsState
 from e_graph.instrument.telemetry import InstrumentTelemetry
 from e_graph.logic.agent import AgnosticAgent
+from e_graph.logic.orchestrator.core import OrchestratorCore
 from processors.doc import DocProcessor
 
 
@@ -29,6 +30,8 @@ async def lifespan(app: Litestar) -> AsyncIterator[None]:
     system.telemetry = InstrumentTelemetry(system.adapters.telemetry)
     ### readers over the adapters: documents through liteparse and the docling edge, hybrid by page.
     system.processors = ProcessorsState(doc=DocProcessor(system.adapters.docling))
+    ### the DARTS engine: one orchestrator for every pipeline, each pipeline's specs discovered on first use.
+    system.orchestrator = OrchestratorCore()
     async with AgnosticAgent() as agent:
         system.agent = agent
         logger.info("services ready", step="START")

@@ -54,7 +54,7 @@ async def batch(
     correlation_id: NamedDependency[str],
 ) -> RunResult:
     """Run to completion: every node's terminal output and the verdict. A failed run is a 200 with its verdict."""
-    state = RunState(system, correlation=correlation_id)
+    state = RunState(system, correlation=correlation_id, pipeline=graph.name)
     state.context.update(data.data)
     return await graph.run(state)
 
@@ -72,7 +72,7 @@ async def stream(
     except msgspec.DecodeError as error:
         await socket.close(code=WS_1007_INVALID_FRAME_PAYLOAD_DATA, reason=str(error))
         return
-    state = RunState(system, correlation=correlation_id)
+    state = RunState(system, correlation=correlation_id, pipeline=graph.name)
     state.context.update(request.data)
     async for frame in graph.stream(state):
         await socket.send_data(ENCODER.encode(frame).decode(), mode="text")

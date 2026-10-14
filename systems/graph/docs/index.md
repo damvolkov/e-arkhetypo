@@ -39,7 +39,9 @@ The service lives in `src/e_graph/`, layered by [tach](https://tach.dev). `src/c
 | [`e_graph.logic.discover`](reference/e_graph/logic/discover.md) | logic | SpecDiscover: lazy, per section — decode specs, read runners by AST, judge, pair; `audit` for CI/boot |
 | [`e_graph.logic.rules`](reference/e_graph/logic/rules.md) | logic | The coherence laws (tree, source, section), one function each — the discovery's tools |
 | [`e_graph.logic.errors`](reference/e_graph/logic/errors.md) | engine | Agent errors and the discovery's `RuleError` / `CatalogError` / `AuditError` |
-| [`e_graph.logic.orchestrator`](reference/e_graph/logic/orchestrator.md) | logic | A section's spec-nodes as a dynamic micro-DAG |
+| [`e_graph.logic.orchestrator.core`](reference/e_graph/logic/orchestrator/core.md) | logic | OrchestratorCore: runs a section — steps in sequence, specs in a step at once; check · produce · validate · write · fallback |
+| [`e_graph.logic.orchestrator.plan`](reference/e_graph/logic/orchestrator/plan.md) | logic | DagPlan: catalog → steps (topological generations), semantic specs fused by tier, fallbacks held |
+| [`e_graph.logic.orchestrator.fusion`](reference/e_graph/logic/orchestrator/fusion.md) | logic | SpecFusion: many semantic specs, one agent call — briefs, shared material, fused schema, split, packing |
 | `e_graph.specs.<pipeline>/<section>/<name>.yaml` | specs | One spec per file, named as the spec (`EXT-total-amount`); `wiki/` per pipeline and shared |
 | `e_graph.runners.<pipeline>/<section>/<name>.py` | runners | The spec's hooks, same file name: `run`, `check`, `pre_run`, `post_run` — nothing else |
 | [`e_graph.models.section`](reference/e_graph/models/section.md) | models | The closed DARTS taxonomy, in fixed order |

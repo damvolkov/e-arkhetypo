@@ -18,6 +18,13 @@ services:
       - JEV_MODEL=${LLM_SERVED_NAME:-gemma4-26b-a4b}
       - JEV_PERMUTATIONS=${JEV_PERMUTATIONS:-1}
       - JEV_OTLP_ENDPOINT=${JEV_OTLP_ENDPOINT:-http://phoenix:6006/v1/traces}
+      # La flota: clef decide (una pasada, 6.9 GB) y vllm lee (teacher: largo contexto, extract,
+      # destilación). Un backend caído degrada a ruta que falla — jev arranca y sirve lo que puede.
+      # Sin clef en la máquina, borra la primera entrada (reading sirve solo).
+      - JEV_BACKENDS=[{"id":"clef","kind":"systemone","url":"http://clef:8080","model":"clef","languages":["any"],"max_options":255,"max_state_tokens":4096},{"id":"reading","kind":"reading","url":""}]
+      # El corpus para re-ajustar y destilar: cada decisión cruda (estado, pregunta, scores, backend).
+      - JEV_DECISION_LOG=${JEV_DECISION_LOG:-/data/decisions.jsonl}
+      # Ajuste por (backend, kind, modelo): JEV_CALIBRATION=/data/calibration.json tras `ejev calibrate`.
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:45160/ready')"]
       interval: 30s

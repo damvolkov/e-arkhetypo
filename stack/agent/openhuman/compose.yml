@@ -1,0 +1,91 @@
+# stack/agent/openhuman — OpenHuman as a service: its core (built from source with the desktop product's
+# features, see build.sh), its own UI on loopback, and its memory engine (mem/cortexdb, included with the
+# mirror that projects that memory into the vault as Obsidian markdown).
+#
+# One shared volume of knowledge, the vault (Obsidian + Syncthing). The core sees every host path at the
+# same path (parity: config.toml, symlinks and venvs keep working), runs as the vault's user (the image's
+# entrypoint skips its chown heal when it starts non-root), writes only inbox/ and workflow/, and the kernel
+# enforces the rest: persona/, wiki/ and brain/ are mounted :ro. Beyond the vault it reaches the world only
+# through its tools and MCP servers.
+#
+#   cp .env.example .env    # set HOST_HOME, HOST_USER, OPENHUMAN_CORE_TOKEN, CORTEX_API_KEY
+#   ./build.sh <openhuman source tree>    # openhuman-core:demian + openhuman-ui:demian
+#   docker compose up -d --wait           # UI: http://127.0.0.1:1420 (or the openhuman-ui launcher)
+name: openhuman
+
+include:
+  - ../../mem/cortexdb/compose.yml        # cortexdb + cortexdb-mirror: the core's memory, required
+
+services:
+
+  openhuman:
+    build:
+      context: .
+      args:
+        BASE: "openhuman-core:${OPENHUMAN_TAG:-demian}"
+        HOST_USER: "${HOST_USER:?set HOST_USER}"
+        HOST_HOME: "${HOST_HOME:?set HOST_HOME}"
+        HOST_UID: "${PUID:-1000}"
+        HOST_GID: "${PGID:-1000}"
+    image: openhuman-core:house
+    container_name: openhuman
+    hostname: openhuman
+    restart: unless-stopped
+    user: "${PUID:-1000}:${PGID:-1000}"
+    network_mode: host                    # its endpoints are host loopback: LLMs, embeddings, search, CortexDB
+    labels:
+      stack.category: "agent"
+      stack.port: "7788"
+    environment:
+      - OPENHUMAN_CORE_TOKEN=${OPENHUMAN_CORE_TOKEN:?set OPENHUMAN_CORE_TOKEN (openssl rand -hex 32)}
+      - OPENHUMAN_CORE_HOST=127.0.0.1
+      - OPENHUMAN_CORE_PORT=${OPENHUMAN_CORE_PORT:-7788}
+      - OPENHUMAN_PROJECTS_DIR=${HOST_HOME}/OpenHuman/projects
+    volumes:
+      # the harness state — config, workspace, keyring (file backend), modules — under both its names
+      - ${OPENHUMAN_ROOT:-${HOST_HOME}/.config/openhuman}:${HOST_HOME}/.openhuman
+      - ${OPENHUMAN_ROOT:-${HOST_HOME}/.config/openhuman}:${HOST_HOME}/.config/openhuman
+      # the vault: read everywhere, written in inbox/ and workflow/ only
+      - ${VAULT_DIR:-${HOST_HOME}/.config/memory}:${VAULT_DIR:-${HOST_HOME}/.config/memory}
+      - ${VAULT_DIR:-${HOST_HOME}/.config/memory}/persona:${VAULT_DIR:-${HOST_HOME}/.config/memory}/persona:ro
+      - ${VAULT_DIR:-${HOST_HOME}/.config/memory}/wiki:${VAULT_DIR:-${HOST_HOME}/.config/memory}/wiki:ro
+      - ${VAULT_DIR:-${HOST_HOME}/.config/memory}/brain:${VAULT_DIR:-${HOST_HOME}/.config/memory}/brain:ro
+      # the agent's projects home, and the flows' tooling and toolchains, read-only
+      - ${HOST_HOME}/OpenHuman:${HOST_HOME}/OpenHuman
+      - ${OPENHUMAN_ROOT:-${HOST_HOME}/.config/openhuman}/resources:${HOST_HOME}/.config/openhuman/resources:ro
+      - ${HOST_HOME}/.local/bin:${HOST_HOME}/.local/bin:ro
+      - ${HOST_HOME}/.local/share/uv:${HOST_HOME}/.local/share/uv:ro
+    depends_on:
+      cortexdb:
+        condition: service_healthy
+        required: true
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://127.0.0.1:${OPENHUMAN_CORE_PORT:-7788}/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+
+  openhuman-ui:
+    # The desktop app's own UI, built for the web from the same tree, opened straight onto the core.
+    image: openhuman-ui:${OPENHUMAN_TAG:-demian}
+    container_name: openhuman-ui
+    hostname: openhuman-ui
+    restart: unless-stopped
+    labels:
+      stack.category: "agent"
+      stack.port: "1420"
+    ports:
+      - "127.0.0.1:${OPENHUMAN_UI_PORT:-1420}:80"   # loopback only: the page seeds the core's token
+    environment:
+      - OPENHUMAN_CORE_TOKEN=${OPENHUMAN_CORE_TOKEN:?set OPENHUMAN_CORE_TOKEN}
+      - OPENHUMAN_CORE_PORT=${OPENHUMAN_CORE_PORT:-7788}
+      - NGINX_ENVSUBST_FILTER=^OPENHUMAN_     # envsubst touches our variables only, never nginx's own $uri
+    depends_on:
+      openhuman:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/ >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3

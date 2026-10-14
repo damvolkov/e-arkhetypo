@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+# Vault inbox → Markdown notes OpenHuman ingests.
+# Files dropped in <vault>/inbox are converted with docling (PDF, DOCX, PPTX, HTML, images…) into
+# <vault>/inbox/docs/<name>.md; the original is archived in <vault>/inbox/files and linked from the note.
+# Markdown and plain text skip conversion. Failures land in <vault>/inbox/files/failed. Only the inbox's
+# own top level is a drop zone: docs/ and files/ beside it are the results.
+set -euo pipefail
+
+VAULT="$(readlink -f "${VAULT:-$HOME/.config/memory}")"
+DOCLING="${DOCLING_URL:-http://127.0.0.1:45800}"
+INBOX="$VAULT/inbox" DOCS="$VAULT/inbox/docs" FILES="$VAULT/inbox/files" FAILED="$VAULT/inbox/files/failed"
+mkdir -p "$INBOX" "$DOCS" "$FILES" "$FAILED"
+exec 9>"${XDG_RUNTIME_DIR:-/tmp}/vault-ingest.lock"
+flock -n 9 || exit 0
+
+settled() {  # size unchanged for 2 s: the copy has finished
+	local before
+	before="$(stat -c %s "$1")"
+	sleep 2
+	[[ -f "$1" && "$(stat -c %s "$1")" == "$before" ]]
+}
+
+unique() {  # first free path for a name in a directory
+	local dir="$1" stem="$2" ext="$3" path="$1/$2$3" n=1
+	while [[ -e "$path" ]]; do path="$dir/$stem-$((n++))$ext"; done
+	printf '%s' "$path"
+}
+
+convert() {
+	local src="$1" name stem ext note archive md
+	name="$(basename "$src")" stem="${name%.*}" ext="${name##*.}"
+	case "${ext,,}" in
+	md | markdown | txt)
+		mv "$src" "$(unique "$DOCS" "$stem" .md)"
+		return
+		;;
+	esac
+	md="$(curl -sf -m 600 -F "files=@$src" -F to_formats=md -F image_export_mode=placeholder \
+		"$DOCLING/v1/convert/file" | jq -er '.document.md_content | select(length > 0)')" || {
+		mv "$src" "$FAILED/"
+		echo "vault-ingest: conversion failed: $name" >&2
+		return
+	}
+	archive="$(unique "$FILES" "$stem" ".$ext")"
+	note="$(unique "$DOCS" "$stem" .md)"
+	mv "$src" "$archive"
+	{
+		printf -- '---\ntitle: "%s"\nsource: "[[inbox/files/%s]]"\nconverted: %s\n---\n\n' \
+			"$stem" "$(basename "$archive")" "$(date -Iseconds)"
+		printf '%s\n' "$md"
+	} >"$note"
+	echo "vault-ingest: $name → ${note#"$VAULT"/}"
+}
+
+find "$INBOX" -maxdepth 1 -type f ! -name '.*' ! -name '*.part' ! -name '*.crdownload' -print0 |
+	while IFS= read -r -d '' file; do settled "$file" && convert "$file"; done

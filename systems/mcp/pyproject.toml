@@ -1,0 +1,160 @@
+##### BUILD #####
+[build-system]
+requires = ["hatchling>=1.32", "uv-dynamic-versioning>=0.14"]
+build-backend = "hatchling.build"
+
+##### PROJECT #####
+[project]
+name = "e-mcp"
+dynamic = ["version"]
+description = "e-stack MCP template: an in-process MCPServer over Streamable HTTP, granian factory, bearer guard — shared core materialized from systems/core"
+readme = "README.md"
+requires-python = ">=3.14"
+license = "MIT"
+license-files = ["LICEN[CS]E*"]
+authors = [{ name = "damvolkov", email = "damvolkovv@gmail.com" }]
+keywords = ["e-stack"]
+classifiers = [
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.14",
+    "Typing :: Typed",
+]
+dependencies = [
+    ##### mcp #####
+    "mcp>=2.3",
+    "granian>=2.7",
+    ##### core #####
+    "structlog>=26.1",
+    "msgspec>=0.21",
+    "e-serde>=0.5",
+    "anyio>=4.15.1",
+    "beartype>=0.22.9",
+]
+
+[project.scripts]
+e-mcp = "e_mcp.__main__:main"
+
+[project.urls]
+Homepage = "https://github.com/damvolkov/e-templates"
+Source = "https://github.com/damvolkov/e-templates"
+Issues = "https://github.com/damvolkov/e-templates/issues"
+
+##### DEPS #####
+[dependency-groups]
+lint = [
+    "ruff>=0.16",
+    "ty>=0.0.75",
+    "tach>=0.35",
+    "validate-pyproject[all]>=0.26",
+    "zizmor>=1.25",
+    "prek>=0.4",
+]
+test = [
+    "pytest>=9.1",
+    "pytest-asyncio>=1.4",
+    "pytest-cov>=7.1",
+    "pytest-xdist[psutil]>=3.8",
+    "pytest-randomly>=5.0",
+    "pytest-timeout>=2.4",
+    "httpx2>=2.13",
+]
+dev = [
+    { include-group = "lint" },
+    { include-group = "test" },
+    "prek>=0.4",
+    ### structural rewrite of systems/core at materialization time (scripts/materialize.py); parses real 3.14 syntax.
+    "libcst>=1.9",
+]
+
+[tool.uv]
+required-version = ">=0.12"
+default-groups = ["dev"]
+exclude-newer = "7 days"
+### e-serde is first-party and can publish same-day; exempt it from the freshness guard.
+exclude-newer-package = { "e-serde" = "2100-01-01T00:00:00Z" }
+cache-keys = [{ file = "pyproject.toml" }, { git = { commit = true, tags = true } }]
+
+##### VERSION #####
+[tool.hatch.version]
+source = "uv-dynamic-versioning"
+
+[tool.uv-dynamic-versioning]
+vcs = "git"
+style = "pep440"
+bump = true
+fallback-version = "0.0.0"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/e_mcp", "src/core", "src/ops", "src/adapters"]
+
+[tool.hatch.build.targets.sdist]
+include = ["src/", "tests/", "README.md"]
+
+##### LINT #####
+[tool.ruff]
+line-length = 120
+target-version = "py314"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "F", "E", "W", "I", "N", "UP", "B", "A", "C4", "DTZ", "T10", "T20", "EM", "ISC",
+    "PIE", "PT", "RET", "SIM", "TID", "TC", "ARG", "PTH", "PL", "PERF", "FURB",
+    "ASYNC", "S", "BLE", "FBT", "LOG", "G", "RUF",
+]
+ignore = ["E501", "ISC001", "PLR0913"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101", "S106", "PLR2004", "ARG", "FBT"]
+"scripts/**" = ["T20", "S603", "S607", "PTH"]
+### msgspec and the mcp SDK resolve annotations at runtime — type-checking imports would break them.
+"src/e_mcp/**" = ["TC001", "TC002", "TC003"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["e_mcp", "core", "ops", "adapters"]
+
+[tool.ruff.lint.flake8-tidy-imports]
+ban-relative-imports = "all"
+
+[tool.ruff.format]
+docstring-code-format = true
+
+##### TYPES #####
+[tool.ty.environment]
+python-version = "3.14"
+
+[tool.ty.src]
+include = ["src", "tests"]
+### the materialized core is type-checked at its source (e-templates systems/core); its copies are not edited here.
+exclude = ["src/core", "src/adapters", "src/ops"]
+
+[tool.ty.terminal]
+error-on-warning = true
+
+##### TEST #####
+[tool.pytest]
+minversion = "9.0"
+testpaths = ["tests"]
+addopts = ["--import-mode=importlib", "-ra"]
+pythonpath = ["src", "tests/unit"]
+strict = true
+filterwarnings = ["error"]
+timeout = "60"
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+markers = [
+    "slow: slow tests (deselect with -m 'not slow')",
+]
+
+##### COVERAGE #####
+[tool.coverage.run]
+### core/, ops/ and adapters/ are materialized and tested at their source (systems/core); the gate covers the service.
+source_pkgs = ["e_mcp"]
+branch = true
+parallel = true
+
+[tool.coverage.report]
+fail_under = 100
+show_missing = true
+skip_covered = true
+exclude_also = ["if TYPE_CHECKING:", "@overload", "raise NotImplementedError", '^\s*\.\.\.$']

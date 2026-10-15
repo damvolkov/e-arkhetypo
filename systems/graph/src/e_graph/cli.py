@@ -40,6 +40,7 @@ from core.settings.darts import DartsSettings
 from e_graph.instrument.state import InfraState, ProcessorsState
 from e_graph.instrument.telemetry import InstrumentTelemetry
 from e_graph.logic.agent import AgnosticAgent
+from e_graph.logic.dartsops import DartsOps
 from e_graph.logic.discover import SpecDiscover, SystemDiscover
 from e_graph.logic.errors import CatalogError, Rule, RuleError, Severity
 from e_graph.logic.models import AgentCall, Breach, Report, SectionMap, SectionPlan, Simulation
@@ -207,7 +208,12 @@ class LiveStream(io.TextIOBase):
         return sys.stderr.write(text)
 
     def flush(self) -> None:
-        sys.stderr.flush()
+        """Flush whoever holds the error now — a finalizer may run while the host is already tearing down."""
+        match getattr(sys, "stderr", None):
+            case None:
+                return
+            case stream:
+                stream.flush()
 
 
 @asynccontextmanager
@@ -369,6 +375,109 @@ async def graph(
             await anyio.Path(str(out)).write_text(str(drawn))
             CONSOLE.print(f"drawn into {out}")
     return EXIT[True]
+
+
+@darts.command
+def contract(*, out: Path | None = None) -> int:
+    """The whole DARTS grammar and every law, as one JSON contract: what a coder reads before touching specs.
+
+    Parameters
+    ----------
+    out
+        Write the contract to this file instead of the terminal.
+    """
+    contract_: dict[str, Any] = DartsOps(OrchestratorCore()).contract()
+    contract_json = msgspec.json.format(msgspec.json.encode(contract_), indent=2).decode()
+    match out:
+        case None:
+            render_json(contract_)
+        case _:
+            out.write_text(contract_json)
+            CONSOLE.print(f"contract written to {out}")
+    return EXIT[True]
+
+
+@darts.command
+async def probe(*, json: bool = False) -> int:
+    """Ask every tier the trivially structured question, timed: an unreachable tier is an infra signal.
+
+    Parameters
+    ----------
+    json
+        Print {tier: ms-or-error} as JSON instead of a table.
+    """
+    async with AgnosticAgent() as agent:
+        probes = await DartsOps(OrchestratorCore()).probe(agent)
+    match json:
+        case True:
+            render_json(probes)
+        case _:
+            for tier, answer in probes.items():
+                match answer:
+                    case float() as ms:
+                        CONSOLE.print(f"[green]{tier}[/] · {ms:.0f} ms")
+                    case _:
+                        CONSOLE.print(f"[red]{tier}[/] · {answer}")
+    return EXIT[all(isinstance(answer, float) for answer in probes.values())]
+
+
+@darts.command
+async def evaluate(
+    pipeline: str,
+    *,
+    data: tuple[str, ...] = (),
+    case: Path | None = None,
+    expect: tuple[str, ...] = (),
+    out: Path | None = None,
+) -> int:
+    """Run the pipeline's sections over the data and print the signals the reading left: exit 0 green, 1 readout, 2 infra.
+
+    Parameters
+    ----------
+    pipeline
+        The pipeline, as its folder under `pipelines/` names it.
+    data
+        Run data as `key=value` (JSON when it parses): the seed the first sections read.
+    case
+        A YAML/JSON file of run data, merged under the pairs given.
+    expect
+        Pinned readings to hold: `<section>/<spec>.<dotted.path>==<json>`, one per flag.
+    out
+        Also write the full Readout as JSON here.
+    """
+    _, reason = await mounted(pipeline, None)
+    match reason:
+        case "":
+            pass
+        case _:
+            CONSOLE.print(f"[red]{reason}[/]")
+            return EXIT[False]
+    run_data = read_data(data, case)
+    async with system() as infra:
+        readout = await DartsOps(infra.orchestrator).evaluate(
+            pipeline, run_data, infra, infra.agent, expectations=expect
+        )
+    match out:
+        case None:
+            pass
+        case _:
+            await anyio.Path(str(out)).write_text(msgspec.json.format(msgspec.json.encode(readout), indent=2).decode())
+    for signal in readout.signals:
+        CONSOLE.print(
+            f"[red]{signal.kind}[/] {signal.where} · {signal.observed}"
+            + (f" ≠ {signal.expected}" if signal.expected else f" · {signal.detail}")
+        )
+    match any(signal.kind == "infra" for signal in readout.signals):
+        case True:
+            CONSOLE.print("[yellow]infra[/] · a tier did not answer: no reading is to blame, nothing to patch")
+            return 2
+        case _:
+            CONSOLE.print(
+                f"[green]readout[/] · {pipeline} · {len(readout.summaries)} sections · no signals"
+                if readout.ok
+                else f"[red]readout[/] · {len(readout.signals)} signals"
+            )
+    return EXIT[readout.ok]
 
 
 @lab.command

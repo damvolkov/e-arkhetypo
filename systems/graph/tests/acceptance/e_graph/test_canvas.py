@@ -57,6 +57,18 @@ async def test_picker_lists_the_discovered_pipelines(canvas: Page) -> None:
     await expect(canvas.locator(".pipeline-summary")).to_contain_text("Document intake")
 
 
+async def test_the_data_seed_survives_the_panel_unmounting(canvas: Page) -> None:
+    """The seed is typed once: visiting the specs level remounts the panel, and a lost paste is the run
+    dying on an empty `source`. The textarea must come back with what was written."""
+    seed = '{"source": "somewhere.pdf"}'
+    await canvas.get_by_label("pipeline").select_option("note")
+    await canvas.locator("textarea").fill(seed)
+    await canvas.get_by_role("tab", name="specs").click()
+    await canvas.get_by_role("tab", name="pipeline").click()
+    await expect(canvas.locator("textarea")).to_have_value(seed)
+    await canvas.evaluate("window.localStorage.clear()")
+
+
 async def test_roles_mark_entry_and_exit(canvas: Page) -> None:
     await expect(canvas.locator(".stage.role-start")).to_have_text(re.compile(r"ingest"))
     await expect(canvas.locator(".stage.role-end")).to_have_text(re.compile(r"report"))

@@ -103,6 +103,14 @@ export function PipelineView({ ui, pipelines, selected, setSelected, levels, onO
     [setNodes, toast],
   );
 
+  const seed = useCallback(
+    (text: string) => {
+      setData(text);
+      if (selected) window.localStorage.setItem(`e-graph:data:${selected}`, text);
+    },
+    [selected],
+  );
+
   const run = useCallback(() => {
     let seeded: Record<string, unknown>;
     try {
@@ -157,7 +165,7 @@ export function PipelineView({ ui, pipelines, selected, setSelected, levels, onO
         <div className="pipeline-summary">{summary}</div>
         <label className="data">
           data
-          <textarea value={data} onChange={(event) => setData(event.target.value)} rows={2} spellCheck={false} />
+          <textarea value={data} onChange={(event) => seed(event.target.value)} rows={2} spellCheck={false} />
         </label>
         <button type="button" onClick={run} disabled={running || selected === ""}>
           {running ? "running…" : "run"}

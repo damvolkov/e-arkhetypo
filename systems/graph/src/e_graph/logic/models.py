@@ -717,6 +717,33 @@ class Route(msgspec.Struct, frozen=True, kw_only=True):
     error: str = ""
 
 
+##### OPS #####
+class Signal(msgspec.Struct, frozen=True, kw_only=True):
+    """One thing a readout found wrong: the `kind` says which layer spoke (an infra tier, a spec's outcome,
+    an audit's verdict, a pinned expectation), `where` is its address, and what was seen against what was wanted."""
+
+    kind: str
+    where: str
+    observed: str = ""
+    expected: str = ""
+    detail: str = ""
+
+
+class Readout(msgspec.Struct, frozen=True, kw_only=True):
+    """The pipeline evaluated: how every tier answered, each section's summary, and the signals the reading left."""
+
+    pipeline: str
+    mode: str
+    probe: dict[str, float] = msgspec.field(default_factory=dict)
+    summaries: dict[str, str] = msgspec.field(default_factory=dict)
+    signals: tuple[Signal, ...] = ()
+
+    @property
+    def ok(self) -> bool:
+        """The readout is green when nothing spoke: no infra complaint, no failed spec, no broken expectation."""
+        return not self.signals
+
+
 class Simulation(msgspec.Struct, frozen=True, kw_only=True):
     """A section rehearsed: the pipeline run up to it, every section's run, the target's agent calls whole,
     where each tier routes, and what the target section wrote. `live` calls the model; otherwise the agent

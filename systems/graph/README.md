@@ -136,6 +136,30 @@ runs (a double click on a node gets there): specs by step, fused agent calls as 
 rehearsal (`simulate`, rehearsed or against the live model) and every call's payload — instructions,
 prompt, schema.
 
+##### DARTSOPS #####
+
+The system keeps itself: a **cyclic maintenance workflow** any coder can load —
+`src/e_graph/.coder/workflows/dartsops/` (`workflow.yaml` + one `nodes/<id>.md` per step). It is
+interpreted, not executed: the lead agent (opencode, claude, cursor) walks `intake → [loop ≤N:
+reproduce → diagnose → craft → gate] → report`, unrolling the bounded loop into finite copies.
+The instrument is the CLI:
+
+```bash
+make dartsops                     # refresh contract.json, probe the tiers, point at the workflow
+e-graph darts contract --json     # the grammar and the 18 laws, as data — what a coder reads first
+e-graph darts probe               # is each tier answering, timed (exit 1 if one is asleep)
+e-graph darts evaluate <pipeline> --data k=v --expect "spec/field==json" --out signal.json
+make dartsops-gate PIPELINE=<p>   # the deterministic wall: laws, plan pins, taxonomy, unit tests
+```
+
+`evaluate`'s exit codes drive the loop: **0** green readout, **1** readout signals (spec failures,
+*rescued* drift, audits that do not hold, expectations read differently), **2** an unanswered tier —
+infra is never patched as if it were a spec. Signals carry kind, address, observed, expected, detail;
+the readout JSON is the evidence the report PR carries. The laws of craft live in the node bodies:
+touch only specs/runners/mirror-tests, never loosen an `output` to silence a signal, truth edits need
+the page cited, engine and snapshots are out of bounds. Cost: one live evaluation is one full run —
+minutes and real tokens; budget the loop's copies accordingly.
+
 ##### TESTS #####
 
 ```

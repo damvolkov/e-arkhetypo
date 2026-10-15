@@ -22,7 +22,7 @@ MAKEFLAGS += --no-print-directory
 export PYTHONPATH := $(CURDIR)/src
 
 ##### TARGETS #####
-.PHONY: help install sync lock core common core-check common-check lint type arch validate harden hooks test cov record conversions stress docs docs-build bundle snap check ci serve up down build logs release ci-vars clean
+.PHONY: help install sync lock core common core-check common-check lint type arch validate harden hooks test cov record conversions dartsops dartsops-eval dartsops-gate stress docs docs-build bundle snap check ci serve up down build logs release ci-vars clean
 
 help:
 	@printf "$(BOLD)$(CYAN)$(PROJECT)$(RESET) $(GRAY)· uv · ruff · ty · tach · pytest · properdocs · docker · pnpm — core/ops/adapters materialized from $(CORE_SRC)$(RESET)\n\n"
@@ -122,6 +122,19 @@ docs-build: ## strict docs build to site/
 # — ui —
 bundle: ## build the canvas into src/e_graph/ui/dist — the static page the app serves at /
 	@pnpm -C $(UI) build
+
+# — dartsops —
+dartsops: ## Show the maintenance workflow: its contract, the laws, and the gates a run must pass
+	@uv run e-graph darts contract --out src/e_graph/.coder/workflows/dartsops/contract.json
+	@printf "$(BOLD)$(CYAN)dartsops$(RESET) $(GRAY)· workflow in src/e_graph/.coder/workflows/dartsops/ · contract refreshed · probe tiers next$(RESET)\n"
+	@uv run e-graph darts probe
+
+dartsops-eval: ## Run a pipeline's readout over its seed: make dartsops-eval PIPELINE=note EXPECTS="…" DATA="source=…"
+	@uv run e-graph darts evaluate $(PIPELINE) --data $(DATA) $(addprefix --expect ,$(EXPECTS)) --out signal.json
+
+dartsops-gate: ## The deterministic wall a craft must pass: laws, plan pins, taxonomy, the pipeline's unit tests
+	@uv run e-graph darts check
+	@uv run pytest tests/unit/e_graph/pipelines/$(or $(PIPELINE),note) tests/unit/e_graph/test_taxonomy.py tests/unit/e_graph/logic/orchestrator/test_plan.py -q -p no:randomly
 
 # — aggregate —
 check: lint type arch validate core-check common-check test ## fast local gate: lint + type + arch + validate + drift + test (ui included)

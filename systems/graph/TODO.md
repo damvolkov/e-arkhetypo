@@ -14,8 +14,10 @@ No new engine features are planned. Something gets built only if the map shows i
 
 Mounts at `src/e_graph/.coder/workflows/` — template-exclusive, nothing in e-engineer: a `dartsops/`
 entity (workflow.yaml + nodes/*.md, backend-agnostic; the coder — claude, opencode, cursor — reads
-the same source; a render step may adapt frontmatter later). The plan's open items (contract/eval in
-the CLI, offline reproduce, loop budget, playbook language) await Damien's answers.
+the same source; a render step may adapt frontmatter later). First cut built 2026-10-15: the instruments (`darts contract/probe/evaluate`), the
+entity (`.coder/workflows/dartsops`), the gates (`make dartsops-*`), and a full drill on a planted defect
+(EXT-fees page selection: 22 signals → one line → green readout, exit 0). Open: multi-document
+corpora (RBC) before an unattended night, and the loop's promote cadence.
 
 ## 0 · Document
 

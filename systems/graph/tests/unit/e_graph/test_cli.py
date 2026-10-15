@@ -1,16 +1,21 @@
 """tests/unit: cli — `e-graph darts check|plan` over the real pipelines: deterministic exit codes, table or JSON."""
 
 import json
+import sys
+from contextlib import asynccontextmanager
+from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any
 
 import pytest
 
+from e_graph import cli
 from e_graph.cli import LiveStream, app, keep_simulation, main, read_value, render_simulation
 from e_graph.logic.errors import Rule, Severity
-from e_graph.logic.models import AgentCall, Breach, Report, Simulation, Tier
+from e_graph.logic.models import AgentCall, Breach, Readout, Report, Signal, Simulation, Tier
 from e_graph.models.section import Section
 
 if TYPE_CHECKING:
+    from collections.abc import AsyncIterator
     from pathlib import Path
 
     from pytest_mock import MockerFixture
@@ -32,6 +37,99 @@ def invoke(*tokens: str) -> int:
     with pytest.raises(SystemExit) as exited:
         app(list(tokens))
     return int(exited.value.code or 0)
+
+
+@pytest.fixture
+def stub_agent(monkeypatch: pytest.MonkeyPatch) -> dict[str, Any]:
+    """A tier set that answers (or does not): the probe never touches the network in a unit test."""
+    state: dict[str, Any] = {"down": set()}
+
+    class Stub:
+        def __init__(self, *_: Any, **__: Any) -> None:
+            pass
+
+        async def __aenter__(self) -> Stub:
+            return self
+
+        async def __aexit__(self, *_: object) -> None:
+            pass
+
+        async def run(self, instructions: str, prompt: str, output: Any, *, endpoint: Any = None, **_: Any) -> Any:
+            match str(endpoint) in state["down"]:
+                case True:
+                    msg = "asleep"
+                    raise ConnectionError(msg)
+                case _:
+                    return None
+
+    monkeypatch.setattr(cli, "AgnosticAgent", Stub)
+    return state
+
+
+def test_the_live_stream_flushes_only_when_a_stderr_still_is(monkeypatch: pytest.MonkeyPatch) -> None:
+    """At interpreter teardown `sys.stderr` can already be gone: the finalizer must shrug, not raise.
+    The patch lands inside the test body: pytest's own capture reinstalls the stream at fixture time."""
+    monkeypatch.setattr(sys, "stderr", None, raising=False)
+    cli.LiveStream().flush()
+
+
+def test_contract_json_is_the_law_mirror(capfd: pytest.CaptureFixture[str]) -> None:
+    assert invoke("darts", "contract") == 0
+    contract = json.loads(capfd.readouterr().out)
+    assert len(contract["laws"]) == len(tuple(Rule))
+    assert (contract["sections"]["extract"], contract["slots"]["pre"]) == ("EXT", "pre_run")
+
+
+def test_contract_to_a_file_is_the_same_mirror(tmp_path: Path, capfd: pytest.CaptureFixture[str]) -> None:
+    target = tmp_path / "contract.json"
+    assert invoke("darts", "contract", "--out", str(target)) == 0
+    assert json.loads(target.read_text())["budget"]["darts_concurrency"] >= 1
+
+
+def test_probe_times_every_answered_tier(stub_agent: dict[str, Any], capfd: pytest.CaptureFixture[str]) -> None:
+    assert invoke("darts", "probe", "--json") == 0
+    assert all(isinstance(ms, float) for ms in json.loads(capfd.readouterr().out).values())
+
+
+def test_probe_fails_when_a_tier_is_asleep(stub_agent: dict[str, Any], capfd: pytest.CaptureFixture[str]) -> None:
+    stub_agent["down"] = {"high"}
+    assert invoke("darts", "probe") == 1
+    lines = capfd.readouterr().out
+    assert "high · asleep" in lines.replace("[red]", "").replace("[/]", "") or "ConnectionError" in lines
+    assert invoke("darts", "probe", "--json") == 1
+    assert json.loads(capfd.readouterr().out)["high"].startswith("ConnectionError")
+
+
+def test_evaluate_refuses_what_no_graph_mounts(capfd: pytest.CaptureFixture[str]) -> None:
+    assert invoke("darts", "evaluate", "nope") == 1
+
+
+@pytest.mark.parametrize(("kind", "expected"), [("", 0), ("spec", 1), ("infra", 2)])
+def test_evaluate_exit_codes_come_from_the_readout(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, kind: str, expected: int
+) -> None:
+    """0 green, 1 readout signals, 2 an unanswered tier: the loop's continue/stop decision, as an exit code."""
+    signals = () if not kind else (Signal(kind=kind, where="extract/EXT-x", observed=kind),)
+
+    @asynccontextmanager
+    async def fake_system() -> AsyncIterator[Any]:
+        yield SimpleNamespace(orchestrator=None, agent=None)
+
+    class FakeOps:
+        def __init__(self, *_: Any, **__: Any) -> None:
+            pass
+
+        async def evaluate(self, *_: Any, **__: Any) -> Readout:
+            return Readout(pipeline="doc", mode="live" if kind != "infra" else "infra", signals=signals)
+
+    monkeypatch.setattr(cli, "system", fake_system)
+    monkeypatch.setattr(cli, "DartsOps", FakeOps)
+    assert invoke("darts", "evaluate", "doc", "--data", "document=invoice") == expected
+    match expected:
+        case 1:
+            target = tmp_path / "signal.json"
+            assert invoke("darts", "evaluate", "doc", "--data", "document=invoice", "--out", str(target)) == 1
+            assert json.loads(target.read_text())["signals"][0]["kind"] == "spec"
 
 
 def test_check_passes_the_real_system(capfd: pytest.CaptureFixture[str]) -> None:
@@ -208,5 +306,7 @@ def test_live_stream_writes_where_stderr_moved_to(monkeypatch: pytest.MonkeyPatc
             pass
 
     monkeypatch.setattr("sys.stderr", Sink())
-    LiveStream().write("followed")
+    stream = LiveStream()
+    stream.write("followed")
+    stream.flush()
     assert moved == ["followed"]

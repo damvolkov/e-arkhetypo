@@ -1,0 +1,30 @@
+id: dartsops
+description: Keep a DARTS pipeline reading true — from a signal to a gated fix, in a bounded cyclic workflow.
+
+# Interpreted, not executed: any coder (opencode, claude, cursor) walks it as the lead agent,
+# runs the `run:` commands itself, and plays the `actor:` nodes with its own judgment. The loop
+# block is unrolled into `max` finite copies before walking — the graph never gains a back edge.
+
+parameters:
+  pipeline: which pipeline is under maintenance (its folder under `pipelines/`)
+  signal: the readout JSON from `e-graph darts evaluate --out …`, or a query that writes one
+  max_copies: how many loop copies the run may spend (default 3)
+  expectations: the pinned readings (`<section>/<spec>.<dotted.path>==<json>`) that must hold green
+
+nodes:
+  - intake
+  - reproduce
+  - diagnose
+  - craft
+  - gate
+  - report
+
+loop:
+  nodes: [reproduce, diagnose, craft, gate]
+  max: max_copies
+  until: gate
+
+output:
+  green: whether the last gate passed
+  signals_left: what the last readout still said, if anything
+  branch: the git branch carrying the patch, or none

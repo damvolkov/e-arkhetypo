@@ -52,6 +52,11 @@ layer = "logic"
 depends_on = ["e_graph.logic.rules"]
 
 [[modules]]
+path = "e_graph.logic.dartsops"
+layer = "logic"
+depends_on = ["e_graph.logic.discover"]
+
+[[modules]]
 path = "e_graph.logic.rules"
 layer = "logic"
 depends_on = []

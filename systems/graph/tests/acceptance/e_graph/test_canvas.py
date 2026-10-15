@@ -57,6 +57,30 @@ async def test_picker_lists_the_discovered_pipelines(canvas: Page) -> None:
     await expect(canvas.locator(".pipeline-summary")).to_contain_text("Document intake")
 
 
+async def test_the_pipeline_seed_arrives_with_the_pick(canvas: Page) -> None:
+    """Choosing a pipeline loads its default seed: the note path is in the textarea before anyone types,
+    and running the doc out of the box reaches a succeeded verdict — the canvas must never need a paste."""
+    await canvas.get_by_label("pipeline").select_option("note")
+    await expect(canvas.locator("textarea")).to_have_value(
+        '{"source":"tests/resources/documents/notes/bofa-autocall-2027.pdf"}'
+    )
+    await canvas.get_by_label("pipeline").select_option("doc")
+    await expect(canvas.locator("textarea")).to_have_value('{"document":"invoice 8 total 2.50"}')
+    await canvas.evaluate("window.localStorage.clear()")
+    await canvas.get_by_role("button", name="run").click()
+    await expect(canvas.locator(".toast.status-succeeded").last).to_be_visible(timeout=RUN_MS)
+    await canvas.evaluate("window.localStorage.clear()")
+
+
+async def test_an_empty_data_is_refused_before_the_wire(canvas: Page) -> None:
+    """Filing needs a `source`: clearing the data and running names what is missing without starting a run."""
+    await canvas.get_by_label("pipeline").select_option("filing")
+    await canvas.locator("textarea").fill("{}")
+    await canvas.get_by_role("button", name="run").click()
+    await expect(canvas.locator(".panel-error")).to_contain_text("data lacks source")
+    await canvas.evaluate("window.localStorage.clear()")
+
+
 async def test_the_data_seed_survives_the_panel_unmounting(canvas: Page) -> None:
     """The seed is typed once: visiting the specs level remounts the panel, and a lost paste is the run
     dying on an empty `source`. The textarea must come back with what was written."""

@@ -4,7 +4,7 @@ The filing is read hybrid (liteparse on every page, docling on the pages that ne
 the cover and both statements in one fused call, each spec fed only the pages its titles point to; the
 figures are brought to dollars, held to the statements' identities, and gathered in one record."""
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from langgraph.graph import END, START
 
@@ -22,6 +22,10 @@ class FilingGraph(PipelineBuilder):
     """A 10-K read into its facts: ingest → extract → audit → report."""
 
     __slots__ = ()
+
+    @property
+    def seed(self) -> dict[str, Any]:
+        return {"source": "tests/resources/documents/filings/aapl-10k-2025.pdf"}
 
     def compose(self, graph: InstrumentGraph) -> InstrumentGraph:
         return (

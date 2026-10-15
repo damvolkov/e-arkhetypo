@@ -52,9 +52,14 @@ export function PipelineView({ ui, pipelines, selected, setSelected, levels, onO
     };
   }, []);
 
+  const seedOf = useCallback(
+    (id: string) => JSON.stringify(pipelines.find((pipeline) => pipeline.id === id)?.seed ?? {}),
+    [pipelines],
+  );
+
   useEffect(() => {
     if (selected === "") return;
-    setData(window.localStorage.getItem(`e-graph:data:${selected}`) ?? "{}");
+    setData(window.localStorage.getItem(`e-graph:data:${selected}`) ?? seedOf(selected));
     setError("");
     close.current();
     setOutcome(null);
@@ -64,7 +69,7 @@ export function PipelineView({ ui, pipelines, selected, setSelected, levels, onO
       setNodes(flow.nodes);
       setEdges(flow.edges);
     });
-  }, [selected, ui, setNodes, setEdges]);
+  }, [selected, ui, seedOf, setNodes, setEdges]);
 
   const toast = useCallback(
     (output: NodeOutput) => {
@@ -119,6 +124,12 @@ export function PipelineView({ ui, pipelines, selected, setSelected, levels, onO
       setError(`data is no JSON: ${(failure as Error).message}`);
       return;
     }
+    const expected = pipelines.find((pipeline) => pipeline.id === selected)?.seed ?? {};
+    const missing = Object.keys(expected).filter((key) => !(key in seeded));
+    if (missing.length) {
+      setError(`data lacks ${missing.join(", ")}: this pipeline runs on ${JSON.stringify(expected)}`);
+      return;
+    }
     window.localStorage.setItem(`e-graph:data:${selected}`, data);
     setError("");
     close.current();
@@ -128,7 +139,7 @@ export function PipelineView({ ui, pipelines, selected, setSelected, levels, onO
     setRunning(true);
     setNodes((current) => current.map((node) => patch(node, { status: "pending", latency_ms: undefined })));
     close.current = streamRun(selected, { pace: ui.pace, ...seeded, fail }, onFrame);
-  }, [selected, ui, fail, data, onFrame, setNodes]);
+  }, [selected, ui, fail, data, pipelines, onFrame, setNodes]);
 
   const status = new Map(nodes.map((node) => [node.id, node.data.status]));
   const lit = edges.map((edge) => ({ ...edge, className: `cable cable-${status.get(edge.source) ?? "pending"}` }));
@@ -165,7 +176,13 @@ export function PipelineView({ ui, pipelines, selected, setSelected, levels, onO
         <div className="pipeline-summary">{summary}</div>
         <label className="data">
           data
-          <textarea value={data} onChange={(event) => seed(event.target.value)} rows={2} spellCheck={false} />
+          <textarea
+            value={data}
+            onChange={(event) => seed(event.target.value)}
+            rows={2}
+            spellCheck={false}
+            placeholder={seedOf(selected)}
+          />
         </label>
         <button type="button" onClick={run} disabled={running || selected === ""}>
           {running ? "running…" : "run"}

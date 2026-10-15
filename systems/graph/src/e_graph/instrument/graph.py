@@ -91,11 +91,12 @@ class BackEdgeVisitor(rx.visit.DFSVisitor[object]):
 class InstrumentGraph(StateGraph[Channels, None, Channels, Channels]):
     """LangGraph's builder over `Channels`, admitting InstrumentNodes only, aware of its own topology."""
 
-    def __init__(self, name: str = "", summary: str = "") -> None:
+    def __init__(self, name: str = "", summary: str = "", seed: dict[str, Any] | None = None) -> None:
         super().__init__(Channels)
         ### identity a builder stamps on the graph it builds: how the registry, the API and the canvas name it.
         self.name = name
         self.summary = summary
+        self.seed = seed or {}
         self._compiled: CompiledStateGraph[Channels, None, Channels, Channels] | None = None
 
     def _add_resolve(self, node: str | NodeFunc, action: NodeFunc | None) -> tuple[str, NodeFunc]:

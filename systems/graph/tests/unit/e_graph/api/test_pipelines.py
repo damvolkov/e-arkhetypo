@@ -29,6 +29,9 @@ def test_list_names_every_pipeline(client) -> None:
     assert (doc["id"], doc["nodes"]) == ("doc", 7)
     assert doc["summary"].startswith("Document intake")
     assert (filing["id"], filing["nodes"]) == ("filing", 4)
+    assert doc["seed"] == {"document": "invoice 8 total 2.50"}
+    assert filing["seed"] == {"source": "tests/resources/documents/filings/aapl-10k-2025.pdf"}
+    assert note["seed"] == {"source": "tests/resources/documents/notes/bofa-autocall-2027.pdf"}
     assert (note["id"], note["nodes"]) == ("note", 5)
 
 

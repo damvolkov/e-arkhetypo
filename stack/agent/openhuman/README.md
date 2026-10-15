@@ -18,9 +18,17 @@ No desktop binary: the UI is the app's React build served on loopback, opened as
 | `brain/` | `cortexdb-mirror` | reads (`:ro`); never a memory source |
 | `inbox/` | you; `vault-ingest` converts drops into `inbox/docs/` | writes |
 | `workflow/` | the flows | writes |
+| `openhuman/` | the core: config, workspace, keyring, `projects/` (its action dir; `projects/resources` the flows' tooling, `:ro`) | its own state; the agent's tools never read it |
 
 Every host path is mounted at the same path inside (parity), so `config.toml`, symlinks and venvs need no
-rewriting, and the core runs as the vault's user — nothing is ever chowned.
+rewriting, and the core runs as the vault's user — nothing is ever chowned. The core's root is fixed at
+`$HOME/.openhuman`: the compose mounts `openhuman/` there too, so never keep a host `~/.openhuman` symlink —
+anything else run on the host (tests, a CLI) would write the live state through it.
+
+The agent's policy grants the vault folder by folder (`persona wiki brain` read, `workflow inbox` read-write),
+never the root: `openhuman/` holds its keyring and tokens. Syncing the whole vault to a phone is fine with
+host-side `trashcan` versioning and `ignoreDelete`; a phone that does not want the SQLite stores ignores
+`openhuman/**/*.db*` in its own `.stignore`.
 
 ## Up
 

@@ -2,11 +2,12 @@
 # features, see build.sh), its own UI on loopback, and its memory engine (mem/cortexdb, included with the
 # mirror that projects that memory into the vault as Obsidian markdown).
 #
-# One shared volume of knowledge, the vault (Obsidian + Syncthing). The core sees every host path at the
-# same path (parity: config.toml, symlinks and venvs keep working), runs as the vault's user (the image's
-# entrypoint skips its chown heal when it starts non-root), writes only inbox/ and workflow/, and the kernel
-# enforces the rest: persona/, wiki/ and brain/ are mounted :ro. Beyond the vault it reaches the world only
-# through its tools and MCP servers.
+# One volume holds everything, the vault (Obsidian + Syncthing): your knowledge (persona/ wiki/ brain/ inbox/
+# workflow/) and the core's own state (openhuman/: config, workspace, keyring, projects). The core sees every
+# host path at the same path (parity: config.toml, symlinks and venvs keep working), runs as the vault's user
+# (the image's entrypoint skips its chown heal when it starts non-root), and the kernel keeps persona/, wiki/
+# and brain/ :ro; its policy grants the vault folder by folder, never openhuman/. Beyond the vault it reaches
+# the world only through its tools and MCP servers.
 #
 #   cp .env.example .env    # set HOST_HOME, HOST_USER, OPENHUMAN_CORE_TOKEN, CORTEX_API_KEY
 #   ./build.sh <openhuman source tree>    # openhuman-core:demian + openhuman-ui:demian
@@ -40,19 +41,17 @@ services:
       - OPENHUMAN_CORE_TOKEN=${OPENHUMAN_CORE_TOKEN:?set OPENHUMAN_CORE_TOKEN (openssl rand -hex 32)}
       - OPENHUMAN_CORE_HOST=127.0.0.1
       - OPENHUMAN_CORE_PORT=${OPENHUMAN_CORE_PORT:-7788}
-      - OPENHUMAN_PROJECTS_DIR=${HOST_HOME}/OpenHuman/projects
+      - OPENHUMAN_PROJECTS_DIR=${VAULT_DIR:-${HOST_HOME}/.config/memory}/openhuman/projects
     volumes:
-      # the harness state — config, workspace, keyring (file backend), modules — under both its names
-      - ${OPENHUMAN_ROOT:-${HOST_HOME}/.config/openhuman}:${HOST_HOME}/.openhuman
-      - ${OPENHUMAN_ROOT:-${HOST_HOME}/.config/openhuman}:${HOST_HOME}/.config/openhuman
-      # the vault: read everywhere, written in inbox/ and workflow/ only
+      # the vault: the core's state in openhuman/, read everywhere else, written in inbox/ and workflow/ only
       - ${VAULT_DIR:-${HOST_HOME}/.config/memory}:${VAULT_DIR:-${HOST_HOME}/.config/memory}
       - ${VAULT_DIR:-${HOST_HOME}/.config/memory}/persona:${VAULT_DIR:-${HOST_HOME}/.config/memory}/persona:ro
       - ${VAULT_DIR:-${HOST_HOME}/.config/memory}/wiki:${VAULT_DIR:-${HOST_HOME}/.config/memory}/wiki:ro
       - ${VAULT_DIR:-${HOST_HOME}/.config/memory}/brain:${VAULT_DIR:-${HOST_HOME}/.config/memory}/brain:ro
-      # the agent's projects home, and the flows' tooling and toolchains, read-only
-      - ${HOST_HOME}/OpenHuman:${HOST_HOME}/OpenHuman
-      - ${OPENHUMAN_ROOT:-${HOST_HOME}/.config/openhuman}/resources:${HOST_HOME}/.config/openhuman/resources:ro
+      - ${VAULT_DIR:-${HOST_HOME}/.config/memory}/openhuman/projects/resources:${VAULT_DIR:-${HOST_HOME}/.config/memory}/openhuman/projects/resources:ro   # the flows' tooling
+      # the core's fixed home for its state ($HOME/.openhuman): the same dir under its second name
+      - ${VAULT_DIR:-${HOST_HOME}/.config/memory}/openhuman:${HOST_HOME}/.openhuman
+      # toolchains the flows run on (uv and its pythons), read-only
       - ${HOST_HOME}/.local/bin:${HOST_HOME}/.local/bin:ro
       - ${HOST_HOME}/.local/share/uv:${HOST_HOME}/.local/share/uv:ro
     depends_on:

@@ -16,8 +16,12 @@ Mounts at `src/e_graph/.coder/workflows/` — template-exclusive, nothing in e-e
 entity (workflow.yaml + nodes/*.md, backend-agnostic; the coder — claude, opencode, cursor — reads
 the same source; a render step may adapt frontmatter later). First cut built 2026-10-15: the instruments (`darts contract/probe/evaluate`), the
 entity (`.coder/workflows/dartsops`), the gates (`make dartsops-*`), and a full drill on a planted defect
-(EXT-fees page selection: 22 signals → one line → green readout, exit 0). Open: multi-document
-corpora (RBC) before an unattended night, and the loop's promote cadence.
+(EXT-fees page selection: 22 signals → one line → green readout, exit 0). The loop was then run FOR REAL
+on a second issuer — Barclays' ACN note (single stock, memory coupons, no guarantor, cover on page two):
+28 signals → family-wide regexes and materials → 17 → denomination anchored to its printed phrase → 8 →
+nullable guarantor through the report → 0: both corpora green, BofA never regressed. Open: loop-budget
+cadence for unattended nights — qwen's reasoning length on the hardest payoff needed three recording
+attempts (a provider property, not a spec one).
 
 ## 0 · Document
 

@@ -4,18 +4,22 @@ description: Who issues the note and who guarantees it.
 pre: agnostic/document/pages
 check: agnostic/context/present
 args:
-  pre: {first: 1, most: 0}
+  pre: {first: 2, most: 0}
   check: {needs: [ingest/ING-document]}
 tier: medium
 instructions: >-
-  From the cover page: the issuing entity's exact legal name ("LLC" included), the guarantor's exact
-  legal name, and whether the notes are senior unsecured obligations of the issuer.
+  From the cover page: the issuing entity's exact legal name, the guarantor's exact legal name or null
+  when the notes are not guaranteed by any third party, and whether the notes are unsecured obligations
+  of the issuer.
 wiki: [autocall]
 output:
   type: object
   properties:
     issuer: {type: string, minLength: 3, maxLength: 120}
-    guarantor: {type: string, minLength: 3, maxLength: 120}
+    guarantor:
+      anyOf:
+        - {type: string, minLength: 3, maxLength: 120}
+        - {type: "null"}
     senior_unsecured: {type: boolean}
   required: [issuer, guarantor, senior_unsecured]
   additionalProperties: false

@@ -4,7 +4,7 @@ description: The note's CUSIP and ISIN, read off the cover page when the regex c
 pre: agnostic/document/pages
 check: agnostic/context/present
 args:
-  pre: {first: 1, most: 0}
+  pre: {first: 2, most: 0}
   check: {needs: [ingest/ING-document]}
 tier: low
 instructions: >-

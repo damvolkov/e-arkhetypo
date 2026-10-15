@@ -24,7 +24,10 @@ output:
     isin: {type: string}
     cusip: {type: string}
     issuer: {type: string, minLength: 3}
-    guarantor: {type: string, minLength: 3}
+    guarantor:
+      anyOf:
+        - {type: string, minLength: 3}
+        - {type: "null"}
     underlier:
       type: object
       properties:

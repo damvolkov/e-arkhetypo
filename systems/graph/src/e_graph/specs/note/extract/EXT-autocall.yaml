@@ -4,12 +4,12 @@ description: The automatic call — the Initial Value, the level that triggers i
 pre: agnostic/document/pages
 check: agnostic/context/present
 args:
-  pre: {first: 1, most: 0}
+  pre: {first: 2, most: 0}
   check: {needs: [ingest/ING-document]}
 tier: medium
 instructions: >-
-  From the cover page's Investment Description and Features: the Initial Value of the Underlying as a
-  printed number, the level at or above which the notes are automatically called on a quarterly
+  From the cover page: the Initial Value of the Underlying — wherever the document names it (Initial
+  Value, Initial Underlying Price) — as a printed number, the level at or above which the notes are automatically called on a quarterly
   Observation Date (a number), what the holder receives upon that automatic call (a short exact
   phrase), and whether the notes can be called on the Final Observation Date.
 wiki: [autocall]

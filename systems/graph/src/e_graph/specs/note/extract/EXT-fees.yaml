@@ -1,21 +1,22 @@
 kind: deterministic
 name: EXT-fees
-description: What the distribution costs — the underwriting discount per note and the offering-price row in full.
+description: The offering table in full — the per-note and total rows of price, underwriting discount and proceeds.
 runner: agnostic/text/match
 check: agnostic/context/present
 args:
   runner:
-    pages: [1]
     many: true
-    pattern: 'underwriting discount is \$(?P<underwriting_discount>[\d.]+) per Note|Total\s+\|\s+\$(?P<aggregate_offering>[\d,.]+)\s+\|\s+\$(?P<aggregate_discount>[\d,.]+)\s+\|\s+\$(?P<aggregate_proceeds>[\d,.]+)'
+    pattern: 'Total\s*\|\s*\$(?P<aggregate_offering>[\d,.]+)\s*\|\s*\$(?P<aggregate_discount>[\d,.]+)\s*\|\s*\$(?P<aggregate_proceeds>[\d,.]+)|Per Note\s*\|\s*\$(?P<price_per_note>[\d,.]+)\s*\|\s*\$(?P<underwriting_discount>[\d,.]+)\s*\|\s*\$(?P<proceeds_per_note>[\d,.]+)'
   check:
     needs: [ingest/ING-document]
 output:
   type: object
   properties:
-    underwriting_discount: {type: array, minItems: 1, items: {type: string, pattern: "^\\d+\\.\\d{2}$"}}
     aggregate_offering: {type: array, minItems: 1, items: {type: string, pattern: "^\\d[\\d,.]*$"}}
     aggregate_discount: {type: array, minItems: 1, items: {type: string, pattern: "^\\d[\\d,.]*$"}}
     aggregate_proceeds: {type: array, minItems: 1, items: {type: string, pattern: "^\\d[\\d,.]*$"}}
-  required: [underwriting_discount, aggregate_offering, aggregate_discount, aggregate_proceeds]
+    price_per_note: {type: array, minItems: 1, items: {type: string, pattern: "^\\d[\\d,.]*$"}}
+    underwriting_discount: {type: array, minItems: 1, items: {type: string, pattern: "^\\d[\\d,.]*$"}}
+    proceeds_per_note: {type: array, minItems: 1, items: {type: string, pattern: "^\\d[\\d,.]*$"}}
+  required: [aggregate_offering, aggregate_discount, aggregate_proceeds, price_per_note, underwriting_discount, proceeds_per_note]
   additionalProperties: false

@@ -13,7 +13,7 @@ async def pre_run(state: RunState, call: Call) -> str:
     extract = state.context.extract
     material: dict[str, Any] = {
         "terms": extract["EXT-terms"],
-        "payoff": extract["EXT-payoff"],
+        "payoff": extract.get("EXT-payoff", "the payoff's prose did not arrive: summarise from the terms"),
         "scenarios": call.inputs["INF-scenarios"],
         "return": call.inputs.get("INF-max-return", {}),
     }

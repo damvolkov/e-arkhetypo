@@ -4,13 +4,15 @@ description: The contingent coupon — its annual rate and what one payment is w
 pre: agnostic/document/pages
 check: agnostic/context/present
 args:
-  pre: {first: 1, most: 0}
+  pre: {first: 2, most: 0}
   check: {needs: [ingest/ING-document]}
 tier: medium
 instructions: >-
-  From the cover page and its Summary table: the Contingent Coupon Rate as a per-cent annual number
-  ("9.60% per annum" is 9.60), the Contingent Coupon Payment per note in US dollars as printed ("$0.24
-  for each $10.00 Stated Principal Amount" is 0.24), and how often a coupon is observed and paid.
+  From the cover page: the Contingent Coupon Rate as a per-cent annual number ("9.60% per annum" is
+  9.60); the Contingent Coupon Payment per note in US dollars exactly as the document prints it
+  ("$0.24 for each $10.00 Stated Principal Amount" is 0.24, "$0.3753 per Note" is 0.3753) — copy the
+  printed figure and never derive it by dividing the annual rate, which only rounds it differently;
+  and how often a coupon is observed and paid.
 wiki: [contingent-coupon]
 output:
   type: object

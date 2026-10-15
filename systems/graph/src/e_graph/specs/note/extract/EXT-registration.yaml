@@ -6,7 +6,7 @@ check: agnostic/context/present
 args:
   runner:
     pages: [1]
-    pattern: 'Registration Statement Nos\. (?P<registration_no>333-\d{6})'
+    pattern: 'Registration Statement No[s]?\. (?P<registration_no>333-\d{6})'
   check:
     needs: [ingest/ING-document]
 output:

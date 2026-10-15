@@ -76,7 +76,7 @@ DARTS orchestrator — see `docs/darts.md` for the taxonomy, the laws and the pr
 |---|---|
 | `doc` | ingest → (normalize ∥ classify) → extract ⇄ validate → transform → report — the demo, every graph shape |
 | `filing` | ingest → extract → audit → report — a 10-K read into its XBRL facts, three semantic specs in one call |
-| `note` | ingest → extract → inference → audit → report — a 424B2 autocallable: 22 specs in the widest section, regexes and tables rescued by a semantic fallback, ten fused calls in its first run |
+| `note` | ingest → extract → inference → audit → report — the 424B2 autocallable family: two issuers (BofA index-linked, Barclays single-stock unguaranteed with memory coupons) read by one 46-spec pipeline held to curated truth; ten fused calls per run |
 
 ```bash
 e-graph darts check [--pipeline doc] [--json]   # every DARTS law: exit 0 clean, 1 broken — what DARTSOPS runs
@@ -155,7 +155,8 @@ make dartsops-gate PIPELINE=<p>   # the deterministic wall: laws, plan pins, tax
 `evaluate`'s exit codes drive the loop: **0** green readout, **1** readout signals (spec failures,
 *rescued* drift, audits that do not hold, expectations read differently), **2** an unanswered tier —
 infra is never patched as if it were a spec. Signals carry kind, address, observed, expected, detail;
-the readout JSON is the evidence the report PR carries. The laws of craft live in the node bodies:
+the readout JSON is the evidence the report PR carries. Each cassette is self-describing: the request body
+pins the endpoint it was recorded against, so replay never depends on the host's `.env`. The laws of craft live in the node bodies:
 touch only specs/runners/mirror-tests, never loosen an `output` to silence a signal, truth edits need
 the page cited, engine and snapshots are out of bounds. Cost: one live evaluation is one full run —
 minutes and real tokens; budget the loop's copies accordingly.

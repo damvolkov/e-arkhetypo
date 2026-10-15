@@ -4,7 +4,7 @@ description: Who calculates and who distributes — the calculation agent and th
 pre: agnostic/document/pages
 check: agnostic/context/present
 args:
-  pre: {first: 1, words: [calculation agent], most: 1}
+  pre: {first: 2, words: [calculation agent], most: 1}
   check: {needs: [ingest/ING-document]}
 tier: medium
 timeout: PT6M

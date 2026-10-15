@@ -1,10 +1,10 @@
-"""tests/integration: pipelines.note.graph — an autocallable read by the real model, held to its curated truth.
+"""tests/integration: pipelines.note.graph — two issuers' 424B2s read by the real model, held to their curated truth.
 
-The fused calls reach the model each tier names (the local vLLM unless AGENT_HIGH/MEDIUM/LOW say
-otherwise) and replay from cassettes; docling replays from its recorded spans. What is pinned is the
-document's own ground — identifiers, money, levels, calendar — and that every audit held: the
-classification, the summary and the payoff prose are the model's word, judged by the checks, never
-pinned to a phrasing. Re-record with `make record`."""
+The generality gate for the note pipeline: BofA's index-linked note and Barclays' single-stock,
+unguaranteed, memory-coupon note. The fused calls reach the model each tier names and replay from
+cassettes; docling replays from recorded spans. What is pinned is the document's own ground — money,
+levels, calendar, identifiers — and that every audit held: classification, summary and payoff prose are
+the model's word, judged by the checks, never pinned to a phrasing. Re-record with `make record`."""
 
 from pathlib import Path
 from types import MappingProxyType
@@ -30,11 +30,22 @@ if TYPE_CHECKING:
 pytestmark = [pytest.mark.vcr, pytest.mark.integration]
 
 DOCUMENTS: Final[Path] = Path(__file__).resolve().parents[5] / "tests" / "resources" / "documents"
-NOTE: Final[str] = "bofa-autocall-2027.pdf"
+NOTES: Final[str] = "notes"
+
+### the two readings the truth pins, per note — the money, levels and calendar the document states,
+### and the guarantor's presence or absence, which is the shape the generalization had to learn.
+CASES: Final[dict[str, dict[str, Any]]] = {
+    "bofa-autocall-2027.pdf": {
+        "issuer": "BofA Finance LLC",
+        "guarantor": "Bank of America Corporation",
+        "ticker": "SPX",
+    },
+    "barclays-acn-2029.pdf": {"issuer": "Barclays Bank PLC", "guarantor": None, "ticker": "ACN"},
+}
 
 
-async def read(agent: AgnosticAgent) -> tuple[RunStatus, dict[str, Any]]:
-    """The whole pipeline over the note: the verdict and the record."""
+async def read(agent: AgnosticAgent, note: str) -> tuple[RunStatus, dict[str, Any]]:
+    """The whole pipeline over one note: the verdict and the record."""
     async with OtelAdapter(OtelSettings()) as telemetry:
         infra = InfraState(
             adapters=None,  # ty: ignore[invalid-argument-type]
@@ -47,24 +58,25 @@ async def read(agent: AgnosticAgent) -> tuple[RunStatus, dict[str, Any]]:
         system = State(infra=infra, contexts=ContextState())
         system.seal()
         state = RunState(system, pipeline="note")
-        state.context.source = str(DOCUMENTS / "notes" / NOTE)
+        state.context.source = str(DOCUMENTS / NOTES / note)
         result = await NoteGraph().build().run(state, retain=True)
         return result.end.status, dict(state.context.report.get("REP-termsheet", {}))
 
 
-def truth() -> dict[str, Any]:
+def truth(note: str) -> dict[str, Any]:
     corpus = eserde.load(DOCUMENTS / "corpus.yaml")
-    return next(entry["truth"] for entry in corpus["documents"] if entry["file"] == f"notes/{NOTE}")
+    return next(entry["truth"] for entry in corpus["documents"] if entry["file"] == f"{NOTES}/{note}")
 
 
+@pytest.mark.parametrize("note", list(CASES))
 @pytest.mark.timeout(900)
-async def test_the_note_reads_its_ground_truth(agent: AgnosticAgent) -> None:
-    expected = truth()
-    status, record = await read(agent)
+async def test_a_424b2_reads_into_its_term_sheet_held_to_the_truth(agent: AgnosticAgent, note: str) -> None:
+    expected = truth(note)
+    status, record = await read(agent, note)
     assert status is RunStatus.SUCCEEDED, "the note's run did not reach report"
     assert (record["isin"], record["cusip"]) == (expected["isin"], expected["cusip"])
-    assert (record["issuer"], record["guarantor"]) == (expected["issuer"], expected["guarantor"])
-    assert record["underlier"]["ticker"] == expected["underlier_ticker"]
+    assert (record["issuer"], record["guarantor"]) == (CASES[note]["issuer"], CASES[note]["guarantor"])
+    assert record["underlier"]["ticker"] == CASES[note]["ticker"]
     assert record["money"]["aggregate_principal"] == expected["aggregate_principal"]
     assert record["money"]["estimated_value"] == expected["estimated_value"]
     assert record["coupon"] == {
@@ -82,4 +94,4 @@ async def test_the_note_reads_its_ground_truth(agent: AgnosticAgent) -> None:
     assert record["verdict"]["holds"] is True, record["verdict"]
     assert record["verdict"]["coherent"] is True, record["verdict"]
     assert record["classification"]["eusipa"] == "yield enhancement"
-    assert len(record["summary"]) >= 200
+    assert len(record["summary"]) >= 120

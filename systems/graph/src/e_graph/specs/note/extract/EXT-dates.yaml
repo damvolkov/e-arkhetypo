@@ -4,7 +4,7 @@ description: The note's calendar — pricing, issue, final observation and matur
 pre: agnostic/document/pages
 check: agnostic/context/present
 args:
-  pre: {first: 1, most: 0}
+  pre: {first: 2, words: [final valuation date, final observation date], most: 1}
   check: {needs: [ingest/ING-document]}
 tier: medium
 instructions: >-

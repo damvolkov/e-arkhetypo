@@ -11,10 +11,11 @@ instructions: >-
   of at most twenty-five words each, naming the amounts as printed: (1) when a quarterly Observation
   Date closes at or above the Coupon Barrier but below the call level, (2) when the notes are
   automatically called, (3) at maturity without a prior call and the Final Value is at or above the
-  Downside Threshold, (4) at maturity below the Downside Threshold, and (5) the formula for the loss.
+  Downside Threshold, (4) at maturity below the Downside Threshold, and (5) the formula for the loss —
+  naming any memory or accumulation of unpaid coupons exactly as the document words them.
 wiki: [contingent-coupon, autocall, downside-threshold]
 tier: high
-timeout: PT8M
+timeout: PT18M
 output:
   type: object
   properties:

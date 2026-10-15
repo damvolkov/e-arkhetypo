@@ -233,3 +233,53 @@ documents:
     - {observation_date: "2027-05-06", payment_date: "2027-05-10"}
     - {observation_date: "2027-08-06", payment_date: "2027-08-10"}
     - {observation_date: "2027-11-08", payment_date: "2027-11-12"}
+- file: notes/barclays-acn-2029.pdf
+  family: note
+  sha256: "2074a9e179b700c77c549535ce3f5f8b0774893d6ece82c03cecb874a3349479"
+  source: "https://www.sec.gov/Archives/edgar/data/312070/000095010326015502/dp254889_424b2-9806ubs.htm"
+  license: "SEC EDGAR public filing content: free to access and reuse (sec.gov webmaster FAQ). PDF rendered from the official 424B2 HTML with Chromium."
+  truth:
+    issuer: Barclays Bank PLC
+    guarantor: null
+    form: "424B2"
+    registration_no: "333-287303"
+    filed: "2026-10-08"
+    cusip: "06749E557"
+    isin: "US06749E5574"
+    underlier: "Class A ordinary shares of Accenture plc"
+    underlier_ticker: ACN
+    underlier_is_index: false
+    pricing_date: "2026-10-08"
+    issue_date: "2026-10-14"
+    maturity_date: "2029-10-11"
+    final_observation_date: "2029-10-08"
+    currency: USD
+    denomination: 10.0
+    offering_price: 10.0
+    aggregate_principal: 9172000.0
+    underwriting_discount: 0.225
+    estimated_value: 9.677
+    coupon_rate: 15.01
+    coupon_payment: 0.3753
+    initial_value: 208.36
+    coupon_barrier: 125.02
+    downside_threshold: 125.02
+    call_threshold: 208.36
+    memory_coupon: true
+    calculation_agent: "Barclays Bank PLC"
+    selling_agents:
+    - "Barclays Capital Inc."
+    listed: false
+    observations:
+    - {observation_date: "2027-01-08", payment_date: "2027-01-12"}
+    - {observation_date: "2027-04-08", payment_date: "2027-04-12"}
+    - {observation_date: "2027-07-08", payment_date: "2027-07-12"}
+    - {observation_date: "2027-10-08", payment_date: "2027-10-13"}
+    - {observation_date: "2028-01-10", payment_date: "2028-01-12"}
+    - {observation_date: "2028-04-10", payment_date: "2028-04-12"}
+    - {observation_date: "2028-07-10", payment_date: "2028-07-12"}
+    - {observation_date: "2028-10-09", payment_date: "2028-10-11"}
+    - {observation_date: "2029-01-08", payment_date: "2029-01-10"}
+    - {observation_date: "2029-04-09", payment_date: "2029-04-11"}
+    - {observation_date: "2029-07-09", payment_date: "2029-07-11"}
+    - {observation_date: "2029-10-08", payment_date: "2029-10-11"}

@@ -4,7 +4,7 @@ description: The two protective levels — the Coupon Barrier and the Downside T
 pre: agnostic/document/pages
 check: agnostic/context/present
 args:
-  pre: {first: 1, most: 0}
+  pre: {first: 2, most: 0}
   check: {needs: [ingest/ING-document]}
 tier: medium
 instructions: >-

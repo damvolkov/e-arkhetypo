@@ -9,6 +9,7 @@ from e_graph.instrument.graph import InstrumentGraph
 from e_graph.models.section import Section
 from e_graph.pipelines.base import PipelineBuilder, PipelineRegistry
 from e_graph.pipelines.doc.graph import DocGraph
+from e_graph.pipelines.note.graph import NoteGraph
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -115,6 +116,27 @@ async def test_registry_builds_every_graph_by_name() -> None:
     assert {name: graph.name for name, graph in graphs.items()} == {"doc": "doc", "filing": "filing", "note": "note"}
     with pytest.raises(TypeError):
         graphs["other"] = graphs["doc"]  # ty: ignore[invalid-assignment]
+
+
+def test_a_builder_seeds_its_graph() -> None:
+    """The default seed is empty and the built graph carries what the builder declares: the canvas reads
+    its run data from the listing, so the stamp at `build` is the contract."""
+
+    class Bare(PipelineBuilder):
+        def compose(self, graph):
+            return graph
+
+    class Given(PipelineBuilder):
+        @property
+        def seed(self):
+            return {"source": "somewhere.pdf"}
+
+        def compose(self, graph):
+            return graph
+
+    assert Bare().seed == {}
+    assert Given().seed == {"source": "somewhere.pdf"}
+    assert NoteGraph().build().seed == {"source": "tests/resources/documents/notes/bofa-autocall-2027.pdf"}
 
 
 async def test_registry_mounts_each_pipelines_sections() -> None:

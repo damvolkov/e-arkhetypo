@@ -7,7 +7,7 @@ plain-language brief come from the agent, fused per tier. Derived numbers (term,
 scenarios) are computed, not read; every fact is then held to its own standard — check digits, calendar
 order, the levels' order — and the prose to the term sheet."""
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from langgraph.graph import END, START
 
@@ -26,6 +26,10 @@ class NoteGraph(PipelineBuilder):
     """A 424B2 read into its term sheet: ingest → extract → inference → audit → report."""
 
     __slots__ = ()
+
+    @property
+    def seed(self) -> dict[str, Any]:
+        return {"source": "tests/resources/documents/notes/bofa-autocall-2027.pdf"}
 
     def compose(self, graph: InstrumentGraph) -> InstrumentGraph:
         return (

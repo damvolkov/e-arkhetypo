@@ -19,7 +19,7 @@ from abc import ABC, abstractmethod
 from collections import Counter
 from pathlib import Path
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Final
+from typing import TYPE_CHECKING, Any, Final
 
 from e_graph.instrument.graph import InstrumentGraph
 from ops.file import FileFinder
@@ -50,13 +50,19 @@ class PipelineBuilder(ABC):
         """What the pipeline is: the headline of the builder's docstring."""
         return (inspect.getdoc(type(self)) or "").partition("\n")[0]
 
+    @property
+    def seed(self) -> dict[str, Any]:
+        """The run data the pipeline expects, ready-made: paths relative to the project root (where the
+        server runs). A pipeline that needs none says so by not overriding."""
+        return {}
+
     @abstractmethod
     def compose(self, graph: InstrumentGraph) -> InstrumentGraph:
         """Declare nodes and edges on the fresh graph and return it — `graph.add_node(...).add_edge(...)`."""
 
     def build(self) -> InstrumentGraph:
-        """A fresh graph, named and summarized, composed by `compose`, compiled — built, never half-built."""
-        graph = self.compose(InstrumentGraph(name=self.name, summary=self.summary))
+        """A fresh graph, named, summarized, seeded, composed by `compose`, compiled — built, never half-built."""
+        graph = self.compose(InstrumentGraph(name=self.name, summary=self.summary, seed=self.seed))
         graph.compile()
         return graph
 

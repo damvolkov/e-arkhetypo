@@ -37,7 +37,7 @@ ENCODER: Final = msgspec.json.Encoder()
 async def listing(graphs: NamedDependency[Mapping[str, InstrumentGraph]]) -> tuple[PipelineInfo, ...]:
     """Every built pipeline, in name order."""
     return tuple(
-        PipelineInfo(id=name, summary=graph.summary, nodes=len(graph.topology().nodes))
+        PipelineInfo(id=name, summary=graph.summary, nodes=len(graph.topology().nodes), seed=graph.seed)
         for name, graph in graphs.items()
     )
 

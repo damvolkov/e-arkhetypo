@@ -5,7 +5,7 @@ once (the loop) and then forward through transform to report. Every node runs it
 (`specs/doc/<section>/`) through the orchestrator; the work lives in the runners they plug
 (`runners/owned/doc/<section>/`, `runners/agnostic/`). Copy it as the template of a real pipeline."""
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from langgraph.graph import END, START
 
@@ -26,6 +26,10 @@ class DocGraph(PipelineBuilder):
     """Document intake: ingest → (normalize ∥ classify) → extract ⇄ validate → transform → report."""
 
     __slots__ = ()
+
+    @property
+    def seed(self) -> dict[str, Any]:
+        return {"document": "invoice 8 total 2.50"}
 
     def compose(self, graph: InstrumentGraph) -> InstrumentGraph:
         return (

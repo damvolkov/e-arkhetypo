@@ -9,6 +9,7 @@ export interface PipelineInfo {
   id: string;
   summary: string;
   nodes: number;
+  seed: Record<string, unknown>;
 }
 
 export interface UiView {

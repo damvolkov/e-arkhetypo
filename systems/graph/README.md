@@ -99,6 +99,25 @@ POST /api/specs/simulate/{id}/{section}      rehearse up to the section: every r
 GET  /api/ui                         the canvas tunables (UI_TOAST, UI_PACE, UI_LANE_GAP, UI_RANK_GAP)
 ```
 
+##### RUNNING FROM THE CANVAS #####
+
+Every pipeline ships a **default seed** — the run data it expects — declared by its builder
+(`seed` on `PipelineBuilder`) and served in `/api/pipelines/list`. The canvas loads it when you
+pick the pipeline: select `note`, and the data box already holds its document. **Run works out of
+the box; nothing to paste.**
+
+| Pipeline | Default seed |
+|---|---|
+| `doc` | `{"document":"invoice 8 total 2.50"}` |
+| `filing` | `{"source":"tests/resources/documents/filings/aapl-10k-2025.pdf"}` |
+| `note` | `{"source":"tests/resources/documents/notes/bofa-autocall-2027.pdf"}` |
+
+The paths are relative to the project root — where `make serve` runs. The data box is yours to
+edit: it saves per pipeline on every keystroke (`localStorage`, per origin — `localhost` and
+`127.0.0.1` are different storages) and survives the specs tab and pipeline switches. `run`
+refuses client-side when the seed loses a key the pipeline declares, naming what is missing
+without sending a doomed request; a pipeline with no seed never blocks.
+
 OpenAPI docs come with the server, as `DOCS_*` settings declare them: Swagger at `/docs` (also
 `/docs/redoc`, `/docs/elements`, `/docs/rapidoc`), the raw spec at `/docs/openapi.json`, and `/schema`
 as an alias — every `/schema/...` answers 307 to the same `/docs/...`. The websocket is not in them —

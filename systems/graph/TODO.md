@@ -10,6 +10,13 @@ to *see* the orchestrator at scale in the specs canvas and the lab. It should sh
 
 No new engine features are planned. Something gets built only if the map shows it is missing.
 
+## −1 · DARTSOPS (decisión de forma, 2026-10-15)
+
+Mounts at `src/e_graph/.coder/workflows/` — template-exclusive, nothing in e-engineer: a `dartsops/`
+entity (workflow.yaml + nodes/*.md, backend-agnostic; the coder — claude, opencode, cursor — reads
+the same source; a render step may adapt frontmatter later). The plan's open items (contract/eval in
+the CLI, offline reproduce, loop budget, playbook language) await Damien's answers.
+
 ## 0 · Document
 
 - [x] Source: **BofA Finance LLC, 424B2 pricing supplement, Trigger Autocallable Contingent Yield Notes linked to

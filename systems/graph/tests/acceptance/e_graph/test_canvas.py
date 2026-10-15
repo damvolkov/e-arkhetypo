@@ -57,6 +57,17 @@ async def test_picker_lists_the_discovered_pipelines(canvas: Page) -> None:
     await expect(canvas.locator(".pipeline-summary")).to_contain_text("Document intake")
 
 
+async def test_a_stale_empty_storage_never_masks_the_default_seed(canvas: Page) -> None:
+    """A failed run once stored `{}` for filing: reopening the pipeline must come back with its seed,
+    not the ghost — the default is the empty of a pipeline, not whatever a past failure left behind."""
+    await canvas.evaluate("""() => window.localStorage.setItem("e-graph:data:filing", "{}")""")
+    await canvas.get_by_label("pipeline").select_option("filing")
+    await expect(canvas.locator("textarea")).to_have_value(
+        '{"source":"tests/resources/documents/filings/aapl-10k-2025.pdf"}'
+    )
+    await canvas.evaluate("window.localStorage.clear()")
+
+
 async def test_the_pipeline_seed_arrives_with_the_pick(canvas: Page) -> None:
     """Choosing a pipeline loads its default seed: the note path is in the textarea before anyone types,
     and running the doc out of the box reaches a succeeded verdict — the canvas must never need a paste."""

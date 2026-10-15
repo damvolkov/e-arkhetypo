@@ -16,7 +16,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends git \
  && install -d -o ${HOST_UID} -g ${HOST_GID} ${HOST_HOME} ${HOST_HOME}/.cache \
  && chown -R ${HOST_UID}:${HOST_GID} /opt/openhuman/bundled-modules
 USER ${HOST_UID}:${HOST_GID}
+# The flows' code nodes inherit this PATH: python3 is the host's uv interpreter, mounted :ro from ~/.local.
 ENV HOME=${HOST_HOME} \
+    PATH=${HOST_HOME}/.local/bin:$PATH \
     OPENHUMAN_KEYRING_BACKEND=file
 # The base pins OPENHUMAN_WORKSPACE to its own dir; set, it bypasses active_user.toml and the core boots
 # signed out on an empty config. Unset, it resolves like the desktop: $HOME/.openhuman → users/<id>/.

@@ -59,7 +59,8 @@ export function PipelineView({ ui, pipelines, selected, setSelected, levels, onO
 
   useEffect(() => {
     if (selected === "") return;
-    setData(window.localStorage.getItem(`e-graph:data:${selected}`) ?? seedOf(selected));
+    const stored = window.localStorage.getItem(`e-graph:data:${selected}`);
+    setData(stored && stored !== "{}" ? stored : seedOf(selected));
     setError("");
     close.current();
     setOutcome(null);

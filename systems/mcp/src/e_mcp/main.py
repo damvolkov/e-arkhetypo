@@ -53,7 +53,7 @@ def tools(server: MCPServer, surface: EchoTools) -> MCPServer:
 
 def assemble(st: McpSettings | None = None) -> Any:
     """The ASGI app: MCP over Streamable HTTP on loopback, the bearer gate in front when a token is set."""
-    st = McpSettings.load() if st is None else st
+    st = McpSettings() if st is None else st
     ### granian imports the factory in its worker process: the logger is configured where the app runs.
     setup(env=core.app.app_env)
     quiet()

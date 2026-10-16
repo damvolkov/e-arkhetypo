@@ -1,0 +1,10 @@
+# CI reference — the features this project ships by default and the name-neutral tokens its fragments need.
+# management/`make gen` assembles .github/workflows from infra/ with this file; edit the reference, not the output.
+
+features: [ci-basics, docs, pypi, image]
+
+tokens:
+  os: "[ubuntu-latest, macos-latest, windows-latest]"
+  python: "['3.14']"
+  markers: "not slow"
+  site: site

@@ -1,0 +1,106 @@
+##### MAP #####
+# The contract management, the CLI and the wizard's CI section read: every CI feature resolves to the
+# atomic jobs it owns. Jobs are files under infra/jobs/; their text is transcribed from the real
+# workflows of the e-stack (anytomd, e-serde, e-voice, e-metaxy, e-taxis, the six systems) — a fragment
+# here that drifts from those is the bug. A feature installs INERT: its gate variable defaults false.
+#
+# fields:  label what the wizard shows · jobs which fragments it brings (workflow: [names], in order)
+#          files config/asset fragments copied verbatim · requires features or stack.* choices that must
+#          be on · gate the inert-by-default variable · vars the repo variables it reads · secrets the
+#          repo secrets it needs · setup the one-time install instructions · tokens the substitutions
+#          its fragments demand from the project's ci.defaults.yml.
+
+version: 1
+
+features:
+  ci-basics:
+    label: "static gates and the test matrix on every push and PR"
+    jobs:
+      ci: [quality, test]
+    requires: []
+    gate: null
+    vars: []
+    secrets: []
+    setup: _baseline.md
+    tokens: [os, python, markers]
+
+  docs:
+    label: "strict docs build, GitHub Pages deploy"
+    jobs:
+      ci: [docs, pages]
+    requires: [cicd.docs]
+    gate: DOCS_DEPLOY
+    vars: [DOCS_DEPLOY]
+    secrets: []
+    setup: docs.md
+    tokens: [site]
+
+  pypi:
+    label: "git-first release to PyPI through trusted publishing"
+    jobs:
+      release: [bump, build, publish]
+    requires: []
+    gate: PUBLISH_PYPI
+    vars: [PUBLISH_PYPI]
+    secrets: []
+    setup: pypi.md
+    tokens: [smoke, pypi_project]
+
+  pypi-attest:
+    label: "build provenance attested on the published artifacts"
+    jobs:
+      release: [attest]
+    requires: [pypi]
+    gate: PUBLISH_PYPI
+    vars: [PUBLISH_PYPI]
+    secrets: []
+    setup: pypi.md
+    tokens: []
+
+  image:
+    label: "container image pushed to ghcr on release"
+    jobs:
+      release: [image]
+    requires: [stack.docker]
+    gate: PUBLISH_IMAGE
+    vars: [PUBLISH_IMAGE]
+    secrets: [GITHUB_TOKEN]
+    setup: image.md
+    tokens: [brand]
+
+  frontend:
+    label: "pnpm checks and the playwright snapshot gate"
+    jobs:
+      ci: [ui, snapshots]
+    requires: []
+    gate: UI_SNAPSHOTS
+    vars: [UI_SNAPSHOTS]
+    secrets: []
+    setup: frontend.md
+    tokens: [ui_dir]
+
+  rust:
+    label: "binding: llvm-cov floor, maturin wheels, release driven by the v* tag"
+    jobs:
+      ci: [coverage]
+      release: [verify-tag, wheels, sdist, publish-tag]
+    files: [tools/coverage.py]
+    requires: [pypi]
+    gate: null
+    vars: []
+    secrets: []
+    setup: rust.md
+    tokens: [pypi_project, coverage_floor, python]
+
+  selfmaintain:
+    label: "Renovate opens the PRs, sync keeps versions true, ai-fix mends the gaps, health reports"
+    jobs:
+      ci: [upstream-context]
+      workflow: [sync, ai-fix, health]
+    files: [renovate.json, qwen.md, tools/health.py, tools/upstream.py]
+    requires: [ci-basics]
+    gate: null
+    vars: [APP_CLIENT_ID, QWEN_BASE_URL, QWEN_MODEL, QWEN_CLI_VERSION]
+    secrets: [APP_PRIVATE_KEY, QWEN_API_KEY]
+    setup: selfmaintain.md
+    tokens: [brand, package_path, allowlist]

@@ -47,14 +47,14 @@ core-check: ## fail if the materialized core/ops/adapters drifted from systems/c
 	@uv run python scripts/materialize.py --check
 
 common: ## materialize shared project files from systems/core/common into the project root
-	@cp $(COMMON_SRC)/pre-commit-config.yaml .pre-commit-config.yaml
+	@cp $(COMMON_SRC)/prek.toml prek.toml
 	@cp $(COMMON_SRC)/gitattributes .gitattributes
 	@cp $(COMMON_SRC)/python-version .python-version
 	@cp $(COMMON_SRC)/dependabot.yml .github/dependabot.yml
 	@cp $(COMMON_SRC)/CODEOWNERS .github/CODEOWNERS
 
 common-check: ## fail if the materialized shared files drifted from systems/core/common
-	@diff $(COMMON_SRC)/pre-commit-config.yaml .pre-commit-config.yaml \
+	@diff $(COMMON_SRC)/prek.toml prek.toml \
 	 && diff $(COMMON_SRC)/gitattributes .gitattributes \
 	 && diff $(COMMON_SRC)/python-version .python-version \
 	 && diff $(COMMON_SRC)/dependabot.yml .github/dependabot.yml \
@@ -75,8 +75,8 @@ arch: ## tach architecture check
 validate: ## validate pyproject
 	@uv run validate-pyproject pyproject.toml
 
-harden: ## zizmor audit of GitHub Actions workflows
-	@uv run zizmor --persona=regular .github/workflows
+harden: ## zizmor audit of GitHub Actions workflows (templates assemble them at generation)
+	@test -d .github/workflows && uv run zizmor --persona=regular .github/workflows || echo "no workflows assembled: make infra / management gen writes them"
 
 hooks: ## run all pre-commit hooks on every file (ruff, ty, tach, zizmor, gitleaks)
 	@uv run prek run --all-files

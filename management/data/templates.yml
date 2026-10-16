@@ -37,7 +37,6 @@ templates:
     ##### MANDATORY — tests that survive every selection; no choice may delete them #####
     mandatory:
       - tests/unit/conftest.py
-      - tests/unit/test_ci_contract.py
       - tests/unit/test_resources.py
       - tests/resources
       - tests/unit/e_api/conftest.py
@@ -62,9 +61,9 @@ templates:
           - {file: tach.toml, pattern: '\[\[modules\]\]\npath = "e_api\.websockets"\nlayer = "api"\ndepends_on = \["e_api\.api"\]\n\n'}
           - {file: tests/unit/e_api/api/test_assembly.py, pattern: '"/ws/telemetry", '}
 
-      # ·· infra ··
+      # ·· stack ··
       - name: docker
-        group: infra
+        group: stack
         label: container image + compose service
         default: true
         paths: [Dockerfile, compose.yml, .dockerignore]
@@ -76,8 +75,6 @@ templates:
           - {file: Makefile, pattern: '^(PORT|COMPOSE) \?=[^\n]*\n'}
           - {file: Makefile, pattern: ' up down build logs'}
           - {file: Makefile, pattern: ' up| down| build| logs'}
-          - {file: .github/workflows/release.yml, pattern: '^  image:\n[\s\S]*'}
-          - {file: .github/ci.vars.example, pattern: '^PUBLISH_IMAGE[^\n]*\n'}
           - {file: README.md, pattern: '^(Dockerfile|compose\.yml)\s+#.*\n'}
           - {file: README.md, pattern: '^make up\s+#.*\n'}
 
@@ -88,8 +85,6 @@ templates:
         default: true
         paths: [properdocs.yml, docs, scripts]
         prunes:
-          - {file: .github/workflows/ci.yml, pattern: '^  docs:\n[\s\S]*'}
-          - {file: .github/ci.vars.example, pattern: '^DOCS_DEPLOY[^\n]*\n'}
           - {file: Makefile, pattern: '^# — docs —\n[\s\S]*?(?=^# — aggregate)'}
           - {file: Makefile, pattern: ' docs-build'}
           - {file: Makefile, pattern: ' docs'}
@@ -132,7 +127,6 @@ templates:
     ##### MANDATORY — the harness and the tree contract survive every selection #####
     mandatory:
       - tests/unit/conftest.py
-      - tests/unit/test_ci_contract.py
       - tests/unit/test_resources.py
       - tests/resources
       - tests/unit/e_cli/conftest.py
@@ -142,3 +136,96 @@ templates:
     finalize: *finalize
     finalize_extra:
       - {file: Makefile, pattern: ' scripts', to: ''}
+  graph:
+    source: systems/graph
+    package: e_graph
+    brand: e-graph
+    drops: [uv.lock, scripts/materialize.py]
+    common: {root: systems/core, package: e_core, skip: [ops/tui]}
+    materials: *materials
+
+    mandatory:
+      - tests/unit/conftest.py
+      - tests/resources
+      - tests/unit/e_graph/conftest.py
+
+    choices:
+      # ·· stack ··
+      - name: docker
+        group: stack
+        label: container image + compose service
+        default: true
+        paths: [Dockerfile, compose.yml, .dockerignore]
+        prunes:
+          - {file: Makefile, pattern: '^up: core ## docker compose up[^\n]*\n(?:\t[^\n]*\n)+'}
+          - {file: Makefile, pattern: '^down: ## docker compose down\n(?:\t[^\n]*\n)+'}
+          - {file: Makefile, pattern: '^build: core ## docker image build[^\n]*\n(?:\t[^\n]*\n)+'}
+          - {file: Makefile, pattern: '^logs: ## docker compose logs[^\n]*\n(?:\t[^\n]*\n)+'}
+          - {file: Makefile, pattern: '^(PORT|COMPOSE) \?=[^\n]*\n'}
+          - {file: Makefile, pattern: ' up down build logs'}
+          - {file: Makefile, pattern: ' up| down| build| logs'}
+
+      # ·· cicd ··
+      - name: docs
+        group: cicd
+        label: generated API reference + GitHub Pages
+        default: true
+        paths: [properdocs.yml, docs, scripts]
+        prunes:
+          - {file: Makefile, pattern: '^# — docs —\n[\s\S]*?(?=^# — aggregate)'}
+          - {file: Makefile, pattern: ' docs-build'}
+          - {file: Makefile, pattern: ' docs'}
+          - {file: Makefile, pattern: ' scripts tests', to: ' tests'}
+          - {file: pyproject.toml, pattern: '^docs = \[[\s\S]*?^\]\n'}
+          - {file: pyproject.toml, pattern: '^    \{ include-group = "docs" \},\n'}
+
+    verify: *verify
+    finalize: *finalize
+
+  mcp:
+    source: systems/mcp
+    package: e_mcp
+    brand: e-mcp
+    drops: [uv.lock, scripts/materialize.py]
+    common: {root: systems/core, package: e_core, skip: [ops/tui]}
+    materials: *materials
+
+    mandatory:
+      - tests/unit/conftest.py
+      - tests/resources
+      - tests/unit/e_mcp/conftest.py
+
+    choices:
+      # ·· stack ··
+      - name: docker
+        group: stack
+        label: container image + compose service
+        default: true
+        paths: [Dockerfile, compose.yml, .dockerignore]
+        prunes:
+          - {file: Makefile, pattern: '^up: core ## docker compose up[^\n]*\n(?:\t[^\n]*\n)+'}
+          - {file: Makefile, pattern: '^down: ## docker compose down\n(?:\t[^\n]*\n)+'}
+          - {file: Makefile, pattern: '^build: core ## docker image build[^\n]*\n(?:\t[^\n]*\n)+'}
+          - {file: Makefile, pattern: '^logs: ## docker compose logs[^\n]*\n(?:\t[^\n]*\n)+'}
+          - {file: Makefile, pattern: '^(PORT|COMPOSE) \?=[^\n]*\n'}
+          - {file: Makefile, pattern: ' up down build logs'}
+          - {file: Makefile, pattern: ' up| down| build| logs'}
+
+    verify: *verify
+    finalize: *finalize
+
+  tui:
+    source: systems/tui
+    package: e_tui
+    brand: e-tui
+    drops: [uv.lock]
+    common: {root: systems/core, package: e_core}
+    materials: *materials
+
+    mandatory:
+      - tests/unit/conftest.py
+      - tests/resources
+      - tests/unit/e_tui/conftest.py
+
+    verify: *verify
+    finalize: *finalize

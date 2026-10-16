@@ -1,10 +1,10 @@
-"""ui.view: pure renderers — a Plan or a step log becomes text the screens show, nothing else."""
+"""ui.view: pure renderers — a Plan or a dependency graph becomes text the screens show, nothing else."""
 
 from typing import TYPE_CHECKING
 
 from rich.text import Text
 
-from e_management.core.plan import Action, Copy, Materialize, PrunePaths, PruneTexts, Rename
+from e_management.core.plan import Action, Copy, Generate, Materialize, PrunePaths, PruneTexts, Rename
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -19,8 +19,8 @@ TITLE: dict[str, str] = {
     "PrunePaths": "remove paths",
     "PruneTexts": "rewrite files",
     "Rename": "rename",
+    "Generate": "assemble CI",
 }
-TRAIL: dict[str, str] = {"done": "#4f6b9a", "here": "bold #e6eeff on #1d3a8a", "next": "#3a4458"}
 STATE: dict[str, tuple[str, str]] = {
     "locked": ("●", "bold #8fb2ff"),
     "detachable": ("○", "#e3b341"),
@@ -72,7 +72,7 @@ def render_map_html(graphs: Sequence[tuple[str, Graph]]) -> str:
 .mermaid{{background:#161b22;border:1px solid #30363d;border-radius:10px;padding:1rem;margin:1rem 0}}</style>
 <script>mermaid.initialize({{startOnLoad:true,theme:'dark'}});</script></head><body>
 <h1>e-templates · dependency map — AST + libcst, niveles graphlib, estado derivado de raíz</h1>
-<div class="legend"><span style="background:#1f6feb;color:#fff">● mandatory</span><span style="background:#d29922;color:#000">○ detachable</span><span style="background:#30363d;color:#8b949e">· optional</span></div>
+<div class="legend"><span style="background:#1f6feb;color:#fff">● mandatory</span><span style="background:#d29922;stroke:#e3b341;color:#000">○ detachable</span><span style="background:#30363d;color:#8b949e">· optional</span></div>
 {diagrams}
 </body></html>"""
 
@@ -107,17 +107,6 @@ def render_plan(plan: Plan) -> str:
     return "\n".join(lines)
 
 
-def render_trail(steps: tuple[str, ...], seen: tuple[str, ...], here: str) -> Text:
-    """The flow as one line: confirmed steps checked, the current one lit, the rest dim."""
-    trail = Text(no_wrap=True, overflow="ellipsis")
-    for index, step in enumerate(steps):
-        state = "here" if step == here else "done" if step in seen else "next"
-        mark = "✓ " if state == "done" else ""
-        trail.append("  →  " if index else " ", style=TRAIL["next"])
-        trail.append(f" {mark}{step.removeprefix('common-')} ", style=TRAIL[state])
-    return trail
-
-
 def _line(action: Action) -> str:
     match action:
         case Copy(src=src):
@@ -131,3 +120,5 @@ def _line(action: Action) -> str:
             return f"{TITLE['PruneTexts']}  {len(prunes)} rules over {', '.join(files)}"
         case Rename(rules=rules):
             return f"{TITLE['Rename']}  " + ", ".join(f"{rule.frm} → {rule.to}" for rule in rules)
+        case Generate(files=files):
+            return f"{TITLE['Generate']}  " + ", ".join(generated.path for generated in files)

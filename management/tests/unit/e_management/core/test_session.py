@@ -1,41 +1,40 @@
-"""tests/unit/e_management/core/session: decisions accumulate, the dynamic stage follows the session's own steps."""
+"""tests/unit/e_management/core/session: the serializable shadow of the walk — defaults, readiness, round-trip values."""
 
-from msgspec import UNSET
+import msgspec
 
-from e_management.core.session import Session, Step
+from e_management.core.session import Session
 
 
-def test_session_stage_follows_the_default_order_without_steps() -> None:
+def test_session_defaults_every_switch_on_and_ready_false() -> None:
     session = Session()
-    assert session.stage() == Step.SYSTEM
-    session.seen = (Step.SYSTEM,)
-    assert session.stage() == "modules"
-
-
-def test_session_stage_follows_dynamic_area_steps_when_present() -> None:
-    session = Session(steps=("system", "common-adapters", "common-core", "common-ops", "modules", "options", "confirm"))
-    session.seen = (Step.SYSTEM,)
-    assert session.stage() == "common-adapters"
-    session.seen = ("system", "common-adapters", "common-core")
-    assert session.stage() == "common-ops"
-
-
-def test_session_rests_on_confirm_when_every_step_seen() -> None:
-    session = Session(
-        steps=("system", "modules", "options", "confirm"), seen=("system", "modules", "options", "confirm")
-    )
-    assert session.stage() == "confirm"
-
-
-def test_session_ready_only_with_mandatory_decisions() -> None:
-    session = Session(template="api", name="myapp")
+    assert session.template == session.name == session.dest == ""
+    assert session.off == session.drop == session.ci_off == ()
+    assert session.at == ""
+    assert session.trail == ()
+    assert session.answers == {}
     assert session.ready is False
-    assert session.dest is UNSET
-    session.dest = "somewhere"
-    assert session.ready is True
 
 
-def test_session_defaults_all_common_units_on() -> None:
-    session = Session()
-    assert session.drop == ()
-    assert session.verify_tests is True
+def test_session_is_ready_only_with_template_name_and_destination() -> None:
+    assert Session(template="api", name="myapp").ready is False
+    assert Session(template="api", name="myapp", dest="../e-myapp").ready is True
+
+
+def test_session_carries_unit_tests_on_by_default() -> None:
+    assert Session().verify_tests is True
+
+
+def test_session_round_trips_through_json_values(tmp_path) -> None:
+
+    session = Session(
+        template="api",
+        name="myapp",
+        off=("websockets",),
+        drop=("adapters/redis", "core/proxy"),
+        ci_off=("docs",),
+        dest=str(tmp_path / "e-myapp"),
+        at="tools-core",
+        trail=("system", "name"),
+        answers={"system": ("api",), "name": ("myapp",)},
+    )
+    assert msgspec.json.decode(msgspec.json.encode(session), type=Session) == session

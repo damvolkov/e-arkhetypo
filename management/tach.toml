@@ -9,7 +9,7 @@ root_module = "forbid"
 
 ##### LAYERS #####
 # Ordered high → low: a layer may import lower layers, importing upward fails.
-layers = ["entry", "adapters", "core", "ops", "models"]
+layers = ["entry", "adapters", "core", "widgets", "ops", "models"]
 
 [rules]
 unused_ignore_directives = "error"
@@ -53,4 +53,9 @@ depends_on = []
 [[modules]]
 path = "e_management.models"
 layer = "models"
+depends_on = []
+
+[[modules]]
+path = "e_tui"
+layer = "widgets"
 depends_on = []

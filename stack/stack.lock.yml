@@ -1,0 +1,451 @@
+schema: 1
+root: stack
+categories:
+- agent
+- cdb
+- front
+- llm
+- media
+- mem
+- rag
+- rdb
+- speech
+- storage
+- tools
+- vdb
+- watch
+inputs_hash: "282831abc3616f175614e45b577dfd00e90d3fd32e0235acd00a6b6e3bcef4e3"
+services:
+- name: openhuman
+  category: agent
+  compose: stack/agent/openhuman/compose.yml
+  files:
+  - stack/agent/openhuman/.env.example
+  - stack/agent/openhuman/Dockerfile
+  - stack/agent/openhuman/README.md
+  - stack/agent/openhuman/build.sh
+  - stack/agent/openhuman/openhuman-ui
+  - stack/agent/openhuman/openhuman.desktop
+  - stack/agent/openhuman/ui/Dockerfile
+  - stack/agent/openhuman/ui/nginx.conf.template
+  - stack/agent/openhuman/vault-ingest/vault-ingest
+  - stack/agent/openhuman/vault-ingest/vault-ingest.path
+  - stack/agent/openhuman/vault-ingest/vault-ingest.service
+  port: 7788
+  depends: []
+  dependents: []
+  closure: []
+  level: 0
+- name: redis
+  category: cdb
+  compose: stack/cdb/redis/compose.yml
+  files:
+  - stack/cdb/redis/redis.conf
+  port: 6379
+  depends: []
+  dependents: []
+  closure: []
+  level: 0
+- name: openwebui
+  category: front
+  compose: stack/front/openwebui/compose.yml
+  files:
+  - stack/front/openwebui/static/custom.css
+  - stack/front/openwebui/static/favicon-96x96.png
+  - stack/front/openwebui/static/favicon-dark.png
+  - stack/front/openwebui/static/favicon.png
+  - stack/front/openwebui/static/favicon.svg
+  - stack/front/openwebui/static/logo.png
+  - stack/front/openwebui/static/logo.svg
+  port: 8080
+  depends:
+  - docling
+  - embed
+  - kokoro
+  - playwright
+  - qdrant
+  - searxng
+  - vllm
+  dependents: []
+  closure:
+  - docling
+  - embed
+  - kokoro
+  - phoenix
+  - playwright
+  - qdrant
+  - searxng
+  - vllm
+  - yacy
+  level: 2
+- name: clef
+  category: llm
+  compose: stack/llm/clef/compose.yml
+  files: []
+  port: 8081
+  depends: []
+  dependents:
+  - jev
+  closure: []
+  level: 0
+- name: ellm
+  category: llm
+  compose: stack/llm/ellm/compose.yml
+  files:
+  - stack/llm/ellm/config.yaml
+  port: 80
+  depends: []
+  dependents: []
+  closure: []
+  level: 0
+- name: embed
+  category: llm
+  compose: stack/llm/embed/compose.yml
+  files: []
+  port: 80
+  depends: []
+  dependents:
+  - agentmemory
+  - cortexdb
+  - mem0
+  - openwebui
+  - stirling
+  closure: []
+  level: 0
+- name: jev
+  category: llm
+  compose: stack/llm/jev/compose.yml
+  files: []
+  port: 45160
+  depends:
+  - clef
+  - phoenix
+  - vllm
+  dependents: []
+  closure:
+  - clef
+  - phoenix
+  - vllm
+  level: 2
+- name: llamacpp
+  category: llm
+  compose: stack/llm/llamacpp/compose.yml
+  files:
+  - stack/llm/llamacpp/setup.sh
+  port: 8080
+  depends: []
+  dependents: []
+  closure: []
+  level: 0
+- name: strata
+  category: llm
+  compose: stack/llm/strata/compose.yml
+  files:
+  - stack/llm/strata/setup.sh
+  port: 8000
+  depends: []
+  dependents: []
+  closure: []
+  level: 0
+- name: vllm
+  category: llm
+  compose: stack/llm/vllm/compose.yml
+  files: []
+  port: 8000
+  depends:
+  - phoenix
+  dependents:
+  - agentmemory
+  - cortexdb
+  - jev
+  - mem0
+  - openwebui
+  - stirling
+  closure:
+  - phoenix
+  level: 1
+- name: livekit
+  category: media
+  compose: stack/media/livekit/compose.yml
+  files:
+  - stack/media/livekit/livekit.yaml
+  port: 7880
+  depends: []
+  dependents: []
+  closure: []
+  level: 0
+- name: sip
+  category: media
+  compose: stack/media/sip/compose.yml
+  files: []
+  port: 5060
+  depends: []
+  dependents: []
+  closure: []
+  level: 0
+- name: agentmemory
+  category: mem
+  compose: stack/mem/agentmemory/compose.yml
+  files: []
+  port: 3111
+  depends:
+  - embed
+  - vllm
+  dependents: []
+  closure:
+  - embed
+  - phoenix
+  - vllm
+  level: 2
+- name: cortexdb
+  category: mem
+  compose: stack/mem/cortexdb/compose.yml
+  files:
+  - stack/mem/cortexdb/cortex.toml
+  - stack/mem/cortexdb/mirror.py
+  port: 3141
+  depends:
+  - embed
+  - vllm
+  dependents: []
+  closure:
+  - embed
+  - phoenix
+  - vllm
+  level: 2
+- name: mem0
+  category: mem
+  compose: stack/mem/mem0/compose.yml
+  files:
+  - stack/mem/mem0/Dockerfile
+  - stack/mem/mem0/config.json
+  - stack/mem/mem0/launch.py
+  port: 8888
+  depends:
+  - embed
+  - vllm
+  dependents: []
+  closure:
+  - embed
+  - phoenix
+  - vllm
+  level: 2
+- name: docling
+  category: rag
+  compose: stack/rag/docling/compose.yml
+  files: []
+  port: 5001
+  depends: []
+  dependents:
+  - openwebui
+  closure: []
+  level: 0
+- name: pipelines
+  category: rag
+  compose: stack/rag/pipelines/compose.yml
+  files: []
+  port: 9099
+  depends: []
+  dependents: []
+  closure: []
+  level: 0
+- name: playwright
+  category: rag
+  compose: stack/rag/playwright/compose.yml
+  files: []
+  port: 3000
+  depends: []
+  dependents:
+  - openwebui
+  closure: []
+  level: 0
+- name: searxng
+  category: rag
+  compose: stack/rag/searxng/compose.yml
+  files:
+  - stack/rag/searxng/limiter.toml
+  - stack/rag/searxng/settings.yml
+  port: 8080
+  depends:
+  - yacy
+  dependents:
+  - openwebui
+  closure:
+  - yacy
+  level: 1
+- name: yacy
+  category: rag
+  compose: stack/rag/yacy/compose.yml
+  files: []
+  port: 8090
+  depends: []
+  dependents:
+  - searxng
+  closure: []
+  level: 0
+- name: postgres
+  category: rdb
+  compose: stack/rdb/postgres/compose.yml
+  files: []
+  port: 5432
+  depends: []
+  dependents:
+  - stirling
+  closure: []
+  level: 0
+- name: evoice
+  category: speech
+  compose: stack/speech/evoice/compose.yml
+  files:
+  - stack/speech/evoice/config.yaml
+  port: 80
+  depends: []
+  dependents: []
+  closure: []
+  level: 0
+- name: fwhisper
+  category: speech
+  compose: stack/speech/fwhisper/compose.yml
+  files: []
+  port: 8000
+  depends: []
+  dependents: []
+  closure: []
+  level: 0
+- name: kokoro
+  category: speech
+  compose: stack/speech/kokoro/compose.yml
+  files: []
+  port: 8880
+  depends: []
+  dependents:
+  - openwebui
+  closure: []
+  level: 0
+- name: speaches
+  category: speech
+  compose: stack/speech/speaches/compose.yml
+  files:
+  - stack/speech/speaches/entrypoint.sh
+  port: 8000
+  depends: []
+  dependents: []
+  closure: []
+  level: 0
+- name: wlive
+  category: speech
+  compose: stack/speech/wlive/compose.yml
+  files: []
+  port: 9090
+  depends: []
+  dependents: []
+  closure: []
+  level: 0
+- name: minio
+  category: storage
+  compose: stack/storage/minio/compose.yml
+  files: []
+  port: 9000
+  depends: []
+  dependents: []
+  closure: []
+  level: 0
+- name: stirling
+  category: tools
+  compose: stack/tools/stirling/compose.yml
+  files:
+  - stack/tools/stirling/.env.example
+  port: 8080
+  depends:
+  - embed
+  - postgres
+  - vllm
+  dependents: []
+  closure:
+  - embed
+  - phoenix
+  - postgres
+  - vllm
+  level: 2
+- name: qdrant
+  category: vdb
+  compose: stack/vdb/qdrant/compose.yml
+  files:
+  - stack/vdb/qdrant/config.yaml
+  port: 6333
+  depends: []
+  dependents:
+  - openwebui
+  closure: []
+  level: 0
+- name: grafana
+  category: watch
+  compose: stack/watch/grafana/compose.yml
+  files:
+  - stack/watch/grafana/provisioning/datasources/datasources.yaml
+  port: 3000
+  depends:
+  - jaeger
+  - loki
+  - prometheus
+  dependents: []
+  closure:
+  - jaeger
+  - loki
+  - prometheus
+  level: 1
+- name: jaeger
+  category: watch
+  compose: stack/watch/jaeger/compose.yml
+  files: []
+  port: 16686
+  depends: []
+  dependents:
+  - grafana
+  closure: []
+  level: 0
+- name: loki
+  category: watch
+  compose: stack/watch/loki/compose.yml
+  files: []
+  port: 3100
+  depends: []
+  dependents:
+  - grafana
+  - otel-collector
+  closure: []
+  level: 0
+- name: otel-collector
+  category: watch
+  compose: stack/watch/otel-collector/compose.yml
+  files:
+  - stack/watch/otel-collector/otel-collector-config.yaml
+  port: 4317
+  depends:
+  - loki
+  dependents: []
+  closure:
+  - loki
+  level: 1
+- name: phoenix
+  category: watch
+  compose: stack/watch/phoenix/compose.yml
+  files: []
+  port: 6006
+  depends: []
+  dependents:
+  - jev
+  - vllm
+  closure: []
+  level: 0
+- name: prometheus
+  category: watch
+  compose: stack/watch/prometheus/compose.yml
+  files:
+  - stack/watch/prometheus/prometheus.yml
+  port: 9090
+  depends: []
+  dependents:
+  - grafana
+  closure: []
+  level: 0

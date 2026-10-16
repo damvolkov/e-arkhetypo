@@ -25,3 +25,21 @@ def test_main_gen_creates_and_reports_next(tmp_path: Path, capsys) -> None:
 def test_main_drift_is_in_sync(capsys) -> None:
     assert main(["drift"]) == 0
     assert "api: in sync" in capsys.readouterr().out
+
+
+def test_main_graph_and_checks_pass(tmp_path: Path, capsys, monkeypatch) -> None:
+    assert main(["graph"]) == 0
+    assert "wrote" in capsys.readouterr().out
+    assert main(["graph-check"]) == 0
+    assert "in sync" in capsys.readouterr().out
+    assert main(["infra-check"]) == 0
+    assert main(["stack"]) == 0
+    assert main(["stack-check"]) == 0
+    monkeypatch.setattr("e_management.__main__.webbrowser.open", lambda _uri: True)
+    assert main(["map", "api"]) == 0
+
+
+def test_main_plan_honours_the_switches(tmp_path: Path, capsys) -> None:
+    assert main(["plan", "api", "xapp", "--off", "websockets", "--ci-off", "docs"]) == 0
+    out = capsys.readouterr().out
+    assert "systems/api" in out

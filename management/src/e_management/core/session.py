@@ -1,42 +1,29 @@
-"""core.session: the wizard's accumulated decisions as one typed value — nothing touches the filesystem until the plan runs."""
+"""core.session: the serializable shadow of the walk — what the draft stores and what a restart re-seeds.
 
-from pathlib import Path
+The live truth is ``FlowState`` (cursor, trail, per-page answers); this is the snapshot: enough to
+rebuild the same graph and place the cursor back on the same page with the same answers. Every
+decision the wizard takes lands here at ``<section>.<key>`` names, the same the hooks write."""
 
-from msgspec import UNSET, Struct, UnsetType
-
+from msgspec import Struct
 
 ##### TYPES #####
-class Step:
-    """The wizard's stages, in order: pick a system, shape its modules, its infra and its CI, confirm."""
-
-    SYSTEM = "system"
-    MODULES = "modules"
-    OPTIONS = "options"
-    CONFIRM = "confirm"
-    ORDER: tuple[str, ...] = (SYSTEM, MODULES, OPTIONS, CONFIRM)
 
 
 class Session(Struct, kw_only=True):
-    """Every decision made so far. Mutable on purpose: screens fill it stage by stage; back never erases what still holds."""
+    """Every decision taken so far — plain values, msgspec-round-trip, the draft's whole payload."""
 
-    template: str | UnsetType = UNSET
-    name: str | UnsetType = UNSET
+    template: str = ""
+    name: str = ""
     off: tuple[str, ...] = ()
     drop: tuple[str, ...] = ()
-    steps: tuple[str, ...] = ()
-    dest: str | UnsetType = UNSET
-    seen: tuple[str, ...] = ()
+    ci_off: tuple[str, ...] = ()
+    dest: str = ""
+    at: str = ""
+    trail: tuple[str, ...] = ()
+    answers: dict[str, tuple[str, ...]] = {}
     verify_tests: bool = True
 
     @property
     def ready(self) -> bool:
-        """All mandatory decisions are taken: the plan can be previewed and applied."""
-        return not (self.template is UNSET or self.name is UNSET or self.dest is UNSET)
-
-    def stage(self) -> str:
-        """The next unconfirmed stage of this session's own flow (dynamic areas included)."""
-        flow = self.steps or Step.ORDER
-        return next((step for step in flow if step not in self.seen), flow[-1])
-
-    def target(self) -> Path:
-        return Path(str(self.dest))
+        """Enough is decided to build the project: the name and where it goes."""
+        return bool(self.template and self.name and self.dest)

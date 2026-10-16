@@ -54,7 +54,7 @@ dev = [
 required-version = ">=0.12"
 default-groups = ["dev"]
 exclude-newer = "7 days"
-exclude-newer-package = { "e-serde" = "2100-01-01T00:00:00Z" }
+exclude-newer-package = { "e-serde" = "2100-01-01T00:00:00Z", "anytomd" = "2100-01-01T00:00:00Z", "liteparse" = "2100-01-01T00:00:00Z", "openai" = "2100-01-01T00:00:00Z" }
 
 ##### VERSION #####
 [tool.hatch.version]
@@ -67,7 +67,7 @@ bump = true
 fallback-version = "0.0.0"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/e_management", "src/ops"]
+packages = ["src/e_management", "src/ops", "src/e_tui"]
 
 ##### LINT #####
 [tool.ruff]
@@ -89,11 +89,15 @@ ignore = ["E501", "ISC001", "PLR0913"]
 "src/e_management/__main__.py" = ["T20"]
 ### msgspec resolves Struct annotations at runtime — type-checking imports would break the schemas.
 "src/e_management/core/plan.py" = ["TC001", "TC002", "TC003"]
+"src/e_management/adapters/draft.py" = ["TC001"]
+"src/e_management/adapters/infra.py" = ["TC001", "TC003"]
+"src/e_management/core/infra.py" = ["TC001", "TC003"]
+"src/e_management/ops/stack.py" = ["S104"]
 ### NON_SERVICE is an exclusion vocabulary for host tokens, not a socket bind.
 "src/ops/compose.py" = ["S104"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["e_management", "ops"]
+known-first-party = ["e_management", "ops", "e_tui"]
 
 [tool.ruff.lint.flake8-tidy-imports]
 ban-relative-imports = "all"

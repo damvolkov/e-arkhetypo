@@ -1,0 +1,34 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended", ":dependencyDashboard"],
+  "enabledManagers": ["pep621", "github-actions", "uv"],
+  "schedule": ["before 6am on monday"],
+  "prConcurrentLimit": 3,
+  "abandonmentThreshold": "1 year",
+  "rangeStrategy": "bump",
+  "lockFileMaintenance": { "enabled": false },
+  "packageRules": [
+    {
+      "description": "Runtime deps: one PR per package, CI judges them.",
+      "matchManagers": ["pep621", "uv"],
+      "matchCategories": ["runtime"],
+      "labels": ["tooling"],
+      "automerge": false
+    },
+    {
+      "description": "Python tooling: one weekly PR.",
+      "matchManagers": ["pep621"],
+      "matchDepTypes": ["dependency-groups"],
+      "groupName": "python tooling",
+      "labels": ["tooling"]
+    },
+    {
+      "description": "Workflow actions stay pinned by digest; one monthly PR.",
+      "matchManagers": ["github-actions"],
+      "groupName": "github actions",
+      "pinDigests": true,
+      "schedule": ["before 6am on the first day of the month"],
+      "labels": ["tooling"]
+    }
+  ]
+}

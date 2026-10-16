@@ -36,17 +36,32 @@ def _write_map(root: Path, spec: Manifest, names: Sequence[str]) -> Path:
     return out
 
 
-def _run(args: argparse.Namespace) -> int:
+def _run(args: argparse.Namespace) -> int:  # noqa: PLR0912 — the verbs are the function: one branch per command, and it renders nothing.
     spec = commands.registry(args.manifest)
     match args.command:
         case "ui":
             ManagementApp(spec, args.root, MANAGEMENT / "data" / "draft.json").run()
         case "plan":
-            actions = commands.plan(args.root, spec, args.template, args.name, off=_off(args.off), drop=_off(args.drop))
+            actions = commands.plan(
+                args.root,
+                spec,
+                args.template,
+                args.name,
+                off=_off(args.off),
+                drop=_off(args.drop),
+                ci_off=_off(args.ci_off),
+            )
             print(json.dumps(msgspec.to_builtins(actions), indent=2))
         case "gen":
             dest = commands.gen(
-                args.root, spec, args.template, args.name, args.dest.resolve(), off=_off(args.off), drop=_off(args.drop)
+                args.root,
+                spec,
+                args.template,
+                args.name,
+                args.dest.resolve(),
+                off=_off(args.off),
+                drop=_off(args.drop),
+                ci_off=_off(args.ci_off),
             )
             print(f"created {dest}\nnext: cd {dest} && make install")
         case "drift":
@@ -74,6 +89,11 @@ def _run(args: argparse.Namespace) -> int:
             issues = commands.stack_drift(args.root)
             print(f"stack: {'in sync' if not issues else chr(10).join('  ' + i for i in issues)}")
             return int(bool(issues))
+        case "infra-check":
+            report = commands.infra_check(args.root, spec)
+            for name, issues in report.items():
+                print(f"{name}: {'in sync' if not issues else chr(10).join('  ' + i for i in issues)}")
+            return int(any(report.values()))
     return 0
 
 
@@ -89,6 +109,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         sub.add_argument("name")
         sub.add_argument("--off", default="", help="comma-separated choices to drop")
         sub.add_argument("--drop", default="", help="comma-separated common units to drop (area/unit)")
+        sub.add_argument("--ci-off", default="", help="comma-separated CI features to drop")
         if name == "gen":
             sub.add_argument("--dest", type=Path, required=True)
     subs.add_parser("drift")
@@ -96,6 +117,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     subs.add_parser("graph-check")
     subs.add_parser("stack")
     subs.add_parser("stack-check")
+    subs.add_parser("infra-check")
     mp = subs.add_parser("map")
     mp.add_argument("template", nargs="?", default="", help="a system name (default: every system)")
     args = parser.parse_args(list(argv) if argv is not None else None)

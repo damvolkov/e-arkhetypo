@@ -26,6 +26,9 @@ dependencies = [
     ##### core #####
     "structlog>=26.1",
     "msgspec>=0.21",
+    "pydantic>=2.10",
+    "pydantic-settings>=2.6",
+    "pyyaml>=6.0",
     "e-serde>=0.5",
     "anyio>=4.15.1",
     "beartype>=0.22.9",

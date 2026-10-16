@@ -6,7 +6,7 @@ areas:
 - adapters
 - core
 - ops
-inputs_hash: "04402545b648b999b1caae6cd6c096d689c276ed2e90bd9462178cffc8f45df2"
+inputs_hash: "07e8e942340f14529d867665ba7853bc2ae80311dea1b67525883540b352c665"
 units:
 - key: adapters/base
   area: adapters

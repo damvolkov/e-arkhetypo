@@ -7,7 +7,7 @@ areas:
 - core
 - ops
 - processors
-inputs_hash: be22f41b54abdd6c2777413d2a761c25d34beaf4a3470a9866061e00d263e78c
+inputs_hash: "5ed37989166c2154b91f5acce208fe1b82e41a5b2339d45fb98671a5054258ba"
 units:
 - key: adapters/base
   area: adapters

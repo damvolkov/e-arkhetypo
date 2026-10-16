@@ -48,6 +48,7 @@ dependencies = [
     "beartype>=0.22.9",
     ##### documents — liteparse (Rust, in-process) first, docling-serve for what it reads better; polars frames #####
     "liteparse>=2.14",
+    "anytomd[full]>=1.3.1.post2,<1.4",
     "polars>=2.0",
 ]
 
@@ -93,7 +94,7 @@ default-groups = ["dev"]
 exclude-newer = "7 days"
 ### pytest-resources is first-party and can publish same-day; exempt it from the freshness guard.
 ### e-serde is likewise first-party (the spec decoder); exempt it too.
-exclude-newer-package = { "pytest-resources" = "2100-01-01T00:00:00Z", "e-serde" = "2100-01-01T00:00:00Z" }
+exclude-newer-package = { "pytest-resources" = "2100-01-01T00:00:00Z", "e-serde" = "2100-01-01T00:00:00Z", "anytomd" = "2100-01-01T00:00:00Z", "liteparse" = "2100-01-01T00:00:00Z", "openai" = "2100-01-01T00:00:00Z" }
 ### pytest-textual-snapshot pins syrupy==4.8 (needs pytest<9); this house runs pytest>=9.1.
 ### syrupy 6.1 verified compatible with the plugin at runtime — override the stale pin.
 override-dependencies = ["syrupy>=6.1"]

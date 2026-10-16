@@ -1,4 +1,4 @@
-"""processors/models: what the processors hand out — a document read, engine-neutral, typed.
+"""processors/models: what the processors hand out — a document read, or the Markdown a file becomes, both typed.
 
 Interior data built by code: frozen, slotted dataclasses, never a boundary model. Whoever read a page
 (liteparse or docling, see `Page.backend`), its objects look the same: every one keeps its `ref` — the
@@ -106,3 +106,19 @@ class Document:
     def deep(self) -> tuple[int, ...]:
         """The pages docling read."""
         return tuple(page.number for page in self.pages if page.backend is Backend.DOCLING)
+
+
+##### MARKDOWN #####
+@dataclass(frozen=True, slots=True)
+class MarkdownFile:
+    """One file rendered to Markdown: the name it ships under, the text, and the format it was detected as
+    (`source` is anytomd's own vocabulary — `pdf`, `docx`, `py`, `png`, …). `path` is where it sat inside a ZIP,
+    empty for a file given whole; `warnings` are the engine's notes; `error` names why the engine produced
+    nothing for it (empty on success) — a failed member of an archive never sinks the rest."""
+
+    name: str
+    markdown: str
+    source: str
+    warnings: tuple[str, ...] = ()
+    path: str = ""
+    error: str = ""

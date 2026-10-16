@@ -26,6 +26,9 @@ URL = os.environ.get("CORTEX_URL", "http://cortexdb:3141").rstrip("/")
 KEY = os.environ["CORTEX_API_KEY"]
 SCOPES = [s.strip() for s in os.environ.get("MIRROR_SCOPES", "app:tinymemory/source:files/app:documents").split(",") if s.strip()]
 EVERY = int(os.environ.get("MIRROR_EVERY", "600"))
+#: Seconds before a failed pass is retried: after a reboot the daemon restarts every container at once
+#: (depends_on only orders `compose up`), so the first pass can meet a CortexDB still starting.
+RETRY = int(os.environ.get("MIRROR_RETRY", "15"))
 VAULT = Path(os.environ.get("MIRROR_VAULT", "/vault"))
 OUT = Path(os.environ.get("MIRROR_DIR", "/mirror"))
 SOURCES = dict(pair.split("=", 1) for pair in os.environ.get("MIRROR_SOURCES", "").split(",") if "=" in pair)
@@ -284,9 +287,11 @@ def main() -> None:
     while not stop.is_set():
         try:
             mirror.once()
-        except Exception as error:  # a pass that fails is retried at the next tick, never fatal
-            log.warning("pass failed: %s", error)
-        stop.wait(EVERY)
+            wait = EVERY
+        except Exception as error:  # a pass that fails is retried soon, never fatal
+            log.warning("pass failed, retrying in %ds: %s", RETRY, error)
+            wait = RETRY
+        stop.wait(wait)
     log.info("stopped")
 
 

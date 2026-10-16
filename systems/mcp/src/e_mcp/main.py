@@ -74,4 +74,4 @@ def assemble(st: McpSettings | None = None) -> Any:
         case None:
             return app
         case token:
-            return TokenGuard(app, token.reveal())
+            return TokenGuard(app, token.get_secret_value())

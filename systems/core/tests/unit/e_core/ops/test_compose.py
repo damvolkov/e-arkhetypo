@@ -50,6 +50,16 @@ async def test_merge_tree_imposes_identity_and_volumes(tool: StackCompose, snap:
     assert "volumes" not in doc
 
 
+async def test_merge_expands_includes_the_way_compose_does(tmp_path: Path) -> None:
+    """``include:`` in a tree service splices the fragment in — fragments first, the including body after."""
+    service = tmp_path / "llm" / "bridge"
+    service.mkdir(parents=True)
+    (service / "sidecar.yml").write_text("services:\n  proxy:\n    image: envoy\n")
+    (service / "compose.yml").write_text("include:\n  - sidecar.yml\nservices:\n  bridge:\n    image: env\n")
+    merged = StackCompose(tmp_path).merge()
+    assert set(merged.services) == {"bridge", "proxy"}
+
+
 async def test_merge_documents_unions_and_collides(
     fragments: dict[str, dict], snap: Callable[[str, bytes], None]
 ) -> None:
@@ -144,7 +154,7 @@ async def test_merged_is_deterministic_and_idempotent(tool: StackCompose) -> Non
 async def test_full_stack(repo: Path, snap: Callable[[str, bytes], None]) -> None:
     """The whole real stack through the tool: catalog with resolved edges and the merged model, pinned."""
     live = StackCompose(repo / "stack")
-    assert len(live.discover(dependencies=True)) == 31
+    assert len(live.discover(dependencies=True)) == 35
     merged = live.merge()
     snap("full_stack", merged.snapshot())
     assert list(merged.services) == sorted(merged.services)

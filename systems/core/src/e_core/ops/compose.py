@@ -169,7 +169,21 @@ class StackCompose:
                         raise ComposeError(msg)
 
     def _merge_load(self, entries: list[tuple[str, Path]]) -> list[dict[str, Any]]:
-        return [eserde.load(directory / COMPOSE_FILE, format="yaml") for _, directory in entries]
+        return [document for _, directory in entries for document in self._compose_of(directory / COMPOSE_FILE)]
+
+    def _compose_of(self, path: Path) -> list[dict[str, Any]]:
+        """One compose file as documents, with ``include:`` spliced in the way docker compose does it:
+        every included fragment first, the including body after — includes nest."""
+        document = eserde.load(path, format="yaml")
+        match document.get("include"):
+            case None:
+                return [document]
+            case names:
+                body = {key: value for key, value in document.items() if key != "include"}
+                return [
+                    *(part for name in names for part in self._compose_of((path.parent / name).resolve())),
+                    *([body] if body else []),
+                ]
 
     def _merge_service(self, base: dict[str, Any], over: Mapping[str, Any]) -> dict[str, Any]:
         out = dict(base)

@@ -148,5 +148,7 @@ class MDProcessor:
                 files = await self._fan_out(raw)
             case fmt:
                 files = [await self._render(raw, label, fmt)]
-        logger.info("markdown rendered", name=label, source=files[0].source if files else "", files=len(files), step="MD")
+        logger.info(
+            "markdown rendered", name=label, source=files[0].source if files else "", files=len(files), step="MD"
+        )
         return files

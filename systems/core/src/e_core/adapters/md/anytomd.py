@@ -57,8 +57,14 @@ class AnytomdAdapter(BaseAdapter):
 
     async def connect(self) -> None:
         conf = self._conf
-        self._pdf = PdfConverter(ocr=conf.md_pdf_ocr, language=conf.md_pdf_language, workers=conf.md_pdf_workers or None)
-        self._describer = self._common_vision() if conf.md_image_describe else None
+        self._pdf = PdfConverter(
+            ocr=conf.md_pdf_ocr, language=conf.md_pdf_language, workers=conf.md_pdf_workers or None
+        )
+        ### vision is best-effort: without a key there is nothing to describe with, so images keep their
+        ### bare `![]` reference rather than bricking startup.
+        self._describer = (
+            self._common_vision() if conf.md_image_describe and conf.md_vision_api_key is not None else None
+        )
 
     async def close(self) -> None:
         aclose = getattr(self._describer, "aclose", None)

@@ -94,6 +94,14 @@ async def test_the_vision_describer_is_wired_from_settings(engine: None) -> None
     assert (convert.calls or (None, None, {}))[2]["async_image_describer"] is not None
 
 
+async def test_describe_without_a_key_leaves_images_undescribed(engine: None) -> None:
+    ### md_image_describe is on by default; with no key the adapter must not build (or require) one.
+    async with adapter(md_image_describe=True) as a:
+        assert a._describer is None
+        await a.convert(b"png", extension="png")
+    assert (convert.calls or (None, None, {}))[2]["async_image_describer"] is None
+
+
 async def test_a_pdf_needs_the_lifespan_to_open_the_converter(engine: None) -> None:
     a = adapter()
     with pytest.raises(RuntimeError, match="not connected"):

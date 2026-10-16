@@ -1,0 +1,72 @@
+services:
+  stirling:
+    # latest-fat = motor de IA embebido en la propia imagen; solo arranca con AIENGINE_ENABLED=true
+    # Gotcha 3.2.0 (tambien en main): el manifiesto de capacidades del motor declara rutas
+    #   distintas de sus routers (/api/v1/pdf-question vs /api/v1/pdf/questions), asi que las
+    #   capabilities MCP pdf-question-answer / pdf-edit-plan / pdf-comment-generate / agent-*
+    #   devuelven 404 por dentro. math-audit y next-action si enrutaban; por la UI y el resto de capabilities todo funciona.
+    image: docker.stirlingpdf.com/stirlingtools/stirling-pdf:latest-fat
+    container_name: stirling
+    hostname: stirling
+    restart: unless-stopped
+    labels:
+      stack.category: "tools"
+      stack.port: "8080"
+    ports:
+      # UI + API REST + MCP (/mcp) en el mismo 8080 — choca con llamacpp/searxng/openwebui: usa STIRLING_PORT
+      - "${STIRLING_PORT:-8080}:8080"
+    environment:
+      # Login: necesario para las API keys del MCP y para preguntas sobre documentos.
+      # initialLogin solo vale en el primer arranque (BD de usuarios vacia): elige tu admin
+      # y evitas el cambio de password forzado del admin por defecto (admin/stirling).
+      - SECURITY_ENABLELOGIN=true
+      - SECURITY_INITIALLOGIN_USERNAME=${STIRLING_ADMIN_USER:-admin}
+      - SECURITY_INITIALLOGIN_PASSWORD=${STIRLING_ADMIN_PASSWORD:-stirling}
+      # Clave global: un solo X-API-KEY para REST y MCP sin crear claves por usuario
+      - SECURITY_CUSTOMGLOBALAPIKEY=${STIRLING_API_KEY:-}
+      # MCP: las tools de Stirling sobre Streamable HTTP en /mcp, con API key de usuario Stirling
+      - MCP_ENABLED=true
+      - MCP_AUTH_MODE=apikey
+      # --- Motor de IA embebido (fat) ---
+      - AIENGINE_ENABLED=true
+      # LLM: slot OpenAI-compatible (strata|vllm), proveedor custom = base URL + clave
+      - AIENGINE_MODELS_PROVIDER=custom
+      - AIENGINE_MODELS_BASEURL=${LLM_BASE_URL:-http://vllm:8000/v1}
+      - AIENGINE_MODELS_APIKEY=${LLM_API_KEY:-local-dev}
+      - AIENGINE_MODELS_SMARTMODEL=${LLM_SMART_MODEL:-demian-model}
+      - AIENGINE_MODELS_FASTMODEL=${LLM_FAST_MODEL:-demian-model}
+      # Embeddings (RAG): el servidor de embeddings del stack, vía su endpoint OpenAI-compatible
+      - AIENGINE_RAG_EMBEDDINGPROVIDER=custom
+      - AIENGINE_RAG_EMBEDDINGBASEURL=${EMBEDDING_BASE_URL:-http://embed:80/v1}
+      - AIENGINE_RAG_EMBEDDINGAPIKEY=${EMBEDDING_API_KEY:-local-dev}
+      - AIENGINE_RAG_EMBEDDINGMODEL=${EMBEDDING_MODEL:-Qwen/Qwen3-Embedding-0.6B}
+      # Documento store del motor: sqlite embebido por defecto (levanta solo).
+      # pgvector sobre rdb/postgres: backend=pgvector, DSN abajo y la BD con la extension creada.
+      - STIRLING_DOCUMENTS_BACKEND=${STIRLING_BACKEND:-sqlite}
+      - STIRLING_DOCUMENTS_PGVECTOR_DSN=${STIRLING_PGVECTOR_DSN:-}
+    volumes:
+      - stirling-configs:/configs
+      - stirling-logs:/logs
+      - stirling-pipeline:/pipeline
+      # data del motor embebido (store vectorial + settings AI): los volumenes estandar no la cubren
+      - stirling-engine-data:/opt/stirling-engine/data
+    # el motor necesita apagado limpio; la UI tarda (>1 min) en el arranque fat
+    stop_grace_period: 30s
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8080/api/v1/info/status || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 90s
+    networks:
+      - stack
+
+volumes:
+  stirling-configs:
+  stirling-logs:
+  stirling-pipeline:
+  stirling-engine-data:
+
+networks:
+  stack:
+    name: stack

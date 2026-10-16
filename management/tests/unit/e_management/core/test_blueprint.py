@@ -17,7 +17,7 @@ SYNTH = Template(
     package="e_api",
     brand="e-api",
     choices=(
-        Choice(name="redis", group=Group.INFRA),
+        Choice(name="redis", group=Group.STACK),
         Choice(name="user", group=Group.MODULES, requires=("redis",)),
     ),
     mandatory=("tests/keep_me.py",),
@@ -55,7 +55,7 @@ def test_blueprint_groups_and_defaults() -> None:
     assert blueprint.choices(Group.CICD) == ()
     assert blueprint.defaults_off == frozenset()
     sparse = Template(
-        source="s", package="e_s", brand="e-s", choices=(Choice(name="beta", group=Group.INFRA, default=False),)
+        source="s", package="e_s", brand="e-s", choices=(Choice(name="beta", group=Group.STACK, default=False),)
     )
     assert Blueprint(sparse, "x").defaults_off == frozenset({"beta"})
 

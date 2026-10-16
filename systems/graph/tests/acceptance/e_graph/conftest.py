@@ -66,7 +66,7 @@ def live_url() -> Iterator[str]:
     port, scratch = free_port(), tempfile.mkdtemp(prefix="e-graph-ui-")
     env = os.environ | {
         "PYTHONPATH": str(ROOT / "src"),
-        "SECRET": "ui-test-secret-0123456789",
+        "CRYPTO__SECRET": "ui-test-secret-0123456789",
         "DB_PATH": f"{scratch}/ui.db",
     }
     command = [sys.executable, "-m", "granian", "--interface", "asgi", "--factory", "--host", "127.0.0.1"]

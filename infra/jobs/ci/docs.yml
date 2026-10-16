@@ -1,0 +1,17 @@
+  docs:
+    name: docs build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4  # v10.1.0
+      - name: Strict build (fails on broken links or missing assets)
+        run: |
+          uv sync --group docs --no-install-project
+          uv run properdocs build --strict
+      - name: Stage site for Pages
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.DOCS_DEPLOY == 'true' && github.event.repository.visibility == 'public'
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9  # v5.0.0
+        with:
+          path: {{site}}

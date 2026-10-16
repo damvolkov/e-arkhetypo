@@ -4,7 +4,7 @@ import re
 import shutil
 from typing import TYPE_CHECKING
 
-from e_management.core.plan import Action, Copy, Materialize, Plan, PrunePaths, PruneTexts, Rename
+from e_management.core.plan import Action, Copy, Generate, Materialize, Plan, PrunePaths, PruneTexts, Rename
 from e_management.ops.rewrite import rewrite_segment, rewrite_text
 
 if TYPE_CHECKING:
@@ -59,6 +59,11 @@ class Scaffold:
                     self._apply_prune_text(dest / prune.file, prune.pattern, prune.to)
             case Rename():
                 self._apply_rename(action, dest)
+            case Generate():
+                for generated in action.files:
+                    out = dest / generated.path
+                    out.parent.mkdir(parents=True, exist_ok=True)
+                    out.write_text(generated.content)
 
     def _apply_prune_path(self, target: Path) -> None:
         shutil.rmtree(target) if target.is_dir() else target.unlink(missing_ok=True)

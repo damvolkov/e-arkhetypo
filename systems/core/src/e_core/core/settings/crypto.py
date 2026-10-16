@@ -2,6 +2,8 @@
 
 from enum import StrEnum
 
+from pydantic_settings import SettingsConfigDict
+
 from e_core.core.settings.base import BaseSettings, Secret
 
 
@@ -34,6 +36,9 @@ BCRYPT_ROUNDS: int = 12
 ##### SETTINGS #####
 class CryptoSettings(BaseSettings):
     """CRYPTO__SECRET / _ALG / _ENC / _PRIVATE_KEY (PEM) / _HASHER / _BCRYPT_ROUNDS."""
+
+    ### bare SECRET, ALG or ENC would collide with any other tool's variables: the scope owns its prefix.
+    model_config = SettingsConfigDict(env_prefix="CRYPTO__")
 
     secret: Secret | None = None
     alg: TokenAlg = TokenAlg.HS256

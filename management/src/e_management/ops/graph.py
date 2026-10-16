@@ -117,7 +117,9 @@ def catalog(src: Path, areas: tuple[str, ...]) -> tuple[dict[str, tuple[str, ...
     system = src.parent
     cells = list(_cells(src, areas))
     files = {
-        _key(area, child, is_package=pkg): tuple(sorted(_rel(system, p) for p in ([child] if not pkg else _pyfiles(child))))
+        _key(area, child, is_package=pkg): tuple(
+            sorted(_rel(system, p) for p in ([child] if not pkg else _pyfiles(child)))
+        )
         for area, child, pkg in cells
     }
     packages = {_key(area, child, is_package=pkg): pkg for area, child, pkg in cells}
@@ -128,7 +130,10 @@ def core_tests(common: Common, common_dir: Path, keys: Collection[str]) -> dict[
     """The core tests each unit owns, spelled as the destination paths they materialize to in a generated project."""
     root = common_dir / "tests" / "unit" / common.package
     return {
-        key: tuple(f"tests/unit/{key.partition('/')[0]}/{name}" for name in sorted(p.name for p in (root / key.partition('/')[0]).glob(f"test_{key.partition('/')[2]}*.py")))
+        key: tuple(
+            f"tests/unit/{key.partition('/')[0]}/{name}"
+            for name in sorted(p.name for p in (root / key.partition("/")[0]).glob(f"test_{key.partition('/')[2]}*.py"))
+        )
         if (root / key.partition("/")[0]).is_dir()
         else ()
         for key in keys

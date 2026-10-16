@@ -40,7 +40,20 @@ class Rename(Struct, frozen=True, kw_only=True):
     rules: tuple[Strip, ...] = ()
 
 
-Action = Copy | Materialize | PrunePaths | PruneTexts | Rename
+class GeneratedFile(Struct, frozen=True, kw_only=True):
+    """One file the CI assembler produced: where it lands and the exact bytes it holds."""
+
+    path: str
+    content: str
+
+
+class Generate(Struct, frozen=True, kw_only=True):
+    """Files materialized from the infra library — assembled under the final name, applied last, never renamed."""
+
+    files: tuple[GeneratedFile, ...] = ()
+
+
+Action = Copy | Materialize | PrunePaths | PruneTexts | Rename | Generate
 
 
 class Plan(Struct, frozen=True, kw_only=True):

@@ -24,7 +24,7 @@ if TYPE_CHECKING:
 
 def pytest_configure() -> None:
     """Seed SECRET and a private DB_PATH before any collection-time settings touch; external env wins."""
-    os.environ.setdefault("SECRET", "unit-test-secret-0123456789")
+    os.environ.setdefault("CRYPTO__SECRET", "unit-test-secret-0123456789")
     os.environ.setdefault("DB_PATH", str(Path(tempfile.mkdtemp(prefix="e-api-tests-")) / "test.db"))
 
 

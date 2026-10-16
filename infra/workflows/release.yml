@@ -1,0 +1,14 @@
+name: Release
+
+# Git-first: the tag IS the version (uv-dynamic-versioning). Nothing is published by a merge —
+# the gates in .github/ci.vars.example decide what a repo is. Generated from infra/, do not edit.
+
+on:
+{{release_trigger}}
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+{{release_jobs}}

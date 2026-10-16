@@ -20,3 +20,7 @@ class ChoiceDependencyError(ManagementError):
 
 class MandatoryCollisionError(ManagementError):
     """A choice claims paths the template declared mandatory — those must survive every selection."""
+
+
+class InfraError(ManagementError):
+    """The CI library cannot serve a selection: unknown feature, unmet requires, or a token no default provides."""

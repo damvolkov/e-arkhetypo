@@ -9,11 +9,23 @@ from e_management.core.errors import (
     MandatoryCollisionError,
     UnknownChoiceError,
 )
-from e_management.core.plan import Action, Copy, Materialize, Plan, PrunePaths, PruneTexts, Rename
+from e_management.core.infra import Library, assemble, derive
+from e_management.core.plan import (
+    Action,
+    Copy,
+    Generate,
+    GeneratedFile,
+    Materialize,
+    Plan,
+    PrunePaths,
+    PruneTexts,
+    Rename,
+)
 from e_management.models.manifest import Group, Strip
 
 if TYPE_CHECKING:
     from e_management.models.graph import Graph
+    from e_management.models.infra import Defaults
     from e_management.models.manifest import Choice, Template
 
 ##### DEFAULTS #####
@@ -24,14 +36,23 @@ SLUG: re.Pattern[str] = re.compile(r"^[a-z][a-z0-9_]*$")
 class Blueprint:
     """What a template becomes for a concrete name: package, brand, and a plan over a choice and unit selection."""
 
-    __slots__ = ("_graph", "_spec", "name")
+    __slots__ = ("_defaults", "_graph", "_library", "_spec", "name")
 
-    def __init__(self, spec: Template, name: str, graph: Graph | None = None) -> None:
+    def __init__(
+        self,
+        spec: Template,
+        name: str,
+        graph: Graph | None = None,
+        library: Library | None = None,
+        defaults: Defaults | None = None,
+    ) -> None:
         if not SLUG.match(name):
             msg = f"{name!r} is not a slug: lowercase letters, digits, underscores, starting with a letter"
             raise InvalidNameError(msg)
         self._spec = spec
         self._graph = graph
+        self._library = library
+        self._defaults = defaults
         self.name = name
 
     ##### PRIVATE #####
@@ -74,6 +95,27 @@ class Blueprint:
             *([PruneTexts(prunes=prunes)] if prunes else []),
         ]
 
+    def _infra_actions(self, off: frozenset[str], ci_off: frozenset[str]) -> list[Action]:
+        """The CI files this project assembles: defaults minus the wizard's switches, tokens from the name and the reference."""
+        if self._library is None or self._defaults is None:
+            return []
+        chosen = frozenset(self._defaults.features) - ci_off
+        unknown = ci_off - set(self._defaults.features)
+        if unknown:
+            msg = f"unknown CI feature(s) switched off: {', '.join(sorted(unknown))}"
+            raise ChoiceDependencyError(msg)
+        on_choices = frozenset(
+            f"{choice.group.value}.{choice.name}" for choice in self._spec.choices if choice.name not in off
+        )
+        gateable = frozenset(f"{choice.group.value}.{choice.name}" for choice in self._spec.choices)
+        chosen_effective = frozenset(
+            key for key in chosen if not (set(self._library.map.features[key].requires) & gateable) - on_choices
+        )  # a feature gated on a switched-off choice (image on docker) leaves quietly — the map, not the user, decided.
+        files = assemble(
+            self._library, {**self._defaults.tokens, **derive(self.package, self.brand)}, chosen_effective, on_choices
+        )
+        return [Generate(files=tuple(GeneratedFile(path=key, content=body) for key, body in files.items()))]
+
     ############################################################
 
     ##### PUBLIC #####
@@ -102,8 +144,13 @@ class Blueprint:
         self._plan_check(off)
         return tuple(choice for choice in self._spec.choices if choice.name not in off)
 
-    def plan(self, off: frozenset[str] = frozenset(), drop: frozenset[str] = frozenset()) -> Plan:
-        """The ordered actions: copy, prune dropped common, materialize dotfiles, prune choices, rename, finalize."""
+    def plan(
+        self,
+        off: frozenset[str] = frozenset(),
+        drop: frozenset[str] = frozenset(),
+        ci_off: frozenset[str] = frozenset(),
+    ) -> Plan:
+        """The ordered actions: copy, prune dropped common, materialize dotfiles, prune choices, rename, finalize, assemble CI."""
         self._plan_check(off)
         actions: list[Action] = [Copy(src=self._spec.source, drops=self._spec.drops)]
         if self._graph is not None:
@@ -120,4 +167,5 @@ class Blueprint:
         finalize = self._spec.finalize + self._spec.finalize_extra
         if finalize:
             actions.append(PruneTexts(prunes=finalize))
+        actions += self._infra_actions(off, ci_off)
         return Plan(name=self.name, package=self.package, brand=self.brand, actions=tuple(actions))

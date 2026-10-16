@@ -10,7 +10,7 @@ class Group(StrEnum):
     """What kind of decision a choice is: the UI orders its stages by this."""
 
     MODULES = "modules"
-    INFRA = "infra"
+    STACK = "stack"
     CICD = "cicd"
 
 

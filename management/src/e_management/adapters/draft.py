@@ -5,14 +5,13 @@ from typing import TYPE_CHECKING
 
 import msgspec
 
-from e_management.core.session import Session, Step
+from e_management.core.session import Session
 
 if TYPE_CHECKING:
     from pathlib import Path
 
 ##### DEFAULTS #####
 DEFAULT_TTL: float = 30 * 60  # a draft older than half an hour is abandoned, not resumed
-KNOWN: frozenset[str] = frozenset(Step.ORDER)
 
 
 ##### TYPES #####
@@ -36,7 +35,7 @@ class DraftStore:
 
     def load(self) -> Session | None:
         envelope = self._read()
-        if envelope is None or time.time() - envelope.saved_at > self.ttl or not self._fresh(envelope.session):
+        if envelope is None or time.time() - envelope.saved_at > self.ttl:
             self.drop()
             return None
         return envelope.session
@@ -53,8 +52,3 @@ class DraftStore:
             return msgspec.json.decode(self.path.read_bytes(), type=Envelope)
         except msgspec.DecodeError, OSError:
             return None
-
-    @staticmethod
-    def _fresh(session: Session) -> bool:
-        """Every remembered step must belong to the current vocabulary; any legacy token voids the whole draft."""
-        return all(step in KNOWN or step.startswith("common-") for step in (*session.seen, *session.steps))

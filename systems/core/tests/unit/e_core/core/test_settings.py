@@ -162,10 +162,10 @@ async def test_composite_scopes_discovered() -> None:
 
 
 async def test_shared_dotenv_feeds_each_scope_its_own_keys(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """One .env for every scope: a key one scope owns (SECRET, HTTP_BASE_URL) never aborts another (ApiSettings)."""
-    (tmp_path / ".env").write_text("SECRET=dotenv-secret-0123456789\nHTTP_BASE_URL=https://dotenv.test\n")
+    """One .env for every scope: a key one scope owns (CRYPTO__SECRET, HTTP_BASE_URL) never aborts another (ApiSettings)."""
+    (tmp_path / ".env").write_text("CRYPTO__SECRET=dotenv-secret-0123456789\nHTTP_BASE_URL=https://dotenv.test\n")
     monkeypatch.chdir(tmp_path)
-    monkeypatch.delenv("SECRET", raising=False)
+    monkeypatch.delenv("CRYPTO__SECRET", raising=False)
     assert ApiSettings().allow_origins
     assert HttpSettings().http_base_url == "https://dotenv.test"
     assert CryptoSettings().secret is not None

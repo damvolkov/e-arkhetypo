@@ -293,7 +293,7 @@ def test_needs_rehash_broken_argon2(crypto: Crypto) -> None:
 
 
 def test_load_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("SECRET", "from-the-environment")
+    monkeypatch.setenv("CRYPTO__SECRET", "from-the-environment")
     crypto = Crypto.load()
     assert crypto.verify_token(crypto.create_token({"sub": "u"}, expires_in=timedelta(60)))["sub"] == "u"
 

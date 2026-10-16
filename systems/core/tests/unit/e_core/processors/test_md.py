@@ -57,7 +57,8 @@ def zipped(files: dict[str, bytes]) -> bytes:
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w") as archive:
         for name, raw in files.items():
-            archive.writestr(name, raw)
+            ### writestr stamps the current second: frozen date_time keeps xdist workers' parametrize ids equal.
+            archive.writestr(zipfile.ZipInfo(name, date_time=(1980, 1, 1, 0, 0, 0)), raw)
     return buf.getvalue()
 
 

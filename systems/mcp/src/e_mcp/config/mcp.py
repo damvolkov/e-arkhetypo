@@ -1,16 +1,14 @@
-"""e_mcp.config.mcp: the server's knobs — MCP_* in the environment or `.env`, through the materialized composer."""
+"""e_mcp.config.mcp: the server's knobs — MCP_* in the environment or `.env`."""
 
-from pathlib import Path
-from typing import ClassVar
+from pydantic_settings import SettingsConfigDict
 
 from core.settings.base import BaseSettings, Secret
 
 
-class McpSettings(BaseSettings, frozen=True):
+class McpSettings(BaseSettings):
     """Where the server listens and who may enter: loopback address, port, optional bearer token."""
 
-    env_prefix: ClassVar[str] = "MCP_"
-    env_file: ClassVar[Path] = Path(".env")
+    model_config = SettingsConfigDict(env_prefix="MCP_", env_file=".env", extra="ignore", frozen=True)
 
     host: str = "127.0.0.1"
     port: int = 45200

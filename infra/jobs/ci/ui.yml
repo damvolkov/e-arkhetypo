@@ -1,0 +1,21 @@
+  ui:
+    name: frontend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: {{ui_dir}}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@ea17c68dd4779f8e5e33de819d3248531c173f54  # v6.1.0
+      - uses: actions/setup-node@8207627869665102c684bd7f7264caab499c3cdf  # v7.0.0
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: {{ui_dir}}/pnpm-lock.yaml
+      - name: Install, check, build
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm check
+          pnpm build

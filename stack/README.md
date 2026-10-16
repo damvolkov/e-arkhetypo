@@ -60,6 +60,7 @@ Infra y aplicaciones:
 | `agent` | harnesses de agentes como servicio | openhuman (+ cortexdb) |
 | `front` | UIs y dashboards | openwebui |
 | `media` | WebRTC / tiempo real | livekit, sip |
+| `tools` | cajas de documentos/imagen con UI+API+MCP | stirling |
 
 ## Inventario
 
@@ -91,6 +92,7 @@ Puerto = default en host (`:container`). GPU = necesita `nvidia` runtime.
 | mem/cortexdb | cortexdb/cortexdb:v0.10.4 (pin: formato de datos) + `cortexdb-mirror` (python:3-alpine) | 3141 (loopback) | | `cortex.toml`, `mirror.py` (grafo → markdown de Obsidian en `CORTEXDB_MIRROR_DIR`); usa `llm/embed` (lotes de hasta 512) y el slot LLM (`llm/strata` o `llm/vllm`) |
 | front/openwebui | open-webui/open-webui:latest | 8080 | | `static/` |
 | media/livekit | livekit/livekit-server:latest | 7880 | | `livekit.yaml` |
+| tools/stirling | docker.stirlingpdf.com/stirlingtools/stirling-pdf:latest-fat | 8080 | | motor de IA embebido (arranca sólo con `AIENGINE_ENABLED`); MCP en `/mcp`; con pgvector usa `rdb/postgres` + `llm/embed` + slot LLM |
 | media/sip | livekit/sip:latest | 5060 | | red `host` |
 | watch/otel-collector | otel/opentelemetry-collector-contrib:latest | 4317 / 4318 / 8889 | | `otel-collector-config.yaml` |
 | watch/jaeger | jaegertracing/all-in-one:latest | 16686 | | |
@@ -106,6 +108,7 @@ redis:6379        postgres:5432     qdrant:6333      minio:9000
 strata|vllm:8000/v1  clef:8081  jev:45160  llamacpp:8080  ellm:80      embed:80/v1
 kokoro:8880/v1    fwhisper:8000     evoice:80        speaches:8000
 searxng:8080      yacy:8090         docling:5001      playwright:3000  pipelines:9099
+stirling:8080
 otel-collector:4317   jaeger:16686   phoenix:6006/v1/traces   prometheus:9090   loki:3100   grafana:3000
 mem0:8000         agentmemory:3111   cortexdb:3141
 livekit:7880

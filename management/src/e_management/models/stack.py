@@ -8,8 +8,6 @@ dependencies come before dependents. Deterministic by construction, exactly like
 
 from msgspec import Struct
 
-from e_management.ops.deps import closure
-
 SCHEMA = 1
 
 
@@ -50,17 +48,13 @@ class Stack(Struct, frozen=True, kw_only=True):
     def service(self, name: str) -> Service:
         return next(s for s in self.services if s.name == name)
 
-    @property
-    def _edges(self) -> dict[str, frozenset[str]]:
-        return {s.name: frozenset(s.depends) for s in self.services}
-
     def requires(self, name: str) -> frozenset[str]:
-        """Everything ``name`` transitively depends on — what it pulls in when chosen."""
-        return closure({name}, self._edges)
+        """Everything ``name`` transitively depends on — what it pulls in when chosen: the resolved closure, stored per service."""
+        return frozenset(self.service(name).closure)
 
     def needed_by(self, name: str, chosen: frozenset[str]) -> frozenset[str]:
         """The chosen services that would break if ``name`` were dropped: its chosen dependents."""
-        return {s.name for s in self.services if name in s.depends} & chosen
+        return frozenset({s.name for s in self.services if name in s.depends}) & chosen
 
     def select(self, chosen: frozenset[str]) -> tuple[str, ...]:
         """The flat merge list: every chosen service plus, transitively, everything it depends on, ordered so a dependency precedes its dependents."""
@@ -70,4 +64,4 @@ class Stack(Struct, frozen=True, kw_only=True):
 
     def orphans(self, chosen: frozenset[str]) -> frozenset[str]:
         """Chosen services whose dependencies are not themselves chosen — the raw selection before closure, for reporting."""
-        return {name for c in chosen for name in self.service(c).depends if name not in chosen}
+        return frozenset({name for c in chosen for name in self.service(c).depends if name not in chosen})

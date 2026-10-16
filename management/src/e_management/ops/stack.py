@@ -51,7 +51,11 @@ def hosts(text: str) -> frozenset[str]:
 
 def _blobs(service: Path, stack: Path) -> dict[str, bytes]:
     """The repo-relative files of one service — keyed by path so the digest never collapses two compose.yml."""
-    return {path.relative_to(stack.parent).as_posix(): path.read_bytes() for path in sorted(service.rglob("*")) if path.is_file()}
+    return {
+        path.relative_to(stack.parent).as_posix(): path.read_bytes()
+        for path in sorted(service.rglob("*"))
+        if path.is_file()
+    }
 
 
 ##### RESOLUTION #####

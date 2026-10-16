@@ -7,7 +7,7 @@ from e_mcp.config.mcp import McpSettings
 
 
 def main() -> None:
-    st = McpSettings.load()
+    st = McpSettings()
     Server(
         "e_mcp.main:assemble",
         address=st.host,

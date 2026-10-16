@@ -87,8 +87,8 @@ arch: ## enforce import architecture (tach)
 validate: ## validate pyproject.toml against schema
 	@uv run validate-pyproject pyproject.toml
 
-harden: ## zizmor audit of GitHub Actions workflows
-	@uv run zizmor --persona=regular .github/workflows
+harden: ## zizmor audit of GitHub Actions workflows (templates assemble them at generation)
+	@test -d .github/workflows && uv run zizmor --persona=regular .github/workflows || echo "no workflows assembled: make infra / management gen writes them"
 
 hooks: ## run all prek hooks on every file (ruff, ty, tach, zizmor, gitleaks)
 	@uv run prek run --all-files

@@ -6,7 +6,8 @@ areas:
 - adapters
 - core
 - ops
-inputs_hash: "8a7ae01643496289c826b69563a5e38a28960add67946d41192e3ffa8aaba132"
+- processors
+inputs_hash: de444d4a3833167361b3586f344232235925688109b981c318e147b8f4d46d64
 units:
 - key: adapters/base
   area: adapters
@@ -17,6 +18,7 @@ units:
   tests: []
   deps: []
   dependents:
+  - adapters/docling
   - adapters/http
   - adapters/otel
   - adapters/redis
@@ -24,6 +26,28 @@ units:
   closure: []
   level: 0
   locked: true
+  detachable: false
+- key: adapters/docling
+  area: adapters
+  name: docling
+  files:
+  - src/adapters/docling.py
+  package: false
+  tests:
+  - tests/unit/adapters/test_docling.py
+  deps:
+  - adapters/base
+  - adapters/ports
+  - core/settings
+  dependents: []
+  closure:
+  - adapters/base
+  - adapters/ports
+  - core/proxy
+  - core/settings
+  - ops/file
+  level: 2
+  locked: false
   detachable: false
 - key: adapters/http
   area: adapters
@@ -77,7 +101,10 @@ units:
   - tests/unit/adapters/test_ports.py
   deps: []
   dependents:
+  - adapters/docling
   - adapters/otel
+  - processors/doc
+  - processors/md
   closure: []
   level: 0
   locked: true
@@ -167,7 +194,9 @@ units:
   deps:
   - core/proxy
   - core/settings
-  dependents: []
+  dependents:
+  - processors/doc
+  - processors/md
   closure:
   - core/proxy
   - core/settings
@@ -202,9 +231,13 @@ units:
   - src/core/settings/base.py
   - src/core/settings/cli.py
   - src/core/settings/crypto.py
+  - src/core/settings/darts.py
   - src/core/settings/db.py
+  - src/core/settings/doc.py
+  - src/core/settings/docling.py
   - src/core/settings/docs.py
   - src/core/settings/http.py
+  - src/core/settings/md.py
   - src/core/settings/oauth.py
   - src/core/settings/otel.py
   - src/core/settings/redis.py
@@ -217,12 +250,16 @@ units:
   - core/proxy
   - ops/file
   dependents:
+  - adapters/docling
   - adapters/http
   - adapters/otel
   - adapters/redis
   - adapters/sqlite
   - core/crypto
   - core/logger
+  - processors/doc
+  - processors/md
+  - processors/models
   closure:
   - core/proxy
   - ops/file
@@ -242,6 +279,20 @@ units:
   closure: []
   level: 0
   locked: true
+  detachable: false
+- key: core/struct
+  area: core
+  name: struct
+  files:
+  - src/core/struct.py
+  package: false
+  tests:
+  - tests/unit/core/test_struct.py
+  deps: []
+  dependents: []
+  closure: []
+  level: 0
+  locked: false
   detachable: false
 - key: ops/file
   area: ops
@@ -284,5 +335,74 @@ units:
   dependents: []
   closure: []
   level: 0
+  locked: false
+  detachable: false
+- key: processors/doc
+  area: processors
+  name: doc
+  files:
+  - src/processors/doc.py
+  package: false
+  tests:
+  - tests/unit/processors/test_doc.py
+  deps:
+  - adapters/ports
+  - core/logger
+  - core/settings
+  - processors/models
+  dependents: []
+  closure:
+  - adapters/ports
+  - core/logger
+  - core/proxy
+  - core/settings
+  - ops/file
+  - processors/models
+  level: 3
+  locked: false
+  detachable: false
+- key: processors/md
+  area: processors
+  name: md
+  files:
+  - src/processors/md.py
+  package: false
+  tests:
+  - tests/unit/processors/test_md.py
+  - tests/unit/processors/test_md_real.py
+  deps:
+  - adapters/ports
+  - core/logger
+  - core/settings
+  - processors/models
+  dependents: []
+  closure:
+  - adapters/ports
+  - core/logger
+  - core/proxy
+  - core/settings
+  - ops/file
+  - processors/models
+  level: 3
+  locked: false
+  detachable: false
+- key: processors/models
+  area: processors
+  name: models
+  files:
+  - src/processors/models.py
+  package: false
+  tests:
+  - tests/unit/processors/test_models.py
+  deps:
+  - core/settings
+  dependents:
+  - processors/doc
+  - processors/md
+  closure:
+  - core/proxy
+  - core/settings
+  - ops/file
+  level: 2
   locked: false
   detachable: false

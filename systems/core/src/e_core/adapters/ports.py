@@ -132,3 +132,27 @@ class DocumentPort(Protocol):
     async def convert(
         self, source: str | bytes | Path, *, filename: str = "", options: Mapping[str, object] | None = None
     ) -> DocumentConversion: ...
+
+
+##### MARKDOWN #####
+class MdConversion(msgspec.Struct, frozen=True, kw_only=True):
+    """One file rendered to Markdown: the body, and what the converter lost along the way.
+
+    `markdown` is the text; `warnings` are the engine's own notes about a conversion it did not fail on
+    (an image it skipped, a block it could not read) — empty when the run was clean."""
+
+    markdown: str
+    warnings: tuple[str, ...] = ()
+
+
+@runtime_checkable
+class MdConvertPort(Protocol):
+    """Render the bytes of one file, whose `extension` the caller names, to Markdown.
+
+    The engine is the anytomd binding — it reads office documents, markup, tables, notebooks, code and text,
+    and folds in PDF and image descriptions itself — so `extension` only says what the bytes are, not who will
+    read them. Swapping or wrapping the engine is one wiring line and zero caller change."""
+
+    name: ClassVar[str]
+
+    async def convert(self, data: bytes, *, extension: str) -> MdConversion: ...

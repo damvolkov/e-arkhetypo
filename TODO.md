@@ -30,12 +30,18 @@
 
 ## Pendiente
 
-1. **Ingeniería inversa management** (final): `e_management` pasa a `systems/tui`; sus screens→`pages/`,
-   su sesión/Blueprint viajan en `FlowState.data` (system/modules como caminos `produces`), sus `BINDINGS` →
-   acciones del wizard, y el orden implícito system-antes-modules se vuelve `requires={"system"}` explícito.
-2. **Kinds que faltan** cuando la app lo pida: slider, list multi-selección, progress, `CompositeSpec`
+1. **management renovado sobre el tui** (hecho 2026-10-16): `management` materializa `e_tui` (`make ui` /
+   `ui-check`, ley igual que `ops`) y su wizard es un `WizardApp` con secciones `system · name · tools-<area> ·
+   options · ci · dest · confirm`; respuestas en `FlowState.data`, draft = `Session` serializable con resume.
+   `Group.INFRA`→`Group.STACK`. Pendiente fino: re-pinned del action `qwen-code` (flota en main), y página de
+   `--drop` por dependencia de units al estilo `requires` del graph.
+2. **`infra/` completada** (2026-10-16): mapa `features.yml` + jobs atómicos + setup por feature +
+   ensamblado determinista en management + `make infra-check` + contract test generado. Pendiente: usarlo en
+   repos reales (e-taxis/e-voice migran de workflow propio a `ci.defaults.yml` cuando toque).
+
+3. **Kinds que faltan** cuando la app lo pida: slider, list multi-selección, progress, `CompositeSpec`
    (varios objetos por page). Cada uno = un `Spec` + una fila en `registry` + un módulo en `interact`.
-3. Menor: README raíz no lista `cli`/`tui`; renombrar snapshots `.raw`→`.svg` si molesta.
+4. Menor: README raíz ya lista `infra/`; renombrar snapshots `.raw`→`.svg` si molesta.
 
 ## Reglas del juego
 

@@ -5,9 +5,11 @@ propio. Un servicio por carpeta, autocontenido y levatable solo.
 
 ## Formato
 
-`stack/<categoria>/<servicio>/` — como mínimo un `compose.yml`. Las configs,
-entrypoints y assets del servicio viven **en su misma carpeta** y se montan
-desde `./`.
+`stack/<categoria>/<servicio>/` — como mínimo un `compose.yml` (un contenedor) o un
+`setup.sh` (una instalación en el host: lo que necesita el escritorio o la terminal
+del usuario y no tiene sentido en Docker). Las configs, entrypoints y assets del
+servicio viven **en su misma carpeta** y se montan (o instalan) desde `./`.
+Un `setup.sh` es idempotente: re-ejecutarlo deja el host igual.
 
 Convenciones:
 
@@ -51,7 +53,7 @@ Infra y aplicaciones:
 | `queue` | brokers, event bus | — vacío |
 | `proxy` | reverse proxy, gateway, túneles | — vacío |
 | `auth` | identidad, secretos | — vacío |
-| `watch` | métricas, logs, trazas | otel-collector, jaeger, phoenix, prometheus, loki, grafana |
+| `watch` | métricas, logs, trazas, monitor de contenedores | otel-collector, jaeger, phoenix, prometheus, loki, grafana, lazydocker |
 | `storage` | objetos/archivos, datalakes | minio |
 | `llm` | serving de modelos y embeddings | strata, vllm, clef, jev, llamacpp, ellm, embed |
 | `speech` | STT / TTS | evoice, speaches, fwhisper, wlive, kokoro |
@@ -100,6 +102,7 @@ Puerto = default en host (`:container`). GPU = necesita `nvidia` runtime.
 | watch/prometheus | prom/prometheus:latest | 9090 | | `prometheus.yml` |
 | watch/loki | grafana/loki:latest | 3100 | | |
 | watch/grafana | grafana/grafana:latest | 3000 | | `provisioning/` |
+| watch/lazydocker | host: binario de jesseduffield/lazydocker (sha256) | — | | `setup.sh`, `config.yml`; mínimo del sistema: monitor fijado en el escritorio (autostart + Smart Auto Move en GNOME) |
 
 ## URLs entre servicios (red `stack`)
 
@@ -119,6 +122,7 @@ livekit:7880
 ```bash
 docker network create stack                 # una vez
 cd stack/cdb/redis && docker compose up -d   # un servicio
+cd stack/watch/lazydocker && ./setup.sh      # un servicio de host
 cd stack/front/openwebui && docker compose up -d  # necesita llm+vdb+rag ya arriba
 ```
 

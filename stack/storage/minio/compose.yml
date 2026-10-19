@@ -7,6 +7,9 @@ services:
     labels:
       stack.category: "storage"
       stack.port: "9000"
+      # parked 2026-10: quay.io retired the MinIO images and nothing uses this service — kept for
+      # reference, disabled on the host; the version bots skip parked services until it is removed.
+      stack.parked: "true"
     ports:
       # default 9000 API / 9001 Console
       - "${MINIO_PORT:-9000}:9000"

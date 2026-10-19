@@ -29,6 +29,7 @@ MANIFEST_ACCEPT: Final = ", ".join(
 )
 IMAGE_RE: Final = re.compile(r"^\s*image:\s*(\S+)\s*$", re.MULTILINE)
 BUILD_RE: Final = re.compile(r"^\s*build:", re.MULTILINE)
+PARKED_RE: Final = re.compile(r"stack\.parked:\s*\"?true\"?", re.MULTILINE)
 CHALLENGE_KEY: Final = r'{key}="([^"]+)"'
 SCHEMA: Final = 1
 
@@ -36,20 +37,21 @@ SCHEMA: Final = 1
 ##### DISCOVERY #####
 
 
-def refs(root: Path) -> list[tuple[str, str, str, bool]]:
-    """(service, category, image, local-build) for every literal ``image:`` line under stack/.
+def refs(root: Path) -> list[tuple[str, str, str, bool, bool]]:
+    """(service, category, image, local-build, parked) for every literal ``image:`` line under stack/.
 
     Compose files of scaffold folders (dot or underscore) are skipped, as management skips them; a
-    service with a ``build:`` section owns images that live on this machine, not in a registry."""
-    found: list[tuple[str, str, str, bool]] = []
+    service with a ``build:`` section owns images that live on this machine, not in a registry; a
+    service labelled ``stack.parked: "true"`` is out of use and its upstream is never probed."""
+    found: list[tuple[str, str, str, bool, bool]] = []
     for compose in sorted(root.rglob("compose.yml")):
         relative = compose.relative_to(root).parts
         if any(part.startswith((".", "_")) for part in relative):
             continue
         service, category = relative[1], relative[0]
         text = compose.read_text()
-        local = bool(BUILD_RE.search(text))
-        found += [(service, category, ref, local) for ref in IMAGE_RE.findall(text) if "${" not in ref]
+        local, parked = bool(BUILD_RE.search(text)), bool(PARKED_RE.search(text))
+        found += [(service, category, ref, local, parked) for ref in IMAGE_RE.findall(text) if "${" not in ref]
     return sorted(set(found))
 
 
@@ -119,7 +121,7 @@ def _scalar(value: Any) -> str:
 
 def ledger(entries: list[dict[str, Any]], resolved: str) -> str:
     """The YAML text of the version ledger — hand-emitted because the tool must run without any venv."""
-    keys = ("category", "registry", "tag", "digest", "floating", "vanished", "build")
+    keys = ("category", "registry", "tag", "digest", "floating", "vanished", "build", "parked")
     lines = [f"schema: {SCHEMA}", f'resolved: "{resolved}"', "images:"]
     return "\n".join(
         [
@@ -135,9 +137,9 @@ def main() -> int:
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
     entries = []
-    for service, category, ref, local in refs(args.root):
+    for service, category, ref, local, parked in refs(args.root):
         registry, name, tag = split(ref) if not local else ("build", ref, ref.rpartition(":")[2] or "latest")
-        digest = None if local else resolve(registry, name, tag)
+        digest = None if local or parked else resolve(registry, name, tag)
         entries.append(
             {
                 "service": service,
@@ -146,12 +148,13 @@ def main() -> int:
                 "registry": registry.removeprefix("registry-1."),
                 "tag": tag,
                 "digest": digest,
-                "floating": local or not re.match(r"^v?\d[\d.]*(-\w+)?$", tag),
-                "vanished": not local and digest is None,
+                "floating": local or parked or not re.match(r"^v?\d[\d.]*(-\w+)?$", tag),
+                "vanished": not (local or parked) and digest is None,
                 "build": local,
+                "parked": parked,
             }
         )
-        print(f"{ref}: {'BUILD' if local else digest or 'VANISHED'}")
+        print(f"{ref}: {'BUILD' if local else 'PARKED' if parked else digest or 'VANISHED'}")
     args.output.write_text(ledger(entries, time.strftime("%Y-%m-%d", time.gmtime())))
     print(f"{len(entries)} images resolved -> {args.output}")
     return 0

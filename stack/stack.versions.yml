@@ -10,6 +10,7 @@ images:
   floating: true
   vanished: false
   build: true
+  parked: false
 - ref: "python:3-alpine"
   service: "cortexdb"
   category: "mem"
@@ -19,6 +20,7 @@ images:
   floating: false
   vanished: false
   build: false
+  parked: false
 - ref: "quay.io/docling-project/docling-serve:latest"
   service: "docling"
   category: "rag"
@@ -28,6 +30,7 @@ images:
   floating: true
   vanished: false
   build: false
+  parked: false
 - ref: "ghcr.io/damvolkov/e-jev:latest"
   service: "ejev"
   category: "llm"
@@ -37,6 +40,7 @@ images:
   floating: true
   vanished: true
   build: false
+  parked: false
 - ref: "ghcr.io/ggml-org/llama.cpp:server-cuda"
   service: "ejev"
   category: "llm"
@@ -46,6 +50,7 @@ images:
   floating: true
   vanished: false
   build: false
+  parked: false
 - ref: "ghcr.io/damvolkov/e-llm:latest"
   service: "ellm"
   category: "llm"
@@ -55,6 +60,7 @@ images:
   floating: true
   vanished: false
   build: false
+  parked: false
 - ref: "ghcr.io/huggingface/text-embeddings-inference:cpu-latest"
   service: "embed"
   category: "llm"
@@ -64,6 +70,7 @@ images:
   floating: true
   vanished: false
   build: false
+  parked: false
 - ref: "ghcr.io/damvolkov/e-voice:latest"
   service: "evoice"
   category: "speech"
@@ -73,6 +80,7 @@ images:
   floating: true
   vanished: false
   build: false
+  parked: false
 - ref: "fedirz/faster-whisper-server:latest-cuda"
   service: "fwhisper"
   category: "speech"
@@ -82,6 +90,7 @@ images:
   floating: true
   vanished: false
   build: false
+  parked: false
 - ref: "grafana/grafana:latest"
   service: "grafana"
   category: "watch"
@@ -91,6 +100,7 @@ images:
   floating: true
   vanished: false
   build: false
+  parked: false
 - ref: "jaegertracing/all-in-one:latest"
   service: "jaeger"
   category: "watch"
@@ -100,6 +110,7 @@ images:
   floating: true
   vanished: false
   build: false
+  parked: false
 - ref: "ghcr.io/remsky/kokoro-fastapi-gpu:latest"
   service: "kokoro"
   category: "speech"
@@ -109,6 +120,7 @@ images:
   floating: true
   vanished: false
   build: false
+  parked: false
 - ref: "livekit/livekit-server:latest"
   service: "livekit"
   category: "media"
@@ -118,6 +130,7 @@ images:
   floating: true
   vanished: false
   build: false
+  parked: false
 - ref: "ghcr.io/ggml-org/llama.cpp:server-cuda"
   service: "llamacpp"
   category: "llm"
@@ -127,6 +140,7 @@ images:
   floating: true
   vanished: false
   build: false
+  parked: false
 - ref: "grafana/loki:latest"
   service: "loki"
   category: "watch"
@@ -136,6 +150,7 @@ images:
   floating: true
   vanished: false
   build: false
+  parked: false
 - ref: "mem0-server:latest"
   service: "mem0"
   category: "mem"
@@ -145,6 +160,7 @@ images:
   floating: true
   vanished: false
   build: true
+  parked: false
 - ref: "quay.io/minio/minio:latest"
   service: "minio"
   category: "storage"
@@ -152,8 +168,9 @@ images:
   tag: "latest"
   digest: null
   floating: true
-  vanished: true
+  vanished: false
   build: false
+  parked: true
 - ref: "openhuman-core:house"
   service: "openhuman"
   category: "agent"
@@ -163,6 +180,7 @@ images:
   floating: true
   vanished: false
   build: true
+  parked: false
 - ref: "ghcr.io/open-webui/open-webui:latest"
   service: "openwebui"
   category: "front"
@@ -172,6 +190,7 @@ images:
   floating: true
   vanished: false
   build: false
+  parked: false
 - ref: "otel/opentelemetry-collector-contrib:latest"
   service: "otel-collector"
   category: "watch"
@@ -181,6 +200,7 @@ images:
   floating: true
   vanished: false
   build: false
+  parked: false
 - ref: "arizephoenix/phoenix:latest"
   service: "phoenix"
   category: "watch"
@@ -190,6 +210,7 @@ images:
   floating: true
   vanished: false
   build: false
+  parked: false
 - ref: "ghcr.io/open-webui/pipelines:latest"
   service: "pipelines"
   category: "rag"
@@ -199,6 +220,7 @@ images:
   floating: true
   vanished: false
   build: false
+  parked: false
 - ref: "mcr.microsoft.com/playwright:latest"
   service: "playwright"
   category: "rag"
@@ -208,6 +230,7 @@ images:
   floating: true
   vanished: false
   build: false
+  parked: false
 - ref: "pgvector/pgvector:pg17"
   service: "postgres"
   category: "rdb"
@@ -217,6 +240,7 @@ images:
   floating: true
   vanished: false
   build: false
+  parked: false
 - ref: "prom/prometheus:latest"
   service: "prometheus"
   category: "watch"
@@ -226,6 +250,7 @@ images:
   floating: true
   vanished: false
   build: false
+  parked: false
 - ref: "qdrant/qdrant:latest"
   service: "qdrant"
   category: "vdb"
@@ -235,6 +260,7 @@ images:
   floating: true
   vanished: false
   build: false
+  parked: false
 - ref: "redis:latest"
   service: "redis"
   category: "cdb"
@@ -244,15 +270,17 @@ images:
   floating: true
   vanished: false
   build: false
+  parked: false
 - ref: "searxng/searxng:latest"
   service: "searxng"
   category: "rag"
   registry: "docker.io"
   tag: "latest"
-  digest: "sha256:b9383ac59bc9c7f6d68f29db201e90329d734a77bbc917f238144c74cd66f6a8"
+  digest: "sha256:d81e14a4328ba7a57f297dff0472be629d30bf29580406c0d5b3bdab563c9bed"
   floating: true
   vanished: false
   build: false
+  parked: false
 - ref: "livekit/sip:latest"
   service: "sip"
   category: "media"
@@ -262,6 +290,7 @@ images:
   floating: true
   vanished: false
   build: false
+  parked: false
 - ref: "ghcr.io/speaches-ai/speaches:latest-cuda"
   service: "speaches"
   category: "speech"
@@ -271,6 +300,7 @@ images:
   floating: true
   vanished: false
   build: false
+  parked: false
 - ref: "docker.stirlingpdf.com/stirlingtools/stirling-pdf:latest-fat"
   service: "stirling"
   category: "tools"
@@ -280,6 +310,7 @@ images:
   floating: true
   vanished: false
   build: false
+  parked: false
 - ref: "ghcr.io/collabora/whisperlive-gpu:latest"
   service: "wlive"
   category: "speech"
@@ -289,6 +320,7 @@ images:
   floating: true
   vanished: false
   build: false
+  parked: false
 - ref: "yacy/yacy_search_server:latest"
   service: "yacy"
   category: "rag"
@@ -298,3 +330,4 @@ images:
   floating: true
   vanished: false
   build: false
+  parked: false

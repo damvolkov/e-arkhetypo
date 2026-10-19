@@ -61,15 +61,15 @@ def stack_rows(root: Path) -> list[Row]:
     text = ledger.read_text()
     entries = {ref: {key: value.strip('"') for key, value in FIELD_RE.findall(body)} for ref, body in BLOCK_RE.findall(text)}
     rows = [
-        (ref, f'registry: {entry["registry"]}', "vanished", "the image or tag no longer answers — mark the service deprecated")
+        (ref, f'registry: {entry["registry"]}', "vanished", "the image or tag no longer answers — mark the service deprecated or park it")
         for ref, entry in entries.items()
-        if entry.get("vanished") == "true"
+        if entry.get("vanished") == "true" and entry.get("parked") != "true"
     ]
     if (stamp := RESOLVED_RE.search(text)) and _days(stamp.group(1)) > LEDGER_STALE_DAYS:
         rows.append(("ledger", "file", "stale", f"last resolved {int(_days(stamp.group(1)))} days ago"))
     rows += [
         (ref, "compose", "uncovered", f"`{service}` is in the stack but not in the ledger — re-run sync-stack")
-        for service, _, ref, _ in stack_resolve.refs(root / "stack")
+        for service, _, ref, _, _ in stack_resolve.refs(root / "stack")
         if ref not in entries
     ]
     return rows

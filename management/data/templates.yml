@@ -4,7 +4,7 @@ templates:
     source: systems/api
     package: e_api
     brand: e-api
-    drops: [uv.lock, scripts/materialize.py]
+    drops: [uv.lock, scripts/materialize.py, .github/workflows, .github/ci.map.yml, .github/ci.vars.example, .github/INSTALL.md, tests/unit/test_ci_contract.py]
     common:
       root: systems/core
       package: e_core
@@ -120,7 +120,7 @@ templates:
     source: systems/cli
     package: e_cli
     brand: e-cli
-    drops: [uv.lock, scripts]
+    drops: [uv.lock, scripts, .github/workflows, .github/ci.map.yml, .github/ci.vars.example, .github/INSTALL.md, tests/unit/test_ci_contract.py]
     common: {root: systems/core, package: e_core, skip: [ops/tui]}
     materials: *materials
 
@@ -140,7 +140,7 @@ templates:
     source: systems/graph
     package: e_graph
     brand: e-graph
-    drops: [uv.lock, scripts/materialize.py]
+    drops: [uv.lock, scripts/materialize.py, .github/workflows, .github/ci.map.yml, .github/ci.vars.example, .github/INSTALL.md, tests/unit/test_ci_contract.py]
     common: {root: systems/core, package: e_core, skip: [ops/tui]}
     materials: *materials
 
@@ -186,7 +186,7 @@ templates:
     source: systems/mcp
     package: e_mcp
     brand: e-mcp
-    drops: [uv.lock, scripts/materialize.py]
+    drops: [uv.lock, scripts/materialize.py, .github/workflows, .github/ci.map.yml, .github/ci.vars.example, .github/INSTALL.md, tests/unit/test_ci_contract.py]
     common: {root: systems/core, package: e_core, skip: [ops/tui]}
     materials: *materials
 
@@ -218,7 +218,7 @@ templates:
     source: systems/tui
     package: e_tui
     brand: e-tui
-    drops: [uv.lock]
+    drops: [uv.lock, .github/workflows, .github/ci.map.yml, .github/ci.vars.example, .github/INSTALL.md, tests/unit/test_ci_contract.py]
     common: {root: systems/core, package: e_core}
     materials: *materials
 

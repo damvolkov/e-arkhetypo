@@ -1,0 +1,19 @@
+  repo-gates:
+    name: repo drift gates
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4  # v10.1.0
+      - name: the tool is green
+        run: make -C management check
+      - name: no materialized, structural, CI or assembly drift
+        run: |
+          uv run --project management python -m e_management drift
+          uv run --project management python -m e_management graph-check
+          uv run --project management python -m e_management stack-check
+          uv run --project management python -m e_management infra-check
+          uv run --project management python -m e_management repo-infra-check
+      - name: workflow hardening scan
+        run: uv run --project management zizmor --persona=regular .github/workflows

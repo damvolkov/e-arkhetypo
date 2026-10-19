@@ -35,6 +35,7 @@ def derive(package: str, brand: str) -> dict[str, str]:
         "pypi_project": brand,
         "smoke": f'.smoke/bin/python -c "import {package}"',
         "allowlist": f"src/{package}/|tests/|docs/|CHANGELOG\\.md$|README\\.md$",
+        "verify": "uv sync && uv run prek run --all-files && make test",
     }
 
 
@@ -107,9 +108,9 @@ def _trigger(specs: list[tuple[str, Feature]]) -> str:
 def _target(path: str) -> str:
     """Where a library file lands: renovate stays in .github, the agent contract sits at the root, tools keep their folder."""
     match path:
-        case "renovate.json":
+        case "renovate.json" | "renovate.repo.json":
             return ".github/renovate.json"
-        case "qwen.md":
+        case "qwen.md" | "qwen.repo.md":
             return "QWEN.md"
         case _:
             return path

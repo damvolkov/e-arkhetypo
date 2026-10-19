@@ -108,7 +108,7 @@ jobs:
             - expose: CI passes but the updated dependency gained public surface. Expose it where the contract allows.
             Context in .ai-context/:
               - upstream-context/ (what changed upstream), ci-logs-*/build-test.log (one per OS and Python version)
-            Before finishing run: uv sync && uv run prek run --all-files && make test
+            Before finishing run: {{verify}}
             Do NOT commit or push. End with the summary format defined in QWEN.md.
 
       - name: Commit and push

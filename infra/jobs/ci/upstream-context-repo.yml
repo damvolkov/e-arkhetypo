@@ -1,0 +1,29 @@
+  upstream-context-repo:
+    name: what the update changed
+    if: github.event_name == 'pull_request' && startsWith(github.head_ref, 'renovate/')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Diff every system's pyproject against the base branch and merge the facts
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BASE: origin/${{ github.event.repository.default_branch }}
+        run: |
+          mkdir -p upstream-context parts
+          FILES=$(git diff --name-only "$BASE" | grep -E '^systems/[^/]+/pyproject\.toml$' || true)
+          for f in $FILES; do
+            git show "$BASE:$f" > /tmp/base-pyproject.toml
+            uv run --no-project python tools/upstream.py --base /tmp/base-pyproject.toml --head "$f" --output "parts/$f"
+          done
+          for name in versions.txt release-notes.md api-added.txt; do
+            cat parts/*/"$name" > "upstream-context/$name" 2>/dev/null || : > "upstream-context/$name"
+          done
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: upstream-context
+          path: upstream-context/

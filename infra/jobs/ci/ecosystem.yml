@@ -1,0 +1,17 @@
+  ecosystem:
+    name: every system's CI
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4  # v10.1.0
+      - name: make ci in every system, one by one, reporting all failures
+        run: |
+          STATUS=0
+          for d in systems/*/; do
+            [ -f "$d/Makefile" ] || continue
+            printf '\n### %s\n' "$d"
+            make -C "$d" ci || STATUS=1
+          done
+          exit "$STATUS"

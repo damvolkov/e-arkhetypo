@@ -42,6 +42,12 @@ slots, one-time install instructions, and the generated contract test (`test_ci_
 validates manifest vs workflows in both directions. No workflow is hand-written twice; no CI edit
 drifts unseen (`make infra-check`).
 
+The repo dogfoods it: `make maintain` assembles every `.github/` — the systems' and its own — from
+`infra/`, and `repo-maintain` keeps the three mutable areas honest: Renovate opens PRs for `systems/`
+deps, `stack/` images and the action pins in `infra/`; `sync-systems`/`sync-stack`/`sync-infra` follow
+each area; `health-areas` reports stack · systems · infra monthly; `ai-fix` mends what a bump breaks.
+Every maintenance line lands in `CHANGELOG.md` under its area.
+
 ##### MANAGEMENT — the tool that launches new ones #####
 
 `management/` (e-management) inspects, materializes and generates. The wizard is the front door:

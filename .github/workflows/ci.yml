@@ -1,0 +1,86 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  # feature: repo-ci
+  ecosystem:
+    name: every system's CI
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4  # v10.1.0
+      - name: make ci in every system, one by one, reporting all failures
+        run: |
+          STATUS=0
+          for d in systems/*/; do
+            [ -f "$d/Makefile" ] || continue
+            printf '\n### %s\n' "$d"
+            make -C "$d" ci || STATUS=1
+          done
+          exit "$STATUS"
+
+  # feature: repo-ci
+  repo-gates:
+    name: repo drift gates
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4  # v10.1.0
+      - name: the tool is green
+        run: make -C management check
+      - name: no materialized, structural, CI or assembly drift
+        run: |
+          uv run --project management python -m e_management drift
+          uv run --project management python -m e_management graph-check
+          uv run --project management python -m e_management stack-check
+          uv run --project management python -m e_management infra-check
+          uv run --project management python -m e_management repo-infra-check
+      - name: workflow hardening scan
+        run: uv run --project management zizmor --persona=regular .github/workflows
+
+  # feature: repo-maintain
+  upstream-context-repo:
+    name: what the update changed
+    if: github.event_name == 'pull_request' && startsWith(github.head_ref, 'renovate/')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Diff every system's pyproject against the base branch and merge the facts
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BASE: origin/${{ github.event.repository.default_branch }}
+        run: |
+          mkdir -p upstream-context parts
+          FILES=$(git diff --name-only "$BASE" | grep -E '^systems/[^/]+/pyproject\.toml$' || true)
+          for f in $FILES; do
+            git show "$BASE:$f" > /tmp/base-pyproject.toml
+            uv run --no-project python tools/upstream.py --base /tmp/base-pyproject.toml --head "$f" --output "parts/$f"
+          done
+          for name in versions.txt release-notes.md api-added.txt; do
+            cat parts/*/"$name" > "upstream-context/$name" 2>/dev/null || : > "upstream-context/$name"
+          done
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: upstream-context
+          path: upstream-context/
+

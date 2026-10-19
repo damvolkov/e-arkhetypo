@@ -1,4 +1,4 @@
-"""adapters/md/anytomd: anytomd bound to Python — one engine for every format, PDF and image descriptions folded in.
+"""adapters/anytomd: anytomd bound to Python — one engine for every format, PDF and image descriptions folded in.
 
 `convert_bytes` renders office, markup, tables, notebooks, code and text; a PDF goes through the bundled
 liteparse `PdfConverter`; an image is annotated by the configured OpenAI-compatible vision model. Format
@@ -60,7 +60,11 @@ class AnytomdAdapter(BaseAdapter):
         self._pdf = PdfConverter(
             ocr=conf.md_pdf_ocr, language=conf.md_pdf_language, workers=conf.md_pdf_workers or None
         )
-        self._describer = self._common_vision() if conf.md_image_describe else None
+        ### vision is best-effort: without a key there is nothing to describe with, so images keep their
+        ### bare `![]` reference rather than bricking startup.
+        self._describer = (
+            self._common_vision() if conf.md_image_describe and conf.md_vision_api_key is not None else None
+        )
 
     async def close(self) -> None:
         aclose = getattr(self._describer, "aclose", None)

@@ -1,7 +1,7 @@
 """processors/md: the MDProcessor — any file to Markdown, detected and rendered by the anytomd engine.
 
 Detection, every format's conversion, PDF reading and image description live behind one port (`MdConvertPort`,
-anatomd's binding); this processor only guards the size, unpacks a ZIP and re-enters each member in parallel,
+anytomd's binding); this processor only guards the size, unpacks a ZIP and re-enters each member in parallel,
 and records an engine's failure per file so one bad member never sinks a batch. It holds no state: `convert`
 is a pure function of bytes that returns a typed list of rendered files."""
 
@@ -47,10 +47,10 @@ class MDProcessor:
 
     __slots__ = ("_conf", "_md")
 
-    def __init__(self, anatomd: MdConvertPort, settings: MDSettings | None = None) -> None:
+    def __init__(self, anytomd: MdConvertPort, settings: MDSettings | None = None) -> None:
         ### the default is read on call, not at import: the settings singleton stays lazy.
         self._conf = st.md if settings is None else settings
-        self._md = anatomd
+        self._md = anytomd
 
     ##### PRIVATE — detection #####
 

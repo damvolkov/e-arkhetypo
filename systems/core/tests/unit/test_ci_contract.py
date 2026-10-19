@@ -27,7 +27,7 @@ ENTRY_RE: Final = re.compile(r"^([A-Z][A-Z0-9_]*)=(\S+)\s*(?:#\s*(\S.*))?$")
 @functools.cache
 def config_vars() -> frozenset[str]:
     """The config vars the declared features read (`vars:` in the map) — settings, not gates."""
-    return frozenset(eserde.load(MAPFILE, format="yaml").get("vars", ()) if MAPFILE.is_file() else ())
+    return frozenset(eserde.load(MAPFILE, format=eserde.Format.YAML).get("vars", ()) if MAPFILE.is_file() else ())
 
 
 @functools.cache

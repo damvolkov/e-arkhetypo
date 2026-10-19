@@ -6,7 +6,7 @@ the rest of the chain may then reach `st` and `logger` through a plain global im
 cost — and it deposits the loaded pair under `system.core` for consumers that prefer the graph.
 Both roads reach the same singleton: the section is the same object the module-level proxy names."""
 
-from collections.abc import AsyncIterator
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 
@@ -36,7 +36,7 @@ class CoreState:
 
 
 @asynccontextmanager
-async def lifespan(app: Litestar) -> AsyncIterator[None]:
+async def lifespan(app: Litestar) -> AsyncGenerator[None]:
     """Force the lazy core load once, then mirror the pair into `system.core` before yielding."""
     system = AppState.of(app).system
     ### first attribute access builds and caches each singleton: app_env loads settings, this log line configures structlog.

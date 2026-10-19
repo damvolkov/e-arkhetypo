@@ -5,7 +5,7 @@ run reads (`state.infra.adapters`, `.agent`, `.telemetry`, `.graphs`). The conte
 too, and survives the seal: sealing freezes the shape of what lives with the app, never the runs that
 come and go — each run opens `context.<id>` and releases it when it closes."""
 
-from collections.abc import AsyncIterator
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
 from litestar import Litestar
@@ -15,7 +15,7 @@ from e_graph.instrument.state import ContextState, InfraState
 
 
 @asynccontextmanager
-async def lifespan(app: Litestar) -> AsyncIterator[None]:
+async def lifespan(app: Litestar) -> AsyncGenerator[None]:
     """Last link of the chain: `infra` composed, `contexts` opened, and the graph read-only from here on."""
     system = AppState.of(app).system
     system.infra = InfraState(

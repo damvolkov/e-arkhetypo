@@ -5,7 +5,7 @@ in-process objects. The agnostic agent is a singleton with a lifecycle: its clie
 on the first call to each endpoint and closes here, when the app stops.
 """
 
-from collections.abc import AsyncIterator
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
 from litestar import Litestar
@@ -22,7 +22,7 @@ from processors.doc import DocProcessor
 
 
 @asynccontextmanager
-async def lifespan(app: Litestar) -> AsyncIterator[None]:
+async def lifespan(app: Litestar) -> AsyncGenerator[None]:
     """Assemble the engines that travel with the app: crypto, the instrument's telemetry and the agent."""
     system = AppState.of(app).system
     system.crypto = Crypto(st.crypto)

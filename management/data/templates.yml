@@ -115,6 +115,9 @@ templates:
       - {file: pyproject.toml, pattern: '^    ### structural rewrite.*materialization time.*\n    "libcst>=[^"]*",\n'}
       - {file: Makefile, pattern: ' — core/ops/adapters materialized from \$\(CORE_SRC\)'}
       - {file: README.md, pattern: '^.*\b(GENERATED|make core)\b.*\n'}
+      ### a detached project owns its common set: `clean` must not delete source the generator no longer restores.
+      - {file: Makefile, pattern: ' src/core src/ops src/adapters src/processors prek\.toml \.gitattributes \.python-version'}
+      - {file: Makefile, pattern: ' \+ materialized core'}
 
   cli:
     source: systems/cli

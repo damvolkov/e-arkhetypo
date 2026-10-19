@@ -117,7 +117,7 @@ bump = true
 fallback-version = "0.0.0"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/e_api", "src/core", "src/ops", "src/adapters"]
+packages = ["src/e_api", "src/core", "src/ops", "src/adapters", "src/processors"]
 
 [tool.hatch.build.targets.sdist]
 include = ["src/", "tests/", "README.md"]

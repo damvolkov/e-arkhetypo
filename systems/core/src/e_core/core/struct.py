@@ -25,7 +25,7 @@ import msgspec
 from msgspec.structs import force_setattr
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
+    from collections.abc import Generator
 
 ### the builtins a checked type may extend: msgspec encodes them natively, and builds them from their decoded form.
 BUILTINS: Final[tuple[type, ...]] = (dict, list, tuple, str, int, float)
@@ -88,7 +88,7 @@ class CheckedStruct(msgspec.Struct, frozen=True):
 
     @staticmethod
     @contextmanager
-    def trusted() -> Iterator[None]:
+    def trusted() -> Generator[None]:
         """Mark a decode: the structs msgspec builds inside were just validated, and skip the round trip."""
         token = TRUSTED.set(True)
         try:

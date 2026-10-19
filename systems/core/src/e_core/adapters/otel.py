@@ -29,7 +29,7 @@ from e_core.core.settings import settings as st
 from e_core.core.settings.otel import OtelProtocol
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Iterator, Mapping
+    from collections.abc import Callable, Generator, Mapping
 
     from opentelemetry.trace import Tracer
 
@@ -185,7 +185,7 @@ class OtelAdapter(BaseAdapter):
     @contextmanager
     def span(
         self, name: str, attributes: Mapping[str, AttributeValue], kind: SpanKind = SpanKind.INTERNAL
-    ) -> Iterator[OtelSpan]:
+    ) -> Generator[OtelSpan]:
         """A current span around the block: a raise is recorded and settles ERROR, a clean exit settles OK."""
         tracer = self._common_connected()
         with tracer.start_as_current_span(name, kind=KINDS[kind], attributes=attributes) as raw:

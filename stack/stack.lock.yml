@@ -14,7 +14,7 @@ categories:
 - tools
 - vdb
 - watch
-inputs_hash: "282831abc3616f175614e45b577dfd00e90d3fd32e0235acd00a6b6e3bcef4e3"
+inputs_hash: "66a8ee2c26aa43378209fe9b5964c3530ca8c1fbc654a6f97f23601dc6e340e3"
 services:
 - name: openhuman
   category: agent
@@ -402,6 +402,17 @@ services:
   depends: []
   dependents:
   - grafana
+  closure: []
+  level: 0
+- name: lazydocker
+  category: watch
+  compose: null
+  files:
+  - stack/watch/lazydocker/config.yml
+  - stack/watch/lazydocker/setup.sh
+  port: null
+  depends: []
+  dependents: []
   closure: []
   level: 0
 - name: loki

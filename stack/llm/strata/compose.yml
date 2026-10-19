@@ -47,6 +47,8 @@ services:
         soft: -1
         hard: -1
     stop_grace_period: 60s
+    # 1/4 of the default CPU weight: every core while the desktop idles, it yields under contention.
+    cpu_shares: 256
     networks:
       stack:
         aliases:

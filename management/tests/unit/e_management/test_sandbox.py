@@ -54,6 +54,16 @@ def test_ci_off_prunes_both_the_job_and_the_gate(tmp_path: Path) -> None:
     assert "docs" not in (dest / ".github" / "ci.map.yml").read_text()
 
 
+def test_ci_on_adds_selfmaintain_beyond_the_reference(tmp_path: Path) -> None:
+    dest = _gen(tmp_path, "api", "sandon", "--ci-on", "selfmaintain")
+    workflows = dest / ".github" / "workflows"
+    assert {"sync.yml", "ai-fix.yml", "health.yml"} <= {file.name for file in workflows.iterdir()}
+    assert "# feature: selfmaintain" in (workflows / "ci.yml").read_text()
+    assert "src/e_sandon/.*" in (workflows / "ai-fix.yml").read_text()
+    assert "APP_CLIENT_ID" in (dest / ".github" / "ci.map.yml").read_text()
+    assert "APP_CLIENT_ID" not in (dest / ".github" / "ci.vars.example").read_text()
+
+
 def test_turning_a_choice_off_folds_its_dependent_feature(tmp_path: Path) -> None:
     dest = _gen(tmp_path, "api", "sandimg", "--off", "docker")
     assert not (dest / "Dockerfile").exists()

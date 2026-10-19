@@ -50,6 +50,7 @@ def _run(args: argparse.Namespace) -> int:  # noqa: PLR0912 — the verbs are th
                 off=_off(args.off),
                 drop=_off(args.drop),
                 ci_off=_off(args.ci_off),
+                ci_on=_off(args.ci_on),
             )
             print(json.dumps(msgspec.to_builtins(actions), indent=2))
         case "gen":
@@ -62,6 +63,7 @@ def _run(args: argparse.Namespace) -> int:  # noqa: PLR0912 — the verbs are th
                 off=_off(args.off),
                 drop=_off(args.drop),
                 ci_off=_off(args.ci_off),
+                ci_on=_off(args.ci_on),
             )
             print(f"created {dest}\nnext: cd {dest} && make install")
         case "drift":
@@ -110,6 +112,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         sub.add_argument("--off", default="", help="comma-separated choices to drop")
         sub.add_argument("--drop", default="", help="comma-separated common units to drop (area/unit)")
         sub.add_argument("--ci-off", default="", help="comma-separated CI features to drop")
+        sub.add_argument(
+            "--ci-on", default="", help="comma-separated CI features to add beyond the template's defaults"
+        )
         if name == "gen":
             sub.add_argument("--dest", type=Path, required=True)
     subs.add_parser("drift")

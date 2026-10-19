@@ -25,9 +25,16 @@ ENTRY_RE: Final = re.compile(r"^([A-Z][A-Z0-9_]*)=(\S+)\s*(?:#\s*(\S.*))?$")
 
 
 @functools.cache
+def config_vars() -> frozenset[str]:
+    """The config vars the declared features read (`vars:` in the map) — settings, not gates."""
+    return frozenset(eserde.load(MAPFILE, format="yaml").get("vars", ()) if MAPFILE.is_file() else ())
+
+
+@functools.cache
 def gates_used() -> set[str]:
-    """Gate names the workflows reference; cached because several tests ask, and the files do not move."""
-    return {m.group(1) for file in WORKFLOWS.glob("*.yml") for m in VAR_RE.finditer(file.read_text("utf-8"))}
+    """Gate names the workflows reference, the features' config vars aside; cached, the files do not move."""
+    used = {m.group(1) for file in WORKFLOWS.glob("*.yml") for m in VAR_RE.finditer(file.read_text("utf-8"))}
+    return used - config_vars()
 
 
 @functools.cache

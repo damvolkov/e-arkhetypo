@@ -67,7 +67,9 @@ def test_ci_on_adds_selfmaintain_beyond_the_reference(tmp_path: Path) -> None:
 @pytest.mark.parametrize(("template", "name"), [("api", "sandclean"), ("cli", "sandcleancli")])
 def test_detached_clean_keeps_the_common_set(tmp_path: Path, template: str, name: str) -> None:
     dest = _gen(tmp_path, template, name)
-    clean = next(line for line in (dest / "Makefile").read_text().splitlines() if line.strip().startswith("@rm -rf dist"))
+    clean = next(
+        line for line in (dest / "Makefile").read_text().splitlines() if line.strip().startswith("@rm -rf dist")
+    )
     assert "src/core" not in clean, "a detached project owns its common set: clean must not delete it"
 
 

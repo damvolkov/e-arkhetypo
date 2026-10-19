@@ -190,6 +190,8 @@ def test_assemble_replaced_features_leave_their_files_out() -> None:
     files = assemble(library, TOKENS, frozenset({"ci", "loop", "wide"}))
     assert ".github/workflows/sync.yml" not in files  # loop is folded away, its workflow never lands
     assert files["QWEN.md"] == "# wide agent\n"
+
+
 def test_assemble_maps_config_vars_apart_from_gates() -> None:
     library = Library(map=MAP, fragments=FRAGMENTS)
     files = assemble(library, TOKENS, frozenset({"ci", "docs", "loop"}))

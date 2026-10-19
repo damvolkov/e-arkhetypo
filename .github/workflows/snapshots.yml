@@ -1,0 +1,33 @@
+name: snapshots
+
+# Temporary: regenerate the graph canvas snapshots on the CI runner itself. Deleted with its branch.
+
+on:
+  push:
+    branches: [tmp/graph-snapshots]
+
+permissions:
+  contents: read
+
+jobs:
+  snap:
+    name: canvas snapshots on the runner
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4  # v10.1.0
+      - name: Pin the Python the ecosystem declares
+        run: echo "UV_PYTHON=$(cat systems/core/common/python-version)" >> "$GITHUB_ENV"
+      - uses: pnpm/action-setup@d9184bf108216479bc5a137cc391f4d7b14c870b  # v6.1.0
+        with:
+          package_json_file: systems/graph/src/e_graph/ui/package.json
+      - name: Install graph exactly as the CI does
+        run: make -C systems/graph install
+      - name: Accept the canvas snapshots on this runner
+        run: make -C systems/graph snap
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: graph-snapshots
+          path: systems/graph/tests/acceptance/e_graph/__snapshots__/

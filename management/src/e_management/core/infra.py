@@ -34,7 +34,7 @@ def derive(package: str, brand: str) -> dict[str, str]:
         "package_path": f"src/{package}",
         "pypi_project": brand,
         "smoke": f'.smoke/bin/python -c "import {package}"',
-        "allowlist": f"src/{package}/|tests/|docs/|CHANGELOG\\.md$|README\\.md$",
+        "allowlist": f"src/{package}/.*|tests/.*|docs/.*|CHANGELOG\\.md|README\\.md",
         "verify": "uv sync && uv run prek run --all-files && make test",
     }
 
@@ -93,11 +93,18 @@ def assemble(
         },
         **{_target(path): _read(library, f"files/{path}", tokens) for _, spec in specs for path in spec.files},
         ".github/ci.vars.example": _vars(specs),
-        ".github/ci.map.yml": "features:\n" + "".join(f"  - {key}\n" for key in selected),
+        ".github/ci.map.yml": _map(selected, specs),
         ".github/INSTALL.md": _install(library, specs),
         "tests/unit/test_ci_contract.py": _read(library, "contract.py.j2", {}),
     }
     return {key: body for key, body in files.items() if body}
+
+
+def _map(selected: list[str], specs: list[tuple[str, Feature]]) -> str:
+    """The declared features, then the config vars they read — not gates, so the manifest never lists them."""
+    names = sorted({var for _, spec in specs for var in spec.vars if var != spec.gate})
+    config = "vars:\n" + "".join(f"  - {var}\n" for var in names) if names else ""
+    return "features:\n" + "".join(f"  - {key}\n" for key in selected) + config
 
 
 def _trigger(specs: list[tuple[str, Feature]]) -> str:

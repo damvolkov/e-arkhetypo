@@ -17,8 +17,8 @@ flowchart LR
   X[sync-stack, weekly] -->|PR stack/resolve-*| C[CI: ecosystem · repo-gates]
   S1 -->|push| C
   S3 -->|push| C
-  C -->|red, or new surface| A[ai-fix.yml: Qwen agent]
-  A -->|commit [ai-fix]| C
+  C -->|red, or new surface| A[maintenance.yml: Qwen agent]
+  A -->|commit [maintenance]| C
   C -->|green| H[Human review and merge]
   M[health-areas.yml, monthly] --> I[issue deps-health: stack · systems · infra]
 ```
@@ -33,7 +33,7 @@ flowchart LR
 | Image version ledger | `stack/stack.versions.yml` | `sync-stack` (`tools/stack_resolve.py`) | weekly: the digest every tag points at today |
 | Action pins in CI sources | `infra/jobs/**`, `infra/workflows/*` digests | Renovate (`regex` manager) + `sync-infra` | monthly PR, then every assembly follows |
 | Assembled workflows | every `.github/` | `sync-infra` (`e_management infra` + `repo-infra`) | after every pin change in `infra/` |
-| Code, tests, docs, service configs | `systems/*/src\|tests\|docs`, `stack/*/*/` | `ai-fix.yml` agent | CI red, or the dependency gained surface |
+| Code, tests, docs, service configs | `systems/*/src\|tests\|docs`, `stack/*/*/` | `maintenance.yml` agent | CI red, or the dependency gained surface |
 | Changelog | `CHANGELOG.md` → `## [Unreleased]` (sections `### stack / ### systems / ### infra`) | the bots, `tools/changelog.py` | every sync; the agent on user-visible changes |
 | Health issue | GitHub issue labelled `deps-health` | `health-areas.yml` | monthly, split by area |
 
@@ -64,7 +64,7 @@ Follow the paths literally; each step is one screen.
    | **Workflows** | **Read and write** — the one difference vs a library repo |
 
    Workflows write is granted so `sync-infra` can *deterministically re-assemble* every `.github/`
-   from `infra/` sources. The agent still cannot touch it: `ai-fix` filters its commits against
+   from `infra/` sources. The agent still cannot touch it: `maintenance` filters its commits against
    the allowlist, which excludes `.github/` and `infra/`, and `QWEN.md` repeats the wall.
 7. **Create GitHub App**.
 8. Copy the **Client ID** (`Iv1.xxxxxxxx`).
@@ -126,7 +126,7 @@ bypassing** — and keep the App off the allow list. **Create**.
 
 1. The **Dependency Dashboard** issue exists → Renovate read the config. Tick *Run Renovate now*.
 2. A `renovate/*` PR touching a system → the **sync-systems** job pushes a lockfile commit; CI
-   (`ecosystem`, `repo-gates`) then runs; if red, **ai-fix** comments within three attempts.
+   (`ecosystem`, `repo-gates`) then runs; if red, **maintenance** comments within three attempts.
 3. A `renovate/action pins` PR touching `infra/` → **sync-infra** re-assembles every `.github/`
    and pushes it to the same branch.
 4. Actions → **sync-stack → Run workflow** → a `stack/resolve-…` PR with the digest table, or the

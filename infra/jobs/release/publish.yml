@@ -1,5 +1,5 @@
   publish:
-    name: Publish to PyPI
+    name: publish
     if: vars.PUBLISH_PYPI == 'true'
     needs: [bump, build]
     runs-on: ubuntu-latest

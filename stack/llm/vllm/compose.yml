@@ -40,6 +40,8 @@ services:
     # Priority scheduling: interactive/memory clients send nothing (0); bulk clients (benchmarks) send priority > 0.
     # Reasoning off by default for chat clients (CortexDB extraction, small tasks); a request opts in with
     # chat_template_kwargs {enable_thinking: true}. Image pinned: a pull-on-start unit drifts on `latest`.
+    # Structured output: xgrammar with no free whitespace — Gemma under a JSON schema otherwise loops on newlines
+    # after the first field until max_tokens (6/6 at temperature 0, 2026-10-19); per request the option is ignored.
     command: >-
       --model ${VLLM_MODEL:-cyankiwi/gemma-4-26B-A4B-it-AWQ-4bit}
       --served-model-name ${LLM_SERVED_NAME:-gemma4-26b-a4b demian-model}
@@ -52,6 +54,7 @@ services:
       --enable-prefix-caching
       --scheduling-policy priority
       --structured-outputs-config.backend xgrammar
+      --structured-outputs-config.disable_any_whitespace true
       --reasoning-parser gemma4
       --default-chat-template-kwargs '{"enable_thinking":false}'
       --enable-auto-tool-choice

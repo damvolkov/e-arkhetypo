@@ -11,7 +11,7 @@ import zlib
 
 import pytest
 
-from e_core.adapters.md.anytomd import AnytomdAdapter
+from e_core.adapters.anytomd import AnytomdAdapter
 from e_core.core.settings.base import Secret
 from e_core.core.settings.md import MDSettings
 from e_core.processors.md import MDProcessor
@@ -46,8 +46,8 @@ def png(rgb: tuple[int, int, int]) -> bytes:
     ],
 )
 async def test_real_engine_renders_each_format(data: bytes, name: str, source: str, snippet: str) -> None:
-    async with AnytomdAdapter(MDSettings()) as anatomd:
-        [file] = await MDProcessor(anatomd, MDSettings()).convert(data, name=name)
+    async with AnytomdAdapter(MDSettings()) as anytomd:
+        [file] = await MDProcessor(anytomd, MDSettings()).convert(data, name=name)
     assert (file.source, file.error) == (source, "")
     assert snippet in file.markdown
 
@@ -56,8 +56,8 @@ async def test_real_engine_renders_each_format(data: bytes, name: str, source: s
 async def test_real_vision_describes_an_image_inline() -> None:
     assert KEY is not None
     settings = MDSettings(md_vision_api_key=Secret(KEY))
-    async with AnytomdAdapter(settings) as anatomd:
-        [file] = await MDProcessor(anatomd, settings).convert(png((30, 140, 60)), name="square.png")
+    async with AnytomdAdapter(settings) as anytomd:
+        [file] = await MDProcessor(anytomd, settings).convert(png((30, 140, 60)), name="square.png")
     assert file.source == "image"
     alt = file.markdown.split("![", 1)[1].split("](", 1)[0]
     assert alt.strip()

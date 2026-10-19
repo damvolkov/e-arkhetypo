@@ -46,8 +46,10 @@ async def lifespan(app: Litestar) -> AsyncIterator[None]:
     async with AsyncExitStack() as stack:
         ### each field is a concrete adapter behind its port: it enters the stack as the context manager it is.
         roles = tuple(field.name for field in fields(edges))
-        for role in roles:
+        _ = [
             await stack.enter_async_context(cast("AbstractAsyncContextManager[object]", getattr(edges, role)))
+            for role in roles
+        ]
         system.adapters = edges
         logger.info("adapters ready", edges=sorted(roles), step="START")
         yield

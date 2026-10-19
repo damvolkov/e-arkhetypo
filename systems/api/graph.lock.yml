@@ -7,8 +7,30 @@ areas:
 - core
 - ops
 - processors
-inputs_hash: de444d4a3833167361b3586f344232235925688109b981c318e147b8f4d46d64
+inputs_hash: "30a374203974fe95daff49ff62e10e80b384546c0e122879c71403410bdc660a"
 units:
+- key: adapters/anytomd
+  area: adapters
+  name: anytomd
+  files:
+  - src/adapters/anytomd.py
+  package: false
+  tests:
+  - tests/unit/adapters/test_anytomd.py
+  deps:
+  - adapters/base
+  - adapters/ports
+  - core/settings
+  dependents: []
+  closure:
+  - adapters/base
+  - adapters/ports
+  - core/proxy
+  - core/settings
+  - ops/file
+  level: 2
+  locked: false
+  detachable: false
 - key: adapters/base
   area: adapters
   name: base
@@ -18,6 +40,7 @@ units:
   tests: []
   deps: []
   dependents:
+  - adapters/anytomd
   - adapters/docling
   - adapters/http
   - adapters/otel
@@ -101,6 +124,7 @@ units:
   - tests/unit/adapters/test_ports.py
   deps: []
   dependents:
+  - adapters/anytomd
   - adapters/docling
   - adapters/otel
   - processors/doc
@@ -250,6 +274,7 @@ units:
   - core/proxy
   - ops/file
   dependents:
+  - adapters/anytomd
   - adapters/docling
   - adapters/http
   - adapters/otel

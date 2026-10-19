@@ -1,4 +1,4 @@
-"""tests/unit/e_core/adapters/md/anytomd: the bound engine — connect wiring, PDF vs other formats, warnings, lifecycle, offline.
+"""tests/unit/e_core/adapters/anytomd: the bound engine — connect wiring, PDF vs other formats, warnings, lifecycle, offline.
 
 `PdfConverter`, `convert_bytes_async` and the OpenAI describer are patched, so the contract (a PDF routes to
 the converter, any other format to convert_bytes with the describer and limits threaded, warnings flattened,
@@ -9,7 +9,8 @@ from typing import Any
 
 import pytest
 
-from e_core.adapters.md.anytomd import AnytomdAdapter
+from e_core.adapters import anytomd
+from e_core.adapters.anytomd import AnytomdAdapter
 from e_core.adapters.ports import MdConversion
 from e_core.core.settings.base import Secret
 from e_core.core.settings.md import MDSettings
@@ -52,10 +53,9 @@ convert = ConvertBytes()
 
 @pytest.fixture
 def engine(monkeypatch: pytest.MonkeyPatch) -> None:
-    module = __import__("e_core.adapters.md.anytomd", fromlist=["*"])
-    monkeypatch.setattr(module, "PdfConverter", FakeConverter)
-    monkeypatch.setattr(module, "AsyncOpenAIDescriber", FakeDescriber)
-    monkeypatch.setattr(module, "convert_bytes_async", convert)
+    monkeypatch.setattr(anytomd, "PdfConverter", FakeConverter)
+    monkeypatch.setattr(anytomd, "AsyncOpenAIDescriber", FakeDescriber)
+    monkeypatch.setattr(anytomd, "convert_bytes_async", convert)
 
 
 def adapter(**conf: Any) -> AnytomdAdapter:
@@ -92,6 +92,12 @@ async def test_the_vision_describer_is_wired_from_settings(engine: None) -> None
         MDSettings().md_vision_prompt,
     )
     assert (convert.calls or (None, None, {}))[2]["async_image_describer"] is not None
+
+
+async def test_without_a_vision_key_images_stay_undescribed(engine: None) -> None:
+    async with adapter(md_image_describe=True, md_vision_api_key=None) as a:
+        await a.convert(b"<p>x</p>", extension="html")
+    assert (convert.calls or (None, None, {"async_image_describer": "unset"}))[2]["async_image_describer"] is None
 
 
 async def test_a_pdf_needs_the_lifespan_to_open_the_converter(engine: None) -> None:

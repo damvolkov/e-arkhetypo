@@ -1,4 +1,4 @@
-name: Release
+name: release
 
 # Git-first: the tag IS the version (uv-dynamic-versioning). Nothing is published by a merge —
 # the gates in .github/ci.vars.example decide what a repo is. Generated from infra/, do not edit.

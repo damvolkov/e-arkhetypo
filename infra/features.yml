@@ -93,10 +93,10 @@ features:
     tokens: [pypi_project, coverage_floor, python]
 
   selfmaintain:
-    label: "Renovate opens the PRs, sync keeps versions true, ai-fix mends the gaps, health reports"
+    label: "Renovate opens the PRs, sync keeps versions true, maintenance mends the gaps, health reports"
     jobs:
       ci: [upstream-context]
-      workflow: [sync, ai-fix, health]
+      workflow: [sync, maintenance, health]
     files: [renovate.json, qwen.md, tools/health.py, tools/upstream.py]
     requires: [ci-basics]
     gate: null
@@ -120,7 +120,7 @@ features:
     label: "three-area self-maintenance of a wide repo: systems (uv), stack (images) and infra (pins), one sync each, health reports by area"
     jobs:
       ci: [upstream-context-repo]
-      workflow: [sync-systems, sync-stack, sync-infra, ai-fix, health-areas]
+      workflow: [sync-systems, sync-stack, sync-infra, maintenance, health-areas]
     files: [renovate.repo.json, qwen.repo.md, tools/health.py, tools/upstream.py, tools/repo_health.py, tools/stack_resolve.py, tools/changelog.py]
     requires: [repo-ci]
     replaces: [selfmaintain]

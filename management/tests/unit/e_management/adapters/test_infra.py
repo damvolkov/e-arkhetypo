@@ -13,7 +13,7 @@ def test_the_real_library_loads_complete(repo) -> None:
     assert library.map.version == 1
     assert {"ci-basics", "docs", "pypi", "image", "frontend", "rust", "selfmaintain"} <= library.map.features.keys()
     assert library.fragments["workflows/ci.yml"]
-    assert library.fragments["jobs/workflow/ai-fix.yml"]
+    assert library.fragments["jobs/workflow/maintenance.yml"]
 
 
 def test_load_names_the_fragments_a_map_loses(tmp_path) -> None:

@@ -2,7 +2,7 @@
 
 Stdlib only. Diffs the dependency pins of two pyproject.toml files and, for each moved package, writes
 into the output directory: `versions.txt` (old→new per line), `release-notes.md` (the GitHub releases
-between the two tags, when reachable) and an empty `api-added.txt` — the file ai-fix reads to decide
+between the two tags, when reachable) and an empty `api-added.txt` — the file maintenance reads to decide
 whether there is an `expose` to do. Exit 0 always: context is never a failure; a missing package is a
 line saying so."""
 

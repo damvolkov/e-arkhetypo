@@ -14,7 +14,7 @@ infra/
   jobs/              # one file = one atomic job, already indented for its workflow
     ci/              #   quality · test · docs · pages · ui · snapshots · coverage · upstream-context{,-repo} · ecosystem · repo-gates
     release/         #   bump · build · publish · image
-    workflow/        #   sync · ai-fix · health (libraries) · sync-systems · sync-stack · sync-infra · health-areas (wide repos)
+    workflow/        #   sync · maintenance · health (libraries) · sync-systems · sync-stack · sync-infra · health-areas (wide repos)
   files/             # config and tools copied verbatim (or through the same token pass): renovate{,.repo}.json ·
                      #   qwen{,.repo}.md · tools/{health,upstream,repo_health,stack_resolve,changelog}.py
   setup/             # one file = one feature: the one-time GitHub install instructions
@@ -44,8 +44,8 @@ infra/
 | `image` | image | `PUBLISH_IMAGE` | `stack.docker` |
 | `frontend` | ui (+ snapshots) | `UI_SNAPSHOTS` | — |
 | `rust` | coverage · wheels · sdist | release on `v*` tag | `pypi` |
-| `selfmaintain` | sync · ai-fix · health | branch `renovate/*` | `ci-basics` |
+| `selfmaintain` | sync · maintenance · health | branch `renovate/*` | `ci-basics` |
 | `repo-ci` | ecosystem · repo-gates | — (always on) | — |
-| `repo-maintain` | sync-systems · sync-stack · sync-infra · ai-fix · health-areas | branch `renovate/*`, `stack/resolve-*`, schedules | `repo-ci` (replaces `selfmaintain`) |
+| `repo-maintain` | sync-systems · sync-stack · sync-infra · maintenance · health-areas | branch `renovate/*`, `stack/resolve-*`, schedules | `repo-ci` (replaces `selfmaintain`) |
 
 Assembled per project by `management`; read `features.yml` for the machine version of that table.

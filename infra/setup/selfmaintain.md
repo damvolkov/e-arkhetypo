@@ -7,8 +7,8 @@ cannot; a human merges. Nothing in this loop merges itself.
 flowchart LR
   R[Renovate] -->|PR renovate/*| S[sync.yml: lockfiles]
   S -->|push| C[CI: tests · upstream-context]
-  C -->|red, or new surface| A[ai-fix.yml: Qwen agent]
-  A -->|commit [ai-fix]| C
+  C -->|red, or new surface| A[maintenance.yml: Qwen agent]
+  A -->|commit [maintenance]| C
   C -->|green| H[Human review and merge]
   A -->|3 attempts used| N[label needs-human]
   M[health.yml, monthly] --> I[issue deps-health]
@@ -20,10 +20,10 @@ flowchart LR
 |---|---|---|---|
 | Dependency pins | `pyproject.toml`, `.github/workflows/*` action digests | Renovate | a new release upstream |
 | Lockfile | `uv.lock` | `sync.yml` (uv) | with every pin change |
-| Package code, tests, docs | `src/<package>/`, `tests/`, `docs/` | `ai-fix.yml` agent | CI red, or the dependency gained surface |
-| Changelog | `CHANGELOG.md` → `## [Unreleased]` | `ai-fix.yml` agent | every user-visible change |
+| Package code, tests, docs | `src/<package>/`, `tests/`, `docs/` | `maintenance.yml` agent | CI red, or the dependency gained surface |
+| Changelog | `CHANGELOG.md` → `## [Unreleased]` | `maintenance.yml` agent | every user-visible change |
 | Health issue | GitHub issue labelled `deps-health` | `health.yml` | monthly |
-| PR comments and labels | the Renovate PR | `sync.yml`, `ai-fix.yml` | after each run |
+| PR comments and labels | the Renovate PR | `sync.yml`, `maintenance.yml` | after each run |
 
 **Human-only:** merging, the package version, release tags (`v*`), `.github/`, `QWEN.md`,
 `pyproject.toml`, `prek.toml`. The agent's limits are enforced by code, not trust: the workflow
@@ -54,7 +54,7 @@ shows the `gh` equivalent.
    | Workflows | **No access** (read-only is fine too — never write) |
 
    Workflows must stay off: nothing the bots do may rewrite `.github/` — the allowlist in
-   `ai-fix.yml` and `QWEN.md` enforce the same wall from the other side.
+   `maintenance.yml` and `QWEN.md` enforce the same wall from the other side.
 7. Click **Create GitHub App**.
 8. On the App's page, copy the **Client ID** (looks like `Iv1.xxxxxxxx`) — you need it in step 3.
 9. Scroll to **Private keys** → **Generate a private key**. A `.pem` file downloads (one per
@@ -125,7 +125,7 @@ CLI, all six at once:
    Tick *Run Renovate now* there and watch a `renovate/…` branch appear.
 2. Open the dashboard's PR → the **`sync`** job must push a lockfile commit; CI must then run.
 3. Actions tab → **CI** → on any `renovate/*` PR you should see `upstream-context`; break a test
-   on purpose and `ai-fix` comments on the PR within its three attempts.
+   on purpose and `maintenance` comments on the PR within its three attempts.
 4. Actions → **health** → **Run workflow** → the `deps-health` issue opens or closes.
 
 ## Running the pieces by hand

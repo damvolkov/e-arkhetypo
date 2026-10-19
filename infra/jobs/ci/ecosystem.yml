@@ -12,7 +12,7 @@
         run: |
           for d in systems/*/; do
             [ -f "$d/Makefile" ] || continue
-            make -C "$d" install
+            if grep -q '^core:' "$d/Makefile"; then make -C "$d" core common; else make -C "$d" common; fi
           done
       - name: make ci in every system, one by one, reporting all failures
         run: |

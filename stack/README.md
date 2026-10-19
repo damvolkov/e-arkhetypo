@@ -26,6 +26,15 @@ Convenciones:
   tolera un pin sólo cuando el tag `latest` no existe o el número fija formato
   (p. ej. `pgvector:pg17`, major de Postgres; `llama.cpp:server-cuda` y
   TEI `cpu-latest` son ya tags flotantes).
+- **Ledger de versiones**: `stack/stack.versions.yml` — escrito sólo por el bot
+  (`tools/stack_resolve.py`, workflow `sync-stack` semanal): por imagen, el
+  digest al que apunta su tag hoy, `floating`, `vanished` (imagen muerta =
+  candidato a deprecado) y `build` para las locales. Los compose no se pinean;
+  el ledger es el registro de qué era `latest` cuándo. `make stack-versions`
+  lo refresca a mano.
+- **`stack.parked: "true"`**: un servicio aparcado (desactivado en el host, compose aún no
+  retirado) se excluye del sondeo de versiones y del reporte de salud hasta que se borre.
+  Tal es hoy `storage/minio` (las imágenes de quay.io murieron con el OSS de MinIO).
 - **Pares indivisibles.** Un servicio que solo existe para otro vive en su propia carpeta
   pero no se levanta solo: el principal lo `include`a y lo exige con `depends_on`
   (`required: true`, `service_healthy`). Un `compose up` levanta ambos; un `down`, ambos.
@@ -73,7 +82,7 @@ Puerto = default en host (`:container`). GPU = necesita `nvidia` runtime.
 | rdb/postgres | pgvector/pgvector:pg17 | 5432 | | |
 | cdb/redis | redis:latest | 6379 | | `redis.conf` |
 | vdb/qdrant | qdrant/qdrant:latest | 6333 / 6334 | | `config.yaml` |
-| storage/minio | minio/minio:latest | 9000 / 9001 | | |
+| storage/minio | minio/minio:latest | 9000 / 9001 | | **aparcado** — imagen muerta aguas arriba, fuera de uso |
 | llm/strata | build `strata:<tag>` (engine en local) | 8000 | ✓ | `setup.sh`; toma el hostname `vllm`: uno de {strata, vllm} en la tarjeta, nunca los dos |
 | llm/vllm | vllm/vllm-openai:latest | 8000 | ✓ | profesor de jev (reader de logprobs); sirve el alias `demian-model` |
 | llm/clef | ghcr.io/ggml-org/llama.cpp:server-cuda | 8081 | ✓ | Clef-Flash, el modelo de decisión de jev (una pasada) |

@@ -96,9 +96,24 @@ class Blueprint:
         ]
 
     def _infra_actions(self, off: frozenset[str], ci_off: frozenset[str]) -> list[Action]:
-        """The CI files this project assembles: defaults minus the wizard's switches, tokens from the name and the reference."""
+        """The plan action wrapping the assembled CI files — a selection with no files contributes none."""
+        files = self.infra_files(off, ci_off)
+        return (
+            [Generate(files=tuple(GeneratedFile(path=key, content=body) for key, body in files.items()))]
+            if files
+            else []
+        )
+
+    ############################################################
+
+    ##### PUBLIC #####
+
+    def infra_files(self, off: frozenset[str] = frozenset(), ci_off: frozenset[str] = frozenset()) -> dict[str, str]:
+        """The CI files this project assembles: defaults minus the wizard's switches, tokens from the name and the reference.
+
+        Public because re-assembly (``e_management infra``) needs exactly this map without the rest of the plan."""
         if self._library is None or self._defaults is None:
-            return []
+            return {}
         chosen = frozenset(self._defaults.features) - ci_off
         unknown = ci_off - set(self._defaults.features)
         if unknown:
@@ -111,14 +126,9 @@ class Blueprint:
         chosen_effective = frozenset(
             key for key in chosen if not (set(self._library.map.features[key].requires) & gateable) - on_choices
         )  # a feature gated on a switched-off choice (image on docker) leaves quietly — the map, not the user, decided.
-        files = assemble(
+        return assemble(
             self._library, {**self._defaults.tokens, **derive(self.package, self.brand)}, chosen_effective, on_choices
         )
-        return [Generate(files=tuple(GeneratedFile(path=key, content=body) for key, body in files.items()))]
-
-    ############################################################
-
-    ##### PUBLIC #####
 
     @property
     def package(self) -> str:

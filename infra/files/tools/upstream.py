@@ -2,7 +2,7 @@
 
 Stdlib only. Diffs the dependency pins of two pyproject.toml files and, for each moved package, writes
 into the output directory: `versions.txt` (old→new per line), `release-notes.md` (the GitHub releases
-between the two tags, when reachable) and an empty `api-added.txt` — the file ai-fix reads to decide
+between the two tags, when reachable) and an empty `api-added.txt` — the file maintenance reads to decide
 whether there is an `expose` to do. Exit 0 always: context is never a failure; a missing package is a
 line saying so."""
 
@@ -37,7 +37,7 @@ def _get(url: str, token: str = "") -> Any:
     if token:
         headers["Authorization"] = f"Bearer {token}"
     try:
-        with urllib.request.urlopen(urllib.request.Request(url, headers), timeout=TIMEOUT) as response:
+        with urllib.request.urlopen(urllib.request.Request(url, headers=headers), timeout=TIMEOUT) as response:
             return json.load(response)
     except Exception:  # noqa: BLE001 — a failed note fetch is a missing note, never a failed run
         return None

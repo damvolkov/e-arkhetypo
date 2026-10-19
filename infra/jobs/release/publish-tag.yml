@@ -1,5 +1,5 @@
   publish:
-    name: Publish to PyPI
+    name: publish
     needs: [wheels, sdist]
     runs-on: ubuntu-latest
     environment:

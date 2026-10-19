@@ -1,7 +1,7 @@
 # materialized from common/ — run `make common`; do not edit or commit these
-prek.toml
-.gitattributes
-.python-version
-.github/dependabot.yml
-.github/CODEOWNERS
+/prek.toml
+/.gitattributes
+/.python-version
+/.github/dependabot.yml
+/.github/CODEOWNERS
 site/

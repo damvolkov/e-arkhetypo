@@ -14,7 +14,7 @@ categories:
 - tools
 - vdb
 - watch
-inputs_hash: "966a889ebe174550cbd1d7ed7775cd7d4dee84a45245e22c65343c46e9e3843a"
+inputs_hash: "09f9662d746d3c1946607908c895cd4b40f14fe96e195e626635ac41f4a68bb1"
 services:
 - name: openhuman
   category: agent
@@ -65,17 +65,14 @@ services:
   - playwright
   - qdrant
   - searxng
-  - vllm
   dependents: []
   closure:
   - docling
   - embed
   - kokoro
-  - phoenix
   - playwright
   - qdrant
   - searxng
-  - vllm
   - yacy
   level: 2
 - name: ejev
@@ -85,12 +82,10 @@ services:
   port: 8081
   depends:
   - phoenix
-  - vllm
   dependents: []
   closure:
   - phoenix
-  - vllm
-  level: 2
+  level: 1
 - name: ellm
   category: llm
   compose: stack/llm/ellm/compose.yml
@@ -142,13 +137,7 @@ services:
   port: 8000
   depends:
   - phoenix
-  dependents:
-  - agentmemory
-  - cortexdb
-  - ejev
-  - mem0
-  - openwebui
-  - stirling
+  dependents: []
   closure:
   - phoenix
   level: 1
@@ -178,13 +167,10 @@ services:
   port: 3111
   depends:
   - embed
-  - vllm
   dependents: []
   closure:
   - embed
-  - phoenix
-  - vllm
-  level: 2
+  level: 1
 - name: cortexdb
   category: mem
   compose: stack/mem/cortexdb/compose.yml
@@ -194,13 +180,10 @@ services:
   port: 3141
   depends:
   - embed
-  - vllm
   dependents: []
   closure:
   - embed
-  - phoenix
-  - vllm
-  level: 2
+  level: 1
 - name: mem0
   category: mem
   compose: stack/mem/mem0/compose.yml
@@ -211,13 +194,10 @@ services:
   port: 8888
   depends:
   - embed
-  - vllm
   dependents: []
   closure:
   - embed
-  - phoenix
-  - vllm
-  level: 2
+  level: 1
 - name: docling
   category: rag
   compose: stack/rag/docling/compose.yml
@@ -347,14 +327,11 @@ services:
   depends:
   - embed
   - postgres
-  - vllm
   dependents: []
   closure:
   - embed
-  - phoenix
   - postgres
-  - vllm
-  level: 2
+  level: 1
 - name: qdrant
   category: vdb
   compose: stack/vdb/qdrant/compose.yml

@@ -1,8 +1,8 @@
-name: ai-fix
+name: maintenance
 
 # After CI on a Renovate branch: repair what the update broke (fix), or expose what the dependency
 # gained (expose). The agent edits files; this workflow alone commits, after an allowlist gate.
-# Never merges. Stops after MAX_ATTEMPTS commits tagged [ai-fix] on the branch.
+# Never merges. Stops after MAX_ATTEMPTS commits tagged [maintenance] on the branch.
 # Generated from infra/, do not edit.
 
 on:
@@ -15,7 +15,7 @@ permissions:
   actions: read
 
 concurrency:
-  group: ai-fix-${{ github.event.workflow_run.head_branch }}
+  group: maintenance-${{ github.event.workflow_run.head_branch }}
   cancel-in-progress: false
 
 env:
@@ -64,7 +64,7 @@ jobs:
           DEFAULT: ${{ github.event.repository.default_branch }}
         run: |
           PR=$(gh pr list --head "$BRANCH" --json number -q '.[0].number')
-          ATTEMPTS=$(git log "origin/$DEFAULT..HEAD" --oneline --grep '\[ai-fix\]' | wc -l)
+          ATTEMPTS=$(git log "origin/$DEFAULT..HEAD" --oneline --grep '\[maintenance\]' | wc -l)
           ADDED=$(cat .ai-context/upstream-context/api-added.txt 2>/dev/null | wc -l)
           {
             echo "pr=$PR"
@@ -75,7 +75,7 @@ jobs:
             decide false stale
           elif [ "$ATTEMPTS" -ge "$MAX_ATTEMPTS" ]; then
             decide false exhausted
-            gh pr comment "$PR" --body "🤖 ai-fix: $MAX_ATTEMPTS attempts used. Needs a human."
+            gh pr comment "$PR" --body "🤖 maintenance: $MAX_ATTEMPTS attempts used. Needs a human."
             gh pr edit "$PR" --add-label needs-human
           elif [ "$CONCLUSION" = "failure" ]; then
             decide true fix
@@ -108,7 +108,7 @@ jobs:
             - expose: CI passes but the updated dependency gained public surface. Expose it where the contract allows.
             Context in .ai-context/:
               - upstream-context/ (what changed upstream), ci-logs-*/build-test.log (one per OS and Python version)
-            Before finishing run: uv sync && uv run prek run --all-files && make test
+            Before finishing run: {{verify}}
             Do NOT commit or push. End with the summary format defined in QWEN.md.
 
       - name: Commit and push
@@ -126,7 +126,7 @@ jobs:
           rm -rf .ai-context .qwen qwen-artifacts
           git add -A
           REJECTED=$(git diff --cached --name-only | grep -Ev "$ALLOWED" || true)
-          printf '🤖 **ai-fix (%s)**\n\n%s\n' "$MODE" "$SUMMARY" > /tmp/body.md
+          printf '🤖 **maintenance (%s)**\n\n%s\n' "$MODE" "$SUMMARY" > /tmp/body.md
           if [ -n "$REJECTED" ]; then
             printf '%s\n' "$REJECTED" | xargs git reset -q --
             printf '\n**Discarded edits outside the allowlist:**\n```\n%s\n```\n' "$REJECTED" >> /tmp/body.md
@@ -138,7 +138,7 @@ jobs:
           fi
           git config user.name "$SLUG[bot]"
           git config user.email "$SLUG[bot]@users.noreply.github.com"
-          git commit -m "[ai-fix] $MODE attempt $((ATTEMPTS + 1))"
+          git commit -m "[maintenance] $MODE attempt $((ATTEMPTS + 1))"
           git push "https://x-access-token:$TOKEN@github.com/${GITHUB_REPOSITORY}.git" "HEAD:$BRANCH"
           gh pr comment "$PR" --body-file /tmp/body.md
           gh pr edit "$PR" --add-label ai-modified

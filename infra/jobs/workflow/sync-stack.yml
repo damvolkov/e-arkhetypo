@@ -1,0 +1,52 @@
+name: sync-stack
+
+# Weekly, deterministic: every floating image tag in stack/ is resolved to the digest it points at
+# today, the ledger stack/stack.versions.yml is rewritten, vanished images are marked deprecated,
+# and a PR opens when anything moved. The compose files keep their :latest — the ledger is the
+# record of what latest was. Generated from infra/, do not edit.
+
+on:
+  schedule:
+    - cron: "0 5 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  resolve:
+    name: resolve floating tags
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510  # v3.3.0
+        id: app
+        with:
+          client-id: ${{ vars.APP_CLIENT_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          permission-contents: write
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Resolve every remote image to its current digest
+        run: uv run --no-project python tools/stack_resolve.py --output stack/stack.versions.yml
+      - name: Open a PR when the ledger moved
+        env:
+          TOKEN: ${{ steps.app.outputs.token }}
+          SLUG: ${{ steps.app.outputs.app-slug }}
+          GH_TOKEN: ${{ steps.app.outputs.token }}
+        run: |
+          git diff --quiet stack/stack.versions.yml && { echo "no movement"; exit 0; }
+          BRANCH="stack/resolve-$(date -u +%Y-%m-%d)"
+          uv run --no-project python tools/changelog.py --area stack --line "floating tags resolved to current digests (\`$BRANCH\`)"
+          git config user.name "$SLUG[bot]"
+          git config user.email "$SLUG[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+          git add stack/stack.versions.yml CHANGELOG.md
+          git commit -m "chore(sync-stack): resolve the floating tags"
+          git push "https://x-access-token:$TOKEN@github.com/${GITHUB_REPOSITORY}.git" "$BRANCH"
+          {
+            echo "Deterministic digest resolution of every remote image in \`stack/\` — compose files unchanged."
+            echo
+            git diff "HEAD^" -- stack/stack.versions.yml | grep -E '^[+-]  ' || true
+          } > /tmp/body.md
+          gh pr create --title "stack: resolve the floating tags" --body-file /tmp/body.md --label area:stack

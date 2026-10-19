@@ -1,0 +1,57 @@
+name: health-areas
+
+# Monthly, deterministic: the three areas of a wide repo — stack images, system dependencies, action
+# pins — are probed and reported in one issue split by area. Opens or refreshes it while any finding
+# stands; closes it when all three are clean. Generated from infra/, do not edit.
+
+on:
+  schedule:
+    - cron: "0 6 1 * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: stack · systems · infra health
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Probe the registries, repositories and ledgers
+        id: probe
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set +e
+          uv run --no-project python tools/repo_health.py --root . --output report.md --token "$GH_TOKEN"
+          STATUS=$?
+          set -e
+          [ "$STATUS" -eq 0 ] || [ "$STATUS" -eq 3 ] || exit "$STATUS"
+          echo "findings=$([ "$STATUS" -eq 3 ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+      - name: Open, refresh or close the health issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FINDINGS: ${{ steps.probe.outputs.findings }}
+        run: |
+          ISSUE=$(gh issue list --label deps-health --state open --json number -q '.[0].number')
+          {
+            echo "Monthly three-area health check (\`tools/repo_health.py\`): stack images — vanished, deprecated or"
+            echo "stale-ledger; systems — archived, vanished, stale or dormant dependencies; infra — action pins"
+            echo "behind their upstream release."
+            echo
+            cat report.md
+            echo
+            echo "Run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          } > body.md
+          case "$FINDINGS:${ISSUE:+open}" in
+            true:open) gh issue edit "$ISSUE" --body-file body.md ;;
+            true:)     gh issue create --title "Dependency health: stack · systems · infra" --label deps-health --body-file body.md ;;
+            false:open) gh issue close "$ISSUE" --comment "All three areas healthy again." ;;
+            *) echo "All areas healthy." ;;
+          esac

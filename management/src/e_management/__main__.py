@@ -89,11 +89,21 @@ def _run(args: argparse.Namespace) -> int:  # noqa: PLR0912 — the verbs are th
             issues = commands.stack_drift(args.root)
             print(f"stack: {'in sync' if not issues else chr(10).join('  ' + i for i in issues)}")
             return int(bool(issues))
+        case "infra":
+            for path in commands.infra_write(args.root, spec):
+                print(f"infra: wrote {path.relative_to(args.root)}")
         case "infra-check":
             report = commands.infra_check(args.root, spec)
             for name, issues in report.items():
                 print(f"{name}: {'in sync' if not issues else chr(10).join('  ' + i for i in issues)}")
             return int(any(report.values()))
+        case "repo-infra":
+            for path in commands.repo_write(args.root):
+                print(f"repo-infra: wrote {path.relative_to(args.root)}")
+        case "repo-infra-check":
+            issues = commands.repo_drift(args.root)
+            print(f"repo: {'in sync' if not issues else chr(10).join('  ' + i for i in issues)}")
+            return int(bool(issues))
     return 0
 
 
@@ -117,7 +127,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     subs.add_parser("graph-check")
     subs.add_parser("stack")
     subs.add_parser("stack-check")
+    subs.add_parser("infra")
     subs.add_parser("infra-check")
+    subs.add_parser("repo-infra")
+    subs.add_parser("repo-infra-check")
     mp = subs.add_parser("map")
     mp.add_argument("template", nargs="?", default="", help="a system name (default: every system)")
     args = parser.parse_args(list(argv) if argv is not None else None)

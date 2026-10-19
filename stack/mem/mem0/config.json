@@ -4,7 +4,7 @@
     "provider": "openai",
     "config": {
       "model": "gemma4-26b-a4b",
-      "openai_base_url": "http://vllm:8000/v1",
+      "openai_base_url": "http://llm:8000/v1",
       "is_reasoning_model": true,
       "reasoning_effort": "none"
     }

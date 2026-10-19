@@ -10,7 +10,8 @@ services:
       stack.port: "8000"
     ports:
       # default 8000 — vLLM OpenAI-compatible server
-      - "${VLLM_PORT:-8000}:8000"
+      # default 8000 — the LLM slot, the same port strata takes
+      - "${LLM_PORT:-8000}:8000"
     volumes:
       - vllm-cache:/root/.cache/huggingface
     environment:
@@ -56,7 +57,7 @@ services:
       --enable-auto-tool-choice
       --tool-call-parser gemma4
       --port 8000
-      --api-key ${VLLM_API_KEY:-local-dev}
+      --api-key ${LLM_API_KEY:-local-dev}
       --otlp-traces-endpoint ${VLLM_OTLP_ENDPOINT:-http://phoenix:6006/v1/traces}
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost:8000/health || exit 1"]
@@ -64,8 +65,12 @@ services:
       timeout: 10s
       retries: 10
       start_period: 600s
+    # The same slot as strata: `llm`, `vllm` and `strata` all reach whichever of the two holds the card.
     networks:
-      - stack
+      stack:
+        aliases:
+          - llm
+          - strata
 
 volumes:
   vllm-cache:

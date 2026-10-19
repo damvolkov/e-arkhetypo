@@ -55,8 +55,8 @@ services:
     volumes:
       - ejev-data:/data
     environment:
-      - JEV_VLLM_URL=http://vllm:8000/v1
-      - JEV_VLLM_API_KEY=${VLLM_API_KEY:-local-dev}
+      - JEV_VLLM_URL=http://llm:8000/v1
+      - JEV_VLLM_API_KEY=${LLM_API_KEY:-${VLLM_API_KEY:-local-dev}}
       - JEV_MODEL=${JEV_MODEL:-clef}
       - JEV_PERMUTATIONS=${JEV_PERMUTATIONS:-1}
       - JEV_OTLP_ENDPOINT=${JEV_OTLP_ENDPOINT:-http://phoenix:6006/v1/traces}

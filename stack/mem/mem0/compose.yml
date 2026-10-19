@@ -31,7 +31,7 @@ services:
       - POSTGRES_PASSWORD=${PG_PASSWORD:-postgres}
       - APP_DB_NAME=mem0
       # clave del LLM y del embedder OpenAI-compatibles (vllm, embed)
-      - OPENAI_API_KEY=${VLLM_API_KEY:-local-dev}
+      - OPENAI_API_KEY=${LLM_API_KEY:-${VLLM_API_KEY:-local-dev}}
       # clientes: cabecera X-API-Key
       - ADMIN_API_KEY=${MEM0_API_KEY:-local-dev-mem0-admin}
       - JWT_SECRET=${MEM0_JWT_SECRET:-local-dev-mem0-jwt-secret}

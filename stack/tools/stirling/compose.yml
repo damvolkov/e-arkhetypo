@@ -31,7 +31,7 @@ services:
       - AIENGINE_ENABLED=true
       # LLM: slot OpenAI-compatible (strata|vllm), proveedor custom = base URL + clave
       - AIENGINE_MODELS_PROVIDER=custom
-      - AIENGINE_MODELS_BASEURL=${LLM_BASE_URL:-http://vllm:8000/v1}
+      - AIENGINE_MODELS_BASEURL=${LLM_BASE_URL:-http://llm:8000/v1}
       - AIENGINE_MODELS_APIKEY=${LLM_API_KEY:-local-dev}
       - AIENGINE_MODELS_SMARTMODEL=${LLM_SMART_MODEL:-demian-model}
       - AIENGINE_MODELS_FASTMODEL=${LLM_FAST_MODEL:-demian-model}

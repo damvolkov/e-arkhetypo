@@ -24,11 +24,13 @@ jobs:
       - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4  # v10.1.0
       - name: Pin the Python the ecosystem declares
         run: echo "UV_PYTHON=$(cat systems/core/common/python-version)" >> "$GITHUB_ENV"
+      - name: Enable pnpm (the graph ui lint and install steps demand it; the pin lives in package.json)
+        run: corepack enable
       - name: Materialize and sync every project (core/ops/common and .python-version are generated, not committed)
         run: |
           for d in systems/*/; do
             [ -f "$d/Makefile" ] || continue
-            if grep -q '^core:' "$d/Makefile"; then make -C "$d" core common; else make -C "$d" common; fi
+            make -C "$d" install
           done
       - name: make ci in every system, one by one, reporting all failures
         run: |

@@ -60,7 +60,9 @@ class AnytomdAdapter(BaseAdapter):
         self._pdf = PdfConverter(
             ocr=conf.md_pdf_ocr, language=conf.md_pdf_language, workers=conf.md_pdf_workers or None
         )
-        self._describer = self._common_vision() if conf.md_image_describe else None
+        self._describer = (
+            self._common_vision() if conf.md_image_describe and conf.md_vision_api_key is not None else None
+        )
 
     async def close(self) -> None:
         aclose = getattr(self._describer, "aclose", None)

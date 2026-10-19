@@ -49,9 +49,12 @@ services:
     stop_grace_period: 60s
     # 1/4 of the default CPU weight: every core while the desktop idles, it yields under contention.
     cpu_shares: 256
+    # One slot, one address: `llm` is the name a consumer should use; `vllm` and `strata` stay for
+    # those configured before it. vllm/compose.yml answers to the same three, port, key and model name.
     networks:
       stack:
         aliases:
+          - llm
           - vllm
 
 volumes:

@@ -24,8 +24,8 @@ services:
       # --- Branding ---
       - WEBUI_NAME=e-ui
       # --- LLM Engine (the slot: strata by default, vllm under gpu-teach; both serve demian-model) ---
-      - OPENAI_API_BASE_URL=http://vllm:8000/v1
-      - OPENAI_API_KEY=${VLLM_API_KEY:-local-dev}
+      - OPENAI_API_BASE_URL=http://llm:8000/v1
+      - OPENAI_API_KEY=${LLM_API_KEY:-${VLLM_API_KEY:-local-dev}}
       # --- Embedding Engine (embed / TEI) ---
       - RAG_EMBEDDING_ENGINE=openai
       - RAG_OPENAI_API_BASE_URL=http://embed:80/v1

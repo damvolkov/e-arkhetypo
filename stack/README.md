@@ -108,7 +108,7 @@ Puerto = default en host (`:container`). GPU = necesita `nvidia` runtime.
 
 ```
 redis:6379        postgres:5432     qdrant:6333      minio:9000
-strata|vllm:8000/v1  clef:8081  jev:45160  llamacpp:8080  ellm:80      embed:80/v1
+llm:8000/v1          clef:8081  jev:45160  llamacpp:8080  ellm:80      embed:80/v1
 kokoro:8880/v1    fwhisper:8000     evoice:80        speaches:8000
 searxng:8080      yacy:8090         docling:5001      playwright:3000  pipelines:9099
 stirling:8080

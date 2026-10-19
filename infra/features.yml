@@ -113,7 +113,7 @@ features:
     gate: null
     vars: []
     secrets: []
-    setup: repo-maintain.md
+    setup: ""
     tokens: []
 
   repo-maintain:

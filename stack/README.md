@@ -26,6 +26,12 @@ Convenciones:
   tolera un pin sólo cuando el tag `latest` no existe o el número fija formato
   (p. ej. `pgvector:pg17`, major de Postgres; `llama.cpp:server-cuda` y
   TEI `cpu-latest` son ya tags flotantes).
+- **Ledger de versiones**: `stack/stack.versions.yml` — escrito sólo por el bot
+  (`tools/stack_resolve.py`, workflow `sync-stack` semanal): por imagen, el
+  digest al que apunta su tag hoy, `floating`, `vanished` (imagen muerta =
+  candidato a deprecado) y `build` para las locales. Los compose no se pinean;
+  el ledger es el registro de qué era `latest` cuándo. `make stack-versions`
+  lo refresca a mano.
 - **Pares indivisibles.** Un servicio que solo existe para otro vive en su propia carpeta
   pero no se levanta solo: el principal lo `include`a y lo exige con `depends_on`
   (`required: true`, `service_healthy`). Un `compose up` levanta ambos; un `down`, ambos.

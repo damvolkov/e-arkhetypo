@@ -37,6 +37,7 @@ lint = [
     "ty>=0.0.75",
     "tach>=0.35",
     "validate-pyproject[all]>=0.26",
+    "zizmor>=1.25",
 ]
 test = [
     "pytest>=9.1",

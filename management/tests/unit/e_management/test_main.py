@@ -39,6 +39,15 @@ def test_main_graph_and_checks_pass(tmp_path: Path, capsys, monkeypatch) -> None
     assert main(["map", "api"]) == 0
 
 
+def test_main_infra_and_repo_infra_write_then_check(capsys) -> None:
+    assert main(["infra"]) == 0
+    assert ".github/workflows/ci.yml" in capsys.readouterr().out
+    assert main(["infra-check"]) == 0
+    assert main(["repo-infra"]) == 0
+    assert main(["repo-infra-check"]) == 0
+    assert "repo: in sync" in capsys.readouterr().out
+
+
 def test_main_plan_honours_the_switches(tmp_path: Path, capsys) -> None:
     assert main(["plan", "api", "xapp", "--off", "websockets", "--ci-off", "docs"]) == 0
     out = capsys.readouterr().out

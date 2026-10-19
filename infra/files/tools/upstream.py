@@ -37,7 +37,7 @@ def _get(url: str, token: str = "") -> Any:
     if token:
         headers["Authorization"] = f"Bearer {token}"
     try:
-        with urllib.request.urlopen(urllib.request.Request(url, headers), timeout=TIMEOUT) as response:
+        with urllib.request.urlopen(urllib.request.Request(url, headers=headers), timeout=TIMEOUT) as response:
             return json.load(response)
     except Exception:  # noqa: BLE001 — a failed note fetch is a missing note, never a failed run
         return None

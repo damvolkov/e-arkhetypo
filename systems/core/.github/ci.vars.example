@@ -1,0 +1,8 @@
+# Optional CI/CD gates — GitHub Actions *variables* (Settings → Secrets and variables → Actions → Variables).
+# Generated from infra/ by management — every gate ships inert: a repo enables only what it is.
+# Enable:  gh variable set NAME --body true      Disable: gh variable delete NAME
+#
+# Always-on (not gates, the CI baseline): ruff · ty · tach · validate-pyproject · zizmor · pytest+coverage.
+
+DOCS_DEPLOY=false  # from feature docs: strict docs build, github pages deploy
+PUBLISH_PYPI=false  # from feature pypi: git-first release to pypi through trusted publishing

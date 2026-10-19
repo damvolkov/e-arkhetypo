@@ -103,4 +103,29 @@ features:
     vars: [APP_CLIENT_ID, QWEN_BASE_URL, QWEN_MODEL, QWEN_CLI_VERSION]
     secrets: [APP_PRIVATE_KEY, QWEN_API_KEY]
     setup: selfmaintain.md
-    tokens: [brand, package_path, allowlist]
+    tokens: [brand, package_path, allowlist, verify]
+
+  repo-ci:
+    label: "the ecosystem gate of a wide repo: every system's CI plus the repo's own drift gates"
+    jobs:
+      ci: [ecosystem, repo-gates]
+    requires: []
+    gate: null
+    vars: []
+    secrets: []
+    setup: repo-maintain.md
+    tokens: []
+
+  repo-maintain:
+    label: "three-area self-maintenance of a wide repo: systems (uv), stack (images) and infra (pins), one sync each, health reports by area"
+    jobs:
+      ci: [upstream-context-repo]
+      workflow: [sync-systems, sync-stack, sync-infra, ai-fix, health-areas]
+    files: [renovate.repo.json, qwen.repo.md, tools/health.py, tools/upstream.py, tools/repo_health.py, tools/stack_resolve.py, tools/changelog.py]
+    requires: [repo-ci]
+    replaces: [selfmaintain]
+    gate: null
+    vars: [APP_CLIENT_ID, QWEN_BASE_URL, QWEN_MODEL, QWEN_CLI_VERSION]
+    secrets: [APP_PRIVATE_KEY, QWEN_API_KEY]
+    setup: repo-maintain.md
+    tokens: [brand, allowlist, verify]

@@ -24,6 +24,12 @@ CONCURRENCY = 8
 TIMEOUT = 30
 USER_AGENT = "e-stack-health"
 NAME_RE = re.compile(r"^([A-Za-z0-9][A-Za-z0-9._-]*)")
+DIGITS_RE = re.compile(r"\d+")
+
+
+def version_key(version: str) -> tuple[tuple[int, ...], int]:
+    """A release string as a sortable key: numbers compare numerically, a suffix (pre-release) loses ties."""
+    return (tuple(int(part) for part in DIGITS_RE.findall(version)), -len(re.sub(r"[\d.]", "", version)))
 
 RULES = ("archived", "vanished", "stale", "dormant")
 
@@ -44,7 +50,7 @@ def _get(url: str, token: str) -> Any:
     if token and url.startswith("https://api.github.com/"):
         headers["Authorization"] = f"Bearer {token}"
     try:
-        with urllib.request.urlopen(urllib.request.Request(url, headers), timeout=TIMEOUT) as response:
+        with urllib.request.urlopen(urllib.request.Request(url, headers=headers), timeout=TIMEOUT) as response:
             return json.load(response)
     except urllib.error.HTTPError as error:
         if error.code == 404:
@@ -68,7 +74,7 @@ def check(name: str, token: str) -> list[tuple[str, str, str, str]]:
     pypi = _get(f"https://pypi.org/pypi/{name}/json", "")
     if pypi is None:
         return [(name, "PyPI", "vanished", "package is gone from the index")]
-    latest = next(iter(reversed(sorted(pypi["releases"]))), "")
+    latest = max(pypi["releases"], key=version_key, default="")
     uploaded = (pypi["releases"].get(latest) or [{}])[0].get("upload_time", "")
     age = (time.time() - time.mktime(time.strptime(uploaded, "%Y-%m-%dT%H:%M:%S"))) / 86400 if uploaded else STALE_DAYS + 1
     rows = [(name, "PyPI", "stale", f"last release {latest} is {int(age)} days old")] if age > STALE_DAYS else []

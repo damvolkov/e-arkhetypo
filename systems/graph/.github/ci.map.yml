@@ -1,0 +1,6 @@
+features:
+  - ci-basics
+  - docs
+  - pypi
+  - image
+  - frontend

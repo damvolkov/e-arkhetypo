@@ -62,14 +62,14 @@ def test_every_gate_documents_its_effect() -> None:
 
 def test_workflows_are_valid_yaml() -> None:
     for file in WORKFLOWS.glob("*.yml"):
-        eserde.load(file, format="yaml")  # a malformed assembly must die here, not on a runner
+        eserde.load(file, format=eserde.Format.YAML)  # a malformed assembly must die here, not on a runner
 
 
 def test_declared_features_keep_their_gates_true_to_name() -> None:
     """A feature the repo enabled must document its gate and use it — or declare none."""
     if not MAPFILE.is_file():
         return
-    declared = set(eserde.load(MAPFILE, format="yaml").get("features", ()))
+    declared = set(eserde.load(MAPFILE, format=eserde.Format.YAML).get("features", ()))
     assert declared, f"{MAPFILE.name}: declared features list is empty"
     installed = set(re.findall(r"^  # feature: (\S+)", _all_workflows(), flags=re.MULTILINE))
     assert installed <= declared, f"jobs from features never declared: {sorted(installed - declared)}"

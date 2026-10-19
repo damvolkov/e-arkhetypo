@@ -1,0 +1,50 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended", ":dependencyDashboard"],
+  "description": "Renovate for a wide repo: systems (uv projects), stack (compose images), infra (action pins). The repo's own assembly is re-made by sync-infra; floating tags are recorded weekly by sync-stack.",
+  "enabledManagers": ["pep621", "uv", "docker", "regex"],
+  "schedule": ["before 6am on monday"],
+  "prConcurrentLimit": 5,
+  "abandonmentThreshold": "1 year",
+  "rangeStrategy": "bump",
+  "lockFileMaintenance": { "enabled": false },
+  "customManagers": [
+    {
+      "description": "Action pins live once, in the infra/ fragments — bump digest and version comment together.",
+      "customType": "regex",
+      "fileMatch": ["^infra/(jobs|workflows)/.*\\.yml$"],
+      "matchStrings": ["(?<depName>[\\w./-]+)@(?<currentDigest>[0-9a-f]{40})\\s*#\\s*(?<currentValue>v[\\w.+-]+)"],
+      "datasourceTemplate": "github-run-actions",
+      "autoReplaceStringTemplate": "{{depName}}@{{newDigest}}  # {{newValue}}"
+    }
+  ],
+  "packageRules": [
+    {
+      "description": "System runtime deps: one PR per package across the systems; sync-systems refreshes the locks.",
+      "matchManagers": ["pep621", "uv"],
+      "matchCategories": ["runtime"],
+      "labels": ["area:systems"]
+    },
+    {
+      "description": "Python tooling: one weekly PR.",
+      "matchManagers": ["pep621"],
+      "matchDepTypes": ["dependency-groups"],
+      "groupName": "python tooling",
+      "labels": ["area:systems"]
+    },
+    {
+      "description": "Pinned stack image tags (a pin that fixes a format): one PR, reviewed for data compatibility.",
+      "matchManagers": ["docker"],
+      "matchFileNames": ["stack/**"],
+      "groupName": "stack images",
+      "labels": ["area:stack"]
+    },
+    {
+      "description": "Action pins in infra/ fragments: one monthly PR; sync-infra re-assembles every .github.",
+      "matchManagers": ["regex"],
+      "groupName": "action pins",
+      "schedule": ["before 6am on the first day of the month"],
+      "labels": ["area:infra"]
+    }
+  ]
+}

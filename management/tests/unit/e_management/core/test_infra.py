@@ -25,6 +25,8 @@ FRAGMENTS = {
     "jobs/workflow/sync.yml": "name: sync\n",
     "files/renovate.json": "{}\n",
     "files/qwen.md": "# agent\n",
+    "files/renovate.repo.json": '{"repo": true}\n',
+    "files/qwen.repo.md": "# wide agent\n",
     "contract.py.j2": "def test_contract():\n    assert True\n",
     "setup/docs.md": "# docs\n\nset DOCS_DEPLOY true once.\n",
     "setup/none.md": "",
@@ -52,6 +54,7 @@ MAP = FeatureMap(
         "loop": Feature(
             label="bots", jobs={"workflow": ("sync",)}, files=("renovate.json", "qwen.md"), requires=("ci",)
         ),
+        "wide": Feature(label="areas", jobs={}, files=("renovate.repo.json", "qwen.repo.md"), requires=("ci",)),
     },
 )
 
@@ -156,3 +159,28 @@ def test_unknown_tokens_stay_literal_for_the_contract_test_to_catch() -> None:
     library = Library(map=MAP, fragments=FRAGMENTS)
     files = assemble(library, {}, frozenset({"ci"}))
     assert "{{" not in files[".github/workflows/ci.yml"]  # ci needs no tokens at all
+
+
+def test_derive_carries_the_verify_command() -> None:
+    assert "prek" in derive("e_myapp", "e-myapp")["verify"]
+
+
+def test_assemble_lands_the_wide_repo_files_on_the_same_targets() -> None:
+    library = Library(map=MAP, fragments=FRAGMENTS)
+    files = assemble(library, TOKENS, frozenset({"ci", "wide"}))
+    assert files[".github/renovate.json"] == '{"repo": true}\n'
+    assert files["QWEN.md"] == "# wide agent\n"
+
+
+def test_assemble_replaced_features_leave_their_files_out() -> None:
+    map_with_replacement = FeatureMap(
+        version=1,
+        features={
+            **MAP.features,
+            "wide": Feature(label="areas", jobs={}, files=("renovate.repo.json", "qwen.repo.md"), replaces=("loop",)),
+        },
+    )
+    library = Library(map=map_with_replacement, fragments=FRAGMENTS)
+    files = assemble(library, TOKENS, frozenset({"ci", "loop", "wide"}))
+    assert ".github/workflows/sync.yml" not in files  # loop is folded away, its workflow never lands
+    assert files["QWEN.md"] == "# wide agent\n"

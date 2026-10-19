@@ -1,0 +1,7 @@
+gui:
+  sidePanelWidth: 0.7
+  containerStatusHealthStyle: "short"
+  expandFocusedSidePanel: true
+oS:
+  openCommand: xdg-open {{filename}}
+  openLinkCommand: xdg-open {{link}}

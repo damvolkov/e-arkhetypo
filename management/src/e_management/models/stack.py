@@ -17,7 +17,7 @@ class Service(Struct, frozen=True, kw_only=True):
 
     name: str
     category: str
-    compose: str
+    compose: str | None = None
     files: tuple[str, ...]
     port: int | None = None
     depends: tuple[str, ...] = ()
@@ -27,8 +27,8 @@ class Service(Struct, frozen=True, kw_only=True):
 
     @property
     def paths(self) -> tuple[str, ...]:
-        """Every file the service ships: its compose plus the associated config/entrypoint/provisioning sidecars."""
-        return (self.compose, *self.files)
+        """Every file the service ships: its compose, when it has one, plus the config/entrypoint/provisioning sidecars."""
+        return (*((self.compose,) if self.compose else ()), *self.files)
 
 
 class Stack(Struct, frozen=True, kw_only=True):

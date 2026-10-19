@@ -31,6 +31,7 @@ MODEL="${STRATA_MODEL:-IQ2_XS}"
 FAMILY="${STRATA_FAMILY:-qwen}"
 API_KEY="${LLM_API_KEY:-local-dev}"
 ALIAS="demian-model"
+VRAM_RESERVE_MIB="${STRATA_VRAM_RESERVE_MIB:-3072}"
 HEALTH_URL="http://localhost:8000/health"
 
 ##### MAIN #####
@@ -78,13 +79,18 @@ systemctl --user daemon-reload && systemctl --user enable --now "${SERVICE_NAME}
 log "waiting for the model to load (download + pack can take ~1 h)..."
 until curl -sf "$HEALTH_URL" >/dev/null 2>&1; do sleep 30; done
 
-# 4. pin the slot alias: /data/config/strata-<model>.json gains `"aliases": ["demian-model"]`
-#    (REINSTALL=1 rewrites the config — re-run this step after it).
-log "adding alias ${ALIAS}..."
-docker exec "$SERVICE_NAME" python3 - "$MODEL" "$ALIAS" <<'EOF'
+# 4. pin the slot alias and the desktop's VRAM: /data/config/strata-<model>.json gains
+#    `"aliases": ["demian-model"]` and `--vram-reserve-mib 3072` (REINSTALL=1 rewrites the
+#    config — re-run this step after it). The image default (~1 GiB) starves the compositor
+#    when the card is shared with a desktop: GBM cannot allocate the scanout buffer on
+#    monitor wake (`gbm_surface_lock_front_buffer failed`) and the screen stays dead.
+log "adding alias ${ALIAS} and ${VRAM_RESERVE_MIB} MiB of desktop VRAM..."
+docker exec "$SERVICE_NAME" python3 - "$MODEL" "$ALIAS" "$VRAM_RESERVE_MIB" <<'EOF'
 import json, sys
 cfg = f"/data/config/strata-{sys.argv[1].lower()}.json"
 d = json.load(open(cfg)); d["aliases"] = [sys.argv[2]]
+args = [a for a, prev in zip(d["args"], [None, *d["args"]]) if "--vram-reserve-mib" not in (a, prev)]
+d["args"] = [*args, "--vram-reserve-mib", sys.argv[3]]
 json.dump(d, open(cfg, "w"), indent=1)
 EOF
 docker restart "$SERVICE_NAME"

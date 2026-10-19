@@ -14,7 +14,7 @@ categories:
 - tools
 - vdb
 - watch
-inputs_hash: "66a8ee2c26aa43378209fe9b5964c3530ca8c1fbc654a6f97f23601dc6e340e3"
+inputs_hash: "966a889ebe174550cbd1d7ed7775cd7d4dee84a45245e22c65343c46e9e3843a"
 services:
 - name: openhuman
   category: agent
@@ -78,16 +78,19 @@ services:
   - vllm
   - yacy
   level: 2
-- name: clef
+- name: ejev
   category: llm
-  compose: stack/llm/clef/compose.yml
+  compose: stack/llm/ejev/compose.yml
   files: []
   port: 8081
-  depends: []
-  dependents:
-  - jev
-  closure: []
-  level: 0
+  depends:
+  - phoenix
+  - vllm
+  dependents: []
+  closure:
+  - phoenix
+  - vllm
+  level: 2
 - name: ellm
   category: llm
   compose: stack/llm/ellm/compose.yml
@@ -112,21 +115,6 @@ services:
   - stirling
   closure: []
   level: 0
-- name: jev
-  category: llm
-  compose: stack/llm/jev/compose.yml
-  files: []
-  port: 45160
-  depends:
-  - clef
-  - phoenix
-  - vllm
-  dependents: []
-  closure:
-  - clef
-  - phoenix
-  - vllm
-  level: 2
 - name: llamacpp
   category: llm
   compose: stack/llm/llamacpp/compose.yml
@@ -157,7 +145,7 @@ services:
   dependents:
   - agentmemory
   - cortexdb
-  - jev
+  - ejev
   - mem0
   - openwebui
   - stirling
@@ -445,7 +433,7 @@ services:
   port: 6006
   depends: []
   dependents:
-  - jev
+  - ejev
   - vllm
   closure: []
   level: 0

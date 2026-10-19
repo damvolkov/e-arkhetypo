@@ -11,7 +11,11 @@ systems/api/    # e-api  — Litestar + Granian API service template (full stack
 systems/graph/  # e-graph — LangGraph + rustworkx + React Flow graph system template (api + canvas)
 systems/mcp/    # e-mcp  — MCP server template: MCPServer over Streamable HTTP + granian, bearer gate on loopback
 stack/          # infrastructure services (auth, db, queue, proxy, ...) — containers, not Python projects
+infra/          # the CI/CD library: one atomic job per fragment + the feature->jobs map, assembled into each project's .github/ by management
 ```
+
+Each workflow a project ships is **assembled from `infra/`** (jobs, gates, install instructions) — `.github/ci.defaults.yml` is the reference,
+the workflows are the artifact; `make infra-check` and the generated contract test keep them true to the map.
 
 Each system is an independent uv project with its own `pyproject.toml`, `Makefile`, tests, docs and
 CI/CD. App vs library is what changes, not the rules: `ruff · ty · tach · pytest+coverage · strict

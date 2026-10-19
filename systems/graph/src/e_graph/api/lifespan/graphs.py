@@ -5,7 +5,7 @@ one: fresh graph, declaration, compile. A broken declaration (a node off contrac
 unknown targets, two builders in one module) fails the boot, never a request. The built graphs mount
 as `system.graphs` — the same mapping `RunState.graphs` hands every node — and are never rebuilt."""
 
-from collections.abc import AsyncIterator
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
 from litestar import Litestar
@@ -16,7 +16,7 @@ from e_graph.pipelines.base import PipelineRegistry
 
 
 @asynccontextmanager
-async def lifespan(app: Litestar) -> AsyncIterator[None]:
+async def lifespan(app: Litestar) -> AsyncGenerator[None]:
     """Build every discovered pipeline once, then mount them by name under `system.graphs`."""
     graphs = await PipelineRegistry().build()
     AppState.of(app).system.graphs = graphs

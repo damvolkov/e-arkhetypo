@@ -64,6 +64,13 @@ def test_ci_on_adds_selfmaintain_beyond_the_reference(tmp_path: Path) -> None:
     assert "APP_CLIENT_ID" not in (dest / ".github" / "ci.vars.example").read_text()
 
 
+@pytest.mark.parametrize(("template", "name"), [("api", "sandclean"), ("cli", "sandcleancli")])
+def test_detached_clean_keeps_the_common_set(tmp_path: Path, template: str, name: str) -> None:
+    dest = _gen(tmp_path, template, name)
+    clean = next(line for line in (dest / "Makefile").read_text().splitlines() if line.strip().startswith("@rm -rf dist"))
+    assert "src/core" not in clean, "a detached project owns its common set: clean must not delete it"
+
+
 def test_turning_a_choice_off_folds_its_dependent_feature(tmp_path: Path) -> None:
     dest = _gen(tmp_path, "api", "sandimg", "--off", "docker")
     assert not (dest / "Dockerfile").exists()

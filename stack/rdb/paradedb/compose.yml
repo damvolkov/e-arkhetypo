@@ -4,6 +4,9 @@ services:
     container_name: paradedb
     hostname: paradedb
     restart: unless-stopped
+    # docker's 64 MB /dev/shm starves parallel HNSW builds and concurrent schema work (pg_search adds many objects)
+    shm_size: 1gb
+    command: ["postgres", "-c", "max_locks_per_transaction=256"]
     labels:
       stack.category: "rdb"
       stack.port: "5433"

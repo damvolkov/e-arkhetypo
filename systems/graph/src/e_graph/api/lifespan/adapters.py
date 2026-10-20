@@ -7,7 +7,7 @@ adapter is a singleton built here, enters the shared `AsyncExitStack` in field o
 in reverse when the stack unwinds. Every edge is one line per block — its import, its field, its
 construction — so an exported project that drops an adapter loses exactly those lines."""
 
-from collections.abc import AsyncIterator
+from collections.abc import AsyncGenerator
 from contextlib import AbstractAsyncContextManager, AsyncExitStack, asynccontextmanager
 from dataclasses import fields
 from typing import cast
@@ -25,7 +25,7 @@ from e_graph.instrument.state import AdaptersState
 
 
 @asynccontextmanager
-async def lifespan(app: Litestar) -> AsyncIterator[None]:
+async def lifespan(app: Litestar) -> AsyncGenerator[None]:
     """Open every external edge on the exit stack, then mount the typed section under `system.adapters`."""
     system = AppState.of(app).system
     edges = AdaptersState(

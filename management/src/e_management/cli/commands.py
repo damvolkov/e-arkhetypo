@@ -70,9 +70,10 @@ def plan(
     off: frozenset[str] = frozenset(),
     drop: frozenset[str] = frozenset(),
     ci_off: frozenset[str] = frozenset(),
+    ci_on: frozenset[str] = frozenset(),
 ) -> Plan:
     """The ordered actions for ``template`` under the new ``name``, without touching the filesystem."""
-    return blueprint(root, spec, template, name).plan(off, drop, ci_off)
+    return blueprint(root, spec, template, name).plan(off, drop, ci_off, ci_on)
 
 
 def gen(
@@ -85,9 +86,10 @@ def gen(
     off: frozenset[str] = frozenset(),
     drop: frozenset[str] = frozenset(),
     ci_off: frozenset[str] = frozenset(),
+    ci_on: frozenset[str] = frozenset(),
 ) -> Path:
     """Materializes and generates the project, returning its path. Raises on any invalid selection."""
-    return Scaffold(root).apply(plan(root, spec, template, name, off=off, drop=drop, ci_off=ci_off), dest)
+    return Scaffold(root).apply(plan(root, spec, template, name, off=off, drop=drop, ci_off=ci_off, ci_on=ci_on), dest)
 
 
 def drift(root: Path, spec: Manifest) -> dict[str, list[str]]:

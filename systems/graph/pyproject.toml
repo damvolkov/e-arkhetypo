@@ -137,7 +137,7 @@ bump = true
 fallback-version = "0.0.0"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/e_graph", "src/core", "src/ops", "src/adapters"]
+packages = ["src/e_graph", "src/core", "src/ops", "src/adapters", "src/processors"]
 ### the canvas is part of the package: its built bundle ships (gitignored, so declared), its sources never do.
 artifacts = ["src/e_graph/ui/dist/**"]
 exclude = ["src/e_graph/ui/*", "!src/e_graph/ui/dist"]

@@ -4,7 +4,7 @@ Crypto and the IdP-backed oauth registry are written into the system graph; they
 objects, so this concern owns no resource to close.
 """
 
-from collections.abc import AsyncIterator
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
 from authlib.integrations.starlette_client import OAuth
@@ -17,7 +17,7 @@ from e_api.api.state import AppState
 
 
 @asynccontextmanager
-async def lifespan(app: Litestar) -> AsyncIterator[None]:
+async def lifespan(app: Litestar) -> AsyncGenerator[None]:
     """Assemble the engines that travel with the app: crypto and the IdP-backed oauth registry."""
     system = AppState.of(app).system
     system.crypto = Crypto(st.crypto)

@@ -1,3 +1,8 @@
 features:
   - repo-ci
   - repo-maintain
+vars:
+  - APP_CLIENT_ID
+  - QWEN_BASE_URL
+  - QWEN_CLI_VERSION
+  - QWEN_MODEL

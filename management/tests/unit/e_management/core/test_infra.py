@@ -4,6 +4,8 @@ The fixtures write exactly the shapes the library holds: workflow shells with th
 job fragments with feature tags, triggers, a setup body and a contract seam. Every test states the
 selection and reads back the emitted files: order, requires, replacement, gates, tokens."""
 
+import re
+
 import pytest
 
 from e_management.core.errors import InfraError
@@ -52,7 +54,11 @@ MAP = FeatureMap(
             label="binding", jobs={"release": ("push",)}, requires=("ship",), replaces=("ship",), tag_trigger=True
         ),
         "loop": Feature(
-            label="bots", jobs={"workflow": ("sync",)}, files=("renovate.json", "qwen.md"), requires=("ci",)
+            label="bots",
+            jobs={"workflow": ("sync",)},
+            files=("renovate.json", "qwen.md"),
+            requires=("ci",),
+            vars=("APP_CLIENT_ID",),
         ),
         "wide": Feature(label="areas", jobs={}, files=("renovate.repo.json", "qwen.repo.md"), requires=("ci",)),
     },
@@ -184,3 +190,27 @@ def test_assemble_replaced_features_leave_their_files_out() -> None:
     files = assemble(library, TOKENS, frozenset({"ci", "loop", "wide"}))
     assert ".github/workflows/sync.yml" not in files  # loop is folded away, its workflow never lands
     assert files["QWEN.md"] == "# wide agent\n"
+
+
+def test_assemble_maps_config_vars_apart_from_gates() -> None:
+    library = Library(map=MAP, fragments=FRAGMENTS)
+    files = assemble(library, TOKENS, frozenset({"ci", "docs", "loop"}))
+    assert files[".github/ci.map.yml"] == "features:\n  - ci\n  - docs\n  - loop\nvars:\n  - APP_CLIENT_ID\n"
+    assert "APP_CLIENT_ID" not in files[".github/ci.vars.example"]
+
+
+@pytest.mark.parametrize(
+    ("path", "allowed"),
+    [
+        ("src/e_myapp/core/state.py", True),
+        ("tests/unit/test_x.py", True),
+        ("docs/index.md", True),
+        ("CHANGELOG.md", True),
+        ("README.md", True),
+        (".github/workflows/ci.yml", False),
+        ("pyproject.toml", False),
+        ("src/e_other/x.py", False),
+    ],
+)
+def test_derive_allowlist_admits_code_paths_and_nothing_else(path: str, allowed: bool) -> None:
+    assert bool(re.fullmatch(f"^({derive('e_myapp', 'e-myapp')['allowlist']})$", path)) is allowed

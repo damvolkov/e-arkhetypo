@@ -186,7 +186,7 @@ class DocProcessor:
     def _lite_read(cls, page: ParsedPage, number: int) -> tuple[Rows, list[Table]]:
         """A liteparse page's text items and tables, in block order."""
         blocks = list(enumerate(page.blocks or ()))
-        rows = [
+        rows: Rows = [
             {
                 "ref": f"liteparse:p{number}/b{index}",
                 "page": number,
@@ -198,7 +198,7 @@ class DocProcessor:
             for index, block in blocks
             if block.kind in KINDS
         ]
-        tables = [
+        tables: list[Table] = [
             Table(
                 ref=f"liteparse:p{number}/b{index}",
                 page=number,

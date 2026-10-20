@@ -95,9 +95,9 @@ class Blueprint:
             *([PruneTexts(prunes=prunes)] if prunes else []),
         ]
 
-    def _infra_actions(self, off: frozenset[str], ci_off: frozenset[str]) -> list[Action]:
+    def _infra_actions(self, off: frozenset[str], ci_off: frozenset[str], ci_on: frozenset[str]) -> list[Action]:
         """The plan action wrapping the assembled CI files — a selection with no files contributes none."""
-        files = self.infra_files(off, ci_off)
+        files = self.infra_files(off, ci_off, ci_on)
         return (
             [Generate(files=tuple(GeneratedFile(path=key, content=body) for key, body in files.items()))]
             if files
@@ -108,13 +108,18 @@ class Blueprint:
 
     ##### PUBLIC #####
 
-    def infra_files(self, off: frozenset[str] = frozenset(), ci_off: frozenset[str] = frozenset()) -> dict[str, str]:
-        """The CI files this project assembles: defaults minus the wizard's switches, tokens from the name and the reference.
+    def infra_files(
+        self,
+        off: frozenset[str] = frozenset(),
+        ci_off: frozenset[str] = frozenset(),
+        ci_on: frozenset[str] = frozenset(),
+    ) -> dict[str, str]:
+        """The CI files this project assembles: defaults plus features switched on, minus those off.
 
         Public because re-assembly (``e_management infra``) needs exactly this map without the rest of the plan."""
         if self._library is None or self._defaults is None:
             return {}
-        chosen = frozenset(self._defaults.features) - ci_off
+        chosen = (frozenset(self._defaults.features) | ci_on) - ci_off
         unknown = ci_off - set(self._defaults.features)
         if unknown:
             msg = f"unknown CI feature(s) switched off: {', '.join(sorted(unknown))}"
@@ -159,6 +164,7 @@ class Blueprint:
         off: frozenset[str] = frozenset(),
         drop: frozenset[str] = frozenset(),
         ci_off: frozenset[str] = frozenset(),
+        ci_on: frozenset[str] = frozenset(),
     ) -> Plan:
         """The ordered actions: copy, prune dropped common, materialize dotfiles, prune choices, rename, finalize, assemble CI."""
         self._plan_check(off)
@@ -177,5 +183,5 @@ class Blueprint:
         finalize = self._spec.finalize + self._spec.finalize_extra
         if finalize:
             actions.append(PruneTexts(prunes=finalize))
-        actions += self._infra_actions(off, ci_off)
+        actions += self._infra_actions(off, ci_off, ci_on)
         return Plan(name=self.name, package=self.package, brand=self.brand, actions=tuple(actions))

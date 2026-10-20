@@ -30,6 +30,15 @@ def test_the_default_word_carries_the_house_prefix() -> None:
     assert 'aria-label="e-taxis"' in LogoGenerator().generate("taxis")
 
 
+def test_a_prefixed_word_is_not_prefixed_twice() -> None:
+    assert LogoGenerator().generate("e-taxis") == LogoGenerator().generate("taxis")
+
+
+def test_the_filename_is_the_wordmark_it_spells() -> None:
+    assert LogoGenerator().filename("taxis") == "e-taxis.svg"
+    assert LogoGenerator(prefix="").filename("eager") == "eager.svg"
+
+
 def test_the_same_word_and_colors_emit_the_same_bytes_across_instances() -> None:
     bare, explicit = LogoGenerator(), LogoGenerator(background="#060c15", foreground="#166b7e")
     assert bare.generate("taxis") == explicit.generate("taxis")

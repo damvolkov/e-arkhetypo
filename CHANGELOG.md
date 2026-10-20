@@ -12,6 +12,7 @@ touches — `stack`, `systems`, `infra`. Lines under `[Unreleased]` are written 
 
 ### systems
 
+- core: wall-clock benchmarks marked `slow` and out of `test`/`cov` by default (`TESTARGS`) — a cold runner hiccup is not a correctness gate
 - graph: visual goldens leave `test`/`cov` (`TESTARGS` default `-m 'not ui'`) — they are runner-canonical now
 
 ### infra

@@ -11,6 +11,8 @@ CYAN    := \033[0;36m
 GRAY    := \033[0;90m
 
 SHELL := bash
+
+TESTARGS  ?= -m "not slow"   ## wall-clock benchmarks leave the gate; run them with make test TESTARGS="-m slow"
 .DEFAULT_GOAL := help
 MAKEFLAGS += --no-print-directory
 export PYTHONPATH := $(CURDIR)/src
@@ -71,11 +73,11 @@ hooks: ## run all prek hooks on every file (ruff, ty, tach, zizmor, gitleaks)
 	@uv run prek run --all-files
 
 # — tests —
-test: ## run tests [TESTARGS='-k expr']
+test: ## run tests, benchmarks out by default [TESTARGS='-k expr']
 	@uv run pytest tests $(TESTARGS) -n auto -q
 
-cov: ## run tests with coverage gate (fail under 90%)
-	@uv run pytest tests --cov --cov-report=term-missing
+cov: ## run tests with coverage gate (fail under 90%), benchmarks out like the CI matrix
+	@uv run pytest tests $(TESTARGS) --cov --cov-report=term-missing
 
 # — docs —
 docs: ## serve docs site live at :8000

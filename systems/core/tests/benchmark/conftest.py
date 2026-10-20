@@ -10,6 +10,13 @@ if TYPE_CHECKING:
     from collections.abc import Callable
 
 
+def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
+    """Everything under benchmark/ is a wall-clock probe: marked slow, out of every gate unless asked."""
+    for item in items:
+        if "benchmark" in item.path.parts:
+            item.add_marker(pytest.mark.slow)
+
+
 @pytest.fixture(scope="session")
 def tool() -> StackCompose:
     return StackCompose()

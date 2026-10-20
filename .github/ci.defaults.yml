@@ -1,9 +1,11 @@
 # CI reference — the repo assembles its own .github/ from infra/ with this file: the features it ships
 # for itself and the tokens its fragments need. Edit the reference, not the output (`make maintain`).
 
-features: [repo-ci, repo-maintain]
+features: [repo-ci, repo-maintain, snap-refresh]
 
 tokens:
   brand: e-templates
   allowlist: '(stack/[^/]+/[^/]+/.*|stack/README\.md|systems/[^/]+/(src|tests|docs)/.*|systems/[^/]+/README\.md|CHANGELOG\.md|README\.md)'
   verify: make check
+  snap_dir: graph
+  snap_ui_pkg: systems/graph/src/e_graph/ui/package.json

@@ -31,6 +31,7 @@ flowchart LR
 | Code, tests, docs, service configs | `systems/*/src\|tests\|docs`, `stack/*/*/` | `maintenance.yml` agent | CI red, or the dependency gained surface |
 | Changelog | `CHANGELOG.md` → `## [Unreleased]` (sections `### stack / ### systems / ### infra`) | the bots, `tools/changelog.py` | every sync; the agent on user-visible changes |
 | Health issue | GitHub issue labelled `deps-health` | `health-areas.yml` | monthly, split by area |
+| Visual goldens | `systems/<s>/tests/acceptance/` | `snap-refresh.yml` (dispatch) | only when the runner's pixels moved — the runner is the canonical renderer |
 
 **Human-only:** merging, release tags, `infra/` (the agent may never touch CI sources),
 `pyproject.toml`, `uv.lock`, compose `image:` lines, `QWEN.md`. The agent's limits are enforced by
@@ -126,6 +127,9 @@ bypassing** — and keep the App off the allow list. **Create**.
    and pushes it to the same branch.
 4. Actions → **sync-stack → Run workflow** → a `stack/resolve-…` PR with the digest table, or the
    log "no movement".
+5. Actions → **snap-refresh → Run workflow** (input: the system) → a `snap/<system>-…` PR only if
+   the runner's pixels moved; the graph `cov`/`test` keep visual goldens out (`TESTARGS`) so both
+   local and CI run without them.
 5. Actions → **health-areas → Run workflow** → the `deps-health` issue opens with the three
    sections `## stack · ## systems · ## infra` (or stays absent if clean).
 

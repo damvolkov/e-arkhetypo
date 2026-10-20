@@ -1,6 +1,7 @@
 features:
   - repo-ci
   - repo-maintain
+  - snap-refresh
 vars:
   - APP_CLIENT_ID
   - QWEN_BASE_URL

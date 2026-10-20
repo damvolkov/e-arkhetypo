@@ -129,3 +129,14 @@ features:
     secrets: [APP_PRIVATE_KEY, QWEN_API_KEY]
     setup: repo-maintain.md
     tokens: [brand, allowlist, verify]
+
+  snap-refresh:
+    label: "runner-canonical visual goldens: a dispatch refreshes one system's snapshots and opens a PR"
+    jobs:
+      workflow: [snap-refresh]
+    requires: [repo-maintain]
+    gate: null
+    vars: [APP_CLIENT_ID]
+    secrets: [APP_PRIVATE_KEY]
+    setup: ""
+    tokens: [snap_dir, snap_ui_pkg]

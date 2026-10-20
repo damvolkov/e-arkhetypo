@@ -1,0 +1,69 @@
+name: snap-refresh
+
+# Manual, wide repos: one system's visual goldens are regenerated ON THIS RUNNER — the environment
+# the ecosystem gate reproduces — and shipped as a PR. Pixels only move through here; local
+# `make snap` would re-canonicalize to the desktop renderer and break CI, so the gate keeps ui
+# out of cov and this workflow owns the goldens. Generated from infra/, do not edit.
+
+on:
+  workflow_dispatch:
+    inputs:
+      system:
+        description: Which system under systems/ to refresh (folder name)
+        type: string
+        default: "{{snap_dir}}"
+
+permissions:
+  contents: read
+
+jobs:
+  refresh:
+    name: runner-canonical goldens
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510  # v3.3.0
+        id: app
+        with:
+          client-id: ${{ vars.APP_CLIENT_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          permission-contents: write
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4  # v10.1.0
+      - name: Pin the Python the ecosystem declares
+        run: echo "UV_PYTHON=$(cat systems/core/common/python-version)" >> "$GITHUB_ENV"
+      - uses: pnpm/action-setup@d9184bf108216479bc5a137cc391f4d7b14c870b  # v6.1.0
+        with:
+          package_json_file: {{snap_ui_pkg}}
+      - name: Install the system exactly as the ecosystem gate does
+        env:
+          SYSTEM: ${{ inputs.system }}
+        run: make -C "systems/$SYSTEM" install
+      - name: Accept the goldens on this runner
+        env:
+          SYSTEM: ${{ inputs.system }}
+        run: make -C "systems/$SYSTEM" snap
+      - name: Open a PR when pixels moved
+        env:
+          TOKEN: ${{ steps.app.outputs.token }}
+          SLUG: ${{ steps.app.outputs.app-slug }}
+          GH_TOKEN: ${{ steps.app.outputs.token }}
+          SYSTEM: ${{ inputs.system }}
+        run: |
+          git diff --quiet -- "systems/$SYSTEM/tests/acceptance" && { echo "no pixel movement"; exit 0; }
+          BRANCH="snap/$SYSTEM-$(date -u +%Y-%m-%d)"
+          uv run --no-project python tools/changelog.py --area systems --line "\`$SYSTEM\` visual goldens refreshed on the runner (\`$BRANCH\`)"
+          git config user.name "$SLUG[bot]"
+          git config user.email "$SLUG[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+          git add -A "systems/$SYSTEM/tests/acceptance" CHANGELOG.md
+          git commit -m "chore(snap-refresh): runner-canonical goldens for $SYSTEM"
+          git push "https://x-access-token:$TOKEN@github.com/${GITHUB_REPOSITORY}.git" "$BRANCH"
+          {
+            echo "Canvas/visual goldens of \`systems/$SYSTEM\` regenerated on a GitHub runner — the environment"
+            echo "the ecosystem gate reproduces. Review the pixel diff; merging is the acceptance."
+            echo
+            git diff "HEAD^" --stat -- "systems/$SYSTEM/tests/acceptance"
+          } > /tmp/body.md
+          gh pr create --head "$BRANCH" --title "snap($SYSTEM): runner-canonical goldens" --body-file /tmp/body.md --label area:systems

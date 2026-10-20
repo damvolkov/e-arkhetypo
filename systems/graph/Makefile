@@ -6,7 +6,7 @@ PORT     ?= 8000
 COMPOSE  ?= compose.yml
 CORE_SRC ?= ../core/src/e_core
 UI       ?= src/e_graph/ui
-TESTARGS  =
+TESTARGS  ?= -m "not ui"   ## visual goldens are runner-canonical: make snap-refresh (workflow) owns them
 ARGS      = $(filter-out $@,$(MAKECMDGOALS))
 
 RESET   := \033[0m
@@ -94,11 +94,11 @@ hooks: ## run all prek hooks on every file (ruff, ty, tach, zizmor, gitleaks)
 	@uv run prek run --all-files
 
 # — tests —
-test: bundle ## run tests, ui snapshots included (the canvas is built first) [TESTARGS='-k expr']
+test: bundle ## run tests, visual goldens out by default (the canvas is still built) [TESTARGS='-k expr']
 	@uv run pytest tests $(TESTARGS) -n auto -q
 
-cov: bundle ## run tests with coverage gate (fail under 100%)
-	@uv run pytest tests --cov --cov-report=term-missing
+cov: bundle ## run tests with coverage gate (fail under 100%), goldens out like test
+	@uv run pytest tests $(TESTARGS) --cov --cov-report=term-missing
 
 snap: bundle ## accept the canvas snapshots after a reviewed visual change (rewrites __snapshots__ PNGs)
 	@uv run pytest tests/acceptance -m ui --snapshot-update -q

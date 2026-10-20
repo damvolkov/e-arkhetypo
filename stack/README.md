@@ -48,7 +48,7 @@ Databases, por modelo de datos:
 
 | Cat | Modelo | Servicios aquí |
 |---|---|---|
-| `rdb` | relacional | postgres (pgvector) |
+| `rdb` | relacional | postgres (pgvector), paradedb (pg_search BM25 + pgvector) |
 | `cdb` | cache / KV | redis |
 | `vdb` | vector | qdrant |
 | `gdb` | grafo | — vacío |
@@ -80,6 +80,7 @@ Puerto = default en host (`:container`). GPU = necesita `nvidia` runtime.
 | Cat/Servicio | Imagen | Puerto(s) | GPU | Adjuntos |
 |---|---|---|---|---|
 | rdb/postgres | pgvector/pgvector:pg17 | 5432 | | |
+| rdb/paradedb | paradedb/paradedb:0.26.2-pg17 | 5433 | | Postgres + pg_search (BM25 sobre Tantivy, stemmers es/en) + pgvector; motor por defecto de e-gnosis (medido: scripts/bench.py) |
 | cdb/redis | redis:latest | 6379 | | `redis.conf` |
 | vdb/qdrant | qdrant/qdrant:latest | 6333 / 6334 | | `config.yaml` |
 | storage/minio | minio/minio:latest | 9000 / 9001 | | **aparcado** — imagen muerta aguas arriba, fuera de uso |

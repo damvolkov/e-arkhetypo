@@ -1,0 +1,37 @@
+services:
+  paradedb:
+    image: paradedb/paradedb:0.26.2-pg17
+    container_name: paradedb
+    hostname: paradedb
+    restart: unless-stopped
+    # docker's 64 MB /dev/shm starves parallel HNSW builds and concurrent schema work (pg_search adds many objects)
+    shm_size: 1gb
+    command: ["postgres", "-c", "max_locks_per_transaction=256"]
+    labels:
+      stack.category: "rdb"
+      stack.port: "5433"
+    ports:
+      # 5433 en host (5432 dentro) — Postgres 17 + pg_search (BM25, Tantivy) + pgvector: motor de e-gnosis
+      - "${PARADEDB_PORT:-5433}:5432"
+    volumes:
+      - paradedb-data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_DB=${PG_DB:-postgres}
+      - POSTGRES_USER=${PG_USER:-postgres}
+      - POSTGRES_PASSWORD=${PG_PASSWORD:-postgres}
+      - POSTGRES_HOST_AUTH_METHOD=scram-sha-256
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${PG_USER:-postgres} -d ${PG_DB:-postgres} || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - stack
+
+volumes:
+  paradedb-data:
+
+networks:
+  stack:
+    name: stack

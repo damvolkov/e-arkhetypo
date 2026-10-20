@@ -5,7 +5,8 @@ in the house square font. The font is the table `GLYPHS`: letters A-Z and the hy
 axis-aligned rects on a 255x436 box (stroke 45, pitch 292), anchored by the reference `E` reproduced
 byte-for-byte from `assets/eager.svg`. A word wider than the canvas scales as a whole: the geometry is
 uniform, never re-flowed, so the same name always emits the same bytes. Colors vary freely; the
-defaults capture the reference: background `#060c15`, letter `#166b7e`. `save` writes the svg to disk."""
+defaults capture the reference: background `#060c15`, letter `#166b7e`. A name that already
+carries the prefix passes through, `filename` spells the file the wordmark belongs to, and `save` writes it to disk."""
 
 import re
 from enum import StrEnum
@@ -197,13 +198,16 @@ class LogoGenerator(Struct, frozen=True, kw_only=True):
                 raise LogoError(msg)
 
     def _generate_text(self, name: str) -> str:
-        """The wordmark spelled out: prefix, hyphen, name."""
+        """The wordmark spelled out: prefix, hyphen, name — a name already prefixed is left as it is."""
         match name:
             case "":
                 msg = "an empty name renders nothing"
                 raise LogoError(msg)
             case _:
-                text = f"{self.prefix}-{name}" if self.prefix else name
+                prefix = (
+                    "" if not self.prefix or name.lower().startswith(f"{self.prefix.lower()}-") else f"{self.prefix}-"
+                )
+                text = prefix + name
                 match bad := set(text.upper()) - GLYPH_CHARS:
                     case _ if bad:
                         msg = f"letters outside the square font: {sorted(bad)!r}"
@@ -262,3 +266,7 @@ class LogoGenerator(Struct, frozen=True, kw_only=True):
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(self.generate(name), encoding="utf-8")
         return path
+
+    def filename(self, name: str) -> str:
+        """The file the wordmark belongs to: the text it spells, svg-suffixed."""
+        return f"{self._generate_text(name)}.svg"

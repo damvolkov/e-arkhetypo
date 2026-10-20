@@ -8,6 +8,7 @@ touches — `stack`, `systems`, `infra`. Lines under `[Unreleased]` are written 
 
 ### stack
 
+- floating tags resolved to current digests (`stack/resolve-2026-10-20`)
 - `storage/minio` parked: `stack.parked: "true"` — the image died upstream with MinIO's OSS, the service is off on the host and the version bots stop probing it until removal
 
 ### systems

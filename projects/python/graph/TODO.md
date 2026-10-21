@@ -12,7 +12,7 @@ No new engine features are planned. Something gets built only if the map shows i
 
 ## −1 · DARTSOPS (decisión de forma, 2026-10-15)
 
-Mounts at `src/e_graph/.coder/workflows/` — template-exclusive, nothing in e-engineer: a `dartsops/`
+Mounts at `src/e_graph/.coder/workflows/` — template-exclusive, nothing in e-nous: a `dartsops/`
 entity (workflow.yaml + nodes/*.md, backend-agnostic; the coder — claude, opencode, cursor — reads
 the same source; a render step may adapt frontmatter later). First cut built 2026-10-15: the instruments (`darts contract/probe/evaluate`), the
 entity (`.coder/workflows/dartsops`), the gates (`make dartsops-*`), and a full drill on a planted defect

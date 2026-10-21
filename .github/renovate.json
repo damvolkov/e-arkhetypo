@@ -1,8 +1,8 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["config:recommended", ":dependencyDashboard"],
-  "description": "Renovate for a wide repo: systems (uv projects), stack (compose images), infra (action pins). The repo's own assembly is re-made by sync-infra; floating tags are recorded weekly by sync-stack.",
-  "enabledManagers": ["pep621", "uv", "docker", "regex"],
+  "description": "Renovate for a wide repo: systems (uv projects), stack (compose images), infra (action pins). Action pins move together in infra/ and every committed .github; floating tags are recorded weekly by sync-stack.",
+  "enabledManagers": ["pep621", "uv", "docker", "regex", "github-actions"],
   "schedule": ["before 6am on monday"],
   "prConcurrentLimit": 5,
   "abandonmentThreshold": "1 year",
@@ -16,6 +16,14 @@
       "matchStrings": ["(?<depName>[\\w./-]+)@(?<currentDigest>[0-9a-f]{40})\\s*#\\s*(?<currentValue>v[\\w.+-]+)"],
       "datasourceTemplate": "github-run-actions",
       "autoReplaceStringTemplate": "{{depName}}@{{newDigest}}  # {{newValue}}"
+    },
+    {
+      "description": "The agent's CLI pin, the default of QWEN_CLI_VERSION in the maintenance workflow.",
+      "customType": "regex",
+      "fileMatch": ["(^|/)\\.github/workflows/maintenance\\.yml$", "^infra/jobs/workflow/maintenance\\.yml$"],
+      "matchStrings": ["QWEN_CLI_VERSION \\|\\| '(?<currentValue>\\d+\\.\\d+\\.\\d+)'"],
+      "depNameTemplate": "@qwen-code/qwen-code",
+      "datasourceTemplate": "npm"
     }
   ],
   "packageRules": [
@@ -40,8 +48,8 @@
       "labels": ["area:stack"]
     },
     {
-      "description": "Action pins in infra/ fragments: one monthly PR; sync-infra re-assembles every .github.",
-      "matchManagers": ["regex"],
+      "description": "Action pins in infra/ fragments and every committed .github: one monthly PR, all planes together.",
+      "matchManagers": ["regex", "github-actions"],
       "groupName": "action pins",
       "schedule": ["before 6am on the first day of the month"],
       "labels": ["area:infra"]

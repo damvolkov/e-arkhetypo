@@ -1,7 +1,7 @@
 """tools/changelog.py: append one maintenance line to an area section under [Unreleased]. Deterministic, idempotent.
 
 The record of every bot sync and human change in a wide repo: one CHANGELOG.md, three areas
-(stack · systems · infra) under a single `## [Unreleased]` heading. This tool inserts one bullet as
+(stack · projects · infra) under a single `## [Unreleased]` heading. This tool inserts one bullet as
 the first line of its area section, creating the heading on demand; an identical line already
 present is a no-op. Everything below the Unreleased block is the humans' territory and untouched.
 Stdlib only, like every house tool that must run anywhere."""
@@ -12,9 +12,9 @@ import sys
 from pathlib import Path
 from typing import Final
 
-AREAS: Final = ("stack", "systems", "infra")
+AREAS: Final = ("stack", "projects", "infra")
 UNRELEASED: Final = "## [Unreleased]"
-SECTION: Final = re.compile(r"^(### (stack|systems|infra))\n(.*?)(?=^### |^## |\Z)", re.MULTILINE | re.DOTALL)
+SECTION: Final = re.compile(r"^(### (stack|projects|infra))\n(.*?)(?=^### |^## |\Z)", re.MULTILINE | re.DOTALL)
 
 
 def _areas(body: str) -> dict[str, list[str]]:

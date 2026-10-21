@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
     inputs:
       system:
-        description: Which system under systems/ to refresh (folder name)
+        description: Which system under projects/python/ to refresh (folder name)
         type: string
         default: "graph"
 
@@ -32,18 +32,18 @@ jobs:
           persist-credentials: false
       - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4  # v10.1.0
       - name: Pin the Python the ecosystem declares
-        run: echo "UV_PYTHON=$(cat systems/core/common/python-version)" >> "$GITHUB_ENV"
+        run: echo "UV_PYTHON=$(cat projects/python/core/common/python-version)" >> "$GITHUB_ENV"
       - uses: pnpm/action-setup@d9184bf108216479bc5a137cc391f4d7b14c870b  # v6.1.0
         with:
-          package_json_file: systems/graph/src/e_graph/ui/package.json
+          package_json_file: projects/python/graph/src/e_graph/ui/package.json
       - name: Install the system exactly as the ecosystem gate does
         env:
           SYSTEM: ${{ inputs.system }}
-        run: make -C "systems/$SYSTEM" install
+        run: make -C "projects/python/$SYSTEM" install
       - name: Accept the goldens on this runner
         env:
           SYSTEM: ${{ inputs.system }}
-        run: make -C "systems/$SYSTEM" snap
+        run: make -C "projects/python/$SYSTEM" snap
       - name: Open a PR when pixels moved
         env:
           TOKEN: ${{ steps.app.outputs.token }}
@@ -51,19 +51,19 @@ jobs:
           GH_TOKEN: ${{ steps.app.outputs.token }}
           SYSTEM: ${{ inputs.system }}
         run: |
-          git diff --quiet -- "systems/$SYSTEM/tests/acceptance" && { echo "no pixel movement"; exit 0; }
+          git diff --quiet -- "projects/python/$SYSTEM/tests/acceptance" && { echo "no pixel movement"; exit 0; }
           BRANCH="snap/$SYSTEM-$(date -u +%Y-%m-%d)"
-          uv run --no-project python tools/changelog.py --area systems --line "\`$SYSTEM\` visual goldens refreshed on the runner (\`$BRANCH\`)"
+          uv run --no-project python tools/changelog.py --area projects --line "\`$SYSTEM\` visual goldens refreshed on the runner (\`$BRANCH\`)"
           git config user.name "$SLUG[bot]"
           git config user.email "$SLUG[bot]@users.noreply.github.com"
           git checkout -b "$BRANCH"
-          git add -A "systems/$SYSTEM/tests/acceptance" CHANGELOG.md
+          git add -A "projects/python/$SYSTEM/tests/acceptance" CHANGELOG.md
           git commit -m "chore(snap-refresh): runner-canonical goldens for $SYSTEM"
           git push "https://x-access-token:$TOKEN@github.com/${GITHUB_REPOSITORY}.git" "$BRANCH"
           {
-            echo "Canvas/visual goldens of \`systems/$SYSTEM\` regenerated on a GitHub runner — the environment"
+            echo "Canvas/visual goldens of \`projects/python/$SYSTEM\` regenerated on a GitHub runner — the environment"
             echo "the ecosystem gate reproduces. Review the pixel diff; merging is the acceptance."
             echo
-            git diff "HEAD^" --stat -- "systems/$SYSTEM/tests/acceptance"
+            git diff "HEAD^" --stat -- "projects/python/$SYSTEM/tests/acceptance"
           } > /tmp/body.md
-          gh pr create --head "$BRANCH" --title "snap($SYSTEM): runner-canonical goldens" --body-file /tmp/body.md --label area:systems
+          gh pr create --head "$BRANCH" --title "snap($SYSTEM): runner-canonical goldens" --body-file /tmp/body.md --label area:projects

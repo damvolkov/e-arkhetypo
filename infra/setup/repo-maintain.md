@@ -1,7 +1,7 @@
 # repo-maintain — the self-maintenance loop for a wide repo
 
-The `selfmaintain` loop aimed at three areas: `systems/` (uv locks, `sync-systems`), `stack/` (the image
-ledger, weekly `sync-stack`) and `infra/` (action pins, `sync-infra` re-assembles every `.github/`).
+The `selfmaintain` loop aimed at three areas: `projects/python/` (uv locks, `sync-projects`), `stack/` (the image
+ledger, weekly `sync-stack`) and `infra/` (action pins, bumped by Renovate together with every committed `.github/`).
 `health-areas` reports monthly by area. Nothing merges itself; the agent commits only inside its
 allowlist — `infra/`, `.github/`, `pyproject.toml`, `uv.lock` and `QWEN.md` stay human.
 
@@ -15,7 +15,7 @@ allowlist — `infra/`, `.github/`, `pyproject.toml`, `uv.lock` and `QWEN.md` st
 
 3. **Renovate** — <https://github.com/apps/renovate> → *Configure*: *All repositories*, or add `{{repo}}`.
    Close its onboarding PR unmerged: `.github/renovate.json` already carries the config.
-4. **Merge** the generated `.github/` and `QWEN.md` into `main` (`make maintain && make maintain-check`).
+4. **Merge** the generated `.github/` and `QWEN.md` into `main` (e-taxis assembles them).
 5. **Protect `main`** — public repositories only on GitHub Free: require a PR and the checks
    `every system's CI` and `repo drift gates`, and never let the app bypass them.
 
@@ -27,5 +27,5 @@ allowlist — `infra/`, `.github/`, `pyproject.toml`, `uv.lock` and `QWEN.md` st
     gh workflow run health-areas -R {{repo}}
 
 The *Dependency Dashboard* issue appears once Renovate has read the config; tick *Run Renovate now*
-there. A `renovate/*` PR gets its locks (`sync-systems`) or its `.github/` (`sync-infra`) pushed, CI
+there. A `renovate/*` PR gets its locks pushed by `sync-projects`; CI
 runs, and if it fails `maintenance` comments within three attempts — then labels `needs-human`.

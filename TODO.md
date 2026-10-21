@@ -2,7 +2,7 @@
 
 ## Estado (2026-10-05, verde: 174 tests, 100 % cov, tach/ty/ruff/check)
 
-- `systems/tui` — template TUI: `layout/` (spec→frames responsive), `flow/` (grafo secuencial
+- `projects/python/tui` — template TUI: `layout/` (spec→frames responsive), `flow/` (grafo secuencial
   con route condicional + walker reversible sobre core `State`), `interact/`
   (toggle/choice/input/confirm/report + registry frozen), `templates/standard` (dibujo original:
   cabecero pixel `Mast`, steps 1 línea, barra `keys`).
@@ -24,7 +24,7 @@
   page: `system db modules confirm report`) en orden de montaje, camina y emite un `AppBlueprint` (JSON vía
   `eserde`) al terminar. `make run` / `etui` lo abre interactivo (radios `api/cli/tui` + barra). Copiable tal
   cual como host real; `e_tui.pages`/`demo`/`__main__` en capa `examples`, nunca al revés.
-- `systems/core` — `core/settings/theme.py` (3 colores) y `ops/snap.py` (GallerySnap);
+- `projects/python/core` — `core/settings/theme.py` (3 colores) y `ops/snap.py` (GallerySnap);
   cli/api/tui los excluyen al materializar. Snapshots SVG aceptados visualmente.
 - Textual 8.2.8 · syrupy≥6.1 por override · PTS 1.1.0.
 
@@ -47,5 +47,5 @@
 
 - Capas tach: app ▸ templates ▸ flow ▸ interact  layout ▸ … ▸ models. `flow` no ve Textual;
   `interact` no ve `flow`; se tocan solo en `Spec/Commit/ObjectPort`.
-- Dispatch, no `if`. Tests espejan `src/`. Cov 100 %. Core solo se edita en `systems/core`.
-- Comprobar: `make check` en `systems/tui` (y `core`/`cli`/`api` si se toca `systems/core`).
+- Dispatch, no `if`. Tests espejan `src/`. Cov 100 %. Core solo se edita en `projects/python/core`.
+- Comprobar: `make check` en `projects/python/tui` (y `core`/`cli`/`api` si se toca `projects/python/core`).

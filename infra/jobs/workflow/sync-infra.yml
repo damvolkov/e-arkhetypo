@@ -3,6 +3,7 @@ name: sync-infra
 # On Renovate branches that bumped action pins in infra/ (the regex manager): re-assemble every
 # system's .github/ and the repo's own from the sources, gate the result, record it, push with the
 # App token. The pins live once, in infra/; the assemblies follow. Generated from infra/, do not edit.
+# Needs the e-taxis assembler on the runner: not installed in e-arkhetypo until e-taxis exposes `infra`.
 
 on:
   pull_request:
@@ -50,7 +51,7 @@ jobs:
           SLUG: ${{ steps.app.outputs.app-slug }}
           BRANCH: ${{ github.head_ref }}
         run: |
-          git diff --quiet -- .github 'systems/*/.github' && { echo "changed=false" >> "$GITHUB_OUTPUT"; exit 0; }
+          git diff --quiet -- .github 'projects/python/*/.github' && { echo "changed=false" >> "$GITHUB_OUTPUT"; exit 0; }
           uv run --no-project python tools/changelog.py --area infra --line "workflow pins refreshed after \`$BRANCH\`"
           git config user.name "$SLUG[bot]"
           git config user.email "$SLUG[bot]@users.noreply.github.com"

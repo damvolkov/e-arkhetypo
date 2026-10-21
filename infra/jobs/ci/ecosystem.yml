@@ -20,20 +20,20 @@
           persist-credentials: false
       - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4  # v10.1.0
       - name: Pin the Python the ecosystem declares
-        run: echo "UV_PYTHON=$(cat systems/core/common/python-version)" >> "$GITHUB_ENV"
+        run: echo "UV_PYTHON=$(cat projects/python/core/common/python-version)" >> "$GITHUB_ENV"
       - uses: pnpm/action-setup@d9184bf108216479bc5a137cc391f4d7b14c870b  # v6.1.0
         with:
-          package_json_file: systems/graph/src/e_graph/ui/package.json
+          package_json_file: projects/python/graph/src/e_graph/ui/package.json
       - name: Materialize and sync every project (core/ops/common and .python-version are generated, not committed)
         run: |
-          for d in systems/*/; do
+          for d in projects/python/*/; do
             [ -f "$d/Makefile" ] || continue
             make -C "$d" install
           done
       - name: make ci in every system, one by one, reporting all failures
         run: |
           STATUS=0
-          for d in systems/*/; do
+          for d in projects/python/*/; do
             [ -f "$d/Makefile" ] || continue
             printf '\n### %s\n' "$d"
             make -C "$d" ci || STATUS=1

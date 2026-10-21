@@ -1,5 +1,5 @@
 ##### MAP #####
-# The contract management, the CLI and the wizard's CI section read: every CI feature resolves to the
+# The contract e-taxis reads: every CI feature resolves to the
 # atomic jobs it owns. Jobs are files under infra/jobs/; their text is transcribed from the real
 # workflows of the e-stack (anytomd, e-serde, e-voice, e-metaxy, e-taxis, the six systems) — a fragment
 # here that drifts from those is the bug. A feature installs INERT: its gate variable defaults false.
@@ -117,10 +117,10 @@ features:
     tokens: []
 
   repo-maintain:
-    label: "three-area self-maintenance of a wide repo: systems (uv), stack (images) and infra (pins), one sync each, health reports by area"
+    label: "three-area self-maintenance of a wide repo: projects (uv), stack (images) and infra (pins), one sync each, health reports by area"
     jobs:
       ci: [upstream-context-repo]
-      workflow: [sync-systems, sync-stack, sync-infra, maintenance, health-areas]
+      workflow: [sync-projects, sync-stack, sync-infra, maintenance, health-areas]
     files: [renovate.repo.json, qwen.repo.md, tools/health.py, tools/upstream.py, tools/repo_health.py, tools/stack_resolve.py, tools/changelog.py]
     requires: [repo-ci]
     replaces: [selfmaintain]

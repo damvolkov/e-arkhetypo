@@ -40,7 +40,7 @@ SCHEMA: Final = 1
 def refs(root: Path) -> list[tuple[str, str, str, bool, bool]]:
     """(service, category, image, local-build, parked) for every literal ``image:`` line under stack/.
 
-    Compose files of scaffold folders (dot or underscore) are skipped, as management skips them; a
+    Compose files of scaffold folders (dot or underscore) are skipped, as e-taxis skips them; a
     service with a ``build:`` section owns images that live on this machine, not in a registry; a
     service labelled ``stack.parked: "true"`` is out of use and its upstream is never probed."""
     found: list[tuple[str, str, str, bool, bool]] = []

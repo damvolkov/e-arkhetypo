@@ -1,7 +1,7 @@
 """tools/repo_health.py: the three-area health of a wide repo — stack images, system dependencies, action pins.
 
 One report, three sections, split exactly the way the repo is maintained: ``stack`` reads the version
-ledger (vanished images, refs the ledger never covered, stale resolution), ``systems`` runs the package
+ledger (vanished images, refs the ledger never covered, stale resolution), ``projects`` runs the package
 probe of ``tools/health.py`` over every system's dependencies and checks the template registry against
 disk, ``infra`` compares every action digest pinned in the CI fragments with its upstream release.
 Stdlib only; exit 0 means every area clean, exit 3 means findings — the contract the workflow reads."""
@@ -28,7 +28,7 @@ RESOLVED_RE = re.compile(r'^resolved: "(\d{4}-\d{2}-\d{2})"', re.MULTILINE)
 BLOCK_RE = re.compile(r'- ref: "?([^\s"]+)"?\n((?:  \w+: .*\n?)+)')
 FIELD_RE = re.compile(r'  (\w+): (.*)')
 USES_RE = re.compile(r"uses:\s*([\w./-]+)@([0-9a-f]{40})\s*#\s*(\S+)")
-SOURCE_RE = re.compile(r"^\s*source:\s*(systems/\w+)\s*$", re.MULTILINE)
+SOURCE_RE = re.compile(r"^\s*source:\s*(projects/python/\w+)\s*$", re.MULTILINE)
 
 Row = tuple[str, str, str, str]
 
@@ -75,12 +75,12 @@ def stack_rows(root: Path) -> list[Row]:
     return rows
 
 
-##### SYSTEMS #####
+##### PROJECTS #####
 
 
-def systems_rows(root: Path, token: str) -> list[Row]:
+def projects_rows(root: Path, token: str) -> list[Row]:
     """Findings per system: every dependency probed with tools/health, plus registry sources missing from disk."""
-    projects = sorted(path.parent for path in root.glob("systems/*/pyproject.toml"))
+    projects = sorted(path.parent for path in root.glob("projects/python/*/pyproject.toml"))
     pairs = [(project.name, dep) for project in projects for dep in health.requirements(project)]
     with concurrent.futures.ThreadPoolExecutor(max_workers=CONCURRENCY) as pool:
         checked = dict(pool.map(lambda pair: (pair, health.check(pair[1], token)), pairs))
@@ -89,7 +89,7 @@ def systems_rows(root: Path, token: str) -> list[Row]:
         for (project, dep), found in sorted(checked.items())
         for dep, registry, verdict, detail in found
     ]
-    registry_file = root / "management" / "data" / "templates.yml"
+    registry_file = root / "projects" / "templates.yml"
     missing = [source for source in SOURCE_RE.findall(registry_file.read_text()) if not (root / source).is_dir()]
     return rows + [(source, "templates.yml", "missing", "the registry names a template source that is not on disk") for source in missing]
 
@@ -132,10 +132,10 @@ def main() -> int:
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--token", default="")
     args = parser.parse_args()
-    areas = {"stack": stack_rows(args.root), "systems": systems_rows(args.root, args.token), "infra": infra_rows(args.root, args.token)}
+    areas = {"stack": stack_rows(args.root), "projects": projects_rows(args.root, args.token), "infra": infra_rows(args.root, args.token)}
     args.output.write_text(report(areas))
     total = sum(len(rows) for rows in areas.values())
-    print(f"{total} findings across stack · systems · infra")
+    print(f"{total} findings across stack · projects · infra")
     return FINDINGS_EXIT if total else 0
 
 

@@ -14,7 +14,7 @@ categories:
 - tools
 - vdb
 - watch
-inputs_hash: "09f9662d746d3c1946607908c895cd4b40f14fe96e195e626635ac41f4a68bb1"
+inputs_hash: "3e608f7f396e423d993ef63b88b383f9426b467842a1224e27433657284e532e"
 services:
 - name: openhuman
   category: agent
@@ -249,6 +249,15 @@ services:
   depends: []
   dependents:
   - searxng
+  closure: []
+  level: 0
+- name: paradedb
+  category: rdb
+  compose: stack/rdb/paradedb/compose.yml
+  files: []
+  port: 5433
+  depends: []
+  dependents: []
   closure: []
   level: 0
 - name: postgres

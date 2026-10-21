@@ -1,0 +1,33 @@
+services:
+  gliner:
+    image: ghcr.io/damvolkov/gliner:latest
+    container_name: gliner
+    hostname: gliner
+    restart: unless-stopped
+    read_only: true
+    labels:
+      stack.category: "llm"
+      stack.port: "5800"
+    ports:
+      # gliner listens on 5800 by default
+      - "${GLINER_PORT:-5800}:5800"
+    volumes:
+      # the model registry (`<n>/` versions + `current`), filled beforehand — the image downloads nothing (README)
+      - gliner-models:/models:ro
+    environment:
+      # ONNX Runtime sizes its default to the host, not the cgroup, and runs several times slower: always explicit
+      - GLINER_MODEL__THREADS=${GLINER_THREADS:-8}
+      - GLINER_MODEL__CONCURRENCY=${GLINER_CONCURRENCY:-2}
+    # no healthcheck: the image is distroless (no shell, no curl) and the binary has no probe subcommand —
+    # readiness is GET /ready from outside (200 once the model is loaded, 503 before)
+    networks:
+      - stack
+
+volumes:
+  gliner-models:
+    # a fixed name, so the registry can be filled before the first `up` (README)
+    name: gliner-models
+
+networks:
+  stack:
+    name: stack

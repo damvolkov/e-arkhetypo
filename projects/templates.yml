@@ -1,0 +1,234 @@
+##### TEMPLATES #####
+templates:
+  api:
+    source: projects/python/api
+    package: e_api
+    brand: e-api
+    drops: [uv.lock, scripts/materialize.py, .github/workflows, .github/ci.map.yml, .github/ci.vars.example, .github/INSTALL.md, tests/unit/test_ci_contract.py]
+    common:
+      root: projects/python/core
+      package: e_core
+      skip: [ops/tui]
+      ##### DETACH — how the system lets go of a common unit it wires; without rules a wired unit stays locked #####
+      detach:
+        - unit: adapters/redis
+          prunes:
+            - {file: src/e_api/api/lifespan/adapters.py, pattern: '^from adapters\.redis import RedisAdapter\n'}
+            - {file: src/e_api/api/lifespan/adapters.py, pattern: '^    redis: StorePort\n'}
+            - {file: src/e_api/api/lifespan/adapters.py, pattern: '^        redis=RedisAdapter\(\),\n'}
+            - {file: tests/unit/e_api/api/test_lifespan.py, pattern: '^    assert (isinstance\(edges\.redis, StorePort\)|edges\.redis\.name == "redis")\n'}
+            - {file: pyproject.toml, pattern: '^    "(fake)?redis>=[^"]*",\n'}
+        - unit: adapters/http
+          prunes:
+            - {file: src/e_api/api/lifespan/adapters.py, pattern: '^from adapters\.http import HttpAdapter\n'}
+            - {file: src/e_api/api/lifespan/adapters.py, pattern: '^from adapters\.ports import HttpPort, StorePort$', to: 'from adapters.ports import StorePort'}
+            - {file: src/e_api/api/lifespan/adapters.py, pattern: '^    http: HttpPort\n'}
+            - {file: src/e_api/api/lifespan/adapters.py, pattern: '^        http=HttpAdapter\(\),\n'}
+            - {file: tests/unit/e_api/api/test_lifespan.py, pattern: '^from adapters\.ports import HttpPort, StorePort$', to: 'from adapters.ports import StorePort'}
+            - {file: tests/unit/e_api/api/test_lifespan.py, pattern: '^    assert (isinstance\(edges\.http, HttpPort\)|edges\.http\.name == "http")\n'}
+            - {file: pyproject.toml, pattern: '^    ##### http #####\n    "wreq>=[^"]*",\n'}
+    materials: &materials
+      - {src: projects/python/core/common/prek.toml, dst: prek.toml}
+      - {src: projects/python/core/common/gitattributes, dst: .gitattributes}
+      - {src: projects/python/core/common/python-version, dst: .python-version}
+      - {src: projects/python/core/common/dependabot.yml, dst: .github/dependabot.yml}
+      - {src: projects/python/core/common/CODEOWNERS, dst: .github/CODEOWNERS}
+
+    ##### MANDATORY — tests that survive every selection; no choice may delete them #####
+    mandatory:
+      - tests/unit/conftest.py
+      - tests/unit/test_resources.py
+      - tests/resources
+      - tests/unit/e_api/conftest.py
+      - tests/unit/e_api/api/test_assembly.py
+      - tests/unit/e_api/api/test_lifespan.py
+      - tests/unit/e_api/api/test_stress.py
+      - tests/unit/e_api/api/test_transport.py
+      - tests/unit/e_api/ops/test_file.py
+
+    ##### CHOICES — grouped by the wizard stage that owns them #####
+    choices:
+      # ·· modules ··
+      - name: websockets
+        group: modules
+        label: telemetry websocket listener
+        default: true
+        paths: [src/e_api/websockets, src/e_api/models/telemetry.py, tests/unit/e_api/websockets, tests/unit/e_api/models/test_telemetry.py]
+        prunes:
+          - {file: src/e_api/main.py, pattern: '^from e_api\.websockets import telemetry\n'}
+          - {file: src/e_api/main.py, pattern: '^    app\.register\(Router\(path="/", route_handlers=list\(telemetry\.ws_routes\(\)\)\)\)\n'}
+          - {file: tach.toml, pattern: ', "e_api\.websockets"'}
+          - {file: tach.toml, pattern: '\[\[modules\]\]\npath = "e_api\.websockets"\nlayer = "api"\ndepends_on = \["e_api\.api"\]\n\n'}
+          - {file: tests/unit/e_api/api/test_assembly.py, pattern: '"/ws/telemetry", '}
+
+      # ·· stack ··
+      - name: docker
+        group: stack
+        label: container image + compose service
+        default: true
+        paths: [Dockerfile, compose.yml, .dockerignore]
+        prunes:
+          - {file: Makefile, pattern: '^up: core ## docker compose up[^\n]*\n(?:\t[^\n]*\n)+'}
+          - {file: Makefile, pattern: '^down: ## docker compose down\n(?:\t[^\n]*\n)+'}
+          - {file: Makefile, pattern: '^build: core ## docker image build[^\n]*\n(?:\t[^\n]*\n)+'}
+          - {file: Makefile, pattern: '^logs: ## docker compose logs[^\n]*\n(?:\t[^\n]*\n)+'}
+          - {file: Makefile, pattern: '^(PORT|COMPOSE) \?=[^\n]*\n'}
+          - {file: Makefile, pattern: ' up down build logs'}
+          - {file: Makefile, pattern: ' up| down| build| logs'}
+          - {file: README.md, pattern: '^(Dockerfile|compose\.yml)\s+#.*\n'}
+          - {file: README.md, pattern: '^make up\s+#.*\n'}
+
+      # ·· cicd ··
+      - name: docs
+        group: cicd
+        label: generated API reference + GitHub Pages
+        default: true
+        paths: [properdocs.yml, docs, scripts]
+        prunes:
+          - {file: Makefile, pattern: '^# — docs —\n[\s\S]*?(?=^# — aggregate)'}
+          - {file: Makefile, pattern: ' docs-build'}
+          - {file: Makefile, pattern: ' docs'}
+          - {file: Makefile, pattern: ' scripts tests', to: ' tests'}
+          - {file: pyproject.toml, pattern: '^docs = \[[\s\S]*?^\]\n'}
+          - {file: pyproject.toml, pattern: '^    \{ include-group = "docs" \},\n'}
+
+    ##### VERIFY — post-export pipeline; tests steps obey the user's confirmation #####
+    verify: &verify
+      - {name: git init, argv: [git, init, -q]}
+      - {name: uv sync, argv: [uv, sync], tests: true}
+      - {name: make check, argv: [make, check], tests: true}
+
+    ##### FINALIZE — engine plumbing, never a user choice (strips the template's own machinery) #####
+    finalize: &finalize
+      - {file: Makefile, pattern: '^# — common —\n[\s\S]*?(?=^# — gates —)'}
+      - {file: Makefile, pattern: '^CORE_SRC \?= .*\n'}
+      - {file: Makefile, pattern: '^COMMON_SRC \?= .*\n'}
+      - {file: Makefile, pattern: ' core-check'}
+      - {file: Makefile, pattern: ' common-check'}
+      - {file: Makefile, pattern: ' core\b(?!/)'}
+      - {file: Makefile, pattern: ' common\b(?!/)'}
+      - {file: .gitignore, pattern: '^# (generated|materialized).*\n'}
+      - {file: .gitignore, pattern: '^src/(core|ops|adapters)/\n'}
+      - {file: .gitignore, pattern: '^(prek\.toml|\.(gitattributes|python-version))\n'}
+      - {file: .gitignore, pattern: '^\.github/(dependabot\.yml|CODEOWNERS)\n'}
+      - {file: pyproject.toml, pattern: ', shared core materialized from projects/python/core'}
+      - {file: pyproject.toml, pattern: '^    ### structural rewrite.*materialization time.*\n    "libcst>=[^"]*",\n'}
+      - {file: Makefile, pattern: ' — core/ops/adapters materialized from \$\(CORE_SRC\)'}
+      - {file: README.md, pattern: '^.*\b(GENERATED|make core)\b.*\n'}
+      ### a detached project owns its common set: `clean` must not delete source the generator no longer restores.
+      - {file: Makefile, pattern: ' src/core src/ops src/adapters src/processors prek\.toml \.gitattributes \.python-version'}
+      - {file: Makefile, pattern: ' \+ materialized core'}
+
+  cli:
+    source: projects/python/cli
+    package: e_cli
+    brand: e-cli
+    drops: [uv.lock, scripts, .github/workflows, .github/ci.map.yml, .github/ci.vars.example, .github/INSTALL.md, tests/unit/test_ci_contract.py]
+    common: {root: projects/python/core, package: e_core, skip: [ops/tui]}
+    materials: *materials
+
+    ##### MANDATORY — the harness and the tree contract survive every selection #####
+    mandatory:
+      - tests/unit/conftest.py
+      - tests/unit/test_resources.py
+      - tests/resources
+      - tests/unit/e_cli/conftest.py
+      - tests/unit/e_cli/test_cli.py
+
+    verify: *verify
+    finalize: *finalize
+    finalize_extra:
+      - {file: Makefile, pattern: ' scripts', to: ''}
+  graph:
+    source: projects/python/graph
+    package: e_graph
+    brand: e-graph
+    drops: [uv.lock, scripts/materialize.py, .github/workflows, .github/ci.map.yml, .github/ci.vars.example, .github/INSTALL.md, tests/unit/test_ci_contract.py]
+    common: {root: projects/python/core, package: e_core, skip: [ops/tui]}
+    materials: *materials
+
+    mandatory:
+      - tests/unit/conftest.py
+      - tests/resources
+      - tests/unit/e_graph/conftest.py
+
+    choices:
+      # ·· stack ··
+      - name: docker
+        group: stack
+        label: container image + compose service
+        default: true
+        paths: [Dockerfile, compose.yml, .dockerignore]
+        prunes:
+          - {file: Makefile, pattern: '^up: core ## docker compose up[^\n]*\n(?:\t[^\n]*\n)+'}
+          - {file: Makefile, pattern: '^down: ## docker compose down\n(?:\t[^\n]*\n)+'}
+          - {file: Makefile, pattern: '^build: core ## docker image build[^\n]*\n(?:\t[^\n]*\n)+'}
+          - {file: Makefile, pattern: '^logs: ## docker compose logs[^\n]*\n(?:\t[^\n]*\n)+'}
+          - {file: Makefile, pattern: '^(PORT|COMPOSE) \?=[^\n]*\n'}
+          - {file: Makefile, pattern: ' up down build logs'}
+          - {file: Makefile, pattern: ' up| down| build| logs'}
+
+      # ·· cicd ··
+      - name: docs
+        group: cicd
+        label: generated API reference + GitHub Pages
+        default: true
+        paths: [properdocs.yml, docs, scripts]
+        prunes:
+          - {file: Makefile, pattern: '^# — docs —\n[\s\S]*?(?=^# — aggregate)'}
+          - {file: Makefile, pattern: ' docs-build'}
+          - {file: Makefile, pattern: ' docs'}
+          - {file: Makefile, pattern: ' scripts tests', to: ' tests'}
+          - {file: pyproject.toml, pattern: '^docs = \[[\s\S]*?^\]\n'}
+          - {file: pyproject.toml, pattern: '^    \{ include-group = "docs" \},\n'}
+
+    verify: *verify
+    finalize: *finalize
+
+  mcp:
+    source: projects/python/mcp
+    package: e_mcp
+    brand: e-mcp
+    drops: [uv.lock, scripts/materialize.py, .github/workflows, .github/ci.map.yml, .github/ci.vars.example, .github/INSTALL.md, tests/unit/test_ci_contract.py]
+    common: {root: projects/python/core, package: e_core, skip: [ops/tui]}
+    materials: *materials
+
+    mandatory:
+      - tests/unit/conftest.py
+      - tests/resources
+      - tests/unit/e_mcp/conftest.py
+
+    choices:
+      # ·· stack ··
+      - name: docker
+        group: stack
+        label: container image + compose service
+        default: true
+        paths: [Dockerfile, compose.yml, .dockerignore]
+        prunes:
+          - {file: Makefile, pattern: '^up: core ## docker compose up[^\n]*\n(?:\t[^\n]*\n)+'}
+          - {file: Makefile, pattern: '^down: ## docker compose down\n(?:\t[^\n]*\n)+'}
+          - {file: Makefile, pattern: '^build: core ## docker image build[^\n]*\n(?:\t[^\n]*\n)+'}
+          - {file: Makefile, pattern: '^logs: ## docker compose logs[^\n]*\n(?:\t[^\n]*\n)+'}
+          - {file: Makefile, pattern: '^(PORT|COMPOSE) \?=[^\n]*\n'}
+          - {file: Makefile, pattern: ' up down build logs'}
+          - {file: Makefile, pattern: ' up| down| build| logs'}
+
+    verify: *verify
+    finalize: *finalize
+
+  tui:
+    source: projects/python/tui
+    package: e_tui
+    brand: e-tui
+    drops: [uv.lock, .github/workflows, .github/ci.map.yml, .github/ci.vars.example, .github/INSTALL.md, tests/unit/test_ci_contract.py]
+    common: {root: projects/python/core, package: e_core}
+    materials: *materials
+
+    mandatory:
+      - tests/unit/conftest.py
+      - tests/resources
+      - tests/unit/e_tui/conftest.py
+
+    verify: *verify
+    finalize: *finalize

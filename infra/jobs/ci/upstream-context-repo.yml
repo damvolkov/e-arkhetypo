@@ -16,7 +16,7 @@
           BASE: origin/${{ github.event.repository.default_branch }}
         run: |
           mkdir -p upstream-context parts
-          FILES=$(git diff --name-only "$BASE" | grep -E '^systems/[^/]+/pyproject\.toml$' || true)
+          FILES=$(git diff --name-only "$BASE" | grep -E '^projects/python/[^/]+/pyproject\.toml$' || true)
           for f in $FILES; do
             git show "$BASE:$f" > /tmp/base-pyproject.toml
             uv run --no-project python tools/upstream.py --base /tmp/base-pyproject.toml --head "$f" --output "parts/$f"

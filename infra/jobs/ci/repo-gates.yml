@@ -1,5 +1,5 @@
   repo-gates:
-    name: repo drift gates
+    name: repo gates
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
@@ -7,22 +7,12 @@
           persist-credentials: false
       - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4  # v10.1.0
       - name: Pin the Python the ecosystem declares
-        run: echo "UV_PYTHON=$(cat systems/core/common/python-version)" >> "$GITHUB_ENV"
-      - name: Materialize and sync the tool and every project (generated trees are not committed)
+        run: echo "UV_PYTHON=$(cat projects/python/core/common/python-version)" >> "$GITHUB_ENV"
+      - name: Materialize every project, then prove nothing drifted from core (generated trees are not committed)
         run: |
-          make -C management install
-          for d in systems/*/; do
+          for d in projects/python/*/; do
             [ -f "$d/Makefile" ] || continue
-            if grep -q '^core:' "$d/Makefile"; then make -C "$d" core common; else make -C "$d" common; fi
+            if grep -q '^core:' "$d/Makefile"; then make -C "$d" core common core-check common-check; else make -C "$d" common common-check; fi
           done
-      - name: the tool is green
-        run: make -C management check
-      - name: no materialized, structural, CI or assembly drift
-        run: |
-          uv run --project management python -m e_management drift
-          uv run --project management python -m e_management graph-check
-          uv run --project management python -m e_management stack-check
-          uv run --project management python -m e_management infra-check
-          uv run --project management python -m e_management repo-infra-check
       - name: workflow hardening scan
-        run: uv run --project management zizmor --persona=regular .github/workflows
+        run: uvx zizmor@1.30.1 --persona=regular .github/workflows

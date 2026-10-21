@@ -1,0 +1,55 @@
+name: sync-projects
+
+# On Renovate branches of a wide repo: every system's lockfile follows its pyproject, the tool's own
+# follows too, and the CHANGELOG records the sync. Deterministic; pushes with the App token so CI
+# re-runs on the synced head. Generated from infra/, do not edit.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sync-projects-${{ github.head_ref }}
+  cancel-in-progress: true
+
+jobs:
+  locks:
+    name: lockfiles
+    if: >
+      startsWith(github.head_ref, 'renovate/') &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510  # v3.3.0
+        id: app
+        with:
+          client-id: ${{ vars.APP_CLIENT_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          permission-contents: write
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          ref: ${{ github.head_ref }}
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4  # v10.1.0
+      - name: Refresh every project's lockfile
+        id: align
+        run: |
+          for d in projects/python/*/; do
+            [ -f "$d/pyproject.toml" ] && uv lock --project "$d"
+          done
+          git diff --quiet && echo "changed=false" >> "$GITHUB_OUTPUT" || echo "changed=true" >> "$GITHUB_OUTPUT"
+      - name: Record and push
+        if: steps.align.outputs.changed == 'true'
+        env:
+          TOKEN: ${{ steps.app.outputs.token }}
+          SLUG: ${{ steps.app.outputs.app-slug }}
+          BRANCH: ${{ github.head_ref }}
+        run: |
+          uv run --no-project python tools/changelog.py --area projects --line "lockfiles refreshed after \`$BRANCH\`"
+          git config user.name "$SLUG[bot]"
+          git config user.email "$SLUG[bot]@users.noreply.github.com"
+          git commit -am "chore(sync-projects): refresh the lockfiles"
+          git push "https://x-access-token:$TOKEN@github.com/${GITHUB_REPOSITORY}.git" "HEAD:$BRANCH"

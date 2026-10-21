@@ -1,12 +1,22 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["config:recommended", ":dependencyDashboard"],
-  "enabledManagers": ["pep621", "github-actions", "uv"],
+  "enabledManagers": ["pep621", "github-actions", "uv", "regex"],
   "schedule": ["before 6am on monday"],
   "prConcurrentLimit": 3,
   "abandonmentThreshold": "1 year",
   "rangeStrategy": "bump",
   "lockFileMaintenance": { "enabled": false },
+  "customManagers": [
+    {
+      "description": "The agent's CLI pin, the default of QWEN_CLI_VERSION in the maintenance workflow.",
+      "customType": "regex",
+      "fileMatch": ["(^|/)\\.github/workflows/maintenance\\.yml$"],
+      "matchStrings": ["QWEN_CLI_VERSION \\|\\| '(?<currentValue>\\d+\\.\\d+\\.\\d+)'"],
+      "depNameTemplate": "@qwen-code/qwen-code",
+      "datasourceTemplate": "npm"
+    }
+  ],
   "packageRules": [
     {
       "description": "Runtime deps: one PR per package, CI judges them.",

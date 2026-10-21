@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   check:
-    name: stack · systems · infra health
+    name: stack · projects · infra health
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -43,7 +43,7 @@ jobs:
           ISSUE=$(gh issue list --label deps-health --state open --json number -q '.[0].number')
           {
             echo "Monthly three-area health check (\`tools/repo_health.py\`): stack images — vanished, deprecated or"
-            echo "stale-ledger; systems — archived, vanished, stale or dormant dependencies; infra — action pins"
+            echo "stale-ledger; projects — archived, vanished, stale or dormant dependencies; infra — action pins"
             echo "behind their upstream release."
             echo
             cat report.md
@@ -52,7 +52,7 @@ jobs:
           } > body.md
           case "$FINDINGS:${ISSUE:+open}" in
             true:open) gh issue edit "$ISSUE" --body-file body.md ;;
-            true:)     gh issue create --title "Dependency health: stack · systems · infra" --label deps-health --body-file body.md ;;
+            true:)     gh issue create --title "Dependency health: stack · projects · infra" --label deps-health --body-file body.md ;;
             false:open) gh issue close "$ISSUE" --comment "All three areas healthy again." ;;
             *) echo "All areas healthy." ;;
           esac

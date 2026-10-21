@@ -1,7 +1,8 @@
 name: maintenance
 
 # After CI on a Renovate branch: repair what the update broke (fix), or expose what the dependency
-# gained (expose). The agent edits files; this workflow alone commits, after an allowlist gate.
+# gained (expose). The agent edits files; this workflow alone commits, after an allowlist gate —
+# and a compose file whose `image:` line moved is discarded whole: image pins are human.
 # Never merges. Stops after MAX_ATTEMPTS commits tagged [maintenance] on the branch.
 # Generated from infra/, do not edit.
 
@@ -20,7 +21,7 @@ concurrency:
 
 env:
   MAX_ATTEMPTS: 3
-  ALLOWED: ^((stack/[^/]+/[^/]+/.*|stack/README\.md|systems/[^/]+/(src|tests|docs)/.*|systems/[^/]+/README\.md|CHANGELOG\.md|README\.md))$
+  ALLOWED: ^((stack/[^/]+/[^/]+/.*|stack/README\.md|projects/python/[^/]+/(src|tests|docs)/.*|projects/python/[^/]+/README\.md|CHANGELOG\.md|README\.md))$
 
 jobs:
   fix:
@@ -100,11 +101,11 @@ jobs:
           openai_api_key: ${{ secrets.QWEN_API_KEY }}
           openai_base_url: ${{ vars.QWEN_BASE_URL || 'https://token-plan.ap-southeast-1.maas.aliyuncs.com/compatible-mode/v1' }}
           openai_model: ${{ vars.QWEN_MODEL || 'qwen3.8-max' }}
-          qwen_cli_version: ${{ vars.QWEN_CLI_VERSION || 'latest' }}
+          qwen_cli_version: ${{ vars.QWEN_CLI_VERSION || '0.25.3' }}
           prompt: |
             Follow QWEN.md strictly.
             Mode: ${{ steps.gate.outputs.mode }}
-            - fix: CI failed after a dependency update on this branch. Repair e-templates.
+            - fix: CI failed after a dependency update on this branch. Repair e-arkhetypo.
             - expose: CI passes but the updated dependency gained public surface. Expose it where the contract allows.
             Context in .ai-context/:
               - upstream-context/ (what changed upstream), ci-logs-*/build-test.log (one per OS and Python version)
@@ -125,7 +126,9 @@ jobs:
         run: |
           rm -rf .ai-context .qwen qwen-artifacts
           git add -A
-          REJECTED=$(git diff --cached --name-only | grep -Ev "$ALLOWED" || true)
+          IMAGES=$(git diff --cached --name-only -- stack | grep -E 'compose\.ya?ml$' | while read -r f; do
+            git diff --cached -U0 -- "$f" | grep -qE '^[-+][[:space:]]*image:' && echo "$f"; done || true)
+          REJECTED=$({ git diff --cached --name-only | grep -Ev "$ALLOWED"; printf '%s\n' "$IMAGES"; } | sed '/^$/d' | sort -u || true)
           printf '🤖 **maintenance (%s)**\n\n%s\n' "$MODE" "$SUMMARY" > /tmp/body.md
           if [ -n "$REJECTED" ]; then
             printf '%s\n' "$REJECTED" | xargs git reset -q --

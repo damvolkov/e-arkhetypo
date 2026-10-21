@@ -5,6 +5,7 @@ features: [repo-ci, repo-maintain, snap-refresh]
 
 tokens:
   brand: e-templates
+  repo: damvolkov/e-templates
   allowlist: '(stack/[^/]+/[^/]+/.*|stack/README\.md|systems/[^/]+/(src|tests|docs)/.*|systems/[^/]+/README\.md|CHANGELOG\.md|README\.md)'
   verify: make check
   snap_dir: graph

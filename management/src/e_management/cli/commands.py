@@ -92,6 +92,20 @@ def gen(
     return Scaffold(root).apply(plan(root, spec, template, name, off=off, drop=drop, ci_off=ci_off, ci_on=ci_on), dest)
 
 
+def notice(
+    root: Path,
+    spec: Manifest,
+    template: str,
+    name: str,
+    *,
+    off: frozenset[str] = frozenset(),
+    ci_off: frozenset[str] = frozenset(),
+    ci_on: frozenset[str] = frozenset(),
+) -> str:
+    """What the user must enable by hand once ``template`` is generated under ``name`` — empty when nothing waits."""
+    return blueprint(root, spec, template, name).infra_notice(off, ci_off, ci_on)
+
+
 def drift(root: Path, spec: Manifest) -> dict[str, list[str]]:
     """Per template: the material files its system holds that no longer match the sources."""
     return {name: Scaffold(root).drift(template) for name, template in spec.templates.items()}

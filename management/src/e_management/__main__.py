@@ -65,7 +65,17 @@ def _run(args: argparse.Namespace) -> int:  # noqa: PLR0912 — the verbs are th
                 ci_off=_off(args.ci_off),
                 ci_on=_off(args.ci_on),
             )
-            print(f"created {dest}\nnext: cd {dest} && make install")
+            todo = commands.notice(
+                args.root,
+                spec,
+                args.template,
+                args.name,
+                off=_off(args.off),
+                ci_off=_off(args.ci_off),
+                ci_on=_off(args.ci_on),
+            )
+            hand = f"\n\nenable by hand (also in .github/INSTALL.md):\n\n{todo}" if todo else ""
+            print(f"created {dest}\nnext: cd {dest} && make install{hand}")
         case "drift":
             report = commands.drift(args.root, spec)
             for name, issues in report.items():

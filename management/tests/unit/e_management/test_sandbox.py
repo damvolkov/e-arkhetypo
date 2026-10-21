@@ -62,6 +62,19 @@ def test_ci_on_adds_selfmaintain_beyond_the_reference(tmp_path: Path) -> None:
     assert "src/e_sandon/.*" in (workflows / "maintenance.yml").read_text()
     assert "APP_CLIENT_ID" in (dest / ".github" / "ci.map.yml").read_text()
     assert "APP_CLIENT_ID" not in (dest / ".github" / "ci.vars.example").read_text()
+    assert "bootstrap-repos damvolkov/e-sandon" in (dest / ".github" / "INSTALL.md").read_text()
+
+
+def test_gen_tells_what_selfmaintain_needs_by_hand(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    _gen(tmp_path, "api", "sandtell", "--ci-on", "selfmaintain")
+    out = capsys.readouterr().out
+    assert "enable by hand" in out
+    assert "bootstrap-repos damvolkov/e-sandtell" in out
+
+
+def test_gen_stays_quiet_without_credentials(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    _gen(tmp_path, "cli", "sandquiet")
+    assert "enable by hand" not in capsys.readouterr().out
 
 
 @pytest.mark.parametrize(("template", "name"), [("api", "sandclean"), ("cli", "sandcleancli")])

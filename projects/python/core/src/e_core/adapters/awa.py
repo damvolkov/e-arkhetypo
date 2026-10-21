@@ -196,6 +196,11 @@ class AwaAdapter(BaseAdapter):
                 await client.close()
                 self._client = None
 
+    async def ping(self) -> None:
+        """One trivial query on the queue's database, within QUEUE_TIMEOUT."""
+        with self._ping_guard():
+            await self._common_fetch("SELECT 1")
+
     def register(self, kind: str, queue: str, handler: BackgroundHandler) -> None:
         _ = self._common_client().task(dict, kind=kind, queue=queue)(partial(self._register_run, handler))
 

@@ -5,11 +5,13 @@ from datetime import timedelta
 import pytest
 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter as GrpcExporter
 from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter as HttpExporter
+from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from opentelemetry.trace import SpanKind as SdkKind
 from opentelemetry.trace import StatusCode
 
+from e_core.adapters.base import PingError
 from e_core.adapters.otel import KINDS, STATUSES, OtelAdapter, OtelSpan, export_grpc, export_http
 from e_core.adapters.ports import SpanKind, SpanPort, SpanStatus, TelemetryPort
 from e_core.core.settings.base import Secret
@@ -176,3 +178,16 @@ def test_settings_read_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_sample_is_a_share(sample: float) -> None:
     with pytest.raises(ValueError, match="sample"):
         OtelSettings(otel_sample=sample)
+
+
+##### PING #####
+async def test_otel_ping(exporter: InMemorySpanExporter, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The provider flushes to its exporter; one that cannot flush, or no provider, is down."""
+    adapter = OtelAdapter(OtelSettings(), exporter)
+    with pytest.raises(PingError, match=r"^otel: not connected$"):
+        await adapter.ping()
+    async with adapter:
+        await adapter.ping()
+        monkeypatch.setattr(TracerProvider, "force_flush", lambda *_: False)
+        with pytest.raises(PingError, match=r"^otel: spans not flushed to the exporter$"):
+            await adapter.ping()

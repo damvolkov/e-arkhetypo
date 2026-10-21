@@ -17,20 +17,26 @@ where every node lands its `NodeOutput` — the batch result reads it back."""
 import operator
 import uuid
 from collections.abc import Iterator, Mapping
-from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Annotated, TypedDict, cast
+from dataclasses import dataclass, field, fields
+from typing import TYPE_CHECKING, Annotated, Final, TypedDict, cast
 
+from adapters.base import AdapterPing, BaseAdapter
 from adapters.ports import DocumentPort, HttpPort, StorePort, TelemetryPort
 from core.state import State
 from e_graph.instrument.models import NodeOutput
 
 if TYPE_CHECKING:
+    from datetime import timedelta
+
     ### annotation only: these modules import this one at runtime, never the other way round.
     from e_graph.instrument.graph import InstrumentGraph
     from e_graph.instrument.telemetry import InstrumentTelemetry
     from e_graph.logic.agent import AgnosticAgent
     from e_graph.logic.orchestrator.core import OrchestratorCore
     from processors.doc import DocProcessor
+
+### the edges a ready service cannot do without; a role not here is optional.
+REQUIRED: Final[frozenset[str]] = frozenset({"store"})
 
 
 ##### INFRA #####
@@ -47,6 +53,12 @@ class AdaptersState:
     redis: StorePort
     http: HttpPort
     docling: DocumentPort
+
+    async def ping(self, limit: timedelta) -> tuple[AdapterPing, ...]:
+        """Every edge pinged at once, each within `limit`, in field order; the REQUIRED ones decide readiness."""
+        ### every field is a concrete adapter behind its port, and every adapter pings.
+        named = {each.name: cast("BaseAdapter", getattr(self, each.name)) for each in fields(self)}
+        return await BaseAdapter.survey(named, limit, REQUIRED)
 
 
 @dataclass(frozen=True, slots=True)

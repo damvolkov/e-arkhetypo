@@ -4,6 +4,7 @@ import msgspec
 import pytest
 import wreq
 
+from e_core.adapters.base import PingError
 from e_core.adapters.http import HttpAdapter
 from e_core.core.settings.http import HttpSettings
 
@@ -44,3 +45,12 @@ async def test_http_post_decodes_typed_shape(http_server: str) -> None:
     adapter = HttpAdapter(HttpSettings(http_base_url=http_server))
     async with adapter:
         assert await adapter.post("/echo", {"hello": "posted"}, as_=Greeting) == Greeting(hello="posted")
+
+
+async def test_http_ping() -> None:
+    """The client is open: its base is anyone's service, never a dependency to probe — no network either way."""
+    adapter = HttpAdapter(HttpSettings(http_base_url="http://127.0.0.1:9"))
+    async with adapter:
+        await adapter.ping()
+    with pytest.raises(PingError, match=r"^http: RuntimeError: "):
+        await adapter.ping()

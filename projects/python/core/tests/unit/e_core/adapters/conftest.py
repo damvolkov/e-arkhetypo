@@ -1,18 +1,20 @@
 """tests/unit/e_core/adapters: the http and docling harnesses — real stdlib sockets on localhost, offline-safe — and
 the awa and postgres adapters on the test Postgres."""
 
+import asyncio
 import json
 import threading
 import time
 from dataclasses import dataclass
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from typing import TYPE_CHECKING, ClassVar
+from typing import TYPE_CHECKING, ClassVar, Final
 
 import pytest
 import pytest_asyncio
 from psqlpy.exceptions import Error as PsqlError
 
 from e_core.adapters.awa import AwaAdapter
+from e_core.adapters.base import BaseAdapter
 from e_core.adapters.postgres import PostgresAdapter
 from e_core.conftest import DSN, create
 from e_core.core.settings.base import Secret
@@ -128,6 +130,34 @@ def docling_server() -> Iterator[DoclingStub]:
         worker.start()
         yield DoclingStub(url=f"http://127.0.0.1:{srv.server_port}", handler=DoclingHandler)
         srv.shutdown()
+
+
+##### PING #####
+### a loopback port nothing listens on: a provider that is down, refused at once.
+DOWN: Final[str] = "http://127.0.0.1:9"
+
+
+class StubAdapter(BaseAdapter):
+    """An adapter whose provider answers its ping after `delay` seconds, or fails it with `down`."""
+
+    name: ClassVar[str] = "stub"
+
+    def __init__(self, delay: float = 0.0, down: BaseException | None = None) -> None:
+        self.delay, self.down = delay, down
+
+    async def connect(self) -> None:
+        """Nothing to open."""
+
+    async def close(self) -> None:
+        """Nothing to release."""
+
+    async def ping(self) -> None:
+        await asyncio.sleep(self.delay)
+        match self.down:
+            case None:
+                return
+            case error:
+                raise error
 
 
 ##### QUEUE #####

@@ -14,7 +14,7 @@ categories:
 - tools
 - vdb
 - watch
-inputs_hash: "3e608f7f396e423d993ef63b88b383f9426b467842a1224e27433657284e532e"
+inputs_hash: "24339448f5cc712c838fc8f05fe08d287cffd19844b9cdc13d75a69a282ea25a"
 services:
 - name: openhuman
   category: agent
@@ -108,6 +108,16 @@ services:
   - mem0
   - openwebui
   - stirling
+  closure: []
+  level: 0
+- name: gliner
+  category: llm
+  compose: stack/llm/gliner/compose.yml
+  files:
+  - stack/llm/gliner/README.md
+  port: 5800
+  depends: []
+  dependents: []
   closure: []
   level: 0
 - name: llamacpp

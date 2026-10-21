@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+from e_core.adapters.base import PingError
 from e_core.adapters.sqlite import SQLiteAdapter
 from e_core.core.settings.db import DbSettings
 
@@ -48,3 +49,13 @@ async def test_sqlite_closed_adapter_refuses(tmp_path: Path) -> None:
         pass
     with pytest.raises(RuntimeError, match="not connected"):
         await adapter.get("anything")
+
+
+async def test_sqlite_ping(tmp_path: Path) -> None:
+    """One trivial statement on the open file; closed, nothing answers."""
+    adapter = SQLiteAdapter(DbSettings(db_path=tmp_path / "kv.db"))
+    async with adapter:
+        await adapter.ping()
+    with pytest.raises(PingError, match=r"^sqlite: RuntimeError: SQLiteAdapter not connected") as caught:
+        await adapter.ping()
+    assert (caught.value.adapter, caught.value.reason.partition(":")[0]) == ("sqlite", "RuntimeError")

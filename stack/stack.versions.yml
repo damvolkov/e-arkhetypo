@@ -1,5 +1,5 @@
 schema: 1
-resolved: "2026-10-20"
+resolved: "2026-10-21"
 images:
 - ref: "agentmemory:latest"
   service: "agentmemory"
@@ -26,7 +26,7 @@ images:
   category: "rag"
   registry: "quay.io"
   tag: "latest"
-  digest: "sha256:0707036f259a1806d814fd99c8ba758ed3585fb26d46cc9b196e6a18669e0db9"
+  digest: "sha256:7574691141566c64d35dcbe1d9cd17c98179a5c2fea984ccb24017e8a3d77b2f"
   floating: true
   vanished: false
   build: false
@@ -46,7 +46,7 @@ images:
   category: "llm"
   registry: "ghcr.io"
   tag: "server-cuda"
-  digest: "sha256:31b39eacce2bab5fde9286ec3980ed5548a3987644e94da0d0c2092f93313538"
+  digest: "sha256:1bacc872b168d2d10bfd8c220336f5a2cd464c07605936ec146ee5198832ffce"
   floating: true
   vanished: false
   build: false
@@ -56,7 +56,7 @@ images:
   category: "llm"
   registry: "ghcr.io"
   tag: "latest"
-  digest: "sha256:bc09868e98a6b33ecbafb40b0884fa726ccd232e5a47fdbc3070dd2be9e62a98"
+  digest: "sha256:29ca93cfe893e178fe81686263bd951454d9bc9e68b7366986919b633e28681e"
   floating: true
   vanished: false
   build: false
@@ -87,6 +87,16 @@ images:
   registry: "docker.io"
   tag: "latest-cuda"
   digest: "sha256:0b64050ad0b9244745746b652473ee42a8d5454d501877a252c3e65f631ffc99"
+  floating: true
+  vanished: false
+  build: false
+  parked: false
+- ref: "ghcr.io/damvolkov/gliner:latest"
+  service: "gliner"
+  category: "llm"
+  registry: "ghcr.io"
+  tag: "latest"
+  digest: "sha256:33d8818d9278e16b518876999a9e18e5ab192e964ebdf2f51e2d54ffddb90051"
   floating: true
   vanished: false
   build: false
@@ -136,7 +146,7 @@ images:
   category: "llm"
   registry: "ghcr.io"
   tag: "server-cuda"
-  digest: "sha256:31b39eacce2bab5fde9286ec3980ed5548a3987644e94da0d0c2092f93313538"
+  digest: "sha256:1bacc872b168d2d10bfd8c220336f5a2cd464c07605936ec146ee5198832ffce"
   floating: true
   vanished: false
   build: false
@@ -146,7 +156,7 @@ images:
   category: "watch"
   registry: "docker.io"
   tag: "latest"
-  digest: "sha256:1107dd5274e0ada47e42472b7a7e71f3b2a2fe878878108f3e2f9e51528f0193"
+  digest: "sha256:0db216b630ae1f348a1584c67f3cead8b4c1fc839169a39501db664744158e28"
   floating: true
   vanished: false
   build: false
@@ -196,8 +206,18 @@ images:
   category: "watch"
   registry: "docker.io"
   tag: "latest"
-  digest: "sha256:1175b03003053962012f5a231f5567f66a3e8fdb960c7835c0e48f7aa1555806"
+  digest: "sha256:7f22d2a6748110ffb6a59bc0df448bccbf501cdb667d610ede4c61d3863d5849"
   floating: true
+  vanished: false
+  build: false
+  parked: false
+- ref: "paradedb/paradedb:0.26.2-pg17"
+  service: "paradedb"
+  category: "rdb"
+  registry: "docker.io"
+  tag: "0.26.2-pg17"
+  digest: "sha256:0674d7b4e68833b9ced8fee8a59b61537f5700e2136e4f246431e767d29ed10d"
+  floating: false
   vanished: false
   build: false
   parked: false
@@ -206,7 +226,7 @@ images:
   category: "watch"
   registry: "docker.io"
   tag: "latest"
-  digest: "sha256:c542e7de1dc1fdd0f938de337d44ebefa7266e91391eed6e7978523d7f6e1f2f"
+  digest: "sha256:d77e94c0227e46490d9d935d5b58dcd8799feade912491b8182a49ad76d154b1"
   floating: true
   vanished: false
   build: false
@@ -246,7 +266,7 @@ images:
   category: "watch"
   registry: "docker.io"
   tag: "latest"
-  digest: "sha256:efd719c99d83b060d9daefdcf00360461adf279f45ef5391f8d111892118753e"
+  digest: "sha256:fa3302279710be2f21a8301ec17a8b4f2301fd829bd113839b3b6b02b6f191a2"
   floating: true
   vanished: false
   build: false
@@ -256,7 +276,7 @@ images:
   category: "vdb"
   registry: "docker.io"
   tag: "latest"
-  digest: "sha256:b7b0444c4c351c970b98e90a6f89c2ee4287c65b44e52b4cb503fa5b2aa927ad"
+  digest: "sha256:9bfc89f9914fc14876a88c05270685921a55b8877b254a98bcc1cc2f0a424cd2"
   floating: true
   vanished: false
   build: false
@@ -266,7 +286,7 @@ images:
   category: "cdb"
   registry: "docker.io"
   tag: "latest"
-  digest: "sha256:2c2dff791878316e3b083188be0d578423b24813cdda5de0e80ea4f7b3e6bfd6"
+  digest: "sha256:5c02d7c0f8d75af45958c0294a8004f2e14b42df98a1103e3a669aa7ec787be6"
   floating: true
   vanished: false
   build: false
@@ -286,7 +306,7 @@ images:
   category: "media"
   registry: "docker.io"
   tag: "latest"
-  digest: "sha256:e675638b7678eadb19d48c7a8865149d1b7c23a95b2e3c6fae173684d70c62fc"
+  digest: "sha256:7cff1d8a42ca069b099bbf7a6796f8ae91e5b600b88288af362bc9db700e75ff"
   floating: true
   vanished: false
   build: false
@@ -316,7 +336,7 @@ images:
   category: "speech"
   registry: "ghcr.io"
   tag: "latest"
-  digest: "sha256:f4d2bb6d69bd9a6657569656853ce7b1f8a972f55212866666a26bf653f1bdc0"
+  digest: "sha256:6f5c99e93ad5d24132faa01a5421eb03290d03ed151517b65271df48a2002aa9"
   floating: true
   vanished: false
   build: false

@@ -1,14 +1,12 @@
 from contextlib import suppress
-from typing import TYPE_CHECKING
 
 import pytest
 
+from e_core.adapters.base import PingError
 from e_core.adapters.ports import SqlPort, Vector
 from e_core.adapters.postgres import PostgresAdapter, PostgresError
 from e_core.core.settings.base import Secret
-
-if TYPE_CHECKING:
-    from e_core.core.settings.postgres import PostgresSettings
+from e_core.core.settings.postgres import PostgresSettings
 
 pytestmark = pytest.mark.db
 
@@ -103,3 +101,15 @@ async def test_postgres_provision_unreachable(pg_settings: PostgresSettings) -> 
     down = pg_settings.model_copy(update={"dsn": Secret("postgresql://postgres:postgres@127.0.0.1:1/x")})
     with pytest.raises(PostgresError, match="unreachable"):
         await PostgresAdapter(down).provision()
+
+
+async def test_postgres_ping(pg: PostgresAdapter) -> None:
+    await pg.ping()
+
+
+async def test_postgres_ping_down() -> None:
+    """A server nothing listens for: `SELECT 1` never runs, the adapter is down by name."""
+    settings = PostgresSettings(dsn=Secret("postgresql://postgres:postgres@127.0.0.1:9/none"), pool=2)
+    async with PostgresAdapter(settings) as adapter:
+        with pytest.raises(PingError, match=r"^postgres: "):
+            await adapter.ping()

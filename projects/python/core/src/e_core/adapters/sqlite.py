@@ -62,6 +62,12 @@ class SQLiteAdapter(StoreAdapter):
                 await db.close()
                 self._db = None
 
+    async def ping(self) -> None:
+        """One trivial statement on the open file."""
+        with self._ping_guard():
+            async with self._common_connected().execute("SELECT 1") as cursor:
+                await cursor.fetchone()
+
     async def get(self, key: str) -> bytes | None:
         async with self._common_connected().execute("SELECT value FROM kv WHERE key = ?", (key,)) as cursor:
             row = await cursor.fetchone()

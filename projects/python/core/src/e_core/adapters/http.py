@@ -63,6 +63,11 @@ class HttpAdapter(BaseAdapter):
                 client.close()
                 self._client = None
 
+    async def ping(self) -> None:
+        """The client is open: its base is anyone's service, never a dependency to probe."""
+        with self._ping_guard():
+            self._common_connected()
+
     @overload
     async def get[T](self, path: str, *, as_: type[T]) -> T: ...
 

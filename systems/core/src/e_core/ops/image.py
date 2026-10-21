@@ -1,12 +1,14 @@
-"""ops/image: deterministic square-font logos — solid background, rect glyphs, `prefix` + `-` + name.
+"""ops/image: deterministic square-font logos — banner by default, house colors, one rect per stroke.
 
-Every wordmark is the same claim: a 1024 square canvas, one background rect, one group of rect glyphs
-in the house square font. The font is the table `GLYPHS`: letters A-Z and the hyphen, each built from
-axis-aligned rects on a 255x436 box (stroke 45, pitch 292), anchored by the reference `E` reproduced
-byte-for-byte from `assets/eager.svg`. A word wider than the canvas scales as a whole: the geometry is
-uniform, never re-flowed, so the same name always emits the same bytes. Colors vary freely; the
-defaults capture the reference: background `#060c15`, letter `#166b7e`. A name that already
-carries the prefix passes through, `filename` spells the file the wordmark belongs to, and `save` writes it to disk."""
+Every wordmark is the same claim: a solid background and one group of rect glyphs in the house square
+font. The canvas is `landscape` by default — the banner hugs the word with a fixed margin, no dead
+square around a short name; `landscape=False` returns the reference 1024 square, where a word wider
+than the canvas scales as a whole. The font is the table `GLYPHS`: letters A-Z and the hyphen, each
+built from axis-aligned rects on a 255x436 box (stroke 45, pitch 292), anchored by the reference `E`
+reproduced byte-for-byte from `assets/eager.svg`. The geometry is uniform, never re-flowed, so the
+same name always emits the same bytes. Colors vary freely; the defaults capture the reference:
+background `#060c15`, letter `#166b7e`. A name that already carries the prefix passes through,
+`filename` spells the file the wordmark belongs to, and `save` writes it to disk."""
 
 import re
 from enum import StrEnum
@@ -26,6 +28,7 @@ HEIGHT: Final[int] = 436
 WIDTH: Final[int] = 255
 PITCH: Final[int] = 292
 FILL: Final[int] = 950
+MARGIN: Final[int] = 128
 PAD: Final[int] = 4
 BACKGROUND: Final[str] = "#060c15"
 FOREGROUND: Final[str] = "#166b7e"
@@ -175,6 +178,7 @@ class LogoGenerator(Struct, frozen=True, kw_only=True):
     background: str = BACKGROUND
     foreground: str = FOREGROUND
     prefix: str = PREFIX
+    landscape: bool = True
 
     def __post_init__(self) -> None:
         self._check_color(self.background, "background")
@@ -215,14 +219,17 @@ class LogoGenerator(Struct, frozen=True, kw_only=True):
                     case _:
                         return text
 
-    @staticmethod
-    def _generate_layout(text: str) -> tuple[Fraction, int, int]:
-        """Scale, origin x and origin y: natural at 1, whole-word uniform shrink past the canvas."""
+    def _generate_frame(self, text: str) -> tuple[int, int, Fraction, int, int]:
+        """Canvas width and height, scale, origin x and y: banner hugging the word, square on demand."""
         width = len(text) * PITCH - (PITCH - WIDTH)
-        scale = Fraction(FILL, width) if width > FILL else Fraction(1)
-        origin_x = int((CANVAS - width * scale) / 2)
-        origin_y = TOP if scale == 1 else int((CANVAS - HEIGHT * scale) / 2)
-        return scale, origin_x, origin_y
+        match self.landscape:
+            case True:
+                return width + 2 * MARGIN, HEIGHT + 2 * MARGIN, Fraction(1), MARGIN, MARGIN
+            case _:
+                scale = Fraction(FILL, width) if width > FILL else Fraction(1)
+                origin_x = int((CANVAS - width * scale) / 2)
+                origin_y = TOP if scale == 1 else int((CANVAS - HEIGHT * scale) / 2)
+                return CANVAS, CANVAS, scale, origin_x, origin_y
 
     @staticmethod
     def _generate_rects(text: str, scale: Fraction, origin_x: int, origin_y: int) -> Iterator[Rect]:
@@ -241,9 +248,9 @@ class LogoGenerator(Struct, frozen=True, kw_only=True):
 
     def _generate_lines(self, text: str) -> Iterator[str]:
         """The svg as its lines: header, background, one group of glyph rects."""
-        scale, origin_x, origin_y = self._generate_layout(text)
-        yield f'<svg width="{CANVAS}" height="{CANVAS}" viewBox="0 0 {CANVAS} {CANVAS}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="{text}">'
-        yield f'  <rect width="{CANVAS}" height="{CANVAS}" fill="{self.background}"/>'
+        canvas_w, canvas_h, scale, origin_x, origin_y = self._generate_frame(text)
+        yield f'<svg width="{canvas_w}" height="{canvas_h}" viewBox="0 0 {canvas_w} {canvas_h}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="{text}">'
+        yield f'  <rect width="{canvas_w}" height="{canvas_h}" fill="{self.background}"/>'
         yield f'  <g fill="{self.foreground}">'
         yield from (
             f'    <rect x="{rect.x}" y="{rect.y}" width="{rect.w}"{" " * (PAD - len(f"{rect.w}"))}height="{rect.h}"/>'

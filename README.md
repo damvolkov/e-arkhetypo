@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/logo.svg" alt="e-templates" width="220" />
+</p>
+
 # e-templates
 
 ![e-management wizard](assets/management.png)

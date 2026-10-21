@@ -49,6 +49,8 @@ dependencies = [
     ##### stores #####
     "redis>=6.2",
     "aiosqlite>=0.20",
+    ### the db lifespan provisions the databases the settings name: CREATE DATABASE, outside any transaction.
+    "psqlpy>=0.12",
     "beartype>=0.22.9",
     ##### documents — liteparse (Rust, in-process) first, docling-serve for what it reads better; polars frames #####
     "liteparse>=2.14",

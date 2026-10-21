@@ -18,7 +18,7 @@ from litestar.types import Middleware
 
 from core.state import State
 from e_api.api import docs
-from e_api.api.lifespan import adapters, sealed, services
+from e_api.api.lifespan import adapters, db, sealed, services
 from e_api.api.lifespan.core import lifespan as core_lifespan
 from e_api.api.middlewares import MIDDLEWARES, cors_config
 from e_api.api.router import health, user
@@ -34,7 +34,7 @@ def create_app() -> Litestar:
         route_handlers=[],
         ### Litestar's own state class, typed: one entry, the core graph the lifespans write and seal.
         state=AppState({"system": State()}),
-        lifespan=[core_lifespan, adapters.lifespan, services.lifespan, sealed.lifespan],
+        lifespan=[core_lifespan, db.lifespan, adapters.lifespan, services.lifespan, sealed.lifespan],
         ### the declared union of middlewares crosses into litestar's looser `Middleware` alias here;
         ### asgi_correlation_id types its scope narrower than the protocol — wiring is exact, upstream typing is not.
         middleware=cast("list[Middleware]", list(MIDDLEWARES)),

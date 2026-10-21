@@ -21,6 +21,7 @@ Convenciones:
   Override con `${X_PORT:-default}` cuando dos choquen (p. ej. `8080`, `80`).
 - **Datos** en volúmenes nombrados (no en el repo). Configs montadas `:ro`.
 - `container_name = hostname = short_name` (minúsculas, sin guiones bajos).
+  Un servicio de la serie `e-` va en una palabra, sin guion: `egnosis`, `emetaxy`, `evoice`.
 - Labels `stack.category` y `stack.port`.
 - **Versiones = `:latest`** por defecto, para asegurar siempre la final. Se
   tolera un pin sólo cuando el tag `latest` no existe o el número fija formato

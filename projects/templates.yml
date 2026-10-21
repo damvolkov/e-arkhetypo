@@ -118,6 +118,8 @@ templates:
       ### a detached project owns its common set: `clean` must not delete source the generator no longer restores.
       - {file: Makefile, pattern: ' src/core src/ops src/adapters src/processors prek\.toml \.gitattributes \.python-version'}
       - {file: Makefile, pattern: ' \+ materialized core'}
+      ### an e- service runs as one word: its compose service, container and host name drop the brand's hyphen (egnosis).
+      - {file: compose.yml, pattern: '^(  |    container_name: |    hostname: )e-([a-z0-9]+)(:?)$', to: '\1e\2\3'}
 
   cli:
     source: projects/python/cli

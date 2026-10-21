@@ -8,11 +8,15 @@ touches — `stack`, `systems`, `infra`. Lines under `[Unreleased]` are written 
 
 ### stack
 
+- floating tags resolved to current digests with `llm/gliner` in the ledger (`feat/gliner-ping`)
+- `llm/gliner` born: `ghcr.io/damvolkov/gliner:latest` (GLiNER NER, Rust/ONNX, CPU) on `:5800`, model registry in the named volume `gliner-models` mounted `:ro` and filled by hand (export or copy, see its README); no compose healthcheck — distroless, no shell, readiness is `GET /ready`
 - floating tags resolved to current digests (`stack/resolve-2026-10-20`)
 - `storage/minio` parked: `stack.parked: "true"` — the image died upstream with MinIO's OSS, the service is off on the host and the version bots stop probing it until removal
 
 ### projects
 
+- api, graph: every adapter pinged at once at startup — one `adapter ping` event each, a warning when down, never a failed start — and on the new `GET /ready`: 200 when the required edges answer (`store`), 503 otherwise, every verdict in the body; `/health` stays liveness
+- core: adapter health contract — `BaseAdapter.ping` is abstract (each adapter's cheapest real check: sqlite/postgres/awa `SELECT 1`, redis `PING`, docling `/ready` — replacing its `ready() -> bool` —, otel flush, anytomd a one-line render, http the open client) raising `PingError(adapter, reason)`; `BaseAdapter.survey` gathers many under one limit (`asyncio.gather`, `return_exceptions`) into typed `AdapterPing(name, required, ok, latency, reason)`, never raising; `PING_TIMEOUT` (2 s). Ported from e-gnosis 63deb94; the gather lives in core, not in each service, so api and graph share one implementation
 - core: wall-clock benchmarks marked `slow` and out of `test`/`cov` by default (`TESTARGS`) — a cold runner hiccup is not a correctness gate
 - graph: visual goldens leave `test`/`cov` (`TESTARGS` default `-m 'not ui'`) — they are runner-canonical now
 

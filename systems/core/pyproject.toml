@@ -35,7 +35,8 @@ dependencies = [
     ##### stores #####
     "redis>=6.2",
     "aiosqlite>=0.20",
-    ##### background — awa: a Rust Postgres job queue, the durable engine #####
+    ##### postgres — psqlpy (Rust driver, pgvector native); awa, the background's durable engine #####
+    "psqlpy>=0.12",
     "awa-pg>=0.6.9",
     ##### http #####
     "wreq>=0.10",

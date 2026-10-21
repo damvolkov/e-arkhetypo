@@ -1,5 +1,5 @@
 """tests/unit/e_core/adapters: the http and docling harnesses — real stdlib sockets on localhost, offline-safe — and
-the awa adapter on the queue's test Postgres."""
+the awa and postgres adapters on the test Postgres."""
 
 import json
 import threading
@@ -9,8 +9,14 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import TYPE_CHECKING, ClassVar
 
 import pytest
+import pytest_asyncio
+from psqlpy.exceptions import Error as PsqlError
 
 from e_core.adapters.awa import AwaAdapter
+from e_core.adapters.postgres import PostgresAdapter
+from e_core.conftest import DSN, create
+from e_core.core.settings.base import Secret
+from e_core.core.settings.postgres import PostgresSettings
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator, Iterator
@@ -129,3 +135,30 @@ def docling_server() -> Iterator[DoclingStub]:
 async def awa(queue_settings: QueueSettings) -> AsyncIterator[AwaAdapter]:
     async with AwaAdapter(queue_settings) as adapter:
         yield adapter
+
+
+##### POSTGRES #####
+@pytest_asyncio.fixture(scope="session", loop_scope="session")
+async def database(worker_id: str) -> str:
+    """A database of the adapter tests' own beside POSTGRES_TEST_DSN's; every test needing it skips with no server."""
+    try:
+        return await create(f"{DSN}_adapters_{worker_id}")
+    except PsqlError as error:
+        pytest.skip(f"no test Postgres at {DSN.rpartition('@')[2]}: {error}")
+
+
+@pytest.fixture
+def pg_settings(database: str) -> PostgresSettings:
+    return PostgresSettings(dsn=Secret(database), pool=2)
+
+
+@pytest.fixture
+async def pg(pg_settings: PostgresSettings) -> AsyncIterator[PostgresAdapter]:
+    """A connected adapter over a fresh `adapters` schema holding one probe table, dropped after the test."""
+    async with PostgresAdapter(pg_settings) as adapter:
+        await adapter.execute("CREATE EXTENSION IF NOT EXISTS vector")
+        await adapter.execute("DROP SCHEMA IF EXISTS adapters CASCADE")
+        await adapter.execute("CREATE SCHEMA adapters")
+        await adapter.execute("CREATE TABLE adapters.probe (id int PRIMARY KEY, label text, v vector(3))")
+        yield adapter
+        await adapter.execute("DROP SCHEMA adapters CASCADE")

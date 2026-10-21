@@ -2,7 +2,10 @@
 
 import re
 import shutil
+import subprocess
 from typing import TYPE_CHECKING
+
+import eserde
 
 from e_management.core.plan import Action, Copy, Generate, Materialize, Plan, PrunePaths, PruneTexts, Rename
 from e_management.ops.rewrite import rewrite_segment, rewrite_text
@@ -16,6 +19,13 @@ if TYPE_CHECKING:
 ##### DEFAULTS #####
 SKIP: frozenset[str] = frozenset(
     {".venv", "__pycache__", ".pytest_cache", ".ruff_cache", ".hypothesis", ".benchmarks", ".ty_cache", "site", "data"}
+)
+
+
+RECORD: str = ".templates.yaml"
+RECORD_HEAD: str = (
+    "# e-templates: where this project was generated from. reverse-distill diffs the project against this commit\n"
+    "# to tell what the project added from what the templates changed since. Written once; never edit it.\n"
 )
 
 
@@ -64,6 +74,21 @@ class Scaffold:
                     out = dest / generated.path
                     out.parent.mkdir(parents=True, exist_ok=True)
                     out.write_text(generated.content)
+
+    def _apply_record(self, plan: Plan, dest: Path) -> None:
+        """The origin the project keeps: the system, the e-templates commit, whether the tree held uncommitted work."""
+        commit = self._git("rev-parse", "HEAD").strip()
+        dirty = bool(self._git("status", "--porcelain").strip())
+        body = eserde.dumps({"system": plan.system, "commit": commit, "dirty": dirty}, format="yaml")
+        (dest / RECORD).write_bytes(RECORD_HEAD.encode() + body)
+
+    def _git(self, *args: str) -> str:
+        """One read-only git question about the templates repo; empty when the root is no repository."""
+        if (git := shutil.which("git")) is None:
+            return ""
+        ### argv is fixed: git, the templates root and a read-only subcommand of this module's own.
+        done = subprocess.run([git, "-C", str(self.root), *args], capture_output=True, text=True, check=False)  # noqa: S603
+        return done.stdout if done.returncode == 0 else ""
 
     def _apply_prune_path(self, target: Path) -> None:
         shutil.rmtree(target) if target.is_dir() else target.unlink(missing_ok=True)
@@ -122,6 +147,7 @@ class Scaffold:
         dest.parent.mkdir(parents=True, exist_ok=True)
         for action in plan.actions:
             self._apply_action(action, dest)
+        self._apply_record(plan, dest)
         return dest
 
     def drift(self, template: Template) -> list[str]:

@@ -6,7 +6,7 @@ areas:
 - adapters
 - core
 - ops
-inputs_hash: "77a22e47da1dd0cc3cdf642c86d36fd985be6edacd05f8d16c4239eb8bef8289"
+inputs_hash: "92797b72e8c2db02b7597917b00db4cdd7c7cf422bb7beb04a8ae9968916d537"
 units:
 - key: adapters/anytomd
   area: adapters
@@ -107,6 +107,25 @@ units:
   level: 0
   locked: false
   detachable: false
+- key: core/background
+  area: core
+  name: background
+  files:
+  - src/core/background.py
+  package: false
+  tests:
+  - tests/unit/core/test_background.py
+  deps:
+  - core/logger
+  dependents: []
+  closure:
+  - core/logger
+  - core/proxy
+  - core/settings
+  - ops/file
+  level: 3
+  locked: false
+  detachable: false
 - key: core/crypto
   area: core
   name: crypto
@@ -152,7 +171,8 @@ units:
   deps:
   - core/proxy
   - core/settings
-  dependents: []
+  dependents:
+  - core/background
   closure:
   - core/proxy
   - core/settings
@@ -196,6 +216,7 @@ units:
   - src/core/settings/md.py
   - src/core/settings/oauth.py
   - src/core/settings/otel.py
+  - src/core/settings/queue.py
   - src/core/settings/redis.py
   - src/core/settings/theme.py
   - src/core/settings/ui.py
@@ -273,6 +294,20 @@ units:
   closure: []
   level: 0
   locked: true
+  detachable: false
+- key: ops/image
+  area: ops
+  name: image
+  files:
+  - src/ops/image.py
+  package: false
+  tests:
+  - tests/unit/ops/test_image.py
+  deps: []
+  dependents: []
+  closure: []
+  level: 0
+  locked: false
   detachable: false
 - key: ops/registry
   area: ops

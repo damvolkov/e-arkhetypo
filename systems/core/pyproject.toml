@@ -35,6 +35,8 @@ dependencies = [
     ##### stores #####
     "redis>=6.2",
     "aiosqlite>=0.20",
+    ##### background — awa: a Rust Postgres job queue, the durable engine #####
+    "awa-pg>=0.6.9",
     ##### http #####
     "wreq>=0.10",
     ##### telemetry #####
@@ -73,6 +75,8 @@ test = [
     "pytest-randomly>=5.0",
     "pytest-timeout>=2.4",
     "fakeredis>=2.38.0",
+    ### the queue tests create, and take down, their Postgres databases: an admin connection outside any transaction.
+    "psqlpy>=0.12",
 ]
 docs = [
     "mkdocs-gen-files>=0.6.1",
@@ -166,6 +170,8 @@ error-on-warning = true
 minversion = "9.0"
 testpaths = ["tests"]
 addopts = ["--import-mode=importlib", "-ra"]
+### tests/unit on the path: a test imports a conftest's plain helpers by name (`from e_core.conftest import settled`).
+pythonpath = ["src", "tests/unit"]
 strict = true
 filterwarnings = [
     "error",
@@ -175,7 +181,10 @@ filterwarnings = [
 timeout = "60"
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
-markers = ["slow: slow tests (deselect with -m 'not slow')"]
+markers = [
+    "slow: slow tests (deselect with -m 'not slow')",
+    "db: needs the test Postgres at POSTGRES_TEST_DSN (default the stack's ParadeDB :45011) — skipped when unreachable",
+]
 
 ##### COVERAGE #####
 [tool.coverage.run]

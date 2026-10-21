@@ -10,6 +10,7 @@ they are the floor. The coverage floor lives in `pyproject.toml` (`[tool.coverag
 the OS and Python matrix in `.github/ci.defaults.yml` → `tokens`.
 
 Required checks if you protect `main`: `lint · types · arch`, `test (…)`.
+
 ## pypi
 
 Once, in the repository and on PyPI:
@@ -22,6 +23,7 @@ Once, in the repository and on PyPI:
 
 Release by hand afterwards: Actions → Release → *Run workflow* → bump `patch|minor|major`, or republish
 an existing `v*` tag verbatim. The tag IS the version (`uv-dynamic-versioning`); nothing publishes on a merge.
+
 ## image
 
 The `image` job logs into ghcr with the built-in `GITHUB_TOKEN`; there is no secret to create. Once:

@@ -64,7 +64,7 @@ features:
     requires: [stack.docker]
     gate: PUBLISH_IMAGE
     vars: [PUBLISH_IMAGE]
-    secrets: [GITHUB_TOKEN]
+    secrets: []
     setup: image.md
     tokens: [brand]
 
@@ -103,7 +103,7 @@ features:
     vars: [APP_CLIENT_ID, QWEN_BASE_URL, QWEN_MODEL, QWEN_CLI_VERSION]
     secrets: [APP_PRIVATE_KEY, QWEN_API_KEY]
     setup: selfmaintain.md
-    tokens: [brand, package_path, allowlist, verify]
+    tokens: [brand, package_path, allowlist, verify, repo]
 
   repo-ci:
     label: "the ecosystem gate of a wide repo: every system's CI plus the repo's own drift gates"
@@ -128,7 +128,7 @@ features:
     vars: [APP_CLIENT_ID, QWEN_BASE_URL, QWEN_MODEL, QWEN_CLI_VERSION]
     secrets: [APP_PRIVATE_KEY, QWEN_API_KEY]
     setup: repo-maintain.md
-    tokens: [brand, allowlist, verify]
+    tokens: [brand, allowlist, verify, repo]
 
   snap-refresh:
     label: "runner-canonical visual goldens: a dispatch refreshes one system's snapshots and opens a PR"

@@ -18,6 +18,7 @@ touches — `stack`, `systems`, `infra`. Lines under `[Unreleased]` are written 
 
 ### infra
 
+- one shared GitHub App, `self-maintenance`, for every repo: `selfmaintain.md` and `repo-maintain.md` cut to the user's five steps (`bootstrap-repos {{repo}}`, Renovate, merge, Free-plan protection note), the per-repo App guides moved to `infra/setup/deprecated/`; the app's contract (names, permissions, rotation) in `infra/README.md`. Setup docs now take project tokens (`{{repo}}` = `damvolkov/<brand>`); `e_management gen` prints what a credential-holding feature needs by hand; `image` no longer lists the built-in `GITHUB_TOKEN` as a secret
 - new feature `snap-refresh`: a dispatch regenerates one system's goldens on the runner and PRs the pixels; `gh pr create --head` fixed in the bot PR openers
 - setup-uv step in `sync-stack`, `health-areas` and `upstream-context-repo`: bare `uv run --no-project` died 127 on runners without it
 - setup docs for dummies: `selfmaintain.md` and `repo-maintain.md` rewritten as click-by-click GitHub installs (App, keys, Renovate, labels, branch protection, verification), same shape as anytomd's `docs/maintenance.md`

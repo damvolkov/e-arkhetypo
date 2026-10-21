@@ -9,7 +9,7 @@ from e_management.core.errors import (
     MandatoryCollisionError,
     UnknownChoiceError,
 )
-from e_management.core.infra import Library, assemble, derive
+from e_management.core.infra import Library, assemble, derive, notice
 from e_management.core.plan import (
     Action,
     Copy,
@@ -104,6 +104,27 @@ class Blueprint:
             else []
         )
 
+    def _common_selection(
+        self, off: frozenset[str], ci_off: frozenset[str], ci_on: frozenset[str]
+    ) -> tuple[Library, dict[str, str], frozenset[str], frozenset[str]] | None:
+        """The assembler's inputs: library, tokens, the effective features and the choices on; None without a CI reference."""
+        if self._library is None or self._defaults is None:
+            return None
+        chosen = (frozenset(self._defaults.features) | ci_on) - ci_off
+        unknown = ci_off - set(self._defaults.features)
+        if unknown:
+            msg = f"unknown CI feature(s) switched off: {', '.join(sorted(unknown))}"
+            raise ChoiceDependencyError(msg)
+        on_choices = frozenset(
+            f"{choice.group.value}.{choice.name}" for choice in self._spec.choices if choice.name not in off
+        )
+        gateable = frozenset(f"{choice.group.value}.{choice.name}" for choice in self._spec.choices)
+        chosen_effective = frozenset(
+            key for key in chosen if not (set(self._library.map.features[key].requires) & gateable) - on_choices
+        )  # a feature gated on a switched-off choice (image on docker) leaves quietly — the map, not the user, decided.
+        tokens = {**self._defaults.tokens, **derive(self.package, self.brand)}
+        return self._library, tokens, chosen_effective, on_choices
+
     ############################################################
 
     ##### PUBLIC #####
@@ -117,23 +138,16 @@ class Blueprint:
         """The CI files this project assembles: defaults plus features switched on, minus those off.
 
         Public because re-assembly (``e_management infra``) needs exactly this map without the rest of the plan."""
-        if self._library is None or self._defaults is None:
-            return {}
-        chosen = (frozenset(self._defaults.features) | ci_on) - ci_off
-        unknown = ci_off - set(self._defaults.features)
-        if unknown:
-            msg = f"unknown CI feature(s) switched off: {', '.join(sorted(unknown))}"
-            raise ChoiceDependencyError(msg)
-        on_choices = frozenset(
-            f"{choice.group.value}.{choice.name}" for choice in self._spec.choices if choice.name not in off
-        )
-        gateable = frozenset(f"{choice.group.value}.{choice.name}" for choice in self._spec.choices)
-        chosen_effective = frozenset(
-            key for key in chosen if not (set(self._library.map.features[key].requires) & gateable) - on_choices
-        )  # a feature gated on a switched-off choice (image on docker) leaves quietly — the map, not the user, decided.
-        return assemble(
-            self._library, {**self._defaults.tokens, **derive(self.package, self.brand)}, chosen_effective, on_choices
-        )
+        return assemble(*selection) if (selection := self._common_selection(off, ci_off, ci_on)) else {}
+
+    def infra_notice(
+        self,
+        off: frozenset[str] = frozenset(),
+        ci_off: frozenset[str] = frozenset(),
+        ci_on: frozenset[str] = frozenset(),
+    ) -> str:
+        """What the user must enable by hand for the CI this project assembles — empty when nothing waits on them."""
+        return notice(*selection) if (selection := self._common_selection(off, ci_off, ci_on)) else ""
 
     @property
     def package(self) -> str:

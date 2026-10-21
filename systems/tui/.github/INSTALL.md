@@ -10,6 +10,7 @@ they are the floor. The coverage floor lives in `pyproject.toml` (`[tool.coverag
 the OS and Python matrix in `.github/ci.defaults.yml` → `tokens`.
 
 Required checks if you protect `main`: `lint · types · arch`, `test (…)`.
+
 ## pypi
 
 Once, in the repository and on PyPI:

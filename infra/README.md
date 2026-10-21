@@ -19,6 +19,7 @@ infra/
                      #   qwen{,.repo}.md · tools/{health,upstream,repo_health,stack_resolve,changelog}.py
   setup/             # one file = one feature: the one-time GitHub install instructions
     _baseline.md docs.md pypi.md image.md frontend.md rust.md selfmaintain.md repo-maintain.md
+    deprecated/      #   the per-repo App guides, superseded by the shared app — never assembled
   contract.py.j2     # the generated tests/unit/test_ci_contract.py — manifest vs workflows, both ways
 ```
 
@@ -49,3 +50,29 @@ infra/
 | `repo-maintain` | sync-systems · sync-stack · sync-infra · maintenance · health-areas | branch `renovate/*`, `stack/resolve-*`, schedules | `repo-ci` (replaces `selfmaintain`) |
 
 Assembled per project by `management`; read `features.yml` for the machine version of that table.
+
+##### SELF-MAINTENANCE APP #####
+
+One GitHub App, `self-maintenance`, serves every repository: owned by `damvolkov`, installed on
+*All repositories*, webhook off. Its repository permissions are the union every loop needs —
+Contents, Pull requests, Issues and Workflows *read and write*, Metadata read. Each job narrows its
+own token with `permission-*` inputs: only `sync-infra` asks for `workflows`, so the agent's token
+can never push `.github/`; the `maintenance` allowlist is the second wall.
+
+Credentials live once, outside git, in `~/.config/smbot/` (`app.pem`, `client_id`, `qwen_api_key`,
+`vars.env`, `repos.txt`); `bootstrap-repos [owner/repo …]` writes them to each repository,
+idempotently. Every job blueprint consumes exactly these names and nothing else:
+
+| Name | Kind | Consumed as |
+|---|---|---|
+| `APP_CLIENT_ID` | variable | `client-id:` of `create-github-app-token` (v3 accepts it; `app-id` is deprecated) |
+| `APP_PRIVATE_KEY` | secret | `private-key:` — the whole `.pem` |
+| `QWEN_API_KEY` | secret | the agent's key |
+| `QWEN_MODEL` · `QWEN_BASE_URL` · `QWEN_CLI_VERSION` | variables, optional | always with a `\|\|` default in the blueprint |
+
+Labels the jobs may use are the ones `bootstrap-repos` creates — a blueprint that adds one adds it
+to the script's `LABELS` too. No `owner` or `repositories` input: the installation of the running
+repository is the token's scope. Never validate, truncate or store a token by length.
+
+Rotation: generate a new key (app) or a new Model Studio key, overwrite the file in
+`~/.config/smbot/`, rerun `bootstrap-repos`, then delete the old key — the app holds several at once.

@@ -15,6 +15,9 @@ from e_management.models.infra import Feature, FeatureMap
 ##### PATHS #####
 WORKFLOWS = ".github/workflows"
 
+##### IDENTITY #####
+OWNER = "damvolkov"
+
 
 class Library(msgspec.Struct, frozen=True, kw_only=True):
     """The library as bytes read: the map, and every fragment of it keyed by its path under ``infra/``."""
@@ -30,6 +33,7 @@ def derive(package: str, brand: str) -> dict[str, str]:
     """The tokens that follow from the project's identity alone — never stored, never drifted."""
     return {
         "brand": brand,
+        "repo": f"{OWNER}/{brand}",
         "package": package,
         "package_path": f"src/{package}",
         "pypi_project": brand,
@@ -94,10 +98,18 @@ def assemble(
         **{_target(path): _read(library, f"files/{path}", tokens) for _, spec in specs for path in spec.files},
         ".github/ci.vars.example": _vars(specs),
         ".github/ci.map.yml": _map(selected, specs),
-        ".github/INSTALL.md": _install(library, specs),
+        ".github/INSTALL.md": _install(library, specs, tokens),
         "tests/unit/test_ci_contract.py": _read(library, "contract.py.j2", {}),
     }
     return {key: body for key, body in files.items() if body}
+
+
+def notice(
+    library: Library, tokens: dict[str, str], chosen: frozenset[str], on_choices: frozenset[str] = frozenset()
+) -> str:
+    """What the user must arm by hand once the project exists: the setup of every selected feature holding secrets."""
+    specs = [(key, library.map.features[key]) for key in resolve(library, chosen, on_choices)]
+    return "\n\n".join(_sections(library, [(key, spec) for key, spec in specs if spec.secrets], tokens))
 
 
 def _map(selected: list[str], specs: list[tuple[str, Feature]]) -> str:
@@ -170,9 +182,9 @@ def _vars(specs: list[tuple[str, Feature]]) -> str:
     return "\n".join([*lines, *(f"{gate}=false  # {why}" for gate, why in sorted(gates.items()))]) + "\n"
 
 
-def _install(library: Library, specs: list[tuple[str, Feature]]) -> str:
+def _install(library: Library, specs: list[tuple[str, Feature]], tokens: dict[str, str]) -> str:
     """The one-time setup instructions of the selection: what the repo must do to arm each feature it carries."""
-    parts = [f"## {key}\n\n{body}" for key, spec in specs if (body := _body(library, spec.setup))]
+    parts = _sections(library, specs, tokens)
     return (
         "\n".join(
             [
@@ -181,14 +193,19 @@ def _install(library: Library, specs: list[tuple[str, Feature]]) -> str:
                 "Generated from `infra/` — one section per feature installed, in pipeline order.",
                 "Gates ship inert: until a variable is set, the job exists and does nothing.",
                 "",
-                *parts,
+                "\n\n".join(parts),
             ]
         )
         + "\n"
     )
 
 
-def _body(library: Library, name: str) -> str:
+def _sections(library: Library, specs: list[tuple[str, Feature]], tokens: dict[str, str]) -> list[str]:
+    """One section per feature with a setup document, headed by its key, its project tokens filled in."""
+    return [f"## {key}\n\n{body}" for key, spec in specs if (body := _body(library, spec.setup, tokens))]
+
+
+def _body(library: Library, name: str, tokens: dict[str, str]) -> str:
     """A setup document without its own title: the section heading belongs to the assembler."""
-    text = library.fragments.get(f"setup/{name}", "") if name else ""
+    text = _read(library, f"setup/{name}", tokens) if f"setup/{name}" in library.fragments else ""
     return "\n".join(line for line in text.splitlines() if not line.startswith("# ")).strip()

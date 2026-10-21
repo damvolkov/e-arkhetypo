@@ -9,7 +9,7 @@ import re
 import pytest
 
 from e_management.core.errors import InfraError
-from e_management.core.infra import Library, assemble, derive, resolve
+from e_management.core.infra import Library, assemble, derive, notice, resolve
 from e_management.models.infra import Feature, FeatureMap
 
 ##### FRAGMENTS #####
@@ -32,6 +32,7 @@ FRAGMENTS = {
     "contract.py.j2": "def test_contract():\n    assert True\n",
     "setup/docs.md": "# docs\n\nset DOCS_DEPLOY true once.\n",
     "setup/none.md": "",
+    "setup/loop.md": "# loop\n\nbootstrap-repos {{repo}}\n",
 }
 
 MAP = FeatureMap(
@@ -59,6 +60,9 @@ MAP = FeatureMap(
             files=("renovate.json", "qwen.md"),
             requires=("ci",),
             vars=("APP_CLIENT_ID",),
+            secrets=("APP_PRIVATE_KEY",),
+            setup="loop.md",
+            tokens=("repo",),
         ),
         "wide": Feature(label="areas", jobs={}, files=("renovate.repo.json", "qwen.repo.md"), requires=("ci",)),
     },
@@ -214,3 +218,24 @@ def test_assemble_maps_config_vars_apart_from_gates() -> None:
 )
 def test_derive_allowlist_admits_code_paths_and_nothing_else(path: str, allowed: bool) -> None:
     assert bool(re.fullmatch(f"^({derive('e_myapp', 'e-myapp')['allowlist']})$", path)) is allowed
+
+
+##### NOTICE #####
+
+
+def test_install_fills_the_project_tokens_of_a_setup() -> None:
+    library = Library(map=MAP, fragments=FRAGMENTS)
+    install = assemble(library, TOKENS, frozenset({"ci", "loop"}))[".github/INSTALL.md"]
+    assert "bootstrap-repos damvolkov/e-myapp" in install
+    assert "{{repo}}" not in install
+
+
+def test_notice_names_only_the_features_holding_secrets() -> None:
+    library = Library(map=MAP, fragments=FRAGMENTS)
+    text = notice(library, TOKENS, frozenset({"ci", "docs", "loop"}))
+    assert text == "## loop\n\nbootstrap-repos damvolkov/e-myapp"
+
+
+def test_notice_empty_without_secrets() -> None:
+    library = Library(map=MAP, fragments=FRAGMENTS)
+    assert notice(library, TOKENS, frozenset({"ci", "docs"})) == ""

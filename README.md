@@ -1,7 +1,7 @@
 # e-arkhetypo
 
 <p align="center">
-  <img src="assets/logo.svg" alt="e-arkhetypo" height="110" />
+  <img src="assets/logo.svg" alt="e-arkhetypo" width="220" height="220" />
 </p>
 
 The **e-stack** archetypes: project blueprints, infrastructure stacks and CI/CD sources — data, not

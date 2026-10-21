@@ -1,6 +1,19 @@
   ecosystem:
     name: every system's CI
     runs-on: ubuntu-latest
+    # the queue and postgres tests run on the stack's ParadeDB, at the port the tests default to.
+    services:
+      paradedb:
+        image: paradedb/paradedb:0.26.2-pg17
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 45011:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:

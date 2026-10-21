@@ -34,7 +34,10 @@ if TYPE_CHECKING:
 
 
 def pytest_configure() -> None:
-    """Seed SECRET and a private DB_PATH before any collection-time settings touch; external env wins."""
+    """Seed SECRET, a private DB_PATH and a test queue database before any collection-time settings touch; external
+    env wins."""
+    ### the db lifespan provisions the queue database on the local ParadeDB: a test one, never the service's.
+    os.environ.setdefault("QUEUE_DSN", "postgresql://postgres:postgres@127.0.0.1:45011/e_graph_test_background")
     os.environ.setdefault("CRYPTO__SECRET", "unit-test-secret-0123456789")
     os.environ.setdefault("DB_PATH", str(Path(tempfile.mkdtemp(prefix="e-graph-tests-")) / "test.db"))
 

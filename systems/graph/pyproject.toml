@@ -57,6 +57,8 @@ dependencies = [
     ##### stores #####
     "redis>=6.2",
     "aiosqlite>=0.20",
+    ### the db lifespan provisions the databases the settings name: CREATE DATABASE, outside any transaction.
+    "psqlpy>=0.12",
     "beartype>=0.22.9",
     "cyclopts>=4.25.3",
     "wasi-graphviz[wasmtime]>=0.1.4",

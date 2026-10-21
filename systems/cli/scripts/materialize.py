@@ -26,8 +26,9 @@ CORE_SRC: Path = ROOT.parent / "core" / "src" / "e_core"
 SECTIONS: tuple[str, ...] = ("adapters", "core", "ops", "processors")
 ### the TUI header belongs to the boilerplate wizard, not to a running service: same topology as the old sed.
 ### the compose tool belongs to stack management (management materializes the whole ops area), not to a running service.
-### the durable background engine rides in only for a service that runs it: add awa-pg, drop the exclusion.
-EXCLUDES: frozenset[str] = frozenset({"ops/tui.py", "ops/snap.py", "ops/compose.py", "adapters/awa.py"})
+### postgres and the durable background engine ride in only for a service that runs them: add psqlpy / awa-pg,
+### drop the exclusion.
+EXCLUDES: frozenset[str] = frozenset({"ops/tui.py", "ops/snap.py", "ops/compose.py", "adapters/awa.py", "adapters/postgres.py"})
 
 
 ##### REWRITE #####

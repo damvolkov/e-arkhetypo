@@ -7,7 +7,7 @@ areas:
 - core
 - ops
 - processors
-inputs_hash: f347bc6f9a2e53064c81f52059b7333233b7be8af6771b210470db34eb9093e3
+inputs_hash: "1026c9882f8d0dd46f3e10310ef7dbd66f4792f6becec73e91f86223e37abc84"
 units:
 - key: adapters/anytomd
   area: adapters
@@ -44,6 +44,7 @@ units:
   - adapters/docling
   - adapters/http
   - adapters/otel
+  - adapters/postgres
   - adapters/redis
   - adapters/sqlite
   closure: []
@@ -127,10 +128,33 @@ units:
   - adapters/anytomd
   - adapters/docling
   - adapters/otel
+  - adapters/postgres
   - processors/doc
   - processors/md
   closure: []
   level: 0
+  locked: true
+  detachable: false
+- key: adapters/postgres
+  area: adapters
+  name: postgres
+  files:
+  - src/adapters/postgres.py
+  package: false
+  tests:
+  - tests/unit/adapters/test_postgres.py
+  deps:
+  - adapters/base
+  - adapters/ports
+  - core/settings
+  dependents: []
+  closure:
+  - adapters/base
+  - adapters/ports
+  - core/proxy
+  - core/settings
+  - ops/file
+  level: 2
   locked: true
   detachable: false
 - key: adapters/redis
@@ -284,6 +308,7 @@ units:
   - src/core/settings/md.py
   - src/core/settings/oauth.py
   - src/core/settings/otel.py
+  - src/core/settings/postgres.py
   - src/core/settings/queue.py
   - src/core/settings/redis.py
   - src/core/settings/theme.py
@@ -299,6 +324,7 @@ units:
   - adapters/docling
   - adapters/http
   - adapters/otel
+  - adapters/postgres
   - adapters/redis
   - adapters/sqlite
   - core/crypto

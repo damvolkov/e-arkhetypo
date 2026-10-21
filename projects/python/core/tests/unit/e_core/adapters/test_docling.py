@@ -7,6 +7,8 @@ from typing import TYPE_CHECKING, Any
 import pytest
 import wreq
 
+from e_core.adapters.base import PingError
+from e_core.adapters.conftest import DOWN
 from e_core.adapters.docling import DoclingAdapter, DoclingError
 from e_core.adapters.ports import DocumentConversion, DocumentPort
 from e_core.core.settings.docling import DoclingBackend, DoclingFormat, DoclingImages, DoclingSettings, DoclingTables
@@ -112,13 +114,16 @@ async def test_a_task_past_the_deadline_is_abandoned(docling_server: Any) -> Non
     assert docling_server.sent["sources"] == [{"kind": "http", "url": "https://example.org/slow"}]
 
 
-async def test_ready_reflects_the_server(docling_server: Any) -> None:
+async def test_ping_reflects_the_server(docling_server: Any) -> None:
+    """docling-serve's readiness route: answered, unready (503), or nobody listening."""
     async with DoclingAdapter(settings(docling_server.url)) as adapter:
-        assert await adapter.ready() is True
+        await adapter.ping()
         docling_server.handler.ready = False
-        assert await adapter.ready() is False
-    async with DoclingAdapter(settings("http://127.0.0.1:9")) as gone:
-        assert await gone.ready() is False
+        with pytest.raises(PingError, match=r"^docling: StatusError: "):
+            await adapter.ping()
+    async with DoclingAdapter(settings(DOWN)) as gone:
+        with pytest.raises(PingError, match=r"^docling: ConnectionError: "):
+            await gone.ping()
 
 
 async def test_a_server_error_surfaces_as_the_clients_own(docling_server: Any) -> None:

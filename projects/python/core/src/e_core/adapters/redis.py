@@ -49,6 +49,11 @@ class RedisAdapter(StoreAdapter):
                 await client.aclose()
                 self._client = None
 
+    async def ping(self) -> None:
+        """The protocol's own PING, on the pool: the first real round trip, since `connect` opens nothing."""
+        with self._ping_guard():
+            await self._common_connected().ping()
+
     async def get(self, key: str) -> bytes | None:
         return cast("bytes | None", await self._common_connected().get(key))
 

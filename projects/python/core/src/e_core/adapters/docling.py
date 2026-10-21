@@ -197,10 +197,7 @@ class DoclingAdapter(BaseAdapter):
         await self._convert_wait(task, deadline)
         return self._convert_result(await self._common_call("GET", f"/v1/result/{task}", deadline))
 
-    async def ready(self) -> bool:
-        """Whether the server answers its readiness probe."""
-        try:
+    async def ping(self) -> None:
+        """docling-serve's readiness route."""
+        with self._ping_guard():
             await self._common_call("GET", "/ready")
-        except wreq.StatusError, wreq.ConnectionError, TimeoutError:
-            return False
-        return True

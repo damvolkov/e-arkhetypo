@@ -75,6 +75,12 @@ class AnytomdAdapter(BaseAdapter):
 
     ##### PUBLIC #####
 
+    async def ping(self) -> None:
+        """The engine renders a line of text, and the PDF converter is open."""
+        with self._ping_guard():
+            self._common_pdf()
+            await convert_bytes_async(b"ping", "txt")
+
     async def convert(self, data: bytes, *, extension: str) -> MdConversion:
         """Render bytes of a named format: a PDF through the bundled liteparse, everything else through anytomd."""
         if extension == "pdf":

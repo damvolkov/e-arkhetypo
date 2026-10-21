@@ -23,7 +23,7 @@ from opentelemetry.sdk.trace.export import BatchSpanProcessor, SimpleSpanProcess
 from opentelemetry.sdk.trace.sampling import ParentBased, TraceIdRatioBased
 from opentelemetry.trace import Status, StatusCode
 
-from e_core.adapters.base import BaseAdapter
+from e_core.adapters.base import BaseAdapter, PingError
 from e_core.adapters.ports import SpanKind, SpanStatus
 from e_core.core.settings import settings as st
 from e_core.core.settings.otel import OtelProtocol
@@ -181,6 +181,19 @@ class OtelAdapter(BaseAdapter):
                 self._provider = None
                 ### shutdown flushes the batch over the network: blocking I/O, so it leaves the loop.
                 await asyncio.to_thread(provider.shutdown)
+
+    async def ping(self) -> None:
+        """The provider is open and flushes what it holds to its exporter within OTEL_TIMEOUT (none set: nothing to
+        flush, it answers at once)."""
+        timeout = int(self._settings.otel_timeout.total_seconds() * MS_PER_SECOND)
+        with self._ping_guard():
+            match self._provider:
+                case None:
+                    raise PingError(self.name, "not connected")
+                case provider if not await asyncio.to_thread(provider.force_flush, timeout):
+                    raise PingError(self.name, "spans not flushed to the exporter")
+                case _:
+                    return
 
     @contextmanager
     def span(

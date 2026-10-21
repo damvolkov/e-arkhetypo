@@ -6,6 +6,7 @@ import pytest
 from awa import AwaError
 
 from e_core.adapters.awa import AwaAdapter
+from e_core.adapters.base import PingError
 from e_core.conftest import settled
 from e_core.core.background import BackgroundError, BackgroundPort, BackgroundState
 from e_core.core.settings.base import Secret
@@ -187,3 +188,11 @@ async def test_awa_found_none(awa: AwaAdapter) -> None:
         return None
 
     assert await awa._common_found(call) is None
+
+
+async def test_awa_ping(queue_settings: QueueSettings) -> None:
+    """One query on the queue's own database; closed, nothing answers."""
+    async with AwaAdapter(queue_settings) as adapter:
+        await adapter.ping()
+    with pytest.raises(PingError, match=r"^awa: BackgroundError: awa adapter is not connected"):
+        await adapter.ping()

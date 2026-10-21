@@ -4,6 +4,7 @@ import fakeredis.aioredis
 import pytest
 
 from e_core.adapters import redis as redis_module
+from e_core.adapters.base import PingError
 from e_core.adapters.redis import RedisAdapter
 from e_core.core.settings.redis import RedisSettings
 
@@ -30,3 +31,20 @@ async def test_redis_connected_contract(monkeypatch: pytest.MonkeyPatch) -> None
         await adapter.delete("user:1")
         assert await adapter.get("user:1") is None
     await adapter.close()  # idempotent, as with every member of the family
+
+
+async def test_redis_ping(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The protocol's own PING on the pool; before connect, nothing answers."""
+    monkeypatch.setattr(redis_module.redis, "from_url", fakeredis.aioredis.FakeRedis.from_url)
+    adapter = RedisAdapter(RedisSettings(redis_url="redis://fake:6379/0"))
+    with pytest.raises(PingError, match=r"^redis: RuntimeError: "):
+        await adapter.ping()
+    async with adapter:
+        await adapter.ping()
+
+
+async def test_redis_ping_down() -> None:
+    """A server nothing listens for: the pool opens lazily, so only the ping finds it gone."""
+    async with RedisAdapter(RedisSettings(redis_url="redis://127.0.0.1:9/0")) as adapter:
+        with pytest.raises(PingError, match=r"^redis: ConnectionError: "):
+            await adapter.ping()

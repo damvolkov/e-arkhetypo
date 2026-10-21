@@ -121,6 +121,11 @@ class PostgresAdapter(BaseAdapter):
                 pool.close()
                 self._pool = None
 
+    async def ping(self) -> None:
+        """One trivial query on a pooled connection."""
+        with self._ping_guard():
+            await self.fetch("SELECT 1")
+
     async def execute(self, query: str, params: Sequence[object] = ()) -> None:
         async with self._common_pool().acquire() as connection:
             await connection.execute(query, self._common_params(params))

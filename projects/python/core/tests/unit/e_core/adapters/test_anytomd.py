@@ -11,6 +11,7 @@ import pytest
 
 from e_core.adapters import anytomd
 from e_core.adapters.anytomd import AnytomdAdapter
+from e_core.adapters.base import PingError
 from e_core.adapters.ports import MdConversion
 from e_core.core.settings.base import Secret
 from e_core.core.settings.md import MDSettings
@@ -105,3 +106,14 @@ async def test_a_pdf_needs_the_lifespan_to_open_the_converter(engine: None) -> N
     with pytest.raises(RuntimeError, match="not connected"):
         await a.convert(b"%PDF", extension="pdf")
     await a.close()
+
+
+async def test_ping(engine: None) -> None:
+    """The engine renders a line of text and the PDF converter is open; closed, nothing answers."""
+    a = adapter(md_image_describe=False)
+    async with a:
+        await a.ping()
+    assert convert.calls is not None
+    assert convert.calls[:2] == (b"ping", "txt")
+    with pytest.raises(PingError, match=r"^anytomd: RuntimeError: "):
+        await a.ping()

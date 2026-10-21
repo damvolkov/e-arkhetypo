@@ -25,13 +25,14 @@ API_ROOT: Path = Path(__file__).resolve().parents[1]
 CORE_SRC: Path = API_ROOT.parent / "core" / "src" / "e_core"
 SECTIONS: tuple[str, ...] = ("adapters", "core", "ops")
 ### a template service needs no TUI and no edge concrete: the adapters left (base, ports) are pure contracts;
-### redis, http and sqlite ride in only when the service actually uses them (add the dep, drop the exclusion).
+### redis, http, sqlite and awa ride in only when the service actually uses them (add the dep, drop the exclusion).
 EXCLUDES: frozenset[str] = frozenset(
     {
         "ops/tui.py",
         "adapters/redis.py",
         "adapters/http.py",
         "adapters/sqlite.py",
+        "adapters/awa.py",
     }
 )
 

@@ -113,6 +113,17 @@ wheels = [
 ]
 
 [[package]]
+name = "awa-pg"
+version = "0.6.9"
+source = { registry = "https://pypi.org/simple" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/29/2b/fba2f64be49e0457e3967e58c02c593d3d7ccb3de192c29d67ed4af4a1c3/awa_pg-0.6.9-cp310-abi3-macosx_10_12_x86_64.whl", hash = "sha256:c60cbbec8343519233ae3fd12b6f67d355c92c8fc8dc9e1e598923a81b1f2d80", size = 10996087, upload-time = "2026-09-14T11:35:16.286Z" },
+    { url = "https://files.pythonhosted.org/packages/1e/37/aac7f73a4eb00f43a275834ab15efe41a6f6754bc30d8825831678dd1529/awa_pg-0.6.9-cp310-abi3-macosx_11_0_arm64.whl", hash = "sha256:c1cd22e29bcd8ada23627ddb10b49fb16d74c829531d9976eda58410fe977f57", size = 10684733, upload-time = "2026-09-14T11:35:18.86Z" },
+    { url = "https://files.pythonhosted.org/packages/ef/e2/2e7ca19fcec968fd45b977c7efdfcb4a67c05e34b6a02cc18542619f0124/awa_pg-0.6.9-cp310-abi3-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:7806d0a1cad1dfb814b1f2b4d20e724e105ebbbcb6603cbfa07714e8f24305c9", size = 12472871, upload-time = "2026-09-14T11:35:21.177Z" },
+    { url = "https://files.pythonhosted.org/packages/14/1b/e14d11eb47ea55b3f43c807a6d404e8121b7972bcb01a3746ccd7de255c8/awa_pg-0.6.9-cp310-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:80b6e2bd2fb76923c78ab8a5c6bbcf30a99420968b2ba03b8f0b56c17a1aa681", size = 11672278, upload-time = "2026-09-14T11:35:23.476Z" },
+]
+
+[[package]]
 name = "babel"
 version = "2.18.0"
 source = { registry = "https://pypi.org/simple" }
@@ -501,6 +512,7 @@ dependencies = [
     { name = "anyio" },
     { name = "anytomd", extra = ["full"] },
     { name = "argon2-cffi" },
+    { name = "awa-pg" },
     { name = "bcrypt" },
     { name = "beartype" },
     { name = "cryptography" },
@@ -531,6 +543,7 @@ dev = [
     { name = "mkdocstrings", extra = ["python"] },
     { name = "prek" },
     { name = "properdocs" },
+    { name = "psqlpy" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "pytest-cov" },
@@ -560,6 +573,7 @@ lint = [
 ]
 test = [
     { name = "fakeredis" },
+    { name = "psqlpy" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "pytest-cov" },
@@ -574,6 +588,7 @@ requires-dist = [
     { name = "anyio", specifier = ">=4.15.1" },
     { name = "anytomd", extras = ["full"], specifier = ">=1.3.1.post2,<1.4" },
     { name = "argon2-cffi", specifier = ">=25.1.0" },
+    { name = "awa-pg", specifier = ">=0.6.9" },
     { name = "bcrypt", specifier = ">=5.0.0" },
     { name = "beartype", specifier = ">=0.22.9" },
     { name = "cryptography", specifier = ">=50.0.1" },
@@ -604,6 +619,7 @@ dev = [
     { name = "mkdocstrings", extras = ["python"], specifier = ">=1.0.6" },
     { name = "prek", specifier = ">=0.4" },
     { name = "properdocs", specifier = ">=1.6.7" },
+    { name = "psqlpy", specifier = ">=0.12" },
     { name = "pytest", specifier = ">=9.1" },
     { name = "pytest-asyncio", specifier = ">=1.4" },
     { name = "pytest-cov", specifier = ">=7.1" },
@@ -633,6 +649,7 @@ lint = [
 ]
 test = [
     { name = "fakeredis", specifier = ">=2.38.0" },
+    { name = "psqlpy", specifier = ">=0.12" },
     { name = "pytest", specifier = ">=9.1" },
     { name = "pytest-asyncio", specifier = ">=1.4" },
     { name = "pytest-cov", specifier = ">=7.1" },
@@ -1513,6 +1530,38 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/fc/1b/dcc64f358fcb51811b58ae40b3d28f820725f116d86487cc20bd4b130701/protobuf-7.36.2-cp310-abi3-win32.whl", hash = "sha256:912c1221170e16c08d1f086762f563dd61ff83c18b5fa6652952dfaded66f728", size = 442998, upload-time = "2026-09-17T20:07:55.826Z" },
     { url = "https://files.pythonhosted.org/packages/8a/55/b77bda4e5e5f5971fb51b07663694690e9afdb9402136c16a522bd621cad/protobuf-7.36.2-cp310-abi3-win_amd64.whl", hash = "sha256:a300819d441e078a5608c0d3c709796bb548136058fda017ae51d425b44fd353", size = 456514, upload-time = "2026-09-17T20:07:57.188Z" },
     { url = "https://files.pythonhosted.org/packages/e4/04/d52c7016b04b6c5108f26691f9d33ec82a9b65d041f1a9c771137693d618/protobuf-7.36.2-py3-none-any.whl", hash = "sha256:bdb3a345d48db958e6ce1f18e508beb0cc981d64f24088427549c866cd039f1e", size = 179806, upload-time = "2026-09-17T20:07:58.211Z" },
+]
+
+[[package]]
+name = "psqlpy"
+version = "0.13.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/17/47/07d8771830a1b6e807f39e541c8715d418f78e4be2706bcffd5256ee74d7/psqlpy-0.13.1.tar.gz", hash = "sha256:6ae14da426ab984911419a656abc3f1cd98bfa5a74bb381e3a1d32c5ccae175b", size = 305926, upload-time = "2026-10-16T11:11:25.598Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/5b/d2/1ef1e6bd6c51f9cbabb8cbb1eb613cae6d339c071578172b5c5f0be433b0/psqlpy-0.13.1-cp314-cp314-macosx_10_12_x86_64.whl", hash = "sha256:9045cd7f84c12850d86d4199063c43bef005544c530f1572da666d63778b0e5a", size = 4287403, upload-time = "2026-10-16T11:10:28.376Z" },
+    { url = "https://files.pythonhosted.org/packages/ec/dd/6b2fef1918ec60eb846af9e60f2e59a8ca149fc502799f3a579679de3b93/psqlpy-0.13.1-cp314-cp314-macosx_11_0_arm64.whl", hash = "sha256:ab8d98022d3be4e1e036197dade8c664101c5149f67533953ddd5953076a520c", size = 4533149, upload-time = "2026-10-16T11:10:29.781Z" },
+    { url = "https://files.pythonhosted.org/packages/1b/96/10646bc162d81494f31c2e60ed9a7c439778e416a4181761cc2e1f1f459b/psqlpy-0.13.1-cp314-cp314-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:e0c3ff7c3c0a8e11b71585e42435f8b28c2eee298fd386ff4fb612d9e5b9982c", size = 5105121, upload-time = "2026-10-16T11:10:31.545Z" },
+    { url = "https://files.pythonhosted.org/packages/a7/fc/42795d09c390ab032aee3718dc9ad1145bad5a76a0cb2ccb6a4db2b6eee8/psqlpy-0.13.1-cp314-cp314-manylinux_2_17_armv7l.manylinux2014_armv7l.whl", hash = "sha256:f8ddd53dee898c4d93d469be388e409cfa5d68f516110a16564e359ee0922a97", size = 4372740, upload-time = "2026-10-16T11:10:33.272Z" },
+    { url = "https://files.pythonhosted.org/packages/be/bf/e738c6cb9659c02eb099aa263374cd167e9a4dad37141411e35a7d8b854e/psqlpy-0.13.1-cp314-cp314-manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:03997fe6de41e84b979682b756b4d9ea580b56b0fa6edab4a18491167ef1d493", size = 4999876, upload-time = "2026-10-16T11:10:34.653Z" },
+    { url = "https://files.pythonhosted.org/packages/1d/24/43cb53b29ff25d502e2b035dabbbf75eebe40d6799090fba274f65f5231f/psqlpy-0.13.1-cp314-cp314-manylinux_2_17_ppc64le.manylinux2014_ppc64le.whl", hash = "sha256:463c5265642130368984c9370081815f57961a691f376989c1ff2153a5407ae2", size = 5054803, upload-time = "2026-10-16T11:10:36.262Z" },
+    { url = "https://files.pythonhosted.org/packages/fd/d2/a4efd1932ad7adc5aba8d441930fa1206f8aed73094d70c57b8a49691b60/psqlpy-0.13.1-cp314-cp314-manylinux_2_17_s390x.manylinux2014_s390x.whl", hash = "sha256:cccdd2e47670c712db74118c9bee0796c11be6aea5f9e0e29ffcd8c61ccfefc5", size = 4742750, upload-time = "2026-10-16T11:10:38.146Z" },
+    { url = "https://files.pythonhosted.org/packages/a4/1d/05c773665356301e701515f2406ab6295b022476f4d1fc26e8fb0a8d8e69/psqlpy-0.13.1-cp314-cp314-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:c7ed41284cd5b85c4259bedf53ebe1c70de03e7104f69d4538c8ca935668bfec", size = 4806238, upload-time = "2026-10-16T11:10:39.594Z" },
+    { url = "https://files.pythonhosted.org/packages/78/b9/bbcb573d8e9a4b1ebfd30eb5db78a2bf71e6bea2868836fbd2e8f7b33e32/psqlpy-0.13.1-cp314-cp314-musllinux_1_2_i686.whl", hash = "sha256:43b7f9e7d56755e58edcdda466210875514d2e93f69e360b8e17138519f3b707", size = 5069194, upload-time = "2026-10-16T11:10:41.133Z" },
+    { url = "https://files.pythonhosted.org/packages/e0/da/e82fa36d750c744debc1d6ebc63a8bcbff4b32e05b1b91e669cfc8f69475/psqlpy-0.13.1-cp314-cp314-musllinux_1_2_x86_64.whl", hash = "sha256:ef0799d7a589e6a11a7dcc4c6b626248cf17c4bfeba730270787d948213f5db8", size = 5162956, upload-time = "2026-10-16T11:10:42.755Z" },
+    { url = "https://files.pythonhosted.org/packages/1d/e6/a261906173702afcb3ba2e82963db5f2e16a7a9bc0629f5ff69f49c45d3a/psqlpy-0.13.1-cp314-cp314-win32.whl", hash = "sha256:0800268de70169734c224d96bd2307a43937c6f7d13a3aed058c89b4ceee839e", size = 3546503, upload-time = "2026-10-16T11:10:44.187Z" },
+    { url = "https://files.pythonhosted.org/packages/3f/5e/29f592e6d9e1cfb4c295894568817e5352bb27af33fbaa470e72fc630c3c/psqlpy-0.13.1-cp314-cp314-win_amd64.whl", hash = "sha256:ffd937573cd45c1ec25c47d613112d4db2eec4b22d8ad8ba146b4da35c9d4df1", size = 4193919, upload-time = "2026-10-16T11:10:45.981Z" },
+    { url = "https://files.pythonhosted.org/packages/80/2e/72f36bf1d1458270a9539a884e773569f604b1cdfedd1f175221883b0cfb/psqlpy-0.13.1-cp315-cp315-macosx_10_12_x86_64.whl", hash = "sha256:fde208d56a672cddabddf5c510c46792922f2dd7d92d31d1a1c1c669f7050f91", size = 4286558, upload-time = "2026-10-16T11:10:47.614Z" },
+    { url = "https://files.pythonhosted.org/packages/07/5f/ea03b4fd87707f0588ca6074051076409fbbcc1283fcc0f05292341cb718/psqlpy-0.13.1-cp315-cp315-macosx_11_0_arm64.whl", hash = "sha256:cc337cbf15bbc71287be314313d77cfb5ab8f3223317cb173c9fe2d1df011079", size = 4533160, upload-time = "2026-10-16T11:10:49.265Z" },
+    { url = "https://files.pythonhosted.org/packages/2d/c4/1b15b7f711e3cb22a8a804f6f1157d29f317c9af4eb8659b6792c58fecd7/psqlpy-0.13.1-cp315-cp315-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:6897c9c9c15823e4b0192e78871853b854976d67404c2e288192f05d3326df51", size = 5106811, upload-time = "2026-10-16T11:10:51.053Z" },
+    { url = "https://files.pythonhosted.org/packages/9a/ed/eb210b42f465293f6959e29ac0f8e41bb6d915559d9f4d4fbd5265b96282/psqlpy-0.13.1-cp315-cp315-manylinux_2_17_armv7l.manylinux2014_armv7l.whl", hash = "sha256:0223ec8596d5145f93ae0b81051882341c1086364fd263adc3be61f4c658510c", size = 4373295, upload-time = "2026-10-16T11:10:52.66Z" },
+    { url = "https://files.pythonhosted.org/packages/3c/85/be614b3117c1fb8876aaaa11eebdb0cc49faa96494c9c25caae7667076b7/psqlpy-0.13.1-cp315-cp315-manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:4c99c72ccd36a538a866dc37e64d75d7cccdd726b89403a202e2aaf88d6824f3", size = 5000239, upload-time = "2026-10-16T11:10:54.687Z" },
+    { url = "https://files.pythonhosted.org/packages/a5/ba/60acab8ee00b86554fe02476ca4d3bbc9a7ff43cf87407505425f3168546/psqlpy-0.13.1-cp315-cp315-manylinux_2_17_ppc64le.manylinux2014_ppc64le.whl", hash = "sha256:b6b09315383fb95f8496540ad0952b6fd6d2e67f94418d6484e1a68e0b97c847", size = 5054753, upload-time = "2026-10-16T11:10:56.509Z" },
+    { url = "https://files.pythonhosted.org/packages/dc/87/c591ba9b41332c27bfb135e4a1885da8c06d4d88cf176bf14ea2e5c12c87/psqlpy-0.13.1-cp315-cp315-manylinux_2_17_s390x.manylinux2014_s390x.whl", hash = "sha256:bc91707551f9009ca74c99062f17565740ca08415c15280102625913a8954512", size = 4745742, upload-time = "2026-10-16T11:10:58.098Z" },
+    { url = "https://files.pythonhosted.org/packages/74/b2/86f4a6cd0f8c477c59a1ba635209cab45463bf01311c3f4745d90ea90de1/psqlpy-0.13.1-cp315-cp315-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:fadcac71ff6ba6e4d24f8ac55c0d7c3acf155a59be4a95977d64a617b7320824", size = 4806044, upload-time = "2026-10-16T11:10:59.746Z" },
+    { url = "https://files.pythonhosted.org/packages/f0/81/3f3e729ab69c2794c94f568807d21cfa469cf4b705b7247370f5351b3c6f/psqlpy-0.13.1-cp315-cp315-musllinux_1_2_i686.whl", hash = "sha256:36f93deb4072d0d8c5c071c79d54e5d5cb7b99ac7c6e4c214bd2c14dbf7323e8", size = 5069195, upload-time = "2026-10-16T11:11:01.468Z" },
+    { url = "https://files.pythonhosted.org/packages/64/7a/d2eb7c0fcddb0bcf466caada54c8e9eb5a2c5c2864d3c04841a8ba11b82d/psqlpy-0.13.1-cp315-cp315-musllinux_1_2_x86_64.whl", hash = "sha256:cacf4210236f79bcff8f9db811db94e768fa27ced091c8d2b12ba9b8226d3e4e", size = 5163128, upload-time = "2026-10-16T11:11:04.061Z" },
+    { url = "https://files.pythonhosted.org/packages/db/56/7fb3b1e06bf9d8f15a1c99afe215da48278191b076f2c17383ec4f67e54e/psqlpy-0.13.1-cp315-cp315-win32.whl", hash = "sha256:4e96b03f6e7d093faca46840ea25900f55158c952988f4c281784cd161c487f2", size = 3547279, upload-time = "2026-10-16T11:11:05.826Z" },
+    { url = "https://files.pythonhosted.org/packages/a9/b9/48c63f022dbaf1fb77ca4b1703e310b00ddcf5fe6d1e47a997e9196612d6/psqlpy-0.13.1-cp315-cp315-win_amd64.whl", hash = "sha256:3914d46c2092549745fe63680c7debb5049d4470178274c020ca677d7db9c567", size = 4193233, upload-time = "2026-10-16T11:11:07.206Z" },
 ]
 
 [[package]]

@@ -1,4 +1,5 @@
-"""tests/unit/e_core/adapters: the http and docling harnesses — real stdlib sockets on localhost, offline-safe."""
+"""tests/unit/e_core/adapters: the http and docling harnesses — real stdlib sockets on localhost, offline-safe — and
+the awa adapter on the queue's test Postgres."""
 
 import json
 import threading
@@ -9,8 +10,12 @@ from typing import TYPE_CHECKING, ClassVar
 
 import pytest
 
+from e_core.adapters.awa import AwaAdapter
+
 if TYPE_CHECKING:
-    from collections.abc import Iterator
+    from collections.abc import AsyncIterator, Iterator
+
+    from e_core.core.settings.queue import QueueSettings
 
 
 class JsonHandler(BaseHTTPRequestHandler):
@@ -117,3 +122,10 @@ def docling_server() -> Iterator[DoclingStub]:
         worker.start()
         yield DoclingStub(url=f"http://127.0.0.1:{srv.server_port}", handler=DoclingHandler)
         srv.shutdown()
+
+
+##### QUEUE #####
+@pytest.fixture
+async def awa(queue_settings: QueueSettings) -> AsyncIterator[AwaAdapter]:
+    async with AwaAdapter(queue_settings) as adapter:
+        yield adapter

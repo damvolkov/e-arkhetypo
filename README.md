@@ -1,10 +1,8 @@
-<p align="center">
-  <img src="assets/logo.svg" alt="e-templates" width="220" />
-</p>
-
 # e-templates
 
-![e-management wizard](assets/management.png)
+<p align="center">
+  <img src="assets/logo.svg" alt="e-templates" height="110" />
+</p>
 
 Collection of **e-stack** project templates plus the tooling that keeps them honest.
 No Python project lives at this root: every project is a self-contained system under `systems/`,

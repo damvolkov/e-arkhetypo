@@ -62,4 +62,5 @@ class Plan(Struct, frozen=True, kw_only=True):
     name: str
     package: str
     brand: str
+    system: str = ""  # the template tree it comes from (`systems/api`): recorded in the project as its origin
     actions: tuple[Action, ...] = ()

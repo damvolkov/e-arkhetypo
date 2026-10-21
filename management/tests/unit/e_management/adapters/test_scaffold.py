@@ -4,6 +4,7 @@ import ast
 import re
 from typing import TYPE_CHECKING
 
+import eserde
 import pytest
 
 from e_management.adapters.scaffold import Scaffold
@@ -143,3 +144,11 @@ def test_scaffold_detaches_dropped_adapters_from_the_system(tmp_path: Path, repo
     pyproject = (dest / "pyproject.toml").read_text()
     assert '"redis>=' not in pyproject
     assert '"wreq>=' not in pyproject
+
+
+def test_scaffold_records_its_origin(tmp_path: Path, repo: Path, spec: Manifest) -> None:
+    dest = generate(repo, spec, frozenset(), tmp_path / "e-myapp")
+    record = eserde.loads((dest / ".templates.yaml").read_text(), format="yaml")
+    assert record["system"] == "systems/api"
+    assert re.fullmatch(r"[0-9a-f]{40}", record["commit"])
+    assert isinstance(record["dirty"], bool)

@@ -184,4 +184,6 @@ class Blueprint:
         if finalize:
             actions.append(PruneTexts(prunes=finalize))
         actions += self._infra_actions(off, ci_off, ci_on)
-        return Plan(name=self.name, package=self.package, brand=self.brand, actions=tuple(actions))
+        return Plan(
+            name=self.name, package=self.package, brand=self.brand, system=self._spec.source, actions=tuple(actions)
+        )

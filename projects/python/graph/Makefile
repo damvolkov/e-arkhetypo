@@ -25,7 +25,7 @@ export PYTHONPATH := $(CURDIR)/src
 .PHONY: help install sync lock core common core-check common-check lint type arch validate harden hooks test cov record conversions dartsops dartsops-eval dartsops-gate stress docs docs-build bundle snap check ci serve up down build logs release ci-vars clean
 
 help:
-	@printf "$(BOLD)$(CYAN)$(PROJECT)$(RESET) $(GRAY)· uv · ruff · ty · tach · pytest · properdocs · docker · pnpm — core/ops/adapters materialized from $(CORE_SRC)$(RESET)\n\n"
+	@printf "$(BOLD)$(CYAN)$(PROJECT)$(RESET) $(GRAY)· uv · ruff · ty · tach · pytest · zensical · docker · pnpm — core/ops/adapters materialized from $(CORE_SRC)$(RESET)\n\n"
 	@awk 'BEGIN{FS=":.*##"} /^[a-z][a-zA-Z0-9_-]*:.*##/{printf "  $(GREEN)%-12s$(RESET) $(GRAY)%s$(RESET)\n",$$1,$$2}' $(MAKEFILE_LIST)
 
 # — env —
@@ -114,10 +114,10 @@ stress: ## soak stress-marked tests for ARGS seconds (pytest-stress)
 
 # — docs —
 docs: ## serve the project docs site live at :8001 (the app owns :8000)
-	@uv run properdocs serve --dev-addr 127.0.0.1:8001
+	@uv run zensical serve --dev-addr 127.0.0.1:8001
 
 docs-build: ## strict docs build to site/
-	@uv run properdocs build --strict
+	@uv run zensical build --strict
 
 # — ui —
 bundle: ## build the canvas into src/e_graph/ui/dist — the static page the app serves at /

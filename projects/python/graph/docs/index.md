@@ -1,7 +1,7 @@
 # e-graph
 
 **e-stack** graph system template: **LangGraph** runtime, **rustworkx** topology, **React Flow** canvas.
-Served by Litestar + Granian + msgspec on uv · ruff · ty · tach · prek · pytest · properdocs · docker.
+Served by Litestar + Granian + msgspec on uv · ruff · ty · tach · prek · pytest · zensical · docker.
 
 ## Quickstart
 

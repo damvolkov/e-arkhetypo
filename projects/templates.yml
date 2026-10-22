@@ -83,7 +83,7 @@ templates:
         group: cicd
         label: generated API reference + GitHub Pages
         default: true
-        paths: [properdocs.yml, docs, scripts]
+        paths: [zensical.toml, docs, scripts]
         prunes:
           - {file: Makefile, pattern: '^# — docs —\n[\s\S]*?(?=^# — aggregate)'}
           - {file: Makefile, pattern: ' docs-build'}
@@ -175,7 +175,7 @@ templates:
         group: cicd
         label: generated API reference + GitHub Pages
         default: true
-        paths: [properdocs.yml, docs, scripts]
+        paths: [zensical.toml, docs, scripts]
         prunes:
           - {file: Makefile, pattern: '^# — docs —\n[\s\S]*?(?=^# — aggregate)'}
           - {file: Makefile, pattern: ' docs-build'}

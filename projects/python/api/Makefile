@@ -24,7 +24,7 @@ export PYTHONPATH := $(CURDIR)/src
 .PHONY: help install sync lock core common core-check common-check lint type arch validate harden hooks test cov stress docs docs-build check ci run up down build logs release ci-vars clean
 
 help:
-	@printf "$(BOLD)$(CYAN)$(PROJECT)$(RESET) $(GRAY)· uv · ruff · ty · tach · pytest · properdocs · docker — core/ops/adapters materialized from $(CORE_SRC)$(RESET)\n\n"
+	@printf "$(BOLD)$(CYAN)$(PROJECT)$(RESET) $(GRAY)· uv · ruff · ty · tach · pytest · zensical · docker — core/ops/adapters materialized from $(CORE_SRC)$(RESET)\n\n"
 	@awk 'BEGIN{FS=":.*##"} /^[a-z][a-zA-Z0-9_-]*:.*##/{printf "  $(GREEN)%-12s$(RESET) $(GRAY)%s$(RESET)\n",$$1,$$2}' $(MAKEFILE_LIST)
 
 # — env —
@@ -95,10 +95,10 @@ stress: ## soak stress-marked tests for ARGS seconds (pytest-stress)
 
 # — docs —
 docs: ## serve docs site live at :8000
-	@uv run properdocs serve
+	@uv run zensical serve
 
 docs-build: ## strict docs build to site/
-	@uv run properdocs build --strict
+	@uv run zensical build --strict
 
 # — aggregate —
 check: lint type arch validate core-check common-check test ## fast local gate: lint + type + arch + validate + drift + test

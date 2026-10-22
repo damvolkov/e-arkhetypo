@@ -1,6 +1,6 @@
 # e-api
 
-Generic **e-stack** API service template: **uv · ruff · ty · tach · prek · pytest · properdocs · docker**.
+Generic **e-stack** API service template: **uv · ruff · ty · tach · prek · pytest · zensical · docker**.
 Litestar + Granian + msgspec end to end, Rust-backed tooling.
 
 ## Quickstart

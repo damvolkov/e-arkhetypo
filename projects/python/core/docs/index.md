@@ -1,6 +1,6 @@
 # e-core
 
-Common core of the e-stack template systems: **uv · ruff · ty · tach · prek · pytest · properdocs**.
+Common core of the e-stack template systems: **uv · ruff · ty · tach · prek · pytest · zensical**.
 
 ## What this is
 

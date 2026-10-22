@@ -21,7 +21,7 @@ export PYTHONPATH := $(CURDIR)/src
 .PHONY: help install sync lock common common-check lint type arch validate harden hooks test cov docs docs-build check ci release ci-vars clean
 
 help:
-	@printf "$(BOLD)$(CYAN)$(PROJECT)$(RESET) $(GRAY)· uv · ruff · ty · tach · pytest · properdocs · common core + shared files of every e-stack system$(RESET)\n\n"
+	@printf "$(BOLD)$(CYAN)$(PROJECT)$(RESET) $(GRAY)· uv · ruff · ty · tach · pytest · zensical · common core + shared files of every e-stack system$(RESET)\n\n"
 	@awk 'BEGIN{FS=":.*##"} /^[a-z][a-zA-Z0-9_-]*:.*##/{printf "  $(GREEN)%-12s$(RESET) $(GRAY)%s$(RESET)\n",$$1,$$2}' $(MAKEFILE_LIST)
 
 # — env —
@@ -81,10 +81,10 @@ cov: ## run tests with coverage gate (fail under 90%), benchmarks out like the C
 
 # — docs —
 docs: ## serve docs site live at :8000
-	@uv run properdocs serve
+	@uv run zensical serve
 
 docs-build: ## strict docs build to site/
-	@uv run properdocs build --strict
+	@uv run zensical build --strict
 
 # — aggregate —
 check: lint type arch validate common-check test ## fast local gate: lint + type + arch + validate + drift + test

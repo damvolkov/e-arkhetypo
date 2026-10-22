@@ -1,0 +1,71 @@
+##### SITE #####
+[project]
+site_name = "e-api"
+site_description = "e-stack API service: Litestar + Granian on uv, msgspec end to end"
+site_url = "https://damvolkov.github.io/e-api/"
+repo_url = "https://github.com/damvolkov/e-api"
+edit_uri = "edit/main/docs/"
+nav = [
+  { "Home" = "index.md" },
+  { "Releasing" = "release.md" },
+]
+
+##### THEME #####
+[project.theme]
+variant = "classic"
+features = [
+  "navigation.sections",
+  "navigation.top",
+  "navigation.footer",
+  "navigation.instant",
+  "toc.follow",
+  "content.code.copy",
+]
+
+[[project.theme.palette]]
+scheme = "slate"
+primary = "black"
+accent = "teal"
+toggle = { icon = "material/weather-night", name = "Light mode" }
+
+[[project.theme.palette]]
+scheme = "default"
+primary = "white"
+accent = "teal"
+toggle = { icon = "material/weather-sunny", name = "Dark mode" }
+
+##### MARKDOWN #####
+[project.markdown_extensions]
+admonition = {}
+attr_list = {}
+md_in_html = {}
+tables = {}
+pymdownx.details = {}
+pymdownx.superfences = {}
+pymdownx.tabbed.alternate_style = true
+pymdownx.highlight.anchor_linenums = true
+pymdownx.inlinehilite = {}
+
+##### PLUGINS #####
+[project.plugins.autorefs]
+
+[project.plugins.mkdocs-autoapi]
+autoapi_dir = "src"
+autoapi_root = "reference"
+autoapi_add_nav_entry = "Reference"
+
+[project.plugins.mkdocstrings.handlers.python]
+paths = ["src"]
+
+[project.plugins.mkdocstrings.handlers.python.options]
+docstring_style = "google"
+docstring_section_style = "table"
+merge_init_into_class = true
+show_signature_annotations = true
+separate_signature = true
+signature_crossrefs = true
+show_source = false
+show_root_heading = true
+show_symbol_type_heading = true
+show_symbol_type_toc = true
+filters = ["!^_[^_]"]

@@ -5,7 +5,7 @@ You are the maintenance agent of this repository, working on a Renovate branch a
 ## Layout
 
 - `{{package_path}}/` — the Python package. `tests/` mirrors it, one test tree per source tree.
-- `docs/` — the MkDocs site. `README.md` — the front door. `CHANGELOG.md` — the record.
+- `docs/` — the Zensical site. `README.md` — the front door. `CHANGELOG.md` — the record.
 - `.ai-context/` — what CI and Renovate left you: `upstream-context/` (what changed in the dependency),
   `ci-logs-*/build-test.log` (why it broke, per OS and Python).
 

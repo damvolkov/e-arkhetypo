@@ -15,6 +15,9 @@ touches — `stack`, `systems`, `infra`. Lines under `[Unreleased]` are written 
 
 ### projects
 
+- api, core, graph: the docs generator moves from properdocs (the MkDocs fork) to **Zensical** — `properdocs.yml` becomes `zensical.toml` (`classic` Material variant, same palette and features), and the gen-files + literate-nav + `scripts/gen_ref_pages.py` trio is replaced by the native `mkdocs-autoapi` plugin: the reference tree and its nav are generated inside the build, no script, no virtual files. Docs group shrinks to `zensical` + `mkdocstrings[python]`; `make docs`/`docs-build` and the docs CI job run `zensical serve` / `zensical build --strict`.
+- infra: the ci docs job builds with `zensical build --strict`; the templates manifest tracks `zensical.toml`; `qwen.md` names the Zensical site.
+
 - api, graph: every adapter pinged at once at startup — one `adapter ping` event each, a warning when down, never a failed start — and on the new `GET /ready`: 200 when the required edges answer (`store`), 503 otherwise, every verdict in the body; `/health` stays liveness
 - core: adapter health contract — `BaseAdapter.ping` is abstract (each adapter's cheapest real check: sqlite/postgres/awa `SELECT 1`, redis `PING`, docling `/ready` — replacing its `ready() -> bool` —, otel flush, anytomd a one-line render, http the open client) raising `PingError(adapter, reason)`; `BaseAdapter.survey` gathers many under one limit (`asyncio.gather`, `return_exceptions`) into typed `AdapterPing(name, required, ok, latency, reason)`, never raising; `PING_TIMEOUT` (2 s). Ported from e-gnosis 63deb94; the gather lives in core, not in each service, so api and graph share one implementation
 - core: wall-clock benchmarks marked `slow` and out of `test`/`cov` by default (`TESTARGS`) — a cold runner hiccup is not a correctness gate

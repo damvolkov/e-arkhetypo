@@ -11,6 +11,18 @@ The deterministic engine that assembles, materializes and generates from them is
 [e-taxis](https://github.com/damvolkov/e-taxis); it reads the registry `projects/templates.yml`.
 One style: materialize over import, drift-gate over trust, gates as code.
 
+One triumvirate, all Greek — the mind decides, the archetypes hold the forms, the order executes:
+
+<p align="center">
+  <img src="assets/triumvirate.svg" alt="e-nous · e-arkhetypo · e-taxis" height="230" />
+</p>
+
+| Pillar | Is | Changes here |
+|---|---|---|
+| [e-nous](https://github.com/damvolkov/e-nous) | the mind — persona, skills, agents, commands, workflows, evals, and the transpiler | doctrine |
+| **e-arkhetypo** | the archetypes — project blueprints, stacks, CI sources; data only | templates |
+| [e-taxis](https://github.com/damvolkov/e-taxis) | the order — the deterministic engine that turns archetypes into running things and installs the mind into each harness | tools |
+
 ##### PROJECTS — the templates #####
 
 Each is an independent uv project with its own `pyproject.toml`, `Makefile`, tests, docs and CI/CD.

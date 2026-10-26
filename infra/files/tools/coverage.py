@@ -1,4 +1,4 @@
-"""tools/coverage.py: fail under the floor — the lcov line-coverage gate for the Rust side of a binding.
+""".github/tools/coverage.py: fail under the floor — the lcov line-coverage gate for the Rust side of a binding.
 
 Stdlib only. Reads an lcov info file, sums DA hits per SF line block, prints the percentage and exits
 non-zero below the floor. Usage: coverage.py <lcov.info> <floor>."""

@@ -1,4 +1,4 @@
-"""tools/changelog.py: append one maintenance line to an area section under [Unreleased]. Deterministic, idempotent.
+""".github/tools/changelog.py: append one maintenance line to an area section under [Unreleased]. Deterministic, idempotent.
 
 The record of every bot sync and human change in a wide repo: one CHANGELOG.md, three areas
 (stack · projects · infra) under a single `## [Unreleased]` heading. This tool inserts one bullet as

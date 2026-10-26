@@ -1,4 +1,4 @@
-"""tools/upstream.py: what a Renovate PR actually changed — the release facts between old and new.
+""".github/tools/upstream.py: what a Renovate PR actually changed — the release facts between old and new.
 
 Stdlib only. Diffs the dependency pins of two pyproject.toml files and, for each moved package, writes
 into the output directory: `versions.txt` (old→new per line), `release-notes.md` (the GitHub releases

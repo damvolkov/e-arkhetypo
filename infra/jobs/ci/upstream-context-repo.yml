@@ -19,7 +19,7 @@
           FILES=$(git diff --name-only "$BASE" | grep -E '^projects/python/[^/]+/pyproject\.toml$' || true)
           for f in $FILES; do
             git show "$BASE:$f" > /tmp/base-pyproject.toml
-            uv run --no-project python tools/upstream.py --base /tmp/base-pyproject.toml --head "$f" --output "parts/$f"
+            uv run --no-project python .github/tools/upstream.py --base /tmp/base-pyproject.toml --head "$f" --output "parts/$f"
           done
           for name in versions.txt release-notes.md api-added.txt; do
             cat parts/*/"$name" > "upstream-context/$name" 2>/dev/null || : > "upstream-context/$name"

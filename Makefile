@@ -28,10 +28,10 @@ update: ## re-materialize projects/python/api from its sources (core/ops + commo
 	@$(MAKE) -C projects/python/api core-check common-check
 
 stack-versions: ## resolve every floating stack tag to its current digest (the ledger)
-	@uv run --no-project python tools/stack_resolve.py --output stack/stack.versions.yml
+	@uv run --no-project python .github/tools/stack_resolve.py --output stack/stack.versions.yml
 
 health: ## the three-area dependency health report: stack · projects · infra
-	@uv run --no-project python tools/repo_health.py --root . --output /tmp/repo-health.md --token "$$(gh auth token 2>/dev/null || true)"; \
+	@uv run --no-project python .github/tools/repo_health.py --root . --output /tmp/repo-health.md --token "$$(gh auth token 2>/dev/null || true)"; \
 		STATUS=$$?; cat /tmp/repo-health.md; [ $$STATUS -le 3 ] || exit $$STATUS
 
 check: ## run the fast gate of every project

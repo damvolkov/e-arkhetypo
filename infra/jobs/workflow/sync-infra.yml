@@ -52,7 +52,7 @@ jobs:
           BRANCH: ${{ github.head_ref }}
         run: |
           git diff --quiet -- .github 'projects/python/*/.github' && { echo "changed=false" >> "$GITHUB_OUTPUT"; exit 0; }
-          uv run --no-project python tools/changelog.py --area infra --line "workflow pins refreshed after \`$BRANCH\`"
+          uv run --no-project python .github/tools/changelog.py --area infra --line "workflow pins refreshed after \`$BRANCH\`"
           git config user.name "$SLUG[bot]"
           git config user.email "$SLUG[bot]@users.noreply.github.com"
           git commit -am "chore(sync-infra): re-assemble the workflows from infra/"

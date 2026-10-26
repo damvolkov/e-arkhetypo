@@ -16,7 +16,7 @@ infra/
     release/         #   bump · build · publish · image
     workflow/        #   sync · maintenance · health (libraries) · sync-projects · sync-stack · sync-infra · health-areas (wide repos)
   files/             # config and tools copied verbatim (or through the same token pass): renovate{,.repo}.json ·
-                     #   qwen{,.repo}.md · tools/{health,upstream,repo_health,stack_resolve,changelog}.py
+                     #   qwen{,.repo}.md · tools/{health,upstream,repo_health,stack_resolve,changelog}.py → .github/tools/
   setup/             # one file = one feature: the one-time GitHub install instructions
     _baseline.md docs.md pypi.md image.md frontend.md rust.md selfmaintain.md repo-maintain.md
     deprecated/      #   the per-repo App guides, superseded by the shared app — never assembled

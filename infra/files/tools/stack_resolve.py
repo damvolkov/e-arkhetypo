@@ -1,4 +1,4 @@
-"""tools/stack_resolve.py: resolve every remote image in stack/ to the digest its tag points at today.
+""".github/tools/stack_resolve.py: resolve every remote image in stack/ to the digest its tag points at today.
 
 The stack doctrine is floating tags (``:latest`` unless a pin fixes a format); a floating tag is a
 promise about *which* build runs, so the ledger ``stack/stack.versions.yml`` records what each tag

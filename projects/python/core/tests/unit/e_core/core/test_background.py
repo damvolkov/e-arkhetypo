@@ -1,10 +1,12 @@
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any, Final
 
 import anyio
 import pytest
 
 from e_core.adapters.awa import AwaAdapter
+from e_core.adapters.base import PingError
+from e_core.adapters.pgqueuer import PgqueuerAdapter
 from e_core.conftest import outage, settled
 from e_core.core.background import (
     Background,
@@ -18,13 +20,13 @@ from e_core.core.background import (
 )
 from e_core.core.conftest import Works, build
 from e_core.core.settings.base import Secret
+from e_core.core.settings.queue import QueueSettings
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
     from e_core.core.background import BackgroundReporter
     from e_core.core.conftest import Warnings
-    from e_core.core.settings.queue import QueueSettings
 
 
 NOW: Final[datetime] = datetime(2026, 1, 1, tzinfo=UTC)
@@ -230,3 +232,23 @@ async def test_background_outage(queue_settings: QueueSettings, queue: str, work
         "background engine unreadable",
         "background engine unreadable",
     ]
+
+
+##### PING — the durable engine answering, memory standing in for it #####
+
+
+async def test_background_ping_durable(durable: AwaAdapter | PgqueuerAdapter, queue: str, works: Works) -> None:
+    """The durable engine entered answers; closed, its own ping says why not."""
+    async with build(durable, queue, works) as background:
+        await background.ping()
+    with pytest.raises(PingError, match=rf"^{durable.name}: "):
+        await background.ping()
+
+
+@pytest.mark.parametrize("unreachable", [False, True], ids=["absent", "unreachable"])
+async def test_background_ping_memory(queue: str, works: Works, unreachable: bool) -> None:
+    """No durable engine, or one unreachable on entry: memory runs the work, and the ping says jobs are not durable."""
+    dead = QueueSettings(dsn=Secret("postgresql://u:p@127.0.0.1:1/x"), timeout=timedelta(seconds=1))
+    async with build(PgqueuerAdapter(dead) if unreachable else None, queue, works) as background:
+        with pytest.raises(BackgroundError, match=r"^in memory: "):
+            await background.ping()

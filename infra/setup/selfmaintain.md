@@ -20,8 +20,8 @@ allowlist — `.github/`, `QWEN.md`, `pyproject.toml` and `uv.lock` stay human.
 
 ### Verify
 
-    gh secret list -R {{repo}}       # APP_PRIVATE_KEY · QWEN_API_KEY
-    gh variable list -R {{repo}}     # APP_CLIENT_ID (+ QWEN_MODEL)
+    gh secret list -R {{repo}}       # APP_PRIVATE_KEY · SM_API_KEY (or legacy QWEN_API_KEY); org-level secrets are not listed here
+    gh variable list -R {{repo}}     # APP_CLIENT_ID (+ SM_MODEL, or legacy QWEN_MODEL)
     gh workflow run health -R {{repo}}
 
 The *Dependency Dashboard* issue appears once Renovate has read the config; tick *Run Renovate now*

@@ -66,8 +66,10 @@ idempotently. Every job blueprint consumes exactly these names and nothing else:
 |---|---|---|
 | `APP_CLIENT_ID` | variable | `client-id:` of `create-github-app-token` (v3 accepts it; `app-id` is deprecated) |
 | `APP_PRIVATE_KEY` | secret | `private-key:` — the whole `.pem` |
-| `QWEN_API_KEY` | secret | the agent's key |
-| `QWEN_MODEL` · `QWEN_BASE_URL` · `QWEN_CLI_VERSION` | variables, optional | always with a `\|\|` default in the blueprint |
+| `SM_API_KEY` | secret | the agent's key, for any OpenAI-compatible provider (EDamLabs sets it at organisation level, `bootstrap-org`) |
+| `SM_MODEL` · `SM_BASE_URL` | variables, optional | the provider's model and endpoint; always with a `\|\|` default in the blueprint |
+| `QWEN_API_KEY` · `QWEN_MODEL` · `QWEN_BASE_URL` | legacy fallback | read only when the `SM_*` name is unset — the per-repo names `bootstrap-repos` still writes |
+| `QWEN_CLI_VERSION` | variable, optional | the agent CLI's version (the tool, not the provider) |
 
 Labels the jobs may use are the ones `bootstrap-repos` creates — a blueprint that adds one adds it
 to the script's `LABELS` too. No `owner` or `repositories` input: the installation of the running

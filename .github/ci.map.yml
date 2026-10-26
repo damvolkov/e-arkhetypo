@@ -7,3 +7,5 @@ vars:
   - QWEN_BASE_URL
   - QWEN_CLI_VERSION
   - QWEN_MODEL
+  - SM_BASE_URL
+  - SM_MODEL

@@ -68,7 +68,7 @@ class DoclingHandler(BaseHTTPRequestHandler):
     """A docling-serve stand-in: async tasks that start, then settle; the last request kept for inspection.
 
     A source URL ending in `/fail` makes a failed task, `/slow` one that never settles, `/hang` a request
-    that is not answered in time."""
+    that is not answered in time, `/stall` one whose headers arrive at once and whose body does not."""
 
     requests: ClassVar[list[dict[str, object]]] = []
     polls: ClassVar[dict[str, int]] = {}
@@ -81,7 +81,7 @@ class DoclingHandler(BaseHTTPRequestHandler):
         task = str(source.get("url", "inline")).rpartition("/")[2]
         ### `/hang`: the server takes the request and never answers in time — the deadline must cut it.
         _ = time.sleep(1.0) if task == "hang" else None
-        self._respond(200, {"task_id": task, "task_type": "convert", "task_status": "pending"})
+        self._respond(200, {"task_id": task, "task_type": "convert", "task_status": "pending"}, stall=task == "stall")
 
     def do_GET(self) -> None:
         path, _, _ = self.path.partition("?")
@@ -101,12 +101,14 @@ class DoclingHandler(BaseHTTPRequestHandler):
             case _:
                 self._respond(404, {"detail": "not found"})
 
-    def _respond(self, status: int, payload: object) -> None:
+    def _respond(self, status: int, payload: object, *, stall: bool = False) -> None:
         body = json.dumps(payload).encode()
         self.send_response(status)
         self.send_header("content-type", "application/json")
         self.send_header("content-length", str(len(body)))
         self.end_headers()
+        ### `stall`: headers out at once, the body only after the deadline — the cut lands on the body read.
+        _ = (self.wfile.flush(), time.sleep(1.0)) if stall else None
         self.wfile.write(body)
 
     def log_message(self, format: str, *args: object) -> None:  # noqa: A002 — name imposed by http.server

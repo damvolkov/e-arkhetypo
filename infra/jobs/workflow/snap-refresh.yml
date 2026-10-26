@@ -27,13 +27,14 @@ jobs:
           client-id: ${{ vars.APP_CLIENT_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
           permission-contents: write
+          permission-pull-requests: write
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
       - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4  # v10.1.0
       - name: Pin the Python the ecosystem declares
         run: echo "UV_PYTHON=$(cat projects/python/core/common/python-version)" >> "$GITHUB_ENV"
-      - uses: pnpm/action-setup@d9184bf108216479bc5a137cc391f4d7b14c870b  # v6.1.0
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413  # v6.1.0
         with:
           package_json_file: {{snap_ui_pkg}}
       - name: Install the system exactly as the ecosystem gate does

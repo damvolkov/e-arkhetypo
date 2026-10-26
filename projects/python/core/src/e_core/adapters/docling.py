@@ -31,6 +31,7 @@ if TYPE_CHECKING:
 
 DONE: Final[frozenset[str]] = frozenset({"success", "partial_success"})
 FAILED: Final[frozenset[str]] = frozenset({"failure", "skipped"})
+TIMED_OUT: Final = "TimedOut"
 FORMS: Final[Mapping[str, str]] = {
     "markdown": "md_content",
     "document": "json_content",
@@ -144,11 +145,16 @@ class DoclingAdapter(BaseAdapter):
                 if method == "POST"
                 else client.get(url, timeout=timeout)
             )
-        except wreq.TimeoutError as error:
-            msg = f"docling {method} {path} timed out after {timeout.total_seconds():.1f}s"
-            raise TimeoutError(msg) from error
-        response.raise_for_status()
-        return await response.json()
+            response.raise_for_status()
+            return await response.json()
+        except (wreq.TimeoutError, wreq.BodyError) as error:
+            ### The bound covers the body too: cut while reading it, wreq says BodyError with a TimedOut source.
+            match error:
+                case wreq.BodyError() if TIMED_OUT not in str(error):
+                    raise
+                case _:
+                    msg = f"docling {method} {path} timed out after {timeout.total_seconds():.1f}s"
+                    raise TimeoutError(msg) from error
 
     @staticmethod
     def _common_remaining(deadline: float) -> float:

@@ -2,25 +2,27 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["config:recommended", ":dependencyDashboard"],
   "description": "Renovate for a wide repo: systems (uv projects), stack (compose images), infra (action pins). Action pins move together in infra/ and every committed .github; floating tags are recorded weekly by sync-stack.",
-  "enabledManagers": ["pep621", "uv", "docker", "regex", "github-actions"],
+  "enabledManagers": ["pep621", "docker-compose", "custom.regex", "github-actions"],
   "schedule": ["before 6am on monday"],
   "prConcurrentLimit": 5,
   "abandonmentThreshold": "1 year",
   "rangeStrategy": "bump",
-  "lockFileMaintenance": { "enabled": false },
+  "lockFileMaintenance": {
+    "enabled": false
+  },
   "customManagers": [
     {
       "description": "Action pins live once, in the infra/ fragments — bump digest and version comment together.",
       "customType": "regex",
-      "fileMatch": ["^infra/(jobs|workflows)/.*\\.yml$"],
+      "managerFilePatterns": ["/^infra/(jobs|workflows)/.*\\.yml$/"],
       "matchStrings": ["(?<depName>[\\w./-]+)@(?<currentDigest>[0-9a-f]{40})\\s*#\\s*(?<currentValue>v[\\w.+-]+)"],
-      "datasourceTemplate": "github-run-actions",
+      "datasourceTemplate": "github-tags",
       "autoReplaceStringTemplate": "{{depName}}@{{newDigest}}  # {{newValue}}"
     },
     {
       "description": "The agent's CLI pin, the default of QWEN_CLI_VERSION in the maintenance workflow.",
       "customType": "regex",
-      "fileMatch": ["(^|/)\\.github/workflows/maintenance\\.yml$", "^infra/jobs/workflow/maintenance\\.yml$"],
+      "managerFilePatterns": ["/(^|/)\\.github/workflows/maintenance\\.yml$/", "/^infra/jobs/workflow/maintenance\\.yml$/"],
       "matchStrings": ["QWEN_CLI_VERSION \\|\\| '(?<currentValue>\\d+\\.\\d+\\.\\d+)'"],
       "depNameTemplate": "@qwen-code/qwen-code",
       "datasourceTemplate": "npm"
@@ -28,9 +30,14 @@
   ],
   "packageRules": [
     {
+      "description": "requires-python is a support promise, not a dependency: never bumped by a bot.",
+      "matchDepTypes": ["requires-python"],
+      "enabled": false
+    },
+    {
       "description": "System runtime deps: one PR per package across the systems; sync-systems refreshes the locks.",
-      "matchManagers": ["pep621", "uv"],
-      "matchCategories": ["runtime"],
+      "matchManagers": ["pep621"],
+      "matchDepTypes": ["project.dependencies"],
       "labels": ["area:systems"]
     },
     {
@@ -42,17 +49,18 @@
     },
     {
       "description": "Pinned stack image tags (a pin that fixes a format): one PR, reviewed for data compatibility.",
-      "matchManagers": ["docker"],
+      "matchManagers": ["docker-compose"],
       "matchFileNames": ["stack/**"],
       "groupName": "stack images",
       "labels": ["area:stack"]
     },
     {
       "description": "Action pins in infra/ fragments and every committed .github: one monthly PR, all planes together.",
-      "matchManagers": ["regex", "github-actions"],
+      "matchManagers": ["custom.regex", "github-actions"],
       "groupName": "action pins",
       "schedule": ["before 6am on the first day of the month"],
       "labels": ["area:infra"]
     }
-  ]
+  ],
+  "timezone": "Europe/Madrid"
 }

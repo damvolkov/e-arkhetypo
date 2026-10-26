@@ -114,6 +114,24 @@ async def test_a_task_past_the_deadline_is_abandoned(docling_server: Any) -> Non
     assert docling_server.sent["sources"] == [{"kind": "http", "url": "https://example.org/slow"}]
 
 
+async def test_a_body_past_the_deadline_times_out(docling_server: Any) -> None:
+    ### headers in time, body too late: the cut lands on the body read and still surfaces as a TimeoutError.
+    async with DoclingAdapter(settings(docling_server.url, docling_deadline=timedelta(milliseconds=300))) as adapter:
+        with pytest.raises(TimeoutError, match="timed out after"):
+            await adapter.convert("https://example.org/stall")
+
+
+async def test_a_body_error_that_is_no_timeout_stays_a_body_error(docling_server: Any, monkeypatch: Any) -> None:
+    async def broken(self: Any) -> None:
+        msg = "is_body error: connection reset"
+        raise wreq.BodyError(msg)
+
+    async with DoclingAdapter(settings(docling_server.url)) as adapter:
+        monkeypatch.setattr(wreq.Response, "json", broken)
+        with pytest.raises(wreq.BodyError, match="connection reset"):
+            await adapter._common_call("GET", "/ready")
+
+
 async def test_ping_reflects_the_server(docling_server: Any) -> None:
     """docling-serve's readiness route: answered, unready (503), or nobody listening."""
     async with DoclingAdapter(settings(docling_server.url)) as adapter:

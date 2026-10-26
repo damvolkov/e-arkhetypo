@@ -15,7 +15,7 @@ SETTINGS = FileFinder("core.settings")
 
 def test_modules_skips_packages_and_declared_names() -> None:
     ### `settings` is a package: excluded
-    assert {"crypto", "logger", "state"} <= set(CORE.discover(Kind.MODULES))
+    assert {"logger", "state"} <= set(CORE.discover(Kind.MODULES))
     assert "base" in SETTINGS.discover(Kind.MODULES)
     strict = FileFinder("core.settings", skip=frozenset({"base"}))
     assert "base" not in strict.discover(Kind.MODULES)
@@ -30,7 +30,7 @@ def test_classes_and_functions_are_own_symbols_only() -> None:
 
 def test_base_selects_subclasses_and_module_target_reads_one_file() -> None:
     assert {"CryptoSettings", "OAuthSettings"} <= set(SETTINGS.discover(BaseSettings))
-    assert set(SETTINGS.discover(crypto_mod)) == {"CryptoSettings", "PasswordHasher", "TokenAlg", "TokenEnc"}
+    assert set(SETTINGS.discover(crypto_mod)) == {"CryptoSettings"}
 
 
 def test_predicate_and_pattern_filter_rejects_unknown_target() -> None:

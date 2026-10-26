@@ -1,36 +1,9 @@
-"""core/settings/crypto: crypto engine configuration, loaded from CRYPTO__*."""
-
-from enum import StrEnum
+"""core/settings/crypto: the configuration of the crypto engine (`ops/crypto`), loaded from CRYPTO__*."""
 
 from pydantic_settings import SettingsConfigDict
 
 from e_core.core.settings.base import BaseSettings, Secret
-
-
-##### ENUMS #####
-class TokenAlg(StrEnum):
-    HS256 = "HS256"
-    HS384 = "HS384"
-    HS512 = "HS512"
-    RS256 = "RS256"
-    RS512 = "RS512"
-    PS256 = "PS256"
-    ES256 = "ES256"
-    EDDSA = "EdDSA"
-
-
-class TokenEnc(StrEnum):
-    A128GCM = "A128GCM"
-    A256GCM = "A256GCM"
-
-
-class PasswordHasher(StrEnum):
-    ARGON2 = "argon2id"
-    BCRYPT = "bcrypt"
-
-
-##### DEFAULTS #####
-BCRYPT_ROUNDS: int = 12
+from e_core.ops.crypto import BCRYPT_ROUNDS, PasswordHasher, TokenAlg, TokenEnc
 
 
 ##### SETTINGS #####

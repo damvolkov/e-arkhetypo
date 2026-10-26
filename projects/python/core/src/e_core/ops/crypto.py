@@ -1,15 +1,21 @@
-"""core/crypto: password hashing, JWT/JWE tokens, signatures and AEAD — joserfc over cryptography.
+"""ops/crypto: everything that needs a key or entropy — keyed ids, bearer tokens, password hashing, JWS/JWE, AEAD.
+
+Signatures and tokens ride on joserfc over cryptography; hashing without a key is `ops/hash`, and the two never
+overlap. Agnostic: the engine reads its configuration through `CryptoConfig` (what `core/settings/crypto`
+satisfies, or the `CryptoKeys` that `generate_keys` mints), and its errors are its own.
 
 bcrypt is Rust-backed, argon2 the PHC winner; async only where hashing is intentionally slow, everything else is microseconds."""
 
 import hashlib
 import hmac
 import secrets
+import unicodedata
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from enum import IntEnum, StrEnum
 from functools import partial
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Any, Final, Literal, Self, cast
+from typing import TYPE_CHECKING, Any, Final, Literal, Protocol, cast, runtime_checkable
 
 import anyio
 import argon2
@@ -28,16 +34,101 @@ from joserfc import jwe, jwk, jwt
 from joserfc.errors import JoseError
 from joserfc.jwk import ECKey, KeySet, OctKey, OKPKey, RSAKey
 from joserfc.jwt import JWTClaimsRegistry
-
-from e_core.core.errors import CryptoError, TokenError, TokenFailure
-from e_core.core.settings import Secret
-from e_core.core.settings.crypto import CryptoSettings, PasswordHasher, TokenAlg, TokenEnc
+from pydantic import SecretStr
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Mapping
 
 
+##### ERRORS #####
+class CryptoError(Exception):
+    """The crypto engine refused: key material missing, corrupt input or failed decryption."""
+
+    def __init__(self, message: str) -> None:
+        super().__init__(message)
+        self.message = message
+
+
+class TokenFailure(StrEnum):
+    """Distinct reasons a JWT token will not pass validation."""
+
+    MALFORMED = "malformed"  # count "." ≠ JWS(2) / JWE(4)
+    EXPIRED = "expired"  # exp claim validation failed
+    FORGED = "forged"  # signature mismatch with our keys
+    INVALID_CLAIM = "invalid_claim"  # issuer/audience mismatch
+    EMPTY_JWE = "empty_jwe"  # decrypted payload was None
+    MISSING_FIELD = "missing_field"  # required claim absent
+
+
+class TokenError(CryptoError):
+    """A token that will not pass: malformed, forged, expired or failing its claim registry."""
+
+    def __init__(self, message: str, *, kind: TokenFailure = TokenFailure.MALFORMED) -> None:
+        super().__init__(message)
+        self.kind = kind
+
+
 ##### TYPES #####
+class TokenAlg(StrEnum):
+    HS256 = "HS256"
+    HS384 = "HS384"
+    HS512 = "HS512"
+    RS256 = "RS256"
+    RS512 = "RS512"
+    PS256 = "PS256"
+    ES256 = "ES256"
+    EDDSA = "EdDSA"
+
+
+class TokenEnc(StrEnum):
+    A128GCM = "A128GCM"
+    A256GCM = "A256GCM"
+
+
+class PasswordHasher(StrEnum):
+    ARGON2 = "argon2id"
+    BCRYPT = "bcrypt"
+
+
+BCRYPT_ROUNDS: int = 12
+
+
+@runtime_checkable
+class CryptoConfig(Protocol):
+    """What the engine reads of its configuration: the master secret, the token algorithms, an optional PEM key, the
+    password hasher and bcrypt's cost."""
+
+    @property
+    def secret(self) -> SecretStr | None: ...
+
+    @property
+    def alg(self) -> TokenAlg: ...
+
+    @property
+    def enc(self) -> TokenEnc: ...
+
+    @property
+    def private_key(self) -> str: ...
+
+    @property
+    def hasher(self) -> PasswordHasher: ...
+
+    @property
+    def bcrypt_rounds(self) -> int: ...
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class CryptoKeys:
+    """Key material `generate_keys` mints for a deployment: a `CryptoConfig` with the defaults for the rest."""
+
+    secret: SecretStr | None
+    alg: TokenAlg = TokenAlg.HS256
+    enc: TokenEnc = TokenEnc.A256GCM
+    private_key: str = ""
+    hasher: PasswordHasher = PasswordHasher.ARGON2
+    bcrypt_rounds: int = BCRYPT_ROUNDS
+
+
 class TokenShape(IntEnum):
     JWS = 2  # count of "." separators: 3 parts
     JWE = 4  # 5 parts
@@ -52,6 +143,7 @@ class AlgPrefix(StrEnum):
 
 ##### DEFAULTS #####
 SECRET_SIZE: int = 32  # bytes of entropy for the master secret
+IDENT_SIZE: int = 32  # hex chars of an identifier's id: 128 bits, never colliding, short enough for a log
 KEY_SIZE: int = 32  # HKDF output: one AES-256/HMAC-256 key per domain
 NONCE_SIZE: int = 12  # AES-GCM standard
 TAG_SIZE: int = 16
@@ -86,7 +178,7 @@ BCRYPT_TOO_LONG: str = f"bcrypt silently truncates past {BCRYPT_MAX_INPUT} bytes
 
 
 class Crypto:
-    """Master crypto engine: hash_password/verify_password (async, off-thread), create_token/verify_token (JWS JWT and JWE), sign/verify_signature (Ed25519/RSA/EC, HMAC fallback), encrypt/decrypt (AES-256-GCM)."""
+    """Master crypto engine: hash_password/verify_password (async, off-thread), create_token/verify_token (JWS JWT and JWE), sign/verify_signature (Ed25519/RSA/EC, HMAC fallback), encrypt/decrypt (AES-256-GCM); identify (a keyed, stable id for an identifier) and token (a fresh bearer token) need no engine."""
 
     __slots__ = (
         "_aead",
@@ -103,7 +195,7 @@ class Crypto:
         "_verify_key",
     )
 
-    def __init__(self, settings: CryptoSettings, *, jwks: dict[str, Any] | None = None) -> None:
+    def __init__(self, settings: CryptoConfig, *, jwks: dict[str, Any] | None = None) -> None:
         match settings.secret:
             case None:
                 raise CryptoError(MISSING_ROOT)
@@ -228,17 +320,12 @@ class Crypto:
     ##### CLASSMAKERS #####
 
     @classmethod
-    def load(cls, **overrides: Any) -> Self:
-        """Alternative factory: layers the engine settings from the environment (SECRET, ALG, ...) — the app itself always passes the composite `st`."""
-        return cls(CryptoSettings(**overrides))
-
-    @classmethod
-    def generate_keys(cls, alg: TokenAlg = TokenAlg.HS256) -> CryptoSettings:
+    def generate_keys(cls, alg: TokenAlg = TokenAlg.HS256) -> CryptoKeys:
         """Bootstrap material for a deployment: fresh master secret and, for asymmetric algs, a fresh PEM key."""
-        secret = Secret(secrets.token_urlsafe(SECRET_SIZE))
+        secret = SecretStr(secrets.token_urlsafe(SECRET_SIZE))
         match alg:
             case TokenAlg.HS256 | TokenAlg.HS384 | TokenAlg.HS512:
-                return CryptoSettings(secret=secret, alg=alg)
+                return CryptoKeys(secret=secret, alg=alg)
             case TokenAlg.EDDSA:
                 key: Any = ed25519.Ed25519PrivateKey.generate()
             case TokenAlg.ES256:
@@ -250,7 +337,22 @@ class Crypto:
             format=serialization.PrivateFormat.PKCS8,
             encryption_algorithm=serialization.NoEncryption(),
         ).decode()
-        return CryptoSettings(secret=secret, alg=alg, private_key=pem)
+        return CryptoKeys(secret=secret, alg=alg, private_key=pem)
+
+    ##### IDENTIFIERS #####
+
+    @staticmethod
+    def identify(key: str, identifier: str, *, width: int = IDENT_SIZE) -> str:
+        """A stable, irreversible id for an identifier (an e-mail, a handle) under a named key: NFKC-folded, casefolded
+        and trimmed, then HMAC-SHA256 under the key as given — never derived, so the id outlives this engine's own keys
+        and gives nothing back without the key."""
+        folded = unicodedata.normalize("NFKC", identifier).casefold().strip()
+        return hmac.new(key.encode(), folded.encode(), hashlib.sha256).hexdigest()[:width]
+
+    @staticmethod
+    def token(size: int = SECRET_SIZE) -> str:
+        """A fresh bearer token from the system's CSPRNG, URL-safe: handed out once, stored only as its hash."""
+        return secrets.token_urlsafe(size)
 
     ##### PASSWORDS #####
 
@@ -367,7 +469,6 @@ class Crypto:
 
 ##### RUNTIME TYPE CHECKING #####
 Crypto = beartype.beartype(Crypto)
-CryptoSettings = beartype.beartype(CryptoSettings)
 TokenAlg = beartype.beartype(TokenAlg)
 TokenEnc = beartype.beartype(TokenEnc)
 PasswordHasher = beartype.beartype(PasswordHasher)

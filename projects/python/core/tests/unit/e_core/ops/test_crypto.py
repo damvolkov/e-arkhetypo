@@ -1,4 +1,4 @@
-"""e_core.core.crypto: password hashing, JWS/JWE tokens, signatures, AEAD — one secret, many derived keys."""
+"""e_core.ops.crypto: password hashing, JWS/JWE tokens, signatures, AEAD, keyed identifiers, bearer tokens — one secret, many derived keys."""
 
 from datetime import timedelta
 from typing import Any
@@ -10,23 +10,26 @@ from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from joserfc import jwe
 from joserfc.jwk import OctKey
 
-from e_core.core.crypto import (
+from e_core.core.settings import Secret
+from e_core.core.settings.crypto import CryptoSettings
+from e_core.ops import crypto as crypto_module
+from e_core.ops.crypto import (
     ENC_KEY_SIZES,
     JWE_INFO,
     Crypto,
-    CryptoSettings,
+    CryptoError,
     PasswordHasher,
     TokenAlg,
     TokenEnc,
+    TokenError,
+    TokenFailure,
 )
-from e_core.core.errors import CoreError, CryptoError, TokenError, TokenFailure
-from e_core.core.settings import Secret
 
 
 ##### ERROR HIERARCHY #####
 def test_error_hierarchy() -> None:
     assert issubclass(TokenError, CryptoError)
-    assert issubclass(CryptoError, CoreError)
+    assert issubclass(CryptoError, Exception)
 
 
 def test_token_failure_values() -> None:
@@ -204,8 +207,9 @@ def test_sign_ecdsa() -> None:
     assert crypto.verify_signature(b"data", crypto.sign(b"data"))
 
 
-@pytest.mark.slow
-def test_sign_rsa() -> None:
+def test_sign_rsa(monkeypatch: pytest.MonkeyPatch) -> None:
+    """RSA-PSS round trip; a 2048-bit key keeps it in the fast suite CI runs (4096 is the engine's default)."""
+    monkeypatch.setattr(crypto_module, "RSA_SIZE", 2048)
     crypto = Crypto(Crypto.generate_keys(TokenAlg.RS256))
     signature = crypto.sign(b"data")
     assert crypto.verify_signature(b"data", signature)
@@ -292,9 +296,10 @@ def test_needs_rehash_broken_argon2(crypto: Crypto) -> None:
         crypto.needs_rehash("$argon2id$v=broken")
 
 
-def test_load_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_settings_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The engine takes the composite's settings as its config: CRYPTO__* from the environment."""
     monkeypatch.setenv("CRYPTO__SECRET", "from-the-environment")
-    crypto = Crypto.load()
+    crypto = Crypto(CryptoSettings())
     assert crypto.verify_token(crypto.create_token({"sub": "u"}, expires_in=timedelta(60)))["sub"] == "u"
 
 
@@ -302,3 +307,35 @@ def test_generate_keys_symmetric_has_no_pem() -> None:
     settings = Crypto.generate_keys()
     assert settings.alg is TokenAlg.HS256
     assert settings.private_key == ""
+
+
+##### IDENTIFIERS #####
+@pytest.mark.parametrize(
+    ("key", "identifier", "ident"),
+    [
+        ("k", "ana@example.org", "102ffdfba6752efa0a58b58c644d48c7"),
+        ("gnosis-secret", " Ana@Example.ORG ", "c77936a172b73aa91dffd68633087fef"),
+    ],
+    ids=["plain", "folded"],
+)
+def test_identify_pinned(key: str, identifier: str, ident: str) -> None:
+    """The ids every enrolled person already holds: a change here would orphan their memory."""
+    assert Crypto.identify(key, identifier) == ident
+
+
+def test_identify_one_person() -> None:
+    """One person is one id however the identifier is written; a fixed-width hex digest."""
+    ident = Crypto.identify("k", "ana@example.org")
+    assert (ident, len(ident)) == (Crypto.identify("k", " Ana@Example.ORG "), 32)
+
+
+@pytest.mark.parametrize(("key", "identifier"), [("k", "bob@example.org"), ("other", "ana@example.org")])
+def test_identify_apart(key: str, identifier: str) -> None:
+    """Another person, or another key, is another id."""
+    assert Crypto.identify(key, identifier) != Crypto.identify("k", "ana@example.org")
+
+
+def test_token_fresh() -> None:
+    """Every token is new and URL-safe."""
+    first, second = Crypto.token(), Crypto.token()
+    assert (first != second, len(first) >= 43, first.isascii()) == (True, True, True)

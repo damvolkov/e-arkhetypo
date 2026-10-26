@@ -1,9 +1,9 @@
 # infra
 
-Source of truth for every e-stack CI/CD workflow, as it is `projects/python/core/common/` for the shared project
-files. Nothing here is a running thing: the fragments are **materialized and assembled** into a project's
+Source of truth for every e-stack CI/CD workflow, as `projects/python/infra/` is for the shared python modules
+and root files. Nothing here is a running thing: the fragments are **materialized and assembled** into a project's
 `.github/` — by [e-taxis](https://github.com/damvolkov/e-taxis), and drift-gated there, exactly like
-`core` and `common`.
+`infra/` and `ops/`.
 
 ```
 infra/

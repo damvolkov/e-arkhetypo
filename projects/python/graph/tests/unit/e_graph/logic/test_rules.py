@@ -4,11 +4,11 @@ from typing import TYPE_CHECKING, Any
 
 import pytest
 
-from core.struct import CheckedStruct
 from e_graph.logic.errors import Rule
 from e_graph.logic.models import ROLES, SIGNATURES, DeterministicSpec, Draft, Function, Module, Role, SemanticSpec, Spec
 from e_graph.logic.rules import SECTIONS, judge_section, rule_merge, rule_tree
 from e_graph.models.section import Section
+from infra.struct import CheckedStruct
 
 if TYPE_CHECKING:
     from pathlib import Path

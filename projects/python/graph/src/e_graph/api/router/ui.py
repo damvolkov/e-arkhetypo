@@ -14,8 +14,8 @@ from litestar.handlers import HTTPRouteHandler
 from litestar.router import Router
 from litestar.static_files import create_static_files_router
 
-from core.settings import settings as st
 from e_graph.models.ui import UiView
+from infra.settings import settings as st
 
 UI: Final[Path] = Path(__file__).resolve().parents[2] / "ui"
 STATIC: Final[Path] = UI / "dist"

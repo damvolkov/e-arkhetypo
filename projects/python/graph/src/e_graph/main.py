@@ -3,9 +3,9 @@
 `create_app` is the composition root and the factory granian calls per worker. Routers enter
 through `register` calls — the include_router shape; middleware, the lifespan
 chain and CORS enter through the constructor, and the order of `lifespan=[...]` is the startup
-order: core first (every later concern may depend on the loaded singletons), then the edges, the
+order: infra first (every later concern may depend on the loaded singletons), then the edges, the
 services and the built graphs, sealed last. Dependency chains are wired by each endpoint, never
-here. Nothing loads at import; the core singletons load on the first touch, which the core lifespan
+here. Nothing loads at import; the infra singletons load on the first touch, which the infra lifespan
 makes.
 """
 
@@ -16,14 +16,14 @@ from litestar import Litestar
 from litestar.router import Router
 from litestar.types import Middleware
 
-from core.state import State
 from e_graph.api import docs
 from e_graph.api.lifespan import adapters, db, sealed, services
-from e_graph.api.lifespan.core import lifespan as core_lifespan
 from e_graph.api.lifespan.graphs import lifespan as graphs_lifespan
+from e_graph.api.lifespan.infra import lifespan as infra_lifespan
 from e_graph.api.middlewares import MIDDLEWARES, cors_config
 from e_graph.api.router import health, pipelines, specs, ui
 from e_graph.api.state import AppState
+from infra.state import State
 
 
 def create_app() -> Litestar:
@@ -31,9 +31,9 @@ def create_app() -> Litestar:
     ##### APP #####
     app = Litestar(
         route_handlers=[],
-        ### Litestar's own state class, typed: one entry, the core graph the lifespans write and seal.
+        ### Litestar's own state class, typed: one entry, the infra graph the lifespans write and seal.
         state=AppState({"system": State()}),
-        lifespan=[core_lifespan, db.lifespan, adapters.lifespan, services.lifespan, graphs_lifespan, sealed.lifespan],
+        lifespan=[infra_lifespan, db.lifespan, adapters.lifespan, services.lifespan, graphs_lifespan, sealed.lifespan],
         ### the declared union of middlewares crosses into litestar's looser `Middleware` alias here;
         ### asgi_correlation_id types its scope narrower than the protocol — wiring is exact, upstream typing is not.
         middleware=cast("list[Middleware]", list(MIDDLEWARES)),

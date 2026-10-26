@@ -38,7 +38,7 @@ docker run --rm -v gliner-models:/models -v "$PWD/data/models/gliner-bi-base-v2.
   busybox cp -a /registry/. /models/
 ```
 
-Merged into one stack (`e_core.ops.compose`), every named volume binds under `data/<service>/`: there the registry is
+Merged into one stack (`e_infra.ops.compose`), every named volume binds under `data/<service>/`: there the registry is
 the directory `data/gliner/gliner-models/`, filled with a plain `cp -a`. The files must be readable by uid 65532: the
 export writes them world-readable, and `cp -a` keeps that. At load every file is hashed against `manifest.json`; a
 registry that does not match refuses to serve.

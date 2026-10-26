@@ -10,13 +10,13 @@ from contextlib import asynccontextmanager
 
 from litestar import Litestar
 
-from core.logger import logger
-from core.settings import settings as st
 from e_graph.api.state import AppState
 from e_graph.instrument.state import ProcessorsState
 from e_graph.instrument.telemetry import InstrumentTelemetry
 from e_graph.logic.agent import AgnosticAgent
 from e_graph.logic.orchestrator.core import OrchestratorCore
+from infra.logger import logger
+from infra.settings import settings as st
 from ops.crypto import Crypto
 from processors.doc import DocProcessor
 

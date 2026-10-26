@@ -22,10 +22,10 @@ from typing import TYPE_CHECKING, Any, Final
 import eserde
 import msgspec
 
-from core.struct import CheckedStruct
 from e_graph.logic.discover import SpecDiscover
 from e_graph.logic.models import ROLES, SIGNATURES, DeterministicSpec, JsonSchema, Role, SemanticSpec, Slot, Spec
 from e_graph.models.section import PREFIXES, Section
+from infra.struct import CheckedStruct
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Mapping
@@ -232,7 +232,7 @@ class SpecCrafter:
     ) -> str:
         """A runner module's source: imports, an optional `Args` body, the role's function, any extra functions."""
         declared = f"\n\nclass Args(CheckedStruct, frozen=True, kw_only=True):\n{args}" if args else ""
-        checked = "from core.struct import CheckedStruct\n" if args else ""
+        checked = "from infra.struct import CheckedStruct\n" if args else ""
         blocks = [cls.render(role, **render)] if role is not None else []
         body = "\n\n".join([*blocks, functions] if functions else blocks)
         return f'"""{name}: crafted runner."""\n\n{imports}{checked}{HEADER}{declared}\n\n{body}\n'

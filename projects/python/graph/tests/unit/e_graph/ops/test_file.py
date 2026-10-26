@@ -5,27 +5,27 @@ from typing import Any, cast
 
 import pytest
 
-from core.settings import crypto as crypto_mod
-from core.settings.base import BaseSettings
+from infra.settings import crypto as crypto_mod
+from infra.settings.base import BaseSettings
 from ops.file import FileFinder, Kind
 
-CORE = FileFinder("core")
-SETTINGS = FileFinder("core.settings")
+INFRA = FileFinder("infra")
+SETTINGS = FileFinder("infra.settings")
 
 
 def test_modules_skips_packages_and_declared_names() -> None:
     ### `settings` is a package: excluded
-    assert {"logger", "state"} <= set(CORE.discover(Kind.MODULES))
+    assert {"logger", "state"} <= set(INFRA.discover(Kind.MODULES))
     assert "base" in SETTINGS.discover(Kind.MODULES)
-    strict = FileFinder("core.settings", skip=frozenset({"base"}))
+    strict = FileFinder("infra.settings", skip=frozenset({"base"}))
     assert "base" not in strict.discover(Kind.MODULES)
 
 
 def test_classes_and_functions_are_own_symbols_only() -> None:
-    assert "State" in CORE.discover(Kind.CLASSES)
-    assert "ELogger" in CORE.discover(Kind.CLASSES)
+    assert "State" in INFRA.discover(Kind.CLASSES)
+    assert "ELogger" in INFRA.discover(Kind.CLASSES)
     ### `setup` lives on ELogger now, not in the module namespace: only the plain function is discoverable.
-    assert {"encode_json"} <= set(CORE.discover(Kind.FUNCTIONS))
+    assert {"encode_json"} <= set(INFRA.discover(Kind.FUNCTIONS))
 
 
 def test_base_selects_subclasses_and_module_target_reads_one_file() -> None:
@@ -43,4 +43,4 @@ def test_predicate_and_pattern_filter_rejects_unknown_target() -> None:
 
 
 async def test_adiscover_answers_like_discover() -> None:
-    assert await CORE.adiscover(Kind.MODULES) == CORE.discover(Kind.MODULES)
+    assert await INFRA.adiscover(Kind.MODULES) == INFRA.discover(Kind.MODULES)

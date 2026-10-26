@@ -34,9 +34,6 @@ from rich.table import Table
 from rich.tree import Tree
 
 from adapters.docling import DoclingAdapter
-from core.logger import ELogger
-from core.settings import settings as st
-from core.settings.darts import DartsSettings
 from e_graph.instrument.state import InfraState, ProcessorsState
 from e_graph.instrument.telemetry import InstrumentTelemetry
 from e_graph.logic.agent import AgnosticAgent
@@ -49,6 +46,9 @@ from e_graph.logic.orchestrator.lab import SectionLab
 from e_graph.logic.orchestrator.plan import DagPlan
 from e_graph.models.section import Section
 from e_graph.pipelines.base import PipelineRegistry
+from infra.logger import ELogger
+from infra.settings import settings as st
+from infra.settings.darts import DartsSettings
 from processors.doc import DocProcessor
 
 CONSOLE: Final[Console] = Console(soft_wrap=True)

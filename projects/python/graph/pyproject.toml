@@ -7,7 +7,7 @@ build-backend = "hatchling.build"
 [project]
 name = "e-graph"
 dynamic = ["version"]
-description = "e-stack graph template: LangGraph runtime, rustworkx topology, React Flow canvas over Litestar + Granian, shared core materialized from projects/python/core"
+description = "e-stack graph template: LangGraph runtime, rustworkx topology, React Flow canvas over Litestar + Granian, shared infra materialized from projects/python/infra"
 readme = "README.md"
 requires-python = ">=3.14"
 license = "MIT"
@@ -109,7 +109,7 @@ dev = [
     { include-group = "test" },
     { include-group = "docs" },
     "prek>=0.4",
-    ### structural rewrite of projects/python/core at materialization time (scripts/materialize.py); parses real 3.14 syntax.
+    ### structural rewrite of projects/python/infra at materialization time (scripts/materialize.py); parses real 3.14 syntax.
     "libcst>=1.9",
 ]
 
@@ -135,7 +135,7 @@ bump = true
 fallback-version = "0.0.0"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/e_graph", "src/core", "src/ops", "src/adapters", "src/processors"]
+packages = ["src/e_graph", "src/infra", "src/ops", "src/adapters", "src/processors"]
 ### the canvas is part of the package: its built bundle ships (gitignored, so declared), its sources never do.
 artifacts = ["src/e_graph/ui/dist/**"]
 exclude = ["src/e_graph/ui/*", "!src/e_graph/ui/dist"]
@@ -173,15 +173,15 @@ ignore = ["E501", "ISC001", "PLR0913"]
 "src/e_graph/runners/**" = ["TC001", "TC002", "TC003", "ARG001"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["e_graph", "core", "ops", "adapters"]
+known-first-party = ["e_graph", "infra", "ops", "adapters"]
 
 [tool.ruff.lint.flake8-type-checking]
 ### pydantic and msgspec resolve these classes' annotations at runtime: their imports must stay real.
 runtime-evaluated-base-classes = [
     "pydantic.BaseModel",
-    "core.settings.base.BaseSettings",
+    "infra.settings.base.BaseSettings",
     "msgspec.Struct",
-    "core.struct.CheckedStruct",
+    "infra.struct.CheckedStruct",
 ]
 
 [tool.ruff.lint.flake8-tidy-imports]
@@ -230,7 +230,7 @@ markers = [
 
 ##### COVERAGE #####
 [tool.coverage.run]
-### core/, ops/ and adapters/ are materialized and tested at their source (projects/python/core); the gate covers the service.
+### infra/, ops/ and adapters/ are materialized and tested at their source (projects/python/infra); the gate covers the service.
 source_pkgs = ["e_graph"]
 ### runners a test writes to its tmp dir load under `e_graph.runners.*`: fixtures, never the product.
 omit = ["*/pytest-of-*/*"]

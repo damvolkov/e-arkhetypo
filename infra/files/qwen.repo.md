@@ -28,8 +28,8 @@ Never `infra/`, never any `.github/`, never `pyproject.toml`, `uv.lock`, `stack/
 
 1. Fix is the job: make CI green with the smallest change the dependency update truly needs.
 2. Keep each system's public API backward-compatible unless the update forces otherwise; never
-   invent surface. Shared code changes in `projects/python/core` and materializes — never inside a service's
-   `src/core/`.
+   invent surface. Shared code changes in `projects/python/infra` and materializes — never inside a service's
+   `src/infra/`.
 3. A behavior change gets a test, in the mirrored path, before it gets a merge.
 4. Every user-visible change gets one `CHANGELOG.md` line under `## [Unreleased]`, in the area it
    touches.

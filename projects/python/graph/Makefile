@@ -4,7 +4,7 @@ PACKAGE  ?= src/e_graph
 MODULE   ?= e_graph
 PORT     ?= 8000
 COMPOSE  ?= compose.yml
-CORE_SRC ?= ../core/src/e_core
+INFRA_SRC ?= ../infra/src/e_infra
 UI       ?= src/e_graph/ui
 TESTARGS  ?= -m "not ui"   ## visual goldens are runner-canonical: make snap-refresh (workflow) owns them
 ARGS      = $(filter-out $@,$(MAKECMDGOALS))
@@ -22,14 +22,14 @@ MAKEFLAGS += --no-print-directory
 export PYTHONPATH := $(CURDIR)/src
 
 ##### TARGETS #####
-.PHONY: help install sync lock core common core-check common-check lint type arch validate harden hooks test cov record conversions dartsops dartsops-eval dartsops-gate stress docs docs-build bundle snap check ci serve up down build logs release ci-vars clean
+.PHONY: help install sync lock infra infra-check lint type arch validate harden hooks test cov record conversions dartsops dartsops-eval dartsops-gate stress docs docs-build bundle snap check ci serve up down build logs release ci-vars clean
 
 help:
-	@printf "$(BOLD)$(CYAN)$(PROJECT)$(RESET) $(GRAY)· uv · ruff · ty · tach · pytest · zensical · docker · pnpm — core/ops/adapters materialized from $(CORE_SRC)$(RESET)\n\n"
+	@printf "$(BOLD)$(CYAN)$(PROJECT)$(RESET) $(GRAY)· uv · ruff · ty · tach · pytest · zensical · docker · pnpm — infra/ops/adapters materialized from $(INFRA_SRC)$(RESET)\n\n"
 	@awk 'BEGIN{FS=":.*##"} /^[a-z][a-zA-Z0-9_-]*:.*##/{printf "  $(GREEN)%-12s$(RESET) $(GRAY)%s$(RESET)\n",$$1,$$2}' $(MAKEFILE_LIST)
 
 # — env —
-install: core common ## full setup: materialize shared assets + sync deps + ui deps + chromium + git hooks
+install: infra ## full setup: materialize shared assets + sync deps + ui deps + chromium + git hooks
 	@uv sync
 	@pnpm -C $(UI) install --frozen-lockfile
 	@uv run playwright install chromium
@@ -39,7 +39,7 @@ install: core common ## full setup: materialize shared assets + sync deps + ui d
 sync: ## sync all deps (main + dev)
 	@uv sync
 
-lock: core ## refresh uv lockfile (against the current materialized core)
+lock: infra ## refresh uv lockfile (against the current materialized infra)
 	@uv lock
 
 ### a file target: made once when missing, never overwritten — the dev crypto secret, random per machine, gitignored.
@@ -47,34 +47,30 @@ lock: core ## refresh uv lockfile (against the current materialized core)
 	@uv run python -c "import sys; from ops.crypto import Crypto; sys.stdout.write(f'SECRET={Crypto.generate_keys().secret.get_secret_value()}\\n')" > $@
 	@printf "$(GREEN)✓ .env$(RESET) $(GRAY)dev secret generated — see .env.example for every other knob$(RESET)\n"
 
-# — common —
-COMMON_SRC ?= ../core/common
+# — infra —
+INFRA_ROOT ?= ../infra
 
-core: ## materialize shared core/ + ops/ + adapters/ from projects/python/core (source of truth) via a structural rewrite
+infra: ## materialize shared infra/ + ops/ + adapters/ from projects/python/infra (source of truth) via a structural rewrite, and the shared root files into the project root
 	@uv run python scripts/materialize.py
+	@cp $(INFRA_ROOT)/prek.toml prek.toml
+	@cp $(INFRA_ROOT)/.gitattributes .gitattributes
+	@cp $(INFRA_ROOT)/.python-version .python-version
+	@cp $(INFRA_ROOT)/.github/dependabot.yml .github/dependabot.yml
+	@cp $(INFRA_ROOT)/.github/CODEOWNERS .github/CODEOWNERS
 
-core-check: ## fail if the materialized core/ops/adapters drifted from projects/python/core
+infra-check: ## fail if the materialized infra/ops/adapters or the shared root files drifted from projects/python/infra
 	@uv run python scripts/materialize.py --check
-
-common: ## materialize shared project files from projects/python/core/common into the project root
-	@cp $(COMMON_SRC)/prek.toml prek.toml
-	@cp $(COMMON_SRC)/gitattributes .gitattributes
-	@cp $(COMMON_SRC)/python-version .python-version
-	@cp $(COMMON_SRC)/dependabot.yml .github/dependabot.yml
-	@cp $(COMMON_SRC)/CODEOWNERS .github/CODEOWNERS
-
-common-check: ## fail if the materialized shared files drifted from projects/python/core/common
-	@diff $(COMMON_SRC)/prek.toml prek.toml \
-	 && diff $(COMMON_SRC)/gitattributes .gitattributes \
-	 && diff $(COMMON_SRC)/python-version .python-version \
-	 && diff $(COMMON_SRC)/dependabot.yml .github/dependabot.yml \
-	 && diff $(COMMON_SRC)/CODEOWNERS .github/CODEOWNERS \
-	 && printf "$(GREEN)✓ common in sync$(RESET)\n"
+	@diff $(INFRA_ROOT)/prek.toml prek.toml \
+	 && diff $(INFRA_ROOT)/.gitattributes .gitattributes \
+	 && diff $(INFRA_ROOT)/.python-version .python-version \
+	 && diff $(INFRA_ROOT)/.github/dependabot.yml .github/dependabot.yml \
+	 && diff $(INFRA_ROOT)/.github/CODEOWNERS .github/CODEOWNERS \
+	 && printf "$(GREEN)✓ infra in sync$(RESET)\n"
 
 # — gates —
 lint: ## ruff check + format, biome check + format on the ui
-	@uv run ruff check --fix $(PACKAGE) src/core src/ops src/adapters src/processors scripts tests
-	@uv run ruff format $(PACKAGE) src/core src/ops src/adapters src/processors scripts tests
+	@uv run ruff check --fix $(PACKAGE) src/infra src/ops src/adapters src/processors scripts tests
+	@uv run ruff format $(PACKAGE) src/infra src/ops src/adapters src/processors scripts tests
 	@pnpm -C $(UI) fix
 
 type: ## ty type check, tsc on the ui
@@ -137,8 +133,8 @@ dartsops-gate: ## The deterministic wall a craft must pass: laws, plan pins, tax
 	@uv run pytest tests/unit/e_graph/pipelines/$(or $(PIPELINE),note) tests/unit/e_graph/test_taxonomy.py tests/unit/e_graph/logic/orchestrator/test_plan.py -q -p no:randomly
 
 # — aggregate —
-check: lint type arch validate core-check common-check test ## fast local gate: lint + type + arch + validate + drift + test (ui included)
-ci: lint type arch validate harden core-check common-check bundle docs-build cov ## full pipeline: every gate CI runs, in one command
+check: lint type arch validate infra-check test ## fast local gate: lint + type + arch + validate + drift + test (ui included)
+ci: lint type arch validate harden infra-check bundle docs-build cov ## full pipeline: every gate CI runs, in one command
 
 # — release —
 release: ## cut a GitHub release via the release workflow [args: patch|minor|major]
@@ -154,22 +150,22 @@ ci-vars: ## list optional CI/CD gates (all inert by default) and their defaults
 serve: bundle .env ## the whole piece: build the canvas, start the server — api + canvas at :8000 [args: forwarded]
 	@uv run python -m $(MODULE) $(ARGS)
 
-up: core ## docker compose up (materializes core into the build context first) [args: services]
+up: infra ## docker compose up (materializes infra into the build context first) [args: services]
 	@docker compose -f $(COMPOSE) up -d $(ARGS)
 	@printf "$(GREEN)✓ up$(RESET) $(GRAY)http://localhost:$(PORT)$(RESET)\n"
 
 down: ## docker compose down
 	@docker compose -f $(COMPOSE) down
 
-build: core ## docker image build [args: services]
+build: infra ## docker image build [args: services]
 	@docker compose -f $(COMPOSE) build $(ARGS)
 
 logs: ## tail docker logs [args: service]
 	@docker compose -f $(COMPOSE) logs -f $(ARGS)
 
-clean: ## remove caches + build artifacts + materialized core
+clean: ## remove caches + build artifacts + materialized infra
 	@find . -type d \( -name __pycache__ -o -name .pytest_cache -o -name .ruff_cache \) -exec rm -rf {} + 2>/dev/null || true
-	@rm -rf dist build *.egg-info .coverage .coverage.* .ty_cache site $(UI)/dist $(UI)/node_modules src/core src/ops src/adapters src/processors prek.toml .gitattributes .python-version
+	@rm -rf dist build *.egg-info .coverage .coverage.* .ty_cache site $(UI)/dist $(UI)/node_modules src/infra src/ops src/adapters src/processors prek.toml .gitattributes .python-version
 	@printf "$(GREEN)✓ clean$(RESET)\n"
 
 %:

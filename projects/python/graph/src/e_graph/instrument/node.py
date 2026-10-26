@@ -29,7 +29,6 @@ from langgraph.graph._node import StateNodeSpec
 from langgraph.types import StreamWriter
 
 from adapters.ports import SpanPort
-from core.logger import logger
 from e_graph.instrument.errors import ContractError, ContractRule
 from e_graph.instrument.models import NodeOutput, NodeRole, NodeStatus
 from e_graph.instrument.state import Channels, RunState
@@ -37,6 +36,7 @@ from e_graph.instrument.telemetry import NO_SPAN
 from e_graph.logic.agent import AgnosticAgent
 from e_graph.logic.models import Usage
 from e_graph.models.section import Section
+from infra.logger import logger
 from ops.wrappers import LatencyWrapper
 
 type NodeResult = str | dict[str, Any] | NodeOutput | None

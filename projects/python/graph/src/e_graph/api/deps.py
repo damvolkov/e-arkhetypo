@@ -18,11 +18,11 @@ from litestar.exceptions import NotFoundException
 from litestar.params import FromPath
 
 from adapters.ports import StorePort
-from core.state import State
 from e_graph.api.state import AppState
 from e_graph.instrument.graph import InstrumentGraph
 from e_graph.logic.orchestrator.lab import SectionLab
 from e_graph.models.section import Section
+from infra.state import State
 
 
 ##### DEPENDENCY KEYS — the wiring vocabulary: a typo is an attribute error at import, never a silent runtime miss #####

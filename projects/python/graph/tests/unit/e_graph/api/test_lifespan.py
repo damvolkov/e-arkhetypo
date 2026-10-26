@@ -1,4 +1,4 @@
-"""tests/unit: the lifespan contract — core loaded once, edges opened as typed ports, state sealed last."""
+"""tests/unit: the lifespan contract — infra loaded once, edges opened as typed ports, state sealed last."""
 
 import inspect
 
@@ -6,35 +6,35 @@ import pytest
 from litestar.testing import TestClient
 
 from adapters.ports import DocumentPort, HttpPort, StorePort, TelemetryPort
-from core.logger import logger
-from core.settings import settings as st
 from e_graph.api.lifespan import adapters, graphs, sealed, services
-from e_graph.api.lifespan.core import CoreState
-from e_graph.api.lifespan.core import lifespan as core_lifespan
+from e_graph.api.lifespan.infra import SharedState
+from e_graph.api.lifespan.infra import lifespan as infra_lifespan
 from e_graph.instrument.graph import InstrumentGraph
 from e_graph.instrument.state import AdaptersState
 from e_graph.main import create_app
+from infra.logger import logger
+from infra.settings import settings as st
 from processors.doc import DocProcessor
 
 
 def test_lifespans_are_declared_not_built() -> None:
     assert all(
-        callable(cm) for cm in (core_lifespan, adapters.lifespan, services.lifespan, graphs.lifespan, sealed.lifespan)
+        callable(cm) for cm in (infra_lifespan, adapters.lifespan, services.lifespan, graphs.lifespan, sealed.lifespan)
     )
     assert list(inspect.signature(create_app).parameters) == []
 
 
-def test_core_section_holds_the_loaded_singletons(client) -> None:
-    core = client.app.state.system.core
-    assert isinstance(core, CoreState)
-    assert core.settings is st
-    assert core.logger is logger
+def test_shared_section_holds_the_loaded_singletons(client) -> None:
+    shared = client.app.state.system.shared
+    assert isinstance(shared, SharedState)
+    assert shared.settings is st
+    assert shared.logger is logger
 
 
 def test_singleton_load_is_idempotent(client) -> None:
     """Two touches, one instance: the LazyProxy cache pins the build for the whole process."""
     ### the state section is the same object a global import reaches, and a second touch reuses the one build.
-    assert client.app.state.system.core.settings.app is st.app
+    assert client.app.state.system.shared.settings.app is st.app
     assert st.app is st.app
 
 
@@ -57,7 +57,7 @@ def test_adapters_section_is_typed_and_ported(client) -> None:
 
 def test_state_opens_sealed(client) -> None:
     state = client.app.state.system
-    assert {"core", "adapters", "crypto", "telemetry", "graphs"} <= set(state)
+    assert {"shared", "adapters", "crypto", "telemetry", "graphs"} <= set(state)
     with pytest.raises(RuntimeError, match="Sealed"):
         state.held_by_the_lifespan_only = 1
     with pytest.raises(AttributeError, match="Sealed state has no node"):

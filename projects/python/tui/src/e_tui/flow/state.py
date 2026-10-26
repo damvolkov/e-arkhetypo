@@ -1,6 +1,6 @@
 """e_tui.flow.state: the shared bag a walk carries — progress, trail for the reverse, domain data.
 
-One `State` (the dynamic, auto-vivifying graph of resources from core) holds everything the walk touches:
+One `State` (the dynamic, auto-vivifying graph of resources from infra) holds everything the walk touches:
 under ``answers``, the values committed per page (the reverse re-shows them, the routes read them); under any
 other branch, whatever domain models the host app parks there — the template never reaches past the namespace
 it owns. Progress is two plain values: where we are and the trail walked to get here. A `FlowState` is mutable
@@ -16,9 +16,9 @@ from dataclasses import dataclass, field
 from functools import reduce
 from typing import Final
 
-from core.state import State
 from e_tui.flow.graph import Graph
 from e_tui.flow.page import Page
+from infra.state import State
 
 ##### NAMESPACE #####
 ANSWERS: str = "answers"

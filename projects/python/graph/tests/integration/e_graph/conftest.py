@@ -8,9 +8,9 @@ from typing import Any, Final
 
 import pytest
 
-from core.settings.agent import AgentSettings
 from e_graph.logic.agent import AgnosticAgent
 from e_graph.logic.models import Endpoint, Provider, Tier
+from infra.settings.agent import AgentSettings
 
 VLLM: Final[Endpoint] = Endpoint(provider=Provider.VLLM, model="gemma4-26b-a4b", api_base="http://localhost:45100/v1")
 SECRET_HEADERS: Final[tuple[str, ...]] = ("authorization", "api-key", "x-api-key", "x-goog-api-key", "cookie")

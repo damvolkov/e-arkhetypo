@@ -3,8 +3,8 @@
 from types import SimpleNamespace
 from typing import TYPE_CHECKING
 
-from core.settings import Secret
 from e_cli.runtime import launcher
+from infra.settings import Secret
 
 if TYPE_CHECKING:
     import pytest

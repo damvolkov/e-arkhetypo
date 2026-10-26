@@ -5,9 +5,9 @@ from typing import Annotated, Any, Final, cast
 
 import msgspec
 
-from core.struct import CheckedStruct
 from e_graph.instrument.state import RunState
 from e_graph.logic.models import Call
+from infra.struct import CheckedStruct
 
 SAMPLE: Final[str] = "invoice 42 · total 1250.00 EUR"
 

@@ -16,10 +16,10 @@ from litestar.di import NamedDependency
 from litestar.exceptions import NotAuthorizedException
 
 from adapters.ports import StorePort
-from core.state import State
 from e_api.api.security import bearer_claims
 from e_api.api.state import AppState
 from e_api.models.user import User, UserRecord
+from infra.state import State
 
 USER_KEY: str = "user:"
 

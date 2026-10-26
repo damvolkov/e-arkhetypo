@@ -40,22 +40,22 @@ from typing import TYPE_CHECKING, Any, Final
 
 import anyio
 
-from core.logger import logger
-from core.settings import settings as st
 from e_graph.logic.discover import KINDS, RUNNERS, SPECS, SpecDiscover
 from e_graph.logic.errors import BlockedError, OrchestratorError, SectionError
 from e_graph.logic.models import AgentCall, Bound, Call, SectionRun, SemanticSpec, Slot, SpecOutcome, SpecStatus
 from e_graph.logic.orchestrator.fusion import SpecFusion
 from e_graph.logic.orchestrator.plan import DagPlan
+from infra.logger import logger
+from infra.settings import settings as st
 
 if TYPE_CHECKING:
     from collections.abc import Iterator, Mapping, Sequence
     from pathlib import Path
 
-    from core.settings.darts import DartsSettings
     from e_graph.instrument.state import RunState
     from e_graph.logic.models import Catalog, Reply, SectionPlan, Spec, SpecNode, Step, Tier
     from e_graph.models.section import Section
+    from infra.settings.darts import DartsSettings
 
 MS_PER_SECOND: Final[float] = 1000.0
 LOST: Final[frozenset[SpecStatus]] = frozenset({SpecStatus.FAILED, SpecStatus.BLOCKED})

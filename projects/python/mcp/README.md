@@ -29,12 +29,12 @@ src/e_mcp/main.py         # composition root: granian's factory, explicit tool r
 src/e_mcp/__main__.py     # python -m e_mcp — granian on loopback
 ```
 
-`src/core`, `src/ops`, `src/adapters` are materialized from `../core` (`make core`); edit them only at source.
+`src/infra`, `src/ops`, `src/adapters` are materialized from `../infra` (`make infra`); edit them only at source.
 
 ## Run
 
 ```bash
-make install        # materialize core/ops/adapters + common files, sync, hooks
+make install        # materialize infra/ops/adapters + shared root files, sync, hooks
 make check          # lint · ty · tach · validate · drift · tests (100 % coverage gate)
 make run            # serve on 127.0.0.1:45200
 make up             # docker compose up

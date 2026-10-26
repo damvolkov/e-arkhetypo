@@ -1,4 +1,4 @@
-"""api.security: bearer enforcement and the OpenAPI contract — `core.crypto` is the only source of truth.
+"""api.security: bearer enforcement and the OpenAPI contract — `ops/crypto` is the only source of truth.
 
 The guard verifies the token and parks its claims in the connection scope; `provide_current_user`
 (api.deps) turns those claims into a `User`. Guards run before dependencies, so a handler that
@@ -11,8 +11,8 @@ from typing import TYPE_CHECKING, Any, Final
 from litestar.exceptions import NotAuthorizedException
 from litestar.openapi.spec import SecurityScheme
 
-from core.errors import TokenError
 from e_api.api.state import AppState
+from ops.crypto import TokenError
 
 if TYPE_CHECKING:
     from litestar.connection import ASGIConnection

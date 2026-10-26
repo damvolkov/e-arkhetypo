@@ -30,7 +30,7 @@ The service lives in `src/e_api/`, layered by [tach](https://tach.dev). `src/cor
 | [`e_api.websockets.telemetry`](reference/e_api/websockets/telemetry.md) | api | Typed websocket listeners — structured frames in and out |
 | [`core.settings`](reference/core/settings/index.md) | core | Composed settings: one BaseSettings reader, per-scope structs (materialized) |
 | [`core.logger`](reference/core/logger.md) | core | Structured logging: JSON in prod, ordered plain text in dev (materialized) |
-| [`core.crypto`](reference/core/crypto.md) | core | Password hashing, JWS/JWE tokens, signatures, AEAD (materialized) |
+| [`ops.crypto`](reference/ops/crypto.md) | ops | Everything that needs a key or entropy: keyed ids, bearer tokens, password hashing, JWS/JWE, AEAD (materialized) |
 | [`ops.file`](reference/ops/file.md) | ops | Package discovery — the settings composer's engine (materialized) |
 
 Reference pages are generated automatically from the sources: drop a new module under `src/` and it

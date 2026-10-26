@@ -44,7 +44,7 @@ lock: core ## refresh uv lockfile (against the current materialized core)
 
 ### a file target: made once when missing, never overwritten — the dev crypto secret, random per machine, gitignored.
 .env:
-	@uv run python -c "import sys; from core.crypto import Crypto; sys.stdout.write(f'SECRET={Crypto.generate_keys().secret.get_secret_value()}\\n')" > $@
+	@uv run python -c "import sys; from ops.crypto import Crypto; sys.stdout.write(f'SECRET={Crypto.generate_keys().secret.get_secret_value()}\\n')" > $@
 	@printf "$(GREEN)✓ .env$(RESET) $(GRAY)dev secret generated — see .env.example for every other knob$(RESET)\n"
 
 # — common —

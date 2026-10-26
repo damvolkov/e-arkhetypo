@@ -32,6 +32,11 @@ dependencies = [
     "e-serde>=0.5",
     "anyio>=4.15.1",
     "beartype>=0.22.9",
+    ##### crypto #####
+    "joserfc>=1.7.5",
+    "cryptography>=50.0.1",
+    "argon2-cffi>=25.1.0",
+    "bcrypt>=5.0.0",
 ]
 
 [project.scripts]

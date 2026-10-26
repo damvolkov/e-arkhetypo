@@ -1,7 +1,7 @@
 # e-core
 
 Common core of the **e-stack** template systems: every module that systems import by default
-(`core/`: settings composer, logger, crypto, state, errors, background · `ops/`: package discovery) lives once here.
+(`core/`: settings composer, logger, state, errors, background · `ops/`: package discovery, crypto) lives once here.
 Services materialize these files into their own `src/` with `make core` — this repo is the source of truth.
 
 ##### LAYOUT #####

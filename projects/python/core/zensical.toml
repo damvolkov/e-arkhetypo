@@ -1,7 +1,7 @@
 ##### SITE #####
 [project]
 site_name = "e-core"
-site_description = "e-stack common core: settings, logger, crypto, state, ops — materialized into every system"
+site_description = "e-stack common core: settings, logger, state, ops (file, crypto) — materialized into every system"
 site_url = "https://damvolkov.github.io/e-core/"
 repo_url = "https://github.com/damvolkov/e-core"
 edit_uri = "edit/main/docs/"

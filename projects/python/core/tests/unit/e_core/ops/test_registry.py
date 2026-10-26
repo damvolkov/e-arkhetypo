@@ -29,7 +29,7 @@ def test_every_level_of_the_hierarchy_is_registered_by_path(registry: CodeRegist
     assert method.kind is Kind.METHOD
     assert method.private
     assert registry["e_core.ops.compose.COMPOSE_FILE"].value == "'compose.yml'"
-    assert registry["e_core.core.crypto.TokenShape.JWS"].value == "2"
+    assert registry["e_core.ops.crypto.TokenShape.JWS"].value == "2"
 
 
 def test_module_facts_read_the_source_without_importing(registry: CodeRegistry) -> None:
@@ -37,7 +37,7 @@ def test_module_facts_read_the_source_without_importing(registry: CodeRegistry) 
     assert settings.kind is Kind.PACKAGE
     assert settings.doc.startswith("core/settings: the dynamic composer")
     assert {"e_core.core.settings.base", "e_core.ops.file", "e_core.core.proxy"} <= set(settings.imports)
-    crypto = registry["e_core.core.crypto.Crypto.hash_password"]
+    crypto = registry["e_core.ops.crypto.Crypto.hash_password"]
     assert crypto.signature == "async def hash_password(self, password: str) -> str"
     assert registry["e_core.ops.file.FileFinder.adiscover"].signature.startswith("async def adiscover(self, target")
     assert (

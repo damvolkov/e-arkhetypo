@@ -7,7 +7,7 @@ build-backend = "hatchling.build"
 [project]
 name = "e-core"
 dynamic = ["version"]
-description = "e-stack common core: layered settings composer, structured logger, crypto engine, state, ops file discovery, service adapters"
+description = "e-stack common core: layered settings composer, structured logger, state, ops agnostic tools (file discovery, crypto), service adapters"
 requires-python = ">=3.14"
 license = "MIT"
 authors = [{ name = "damvolkov", email = "damvolkovv@gmail.com" }]

@@ -18,7 +18,7 @@ SETTINGS = FileFinder("e_core.core.settings")
 
 
 def test_modules_skips_packages_and_declared_names() -> None:
-    assert {"crypto", "logger", "state"} <= set(CORE.discover(Kind.MODULES))  # `settings` is a package: excluded
+    assert {"logger", "state"} <= set(CORE.discover(Kind.MODULES))  # `settings` is a package: excluded
     assert "base" in SETTINGS.discover(Kind.MODULES)
     strict = FileFinder("e_core.core.settings", skip=frozenset({"base"}))
     assert "base" not in strict.discover(Kind.MODULES)
@@ -34,7 +34,7 @@ def test_base_selects_subclasses_and_module_target_reads_one_file() -> None:
     assert {"CryptoSettings", "OAuthSettings"} <= set(SETTINGS.discover(BaseSettings))
     ### `base.py` is part of the sweep: the base itself is still never a result.
     assert "BaseSettings" not in SETTINGS.discover(BaseSettings)
-    assert set(SETTINGS.discover(crypto_mod)) == {"CryptoSettings", "PasswordHasher", "TokenAlg", "TokenEnc"}
+    assert set(SETTINGS.discover(crypto_mod)) == {"CryptoSettings"}
 
 
 def test_predicate_and_pattern_filter_rejects_unknown_target() -> None:
@@ -62,7 +62,9 @@ async def test_adiscover_answers_like_discover() -> None:
 
 def test_summary_reads_the_top_description_line() -> None:
     summary = FileFinder.summary(crypto_mod)
-    assert summary == "core/settings/crypto: crypto engine configuration, loaded from CRYPTO__*."
+    assert (
+        summary == "core/settings/crypto: the configuration of the crypto engine (`ops/crypto`), loaded from CRYPTO__*."
+    )
     assert "\n" not in summary
 
 

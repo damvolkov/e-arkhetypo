@@ -102,13 +102,16 @@ type BackgroundHandler = Callable[[BackgroundRun], Awaitable[None]]
 class BackgroundPort(Protocol):
     """An engine: `register` binds a kind to its handler on a queue before `start` runs `slots` workers per queue; a
     handler that returns completes its job, one that raises retries it until `attempts` are spent. `job`, `jobs` and
-    `cancel` read and settle what is held; an unknown id is None. `connect` and `close` bound its life."""
+    `cancel` read and settle what is held; an unknown id is None. `connect` and `close` bound its life; `ping` raises
+    when it does not answer."""
 
     name: ClassVar[str]
 
     async def connect(self) -> None: ...
 
     async def close(self) -> None: ...
+
+    async def ping(self) -> None: ...
 
     def register(self, kind: str, queue: str, handler: BackgroundHandler) -> None: ...
 
@@ -210,6 +213,9 @@ class MemoryBackground:
             await self._stack.aclose()
         finally:
             self._group = None
+
+    async def ping(self) -> None:
+        """In process: it answers while the process does."""
 
     def register(self, kind: str, queue: str, handler: BackgroundHandler) -> None:  # noqa: ARG002 — each job names its queue
         self._handlers[kind] = handler
@@ -361,6 +367,16 @@ class Background:
     def engine(self) -> str:
         """The engine new jobs go to: the durable one's name, or `memory`."""
         return self._durable.name if self._durable else self._memory.name
+
+    async def ping(self) -> None:
+        """The durable engine answers; in memory a `BackgroundError` (its jobs would not survive a restart), and an
+        engine down raises its own error."""
+        match self._durable:
+            case None:
+                msg = "in memory: jobs will not survive a restart"
+                raise BackgroundError(msg)
+            case durable:
+                await durable.ping()
 
     def register(self, kind: str, work: BackgroundWork, *, queue: str = "default") -> None:
         """Bind a kind to its work on a queue; every kind is registered before the facade is entered."""

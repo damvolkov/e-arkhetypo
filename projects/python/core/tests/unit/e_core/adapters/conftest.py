@@ -1,28 +1,35 @@
 """tests/unit/e_core/adapters: the http and docling harnesses — real stdlib sockets on localhost, offline-safe — and
-the awa and postgres adapters on the test Postgres."""
+the queue engines (awa, PgQueuer) and the postgres adapter on the test Postgres. `port` is either durable engine,
+unconnected, for the contract both hold; `Flaky` and `Hang` are scripted handlers."""
 
 import asyncio
 import json
 import threading
 import time
 from dataclasses import dataclass
+from datetime import timedelta
+from functools import partial
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import TYPE_CHECKING, ClassVar, Final
 
+import anyio
 import pytest
 import pytest_asyncio
+from awa import AsyncClient
 from psqlpy.exceptions import Error as PsqlError
 
 from e_core.adapters.awa import AwaAdapter
 from e_core.adapters.base import BaseAdapter
+from e_core.adapters.pgqueuer import PgqueuerAdapter
 from e_core.adapters.postgres import PostgresAdapter
-from e_core.conftest import DSN, create
+from e_core.conftest import DSN, admin, create
 from e_core.core.settings.base import Secret
 from e_core.core.settings.postgres import PostgresSettings
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncIterator, Iterator
+    from collections.abc import AsyncIterator, Awaitable, Callable, Iterator
 
+    from e_core.core.background import BackgroundHandler, BackgroundRun
     from e_core.core.settings.queue import QueueSettings
 
 
@@ -165,6 +172,107 @@ class StubAdapter(BaseAdapter):
 async def awa(queue_settings: QueueSettings) -> AsyncIterator[AwaAdapter]:
     async with AwaAdapter(queue_settings) as adapter:
         yield adapter
+
+
+@pytest.fixture
+async def refuse(queue_database: str) -> AsyncIterator[Callable[[], Awaitable[None]]]:
+    """Make the queue's database refuse every new connection — those already open stay — as a server out of slots
+    does; it accepts them again once the test is over."""
+    name = queue_database.rpartition("/")[2]
+
+    async def allow(flag: bool) -> None:
+        ### ALTER DATABASE takes no parameters; the name is this worker's queue database.
+        await admin(queue_database, (f'ALTER DATABASE "{name}" ALLOW_CONNECTIONS {str(flag).lower()}', []))
+
+    try:
+        yield partial(allow, False)
+    finally:
+        await allow(True)
+
+
+async def reported(run: BackgroundRun) -> None:
+    await run.report({"done": True})
+
+
+@pytest.fixture
+def handler() -> BackgroundHandler:
+    """A job's handler that reports once and returns."""
+    return reported
+
+
+@pytest.fixture
+def stuck(monkeypatch: pytest.MonkeyPatch) -> None:
+    """An awa shutdown that never returns — after it has really stopped the runtime and closed the pool, so a test
+    that lets the client go leaks no connection."""
+    shutdown, close = AsyncClient.shutdown, AsyncClient.close
+
+    async def never(client: AsyncClient, timeout_ms: int = 2000) -> None:
+        await shutdown(client, timeout_ms)
+        await close(client)
+        await anyio.sleep_forever()
+
+    monkeypatch.setattr(AsyncClient, "shutdown", never)
+
+
+##### ENGINES — the same contract on awa and on PgQueuer, each on a database of its own #####
+@pytest.fixture(params=["awa", "pgqueuer"])
+def port(request: pytest.FixtureRequest, queue_settings: QueueSettings) -> AwaAdapter | PgqueuerAdapter:
+    """The durable engine under test, not yet connected."""
+    match request.param:
+        case "awa":
+            return AwaAdapter(queue_settings)
+        case _:
+            dsn = Secret(request.getfixturevalue("pgqueuer_database"))
+            return PgqueuerAdapter(queue_settings.model_copy(update={"dsn": dsn}))
+
+
+@pytest.fixture
+def engine(queue_settings: QueueSettings, pgqueuer_database: str) -> PgqueuerAdapter:
+    """A PgQueuer engine on this worker's database, short timeouts, not yet connected."""
+    update = {"dsn": Secret(pgqueuer_database), "timeout": timedelta(seconds=1), "drain": timedelta(seconds=1)}
+    return PgqueuerAdapter(queue_settings.model_copy(update=update))
+
+
+@dataclass(slots=True)
+class Flaky:
+    """A handler that fails its first `fails` attempts, then reports and returns."""
+
+    fails: int
+    seen: int = 0
+
+    async def __call__(self, run: BackgroundRun) -> None:
+        self.seen += 1
+        _ = self.seen <= self.fails and self._fail()
+        await run.report({"attempt": self.seen})
+
+    def _fail(self) -> None:
+        msg = f"attempt {self.seen} failed"
+        raise RuntimeError(msg)
+
+
+@dataclass(slots=True)
+class Hang:
+    """A handler that reports, then waits forever; `cancelled` once its wait was interrupted."""
+
+    cancelled: bool = False
+
+    async def __call__(self, run: BackgroundRun) -> None:
+        await run.report({"hanging": True})
+        try:
+            await anyio.sleep_forever()
+        except anyio.get_cancelled_exc_class():
+            self.cancelled = True
+            raise
+
+
+@pytest.fixture
+def hang() -> Hang:
+    return Hang()
+
+
+@pytest.fixture
+def flaky() -> Callable[[int], Flaky]:
+    return Flaky
 
 
 ##### POSTGRES #####

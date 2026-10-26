@@ -2,8 +2,9 @@
 
 `queue_database` is this worker's own database beside POSTGRES_TEST_DSN's (default the stack's ParadeDB :45011),
 created on the server's maintenance database when missing; with no server answering, every test that needs it skips
-and says why — the memory engine's tests run regardless. `queue_settings` is the queue at test pace, `queue` a queue
-name no other test shares. `settled` reads a job until it settles, `outage` takes a database down for a block: plain
+and says why — the memory engine's tests run regardless. `pgqueuer_database` is PgQueuer's, apart from awa's, so their
+tables never meet. `queue_settings` is the queue at test pace, `queue` a queue name no other test shares. `settled`
+reads a job until it settles, `running` until a worker runs it, `outage` takes a database down for a block: plain
 helpers, imported by the tests (`pythonpath` holds tests/unit)."""
 
 import os
@@ -19,7 +20,7 @@ import pytest_asyncio
 from psqlpy import ConnectionPool
 from psqlpy.exceptions import Error as PsqlError
 
-from e_core.core.background import SETTLED
+from e_core.core.background import SETTLED, BackgroundState
 from e_core.core.settings.base import Secret
 from e_core.core.settings.queue import QueueSettings
 
@@ -68,6 +69,18 @@ async def done(job: BackgroundJob) -> bool:
     return job.state in SETTLED
 
 
+async def busy(job: BackgroundJob) -> bool:
+    """Whether the job is running; a pause before the next read when it is not."""
+    _ = job.state is BackgroundState.RUNNING or await anyio.sleep(0.05)
+    return job.state is BackgroundState.RUNNING
+
+
+async def running(reader: Reader, job: str, seconds: float = 10) -> BackgroundJob:
+    """The job once a worker runs it, read every 50 ms; the test fails after `seconds`."""
+    with anyio.fail_after(seconds):
+        return await anext(found for _ in count() if (found := await reader.job(job)) and await busy(found))
+
+
 async def settled(reader: Reader, job: str, seconds: float = 10) -> BackgroundJob:
     """The job once settled, read every 50 ms; the test fails after `seconds`."""
     with anyio.fail_after(seconds):
@@ -95,6 +108,15 @@ async def queue_database(worker_id: str) -> str:
     """This worker's queue database, as in production a database of its own."""
     try:
         return await create(f"{DSN}_queue_{worker_id}")
+    except PsqlError as error:
+        pytest.skip(f"no test Postgres at {DSN.rpartition('@')[2]}: {error}")
+
+
+@pytest_asyncio.fixture(scope="session", loop_scope="session")
+async def pgqueuer_database(worker_id: str) -> str:
+    """This worker's PgQueuer database: its tables and the adapter's own never meet awa's."""
+    try:
+        return await create(f"{DSN}_pgqueuer_{worker_id}")
     except PsqlError as error:
         pytest.skip(f"no test Postgres at {DSN.rpartition('@')[2]}: {error}")
 

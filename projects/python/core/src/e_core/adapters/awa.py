@@ -4,13 +4,17 @@ awa's runtime is tokio and sqlx; its Python handlers run on the app's own event 
 of its own (`QUEUE_DSN`), apart from the service's data. `connect` builds the client off the
 loop (its constructor connects synchronously) within `QUEUE_TIMEOUT`, migrates awa's schema and this adapter's own
 `background.progress` table — awa clears a job's progress when it completes, so the latest snapshot of each job is
-kept there, upserted on every report. Ids cross the port as strings; an outage (`DatabaseError`, a timeout) is a
-`BackgroundError`, and so is a call that outlasts `QUEUE_TIMEOUT` (a host that never answers would hold it for the
-driver's thirty seconds); anything else propagates. Once the database answers again awa reconnects by itself. A cancel lands in storage at once; a handler in flight learns it by
-polling `is_cancelled` every `QUEUE_POLL`, and its scope is cancelled where it awaits. `close` drains the workers
-for `QUEUE_DRAIN`, then releases the pool."""
+kept there, upserted on every report — then opens the whole pool (`QUEUE_POOL`) at once: an awa pool that must grow
+while the server refuses it a connection (out of slots) stalls its runtime — no claim, no shutdown — until one frees,
+so a pool not granted whole within `QUEUE_TIMEOUT` is an outage now, never a stall later. Ids cross the port as
+strings; an outage (`DatabaseError`, a timeout) is a `BackgroundError`, and so is a call that outlasts `QUEUE_TIMEOUT`
+(a host that never answers would hold it for the driver's thirty seconds); anything else propagates. Once the database
+answers again awa reconnects by itself. A cancel lands in storage at once; a handler in flight learns it by polling
+`is_cancelled` every `QUEUE_POLL`, and its scope is cancelled where it awaits. `close` drains the workers for
+`QUEUE_DRAIN`, then releases the pool, all within `QUEUE_DRAIN` + `QUEUE_TIMEOUT`: past it, a `BackgroundError`."""
 
 import json
+from contextlib import AsyncExitStack
 from dataclasses import dataclass
 from datetime import datetime
 from functools import partial
@@ -77,6 +81,12 @@ class AwaAdapter(BaseAdapter):
         build = partial(AsyncClient, self._conf.dsn.get_secret_value(), max_connections=self._conf.pool)
         with anyio.fail_after(self._conf.timeout.total_seconds()):
             return await anyio.to_thread.run_sync(build, abandon_on_cancel=True)
+
+    async def _connect_fill(self, client: AsyncClient) -> None:
+        """Every connection of the pool opened now, each held until all are: a pool that must grow later stalls the
+        runtime (no claim, no shutdown) while the server refuses it a connection, where a refusal now is an outage."""
+        async with AsyncExitStack() as stack:
+            _ = [await stack.enter_async_context(await client.transaction()) for _ in range(self._conf.pool)]
 
     async def _register_run(self, handler: BackgroundHandler, job: Job[dict[str, Any]]) -> Cancel | None:
         try:
@@ -186,20 +196,29 @@ class AwaAdapter(BaseAdapter):
         ### the schema is one-time work — awa's first migrate takes seconds on a fresh database: it is never cut short.
         await self._common_call(lambda client: client.migrate(), bounded=False)
         _ = [await self._common_execute(statement, bounded=False) for statement in SCHEMA]
+        await self._common_call(self._connect_fill)
+
+    async def ping(self) -> None:
+        """One trivial query on the queue's database, within QUEUE_TIMEOUT."""
+        with self._ping_guard():
+            await self._common_fetch("SELECT 1")
 
     async def close(self) -> None:
         match self._client:
             case None:
                 pass
             case client:
-                await client.shutdown(int(self._conf.drain.total_seconds() * 1000))
-                await client.close()
-                self._client = None
-
-    async def ping(self) -> None:
-        """One trivial query on the queue's database, within QUEUE_TIMEOUT."""
-        with self._ping_guard():
-            await self._common_fetch("SELECT 1")
+                ### awa bounds only the drain: its dispatchers, services and pool are awaited without end.
+                limit = self._conf.drain + self._conf.timeout
+                try:
+                    with anyio.fail_after(limit.total_seconds()):
+                        await client.shutdown(int(self._conf.drain.total_seconds() * 1000))
+                        await client.close()
+                except TimeoutError as error:
+                    msg = f"awa close timed out after {limit}"
+                    raise BackgroundError(msg) from error
+                finally:
+                    self._client = None
 
     def register(self, kind: str, queue: str, handler: BackgroundHandler) -> None:
         _ = self._common_client().task(dict, kind=kind, queue=queue)(partial(self._register_run, handler))

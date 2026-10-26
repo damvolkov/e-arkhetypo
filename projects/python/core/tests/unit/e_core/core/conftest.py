@@ -1,8 +1,9 @@
-"""tests/unit/e_core/core: background over both engines — memory always, awa on this worker's queue database.
+"""tests/unit/e_core/core: background over every engine — memory always, awa and PgQueuer each on this worker's
+database of its own.
 
-`background` is the facade over the engine a test is parametrized with, unentered, with one queue of the test's own (two
-slots) and every write of a snapshot unthrottled; `works` are the scripted works it runs, by kind. `warnings` records
-what the module warns, in place of its logger."""
+`durable` is either durable engine, unconnected; `background` is the facade over the engine a test is parametrized
+with, unentered, with one queue of the test's own (two slots) and every write of a snapshot unthrottled; `works` are
+the scripted works it runs, by kind. `warnings` records what the module warns, in place of its logger."""
 
 from typing import TYPE_CHECKING, Any
 
@@ -10,7 +11,9 @@ import anyio
 import pytest
 
 from e_core.adapters.awa import AwaAdapter
+from e_core.adapters.pgqueuer import PgqueuerAdapter
 from e_core.core.background import Background
+from e_core.core.settings.base import Secret
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -73,7 +76,18 @@ def warnings(monkeypatch: pytest.MonkeyPatch) -> Warnings:
     return recorder
 
 
-def build(durable: AwaAdapter | None, queue: str, works: Works) -> Background:
+def engine(request: pytest.FixtureRequest, name: str) -> AwaAdapter | PgqueuerAdapter:
+    """The durable engine `name` on this worker's database of its own, not yet connected."""
+    settings: QueueSettings = request.getfixturevalue("queue_settings")
+    match name:
+        case "awa":
+            return AwaAdapter(settings)
+        case _:
+            dsn = Secret(request.getfixturevalue("pgqueuer_database"))
+            return PgqueuerAdapter(settings.model_copy(update={"dsn": dsn}))
+
+
+def build(durable: AwaAdapter | PgqueuerAdapter | None, queue: str, works: Works) -> Background:
     """The facade over `durable` (memory alone when None), every scripted work registered on `queue`."""
     background = Background(durable, {queue: 2}, throttle=0)
     _ = [
@@ -83,12 +97,18 @@ def build(durable: AwaAdapter | None, queue: str, works: Works) -> Background:
     return background
 
 
-@pytest.fixture(params=["memory", pytest.param("awa", marks=pytest.mark.db)])
+@pytest.fixture(params=[pytest.param("awa", marks=pytest.mark.db), pytest.param("pgqueuer", marks=pytest.mark.db)])
+def durable(request: pytest.FixtureRequest) -> AwaAdapter | PgqueuerAdapter:
+    return engine(request, request.param)
+
+
+@pytest.fixture(
+    params=["memory", pytest.param("awa", marks=pytest.mark.db), pytest.param("pgqueuer", marks=pytest.mark.db)]
+)
 def background(request: pytest.FixtureRequest, queue: str, works: Works) -> Background:
     """The facade, not yet entered: its task group lives and dies in the test's own task."""
     match request.param:
-        case "awa":
-            settings: QueueSettings = request.getfixturevalue("queue_settings")
-            return build(AwaAdapter(settings), queue, works)
-        case _:
+        case "memory":
             return build(None, queue, works)
+        case name:
+            return build(engine(request, name), queue, works)

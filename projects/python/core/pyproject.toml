@@ -35,8 +35,9 @@ dependencies = [
     ##### stores #####
     "redis>=6.2",
     "aiosqlite>=0.20",
-    ##### postgres — psqlpy (Rust driver, pgvector native); awa, the background's durable engine #####
+    ##### postgres — psqlpy (Rust driver, pgvector native); the background's durable engines: PgQueuer (asyncpg), awa #####
     "psqlpy>=0.12",
+    "pgqueuer[asyncpg]>=1.6",
     "awa-pg>=0.6.9",
     ##### http #####
     "wreq>=0.10",

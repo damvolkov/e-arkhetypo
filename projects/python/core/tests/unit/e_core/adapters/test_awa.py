@@ -12,7 +12,9 @@ from e_core.core.background import BackgroundError, BackgroundPort, BackgroundSt
 from e_core.core.settings.base import Secret
 
 if TYPE_CHECKING:
-    from e_core.core.background import BackgroundRun
+    from collections.abc import Awaitable, Callable
+
+    from e_core.core.background import BackgroundHandler, BackgroundRun
     from e_core.core.settings.queue import QueueSettings
 
 pytestmark = pytest.mark.db
@@ -196,3 +198,38 @@ async def test_awa_ping(queue_settings: QueueSettings) -> None:
         await adapter.ping()
     with pytest.raises(PingError, match=r"^awa: BackgroundError: awa adapter is not connected"):
         await adapter.ping()
+
+
+async def test_awa_ping_unreachable(queue_settings: QueueSettings) -> None:
+    adapter = AwaAdapter(queue_settings.model_copy(update={"timeout": timedelta(seconds=1)}))
+    with pytest.raises(PingError, match=r"^awa: "):
+        await adapter.ping()
+
+
+async def test_awa_pool_held(
+    queue_settings: QueueSettings, queue: str, handler: BackgroundHandler, refuse: Callable[[], Awaitable[None]]
+) -> None:
+    """Connected, the pool is whole: a database that then refuses every new connection — a server out of slots — still
+    runs a job to its end and lets the engine close."""
+    with anyio.fail_after(20):
+        async with AwaAdapter(queue_settings) as awa:
+            await refuse()
+            awa.register("reported", queue, handler)
+            await awa.start({queue: 1})
+            job = await awa.enqueue("reported", {}, queue=queue, attempts=1)
+            done = await settled(awa, job.id)
+    assert (done.state, done.progress) == (BackgroundState.COMPLETED, {"done": True})
+
+
+@pytest.mark.usefixtures("stuck")
+async def test_awa_close_bounded(queue_settings: QueueSettings, queue: str, handler: BackgroundHandler) -> None:
+    """A runtime that never stops does not hold the close: past QUEUE_DRAIN and QUEUE_TIMEOUT it is an outage, and
+    the client is let go."""
+    awa = AwaAdapter(queue_settings.model_copy(update={"timeout": timedelta(seconds=1)}))
+    await awa.connect()
+    awa.register("reported", queue, handler)
+    await awa.start({queue: 1})
+    with anyio.fail_after(10), pytest.raises(BackgroundError, match=r"^awa close timed out after "):
+        await awa.close()
+    with pytest.raises(PingError, match="not connected"):
+        await awa.ping()

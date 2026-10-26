@@ -9,8 +9,8 @@
       - name: Static gates
         run: |
           uv sync --group lint --no-install-project
-          uv run ruff check --output-format=github src tests scripts
-          uv run ruff format --check src tests scripts
+          uv run ruff check --output-format=github .
+          uv run ruff format --check .
           uv run ty check
           uv run tach check
           uv run validate-pyproject pyproject.toml

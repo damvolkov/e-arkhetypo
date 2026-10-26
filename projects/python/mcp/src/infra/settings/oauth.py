@@ -1,0 +1,12 @@
+"""infra/settings/oauth: the OAuth2 identity provider — name, client, secret and metadata URL."""
+
+from infra.settings.base import BaseSettings, Secret
+
+
+class OAuthSettings(BaseSettings):
+    """An empty SERVER_METADATA_URL means "no IdP configured": the registry stays empty and the app boots."""
+
+    oauth_name: str = "dev"
+    client_id: str = ""
+    client_secret: Secret = Secret("")
+    server_metadata_url: str = ""

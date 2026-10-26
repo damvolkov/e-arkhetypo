@@ -14,15 +14,15 @@ from typing import TYPE_CHECKING
 import anyio
 from anytomd import detect_format, detect_zip_format
 
-from core.logger import logger
-from core.settings import settings as st
+from infra.logger import logger
+from infra.settings import settings as st
 from processors.models import MarkdownFile
 
 if TYPE_CHECKING:
     from pathlib import Path
 
     from adapters.ports import MdConvertPort
-    from core.settings.md import MDSettings
+    from infra.settings.md import MDSettings
 
 
 ##### ERRORS #####

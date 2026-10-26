@@ -10,9 +10,9 @@ from contextlib import asynccontextmanager
 from authlib.integrations.starlette_client import OAuth
 from litestar import Litestar
 
-from core.logger import logger
-from core.settings import settings as st
 from e_api.api.state import AppState
+from infra.logger import logger
+from infra.settings import settings as st
 from ops.crypto import Crypto
 
 

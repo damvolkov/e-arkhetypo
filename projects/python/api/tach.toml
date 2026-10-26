@@ -9,7 +9,7 @@ root_module = "forbid"
 
 ##### LAYERS #####
 # Ordered high → low: a layer may import lower layers, importing upward fails.
-layers = ["api", "processors", "adapters", "core", "ops", "models"]
+layers = ["api", "processors", "adapters", "infra", "ops", "models"]
 
 [rules]
 unused_ignore_directives = "error"
@@ -41,8 +41,8 @@ layer = "adapters"
 depends_on = []
 
 [[modules]]
-path = "core"
-layer = "core"
+path = "infra"
+layer = "infra"
 depends_on = []
 
 [[modules]]

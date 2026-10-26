@@ -2,7 +2,7 @@
 
 Generic **e-stack** terminal-UI template: three orthogonal, declarative systems over Textual — a
 config-driven **layout**, a graph-based **flow** engine, and a table-driven **interact**ive-object set —
-with shared core materialized from `projects/python/core`.
+with shared infra materialized from `projects/python/infra`.
 
 * **Layout** — *frames are architecture, slots are content*. A layout is a tree of boxes (relative
   measures, base figures, static/dynamic kind) declared in code or a YAML/TOML/JSON file and compiled
@@ -10,7 +10,7 @@ with shared core materialized from `projects/python/core`.
 * **Flow** — the app is a sequential graph of **pages** with conditional edges and a reversible walk, the
   langgraph idiom. Pages are added in mount order through a `PagesBuilder` that validates each against the
   state its predecessors produce (`requires` / `produces` / `condition`), so a misplaced page dies at the
-  add. A `Walker` navigates the built `Graph`; the shared `FlowState` (a core `State`) keeps the trail for
+  add. A `Walker` navigates the built `Graph`; the shared `FlowState` (an infra `State`) keeps the trail for
   the reverse, the committed answers and any domain data. The TUI (`WizardApp`) is a dumb viewer of a typed
   `Move`.
 * **Interact** — each page shows one declarative `Spec` (toggle/choice/input/confirm/report); a frozen
@@ -23,7 +23,7 @@ src/e_tui/
     page.py         # a node: id, title, a Spec, requires/produces/condition, optional next / route / on_commit
     graph.py        # ordered pages; validation at build; next_of resolves the walk
     pages.py        # the PagesBuilder: adds pages in mount order, validating each against the shadow state
-    state.py        # FlowState: shared bag (core State) — progress, reverse trail, answers; has()/seed() paths
+    state.py        # FlowState: shared bag (infra State) — progress, reverse trail, answers; has()/seed() paths
     walk.py         # the navigation client: advance/back/reset, typed Move sum (OnPage/Declined/…)
   interact/         # the interactive objects (widgets, no graph): one file per kind
     ports.py        # ObjectPort protocol: built from a Spec + previous, answers a Commit
@@ -38,7 +38,7 @@ src/e_tui/
     system.py db.py modules.py confirm.py report.py
 ```
 
-Layers (`tach`, high → low): `examples · app · templates · flow · interact · layout · adapters · core · ops ·
+Layers (`tach`, high → low): `examples · app · templates · flow · interact · layout · adapters · infra · ops ·
 models`. `examples` (the fake app: `demo` + `pages/`) sits above the framework and is what a host copies — it
 is never imported by the layers below it. `flow` imports no Textual; `interact` imports no `flow`. They meet
 only on `ObjectPort` and `Commit`.
@@ -97,7 +97,7 @@ conditional route, one condition, and a `result` view that emits the accumulated
 ##### USAGE #####
 
 ```bash
-make install    # materializes core/ops/adapters, syncs deps, git hooks
+make install    # materializes infra/ops/adapters, syncs deps, git hooks
 make run        # the reference wizard over the standard architecture (etui)
 make check      # lint + type + arch + validate + drift + tests
 make cov        # ... with the 100 % gate

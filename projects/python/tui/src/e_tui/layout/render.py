@@ -17,10 +17,10 @@ from rich.text import Text
 from textual.widget import Widget
 from textual.widgets import Static
 
-from core.settings import settings as st
 from e_tui.layout.frame import BoxFrame, Colors, EdgeFrame, ThemeSource
 from e_tui.layout.shape import EllipseShape, Painter, PolygonShape
 from e_tui.layout.spec import Box, Line, Mast, Shape
+from infra.settings import settings as st
 from ops.tui import HeaderTui
 
 ##### DISPATCH #####

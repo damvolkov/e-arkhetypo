@@ -7,9 +7,9 @@ threshold, call."""
 
 from typing import Any
 
-from core.struct import CheckedStruct
 from e_graph.instrument.state import RunState
 from e_graph.logic.models import Call
+from infra.struct import CheckedStruct
 
 
 class Args(CheckedStruct, frozen=True, kw_only=True, forbid_unknown_fields=True):

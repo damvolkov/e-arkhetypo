@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 
     from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 
-    from core.state import State
+    from infra.state import State
 
     type Place = Callable[..., Any]
 

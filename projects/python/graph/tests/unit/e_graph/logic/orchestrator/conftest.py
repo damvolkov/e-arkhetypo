@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 from adapters.otel import OtelAdapter
-from core.settings.otel import OtelSettings
+from infra.settings.otel import OtelSettings
 from support.crafter import SpecCrafter
 from support.darts import DartsHarness
 

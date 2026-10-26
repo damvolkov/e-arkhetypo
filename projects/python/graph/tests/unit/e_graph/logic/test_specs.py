@@ -6,7 +6,6 @@ from typing import Any
 import msgspec
 import pytest
 
-from core.struct import CheckedStruct
 from e_graph.logic.models import (
     Bound,
     DeterministicSpec,
@@ -20,6 +19,7 @@ from e_graph.logic.models import (
     Tier,
 )
 from e_graph.models.section import PREFIXES, Section
+from infra.struct import CheckedStruct
 
 OUTPUT: dict[str, Any] = {"type": "object", "properties": {"total": {"type": "number"}}, "required": ["total"]}
 NAME = Spec.named(Section.EXTRACT)

@@ -11,12 +11,12 @@ from typing import TYPE_CHECKING, Any, Final
 
 import pytest
 
-from core.state import State
 from e_graph.instrument.models import RunStatus
 from e_graph.instrument.state import ContextState, InfraState, ProcessorsState, RunState
 from e_graph.instrument.telemetry import InstrumentTelemetry
 from e_graph.logic.orchestrator.core import OrchestratorCore
 from e_graph.pipelines.filing.graph import FilingGraph
+from infra.state import State
 from processors.doc import DocProcessor
 from support.darts import ScriptedAgent
 from support.docling import GoldenPort

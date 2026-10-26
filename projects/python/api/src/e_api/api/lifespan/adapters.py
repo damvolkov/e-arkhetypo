@@ -23,9 +23,9 @@ from adapters.http import HttpAdapter
 from adapters.ports import HttpPort, StorePort
 from adapters.redis import RedisAdapter
 from adapters.sqlite import SQLiteAdapter
-from core.logger import logger
-from core.settings import settings as st
 from e_api.api.state import AppState
+from infra.logger import logger
+from infra.settings import settings as st
 
 ### the edges a ready service cannot do without; a role not here is optional.
 REQUIRED: Final[frozenset[str]] = frozenset({"store"})

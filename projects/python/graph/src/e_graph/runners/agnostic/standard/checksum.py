@@ -13,9 +13,9 @@ from typing import Annotated, Any, Final
 
 import msgspec
 
-from core.struct import CheckedStruct
 from e_graph.instrument.state import RunState
 from e_graph.logic.models import WORDS, Call
+from infra.struct import CheckedStruct
 
 VALUE: Final[str] = rf"^[a-z]+/[A-Z]{{3}}-{WORDS}\.[a-z][a-z0-9_]*$"
 LETTERS: Final[str] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"

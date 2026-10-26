@@ -12,9 +12,9 @@ from litestar.handlers import HTTPRouteHandler
 from litestar.status_codes import HTTP_200_OK, HTTP_503_SERVICE_UNAVAILABLE
 
 from adapters.base import AdapterPing
-from core.settings import settings as st
-from core.state import State
 from e_api.api.deps import DepKey, graph, oauth, registered_providers
+from infra.settings import settings as st
+from infra.state import State
 
 
 async def health() -> dict[str, str]:

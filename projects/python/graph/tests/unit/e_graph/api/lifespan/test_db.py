@@ -6,9 +6,9 @@ import pytest
 from litestar import Litestar
 
 from adapters.postgres import PostgresError
-from core.settings.base import Secret
-from core.settings.postgres import PostgresSettings
 from e_graph.api.lifespan import db
+from infra.settings.base import Secret
+from infra.settings.postgres import PostgresSettings
 
 
 class FakeAdapter:

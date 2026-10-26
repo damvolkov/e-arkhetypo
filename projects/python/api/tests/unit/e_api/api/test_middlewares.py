@@ -1,7 +1,7 @@
 """tests/unit: api.middlewares — the CORS translation resolves settings at call time, never at import."""
 
-from core.settings.api import ApiSettings, HttpMethod
 from e_api.api.middlewares import cors_config
+from infra.settings.api import ApiSettings, HttpMethod
 
 
 def test_cors_config_reads_the_singleton_when_no_settings_given() -> None:

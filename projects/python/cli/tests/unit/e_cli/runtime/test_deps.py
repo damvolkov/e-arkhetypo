@@ -5,11 +5,11 @@ from contextlib import AsyncExitStack
 import pytest
 
 from adapters.ports import StorePort
-from core.state import State
 from e_cli.models.session import Session
 from e_cli.runtime.deps import Deps
 from e_cli.runtime.journal import StoreJournal
 from e_cli.services.project import ProjectService
+from infra.state import State
 
 
 def _state() -> State:

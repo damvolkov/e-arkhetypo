@@ -1,4 +1,4 @@
-"""tests/unit/e_cli/runtime/lifespan: one run's scope — core and session sealed in, diagnostics on stderr only."""
+"""tests/unit/e_cli/runtime/lifespan: one run's scope — shared and session sealed in, diagnostics on stderr only."""
 
 import subprocess
 import sys
@@ -6,19 +6,19 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from core.state import State
 from e_cli.models.session import Session
-from e_cli.runtime.lifespan import CoreState, lifespan
+from e_cli.runtime.lifespan import SharedState, lifespan
+from infra.state import State
 
 if TYPE_CHECKING:
     from pathlib import Path
 
 
-async def test_lifespan_seals_core_and_session_into_the_graph() -> None:
+async def test_lifespan_seals_shared_and_session_into_the_graph() -> None:
     session = Session(command="project list")
     async with lifespan(session) as deps:
         graph = await deps.resolve(State)
-        assert isinstance(graph.core, CoreState)
+        assert isinstance(graph.shared, SharedState)
         assert graph.session is session
         with pytest.raises(RuntimeError, match="Sealed"):
             graph.extra = 1

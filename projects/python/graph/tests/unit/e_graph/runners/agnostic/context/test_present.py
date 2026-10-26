@@ -5,10 +5,10 @@ from typing import TYPE_CHECKING
 import msgspec
 import pytest
 
-from core.struct import CheckedStruct
 from e_graph.logic.models import Call, Slot
 from e_graph.models.section import Section
 from e_graph.runners.agnostic.context.present import Args, check
+from infra.struct import CheckedStruct
 
 if TYPE_CHECKING:
     from e_graph.instrument.state import RunState

@@ -9,11 +9,11 @@ eventually emits is, by construction, walk-safe, so `e_tui.flow.walk` never re-c
 
 from dataclasses import dataclass, field
 
-from core.state import State
 from e_tui.flow.graph import Graph
 from e_tui.flow.page import Page
 from e_tui.flow.state import has, seed
 from e_tui.models.error import PageStructureError
+from infra.state import State
 
 ##### SHADOW #####
 _PRESENCE: object = object()  # the sentinel a produced path holds in the shadow: presence, never a value

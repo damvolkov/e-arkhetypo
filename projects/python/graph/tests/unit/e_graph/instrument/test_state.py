@@ -4,9 +4,9 @@ import uuid
 
 import pytest
 
-from core.state import State
 from e_graph.instrument.state import AdaptersState, Channels, ContextState, InfraState, RunState
 from e_graph.logic.agent import AgnosticAgent
+from infra.state import State
 from processors.doc import DocProcessor
 
 

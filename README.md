@@ -29,9 +29,9 @@ Each is an independent uv project with its own `pyproject.toml`, `Makefile`, tes
 App vs library is what changes, not the rules: `ruff · ty · tach · pytest+coverage · strict docs ·
 zizmor`, git-tag releases, all publishing gates inert by default.
 
-- `projects/python/core` — **e-core**: the shared source of truth. Layered settings composer, structured logger,
-  crypto engine, state, ops file discovery, service adapters. Services do not import `e_core` — they
-  **materialize** it. Edit shared code only here, never in a service's `src/core/`.
+- `projects/python/infra` — **e-infra**: the shared source of truth. Layered settings composer, structured logger,
+  state, ops agnostic tools (file discovery, crypto), service adapters. Services do not import `e_infra` — they
+  **materialize** it. Edit shared code only here, never in a service's `src/infra/`.
 - `projects/python/api` — **e-api**: Litestar + Granian API service template, msgspec end to end.
 - `projects/python/graph` — **e-graph**: LangGraph runtime, rustworkx topology, React Flow canvas over
   Litestar + Granian (api + canvas).
@@ -52,11 +52,12 @@ Indivisible pairs are `include`d and health-gated. Details in `stack/README.md`.
 
 ##### INFRA — CI/CD as source #####
 
-`infra/` is to every project's `.github/` what `projects/python/core` is to `src/`: the source of truth,
+`infra/` is to every project's `.github/` what `projects/python/infra` is to its `src/`: the source of truth,
 materialized and assembled — a feature map (`features.yml`), atomic jobs, workflow shells with token
 slots, one-time install instructions, and the generated contract test (`test_ci_contract.py`) that
 validates manifest vs workflows in both directions. No workflow is hand-written twice; e-taxis
-assembles them.
+assembles them. Two `infra/`, two jobs, never confused: this one assembles CI/CD; `projects/python/infra`
+materializes the python modules and the shared root files.
 
 The repo keeps its three mutable areas honest with `repo-maintain`: Renovate opens PRs for
 `projects/python/` deps, `stack/` images and the action pins of `infra/` and every committed `.github/`;
@@ -66,10 +67,10 @@ The repo keeps its three mutable areas honest with `repo-maintain`: Renovate ope
 ##### USE #####
 
 ```bash
-cd projects/python/api && make install   # materializes core/ops/common, syncs deps, installs git hooks
+cd projects/python/api && make install   # materializes infra/ops + shared files, syncs deps, installs git hooks
 make -C projects/python/api check        # lint + type + arch + validate + drift + tests
 make -C projects/python/api ci           # every CI gate in one command
-make update                      # re-materialize projects/python/api from its sources (core + common)
+make update                      # re-materialize projects/python/api from its sources (infra + shared files)
 make check                       # the fast gate of every project
 ```
 

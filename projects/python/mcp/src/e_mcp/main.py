@@ -15,11 +15,11 @@ from mcp.server.transport_security import TransportSecuritySettings
 from starlette.applications import Starlette
 from starlette.routing import Mount
 
-from core.logger import setup
-from core.settings import settings as core
 from e_mcp.config.mcp import McpSettings
 from e_mcp.mcp.guard import TokenGuard
 from e_mcp.mcp.tools import EchoTools
+from infra.logger import setup
+from infra.settings import settings
 
 INSTRUCTIONS: Final = (
     "e-mcp template: an MCP server over Streamable HTTP on loopback. ping answers whether it is alive; "
@@ -55,7 +55,7 @@ def assemble(st: McpSettings | None = None) -> Any:
     """The ASGI app: MCP over Streamable HTTP on loopback, the bearer gate in front when a token is set."""
     st = McpSettings() if st is None else st
     ### granian imports the factory in its worker process: the logger is configured where the app runs.
-    setup(env=core.app.app_env)
+    setup(env=settings.app.app_env)
     quiet()
     server = tools(MCPServer(name="e-mcp", instructions=INSTRUCTIONS), EchoTools(st.port))
     security = TransportSecuritySettings(

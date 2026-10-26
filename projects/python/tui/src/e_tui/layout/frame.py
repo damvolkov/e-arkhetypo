@@ -35,7 +35,7 @@ _BLANK: Final[str] = " "
 
 
 class ThemeSource(Protocol):
-    """The theme fields a `Colors` needs — core's `ThemeSettings` satisfies it without import."""
+    """The theme fields a `Colors` needs — infra's `ThemeSettings` satisfies it without import."""
 
     theme_background: str
     theme_corporate: str
@@ -52,7 +52,7 @@ class Colors:
 
     @classmethod
     def from_settings(cls, theme: ThemeSource) -> Colors:
-        """Build from any object carrying the three hex fields (duck-typed: no core import here)."""
+        """Build from any object carrying the three hex fields (duck-typed: no infra import here)."""
         return cls(
             background=Color.parse(theme.theme_background),
             corporate=Color.parse(theme.theme_corporate),

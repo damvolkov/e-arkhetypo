@@ -1,10 +1,10 @@
 """tests/unit/e_tui/flow/state: the shared bag — entry, answers, and the non-mutating shadow-path helpers."""
 
-from core.state import State
 from e_tui.flow.graph import Graph
 from e_tui.flow.page import Page
 from e_tui.flow.state import FlowState, has, seed
 from e_tui.models.object import ConfirmSpec
+from infra.state import State
 
 
 def _flow() -> Graph:

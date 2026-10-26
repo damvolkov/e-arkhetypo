@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 
     from pytest_mock import MockerFixture
 
-    from core.state import State
+    from infra.state import State
 
 SPEC_SUM = """\
 kind: deterministic
@@ -54,7 +54,7 @@ RUNNER_SUM = '''\
 
 from typing import Any
 
-from core.struct import CheckedStruct
+from infra.struct import CheckedStruct
 from e_graph.instrument.state import RunState
 from e_graph.logic.models import Call
 
@@ -81,7 +81,7 @@ async def pre_run(state: RunState, call: Call) -> str:
 TOOL_FILLED = '''\
 """filled: a context key holds something."""
 
-from core.struct import CheckedStruct
+from infra.struct import CheckedStruct
 from e_graph.instrument.state import RunState
 from e_graph.logic.models import Call
 

@@ -42,10 +42,12 @@ services:
     # chat_template_kwargs {enable_thinking: true}. Image pinned: a pull-on-start unit drifts on `latest`.
     # Structured output: xgrammar with no free whitespace — Gemma under a JSON schema otherwise loops on newlines
     # after the first field until max_tokens (6/6 at temperature 0, 2026-10-19); per request the option is ignored.
+    # Vision on for docling's figure and chart stages (rag/docling): +1.07 GiB of vision-tower weights, −6.2 % KV
+    # (129k → 121k tokens at 0.83, 2026-10-26). Video off: its 2496-token item would force max-num-batched-tokens up.
     command: >-
       --model ${VLLM_MODEL:-cyankiwi/gemma-4-26B-A4B-it-AWQ-4bit}
       --served-model-name ${LLM_SERVED_NAME:-gemma4-26b-a4b demian-model}
-      --language-model-only
+      --limit-mm-per-prompt '{"video":0}'
       --gpu-memory-utilization ${VLLM_GPU_UTIL:-0.89}
       --max-model-len ${VLLM_MAX_MODEL_LEN:-32768}
       --kv-cache-dtype ${VLLM_KV_DTYPE:-fp8}

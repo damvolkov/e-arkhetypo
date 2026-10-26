@@ -54,8 +54,8 @@ common-check: ## fail if the materialized shared files drifted from common/
 
 # — gates —
 lint: ## ruff check + format
-	@uv run ruff check --fix $(PACKAGE) tests scripts
-	@uv run ruff format $(PACKAGE) tests scripts
+	@uv run ruff check --fix $(PACKAGE) tests $(wildcard scripts)
+	@uv run ruff format $(PACKAGE) tests $(wildcard scripts)
 
 type: ## ty type check
 	@uv run ty check

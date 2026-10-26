@@ -7,7 +7,7 @@ areas:
 - core
 - ops
 - processors
-inputs_hash: "1026c9882f8d0dd46f3e10310ef7dbd66f4792f6becec73e91f86223e37abc84"
+inputs_hash: d86dbda9a9e69e0f4f9c83f4ae7b68f6e2991f3788487d6e7a63989339452450
 units:
 - key: adapters/anytomd
   area: adapters
@@ -37,7 +37,8 @@ units:
   files:
   - src/adapters/base.py
   package: false
-  tests: []
+  tests:
+  - tests/unit/adapters/test_base.py
   deps: []
   dependents:
   - adapters/anytomd
@@ -308,6 +309,7 @@ units:
   - src/core/settings/md.py
   - src/core/settings/oauth.py
   - src/core/settings/otel.py
+  - src/core/settings/ping.py
   - src/core/settings/postgres.py
   - src/core/settings/queue.py
   - src/core/settings/redis.py

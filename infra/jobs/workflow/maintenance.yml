@@ -98,9 +98,9 @@ jobs:
         id: qwen
         uses: QwenLM/qwen-code-action@05f81718976f3b7da657422e6e8e4d372b8621d7  # main 2026-08-03
         with:
-          openai_api_key: ${{ secrets.QWEN_API_KEY }}
-          openai_base_url: ${{ vars.QWEN_BASE_URL || 'https://token-plan.ap-southeast-1.maas.aliyuncs.com/compatible-mode/v1' }}
-          openai_model: ${{ vars.QWEN_MODEL || 'qwen3.8-max' }}
+          openai_api_key: ${{ secrets.SM_API_KEY || secrets.QWEN_API_KEY }}
+          openai_base_url: ${{ vars.SM_BASE_URL || vars.QWEN_BASE_URL || 'https://token-plan.ap-southeast-1.maas.aliyuncs.com/compatible-mode/v1' }}
+          openai_model: ${{ vars.SM_MODEL || vars.QWEN_MODEL || 'qwen3.8-max' }}
           qwen_cli_version: ${{ vars.QWEN_CLI_VERSION || '0.25.3' }}
           prompt: |
             Follow QWEN.md strictly.

@@ -16,7 +16,7 @@
           path: dist
           merge-multiple: true
       - name: Build provenance (verify with gh attestation verify)
-        uses: actions/attest-build-provenance@4d101475b771e639983404de0af8d2d90a855637  # v4.2.2
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8  # v4.2.2
         with:
           subject-path: dist/*
       - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33  # v1.14.2

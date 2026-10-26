@@ -6,7 +6,7 @@
         with:
           persist-credentials: false
       - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4  # v10.1.0
-      - uses: taiki-e/install-action@1168f681bbb96937e53723a6b396e09dc36d5a2f  # v2.87.28
+      - uses: taiki-e/install-action@1168f6810a3cb30a3514bf5756a3b7f0422c6df8  # v2.87.28
         with:
           tool: cargo-llvm-cov
       - name: Run the Python suite under llvm-cov

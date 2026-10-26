@@ -26,8 +26,8 @@ allowlist — `infra/`, `.github/`, `pyproject.toml`, `uv.lock` and `QWEN.md` st
 
 ### Verify
 
-    gh secret list -R damvolkov/e-arkhetypo       # APP_PRIVATE_KEY · QWEN_API_KEY
-    gh variable list -R damvolkov/e-arkhetypo     # APP_CLIENT_ID (+ QWEN_MODEL)
+    gh secret list -R damvolkov/e-arkhetypo       # APP_PRIVATE_KEY · SM_API_KEY (or legacy QWEN_API_KEY); org-level secrets are not listed here
+    gh variable list -R damvolkov/e-arkhetypo     # APP_CLIENT_ID (+ SM_MODEL, or legacy QWEN_MODEL)
     gh workflow run sync-stack -R damvolkov/e-arkhetypo
     gh workflow run health-areas -R damvolkov/e-arkhetypo
 

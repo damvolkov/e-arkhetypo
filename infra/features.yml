@@ -100,8 +100,8 @@ features:
     files: [renovate.json, qwen.md, tools/health.py, tools/upstream.py]
     requires: [ci-basics]
     gate: null
-    vars: [APP_CLIENT_ID, QWEN_BASE_URL, QWEN_MODEL, QWEN_CLI_VERSION]
-    secrets: [APP_PRIVATE_KEY, QWEN_API_KEY]
+    vars: [APP_CLIENT_ID, SM_BASE_URL, SM_MODEL, QWEN_BASE_URL, QWEN_MODEL, QWEN_CLI_VERSION]
+    secrets: [APP_PRIVATE_KEY, SM_API_KEY, QWEN_API_KEY]
     setup: selfmaintain.md
     tokens: [brand, package_path, allowlist, verify, repo]
 
@@ -125,8 +125,8 @@ features:
     requires: [repo-ci]
     replaces: [selfmaintain]
     gate: null
-    vars: [APP_CLIENT_ID, QWEN_BASE_URL, QWEN_MODEL, QWEN_CLI_VERSION]
-    secrets: [APP_PRIVATE_KEY, QWEN_API_KEY]
+    vars: [APP_CLIENT_ID, SM_BASE_URL, SM_MODEL, QWEN_BASE_URL, QWEN_MODEL, QWEN_CLI_VERSION]
+    secrets: [APP_PRIVATE_KEY, SM_API_KEY, QWEN_API_KEY]
     setup: repo-maintain.md
     tokens: [brand, allowlist, verify, repo]
 

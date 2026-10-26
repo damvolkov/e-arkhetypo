@@ -1,17 +1,24 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["config:recommended", ":dependencyDashboard"],
-  "enabledManagers": ["pep621", "github-actions", "uv", "regex"],
+  "enabledManagers": ["pep621", "github-actions", "custom.regex"],
   "schedule": ["before 6am on monday"],
+  "timezone": "Europe/Madrid",
   "prConcurrentLimit": 3,
   "abandonmentThreshold": "1 year",
   "rangeStrategy": "bump",
-  "lockFileMaintenance": { "enabled": false },
+  "platformAutomerge": true,
+  "automergeType": "pr",
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": ["before 6am on the first day of the month"],
+    "automerge": true
+  },
   "customManagers": [
     {
       "description": "The agent's CLI pin, the default of QWEN_CLI_VERSION in the maintenance workflow.",
       "customType": "regex",
-      "fileMatch": ["(^|/)\\.github/workflows/maintenance\\.yml$"],
+      "managerFilePatterns": ["/(^|/)\\.github/workflows/maintenance\\.yml$/"],
       "matchStrings": ["QWEN_CLI_VERSION \\|\\| '(?<currentValue>\\d+\\.\\d+\\.\\d+)'"],
       "depNameTemplate": "@qwen-code/qwen-code",
       "datasourceTemplate": "npm"
@@ -19,26 +26,45 @@
   ],
   "packageRules": [
     {
-      "description": "Runtime deps: one PR per package, CI judges them.",
-      "matchManagers": ["pep621", "uv"],
-      "matchCategories": ["runtime"],
-      "labels": ["tooling"],
-      "automerge": false
+      "description": "requires-python is a support promise, not a dependency: never bumped by a bot.",
+      "matchDepTypes": ["requires-python"],
+      "enabled": false
     },
     {
-      "description": "Python tooling: one weekly PR.",
+      "description": "Runtime deps: one PR per package, CI judges them; patch releases merge themselves once every required check passes.",
       "matchManagers": ["pep621"],
-      "matchDepTypes": ["dependency-groups"],
-      "groupName": "python tooling",
-      "labels": ["tooling"]
+      "matchDepTypes": ["project.dependencies"],
+      "labels": ["runtime"]
     },
     {
-      "description": "Workflow actions stay pinned by digest; one monthly PR.",
+      "matchManagers": ["pep621"],
+      "matchDepTypes": ["project.dependencies"],
+      "matchUpdateTypes": ["patch"],
+      "automerge": true
+    },
+    {
+      "description": "Python tooling (dependency groups and the build backend): one weekly PR that merges itself.",
+      "matchManagers": ["pep621"],
+      "matchDepTypes": ["dependency-groups", "build-system.requires"],
+      "groupName": "python tooling",
+      "labels": ["tooling"],
+      "automerge": true
+    },
+    {
+      "description": "Workflow actions stay pinned by digest; one monthly PR that merges itself.",
       "matchManagers": ["github-actions"],
       "groupName": "github actions",
       "pinDigests": true,
       "schedule": ["before 6am on the first day of the month"],
-      "labels": ["tooling"]
+      "labels": ["tooling"],
+      "automerge": true
+    },
+    {
+      "description": "The agent's CLI pin: tooling, merges itself once every required check passes.",
+      "matchManagers": ["custom.regex"],
+      "matchPackageNames": ["@qwen-code/qwen-code"],
+      "labels": ["tooling"],
+      "automerge": true
     }
   ]
 }

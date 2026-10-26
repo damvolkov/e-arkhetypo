@@ -1,5 +1,5 @@
 schema: 1
-resolved: "2026-10-21"
+resolved: "2026-10-26"
 images:
 - ref: "agentmemory:latest"
   service: "agentmemory"
@@ -16,7 +16,7 @@ images:
   category: "mem"
   registry: "docker.io"
   tag: "3-alpine"
-  digest: "sha256:5aa3872d12a059e22fda84b7556a8d103dc9dff314d044d2d47d5785378c5856"
+  digest: "sha256:d44b1254cb92329418d164b22b20d86bbd3869d48e80e09e476531a409a728bb"
   floating: false
   vanished: false
   build: false
@@ -26,7 +26,7 @@ images:
   category: "rag"
   registry: "quay.io"
   tag: "latest"
-  digest: "sha256:7574691141566c64d35dcbe1d9cd17c98179a5c2fea984ccb24017e8a3d77b2f"
+  digest: "sha256:c632ab38b69a923c33b4d0c7dea4b8d3b8128bd19b94f710c3ee7db89dde8d34"
   floating: true
   vanished: false
   build: false
@@ -46,7 +46,7 @@ images:
   category: "llm"
   registry: "ghcr.io"
   tag: "server-cuda"
-  digest: "sha256:1bacc872b168d2d10bfd8c220336f5a2cd464c07605936ec146ee5198832ffce"
+  digest: "sha256:b51c252687249a6990ae1c168156cb215c954bfd71f9c434eda9a065b1a40dbe"
   floating: true
   vanished: false
   build: false
@@ -96,7 +96,7 @@ images:
   category: "llm"
   registry: "ghcr.io"
   tag: "latest"
-  digest: "sha256:33d8818d9278e16b518876999a9e18e5ab192e964ebdf2f51e2d54ffddb90051"
+  digest: "sha256:40531c044d2f6cfe9b0ac3de696d369308536cb98d428be7a98904e9e301a094"
   floating: true
   vanished: false
   build: false
@@ -136,7 +136,7 @@ images:
   category: "media"
   registry: "docker.io"
   tag: "latest"
-  digest: "sha256:89ca9ce0791e18d6e03bf6e2c49ceb27e1c754eae8bd50c989386c1a5963791a"
+  digest: "sha256:25cd902de7cacbd5f1f779f6a6ac1eae20ba8f56b0935934ce6b0ab80d1e3d20"
   floating: true
   vanished: false
   build: false
@@ -146,7 +146,7 @@ images:
   category: "llm"
   registry: "ghcr.io"
   tag: "server-cuda"
-  digest: "sha256:1bacc872b168d2d10bfd8c220336f5a2cd464c07605936ec146ee5198832ffce"
+  digest: "sha256:b51c252687249a6990ae1c168156cb215c954bfd71f9c434eda9a065b1a40dbe"
   floating: true
   vanished: false
   build: false
@@ -196,7 +196,7 @@ images:
   category: "front"
   registry: "ghcr.io"
   tag: "latest"
-  digest: "sha256:4860ba005ae8f19f08d1e12b0868855b7b339ea0dad9927f196820fc0de04575"
+  digest: "sha256:096c8f3d3132016210ca87b0b4dff01d2d66d9fe4fee088fae13fc30f9ac54f3"
   floating: true
   vanished: false
   build: false
@@ -226,7 +226,7 @@ images:
   category: "watch"
   registry: "docker.io"
   tag: "latest"
-  digest: "sha256:d77e94c0227e46490d9d935d5b58dcd8799feade912491b8182a49ad76d154b1"
+  digest: "sha256:623813cbf1bbd4811456bb4936f21666ae50a1fbf862cf59ea0e3ca824b6b114"
   floating: true
   vanished: false
   build: false
@@ -286,7 +286,7 @@ images:
   category: "cdb"
   registry: "docker.io"
   tag: "latest"
-  digest: "sha256:5c02d7c0f8d75af45958c0294a8004f2e14b42df98a1103e3a669aa7ec787be6"
+  digest: "sha256:97ec88159e6d7cfb5ddef9015386087d58a912de80112f06ebdfa78fa5989901"
   floating: true
   vanished: false
   build: false
@@ -296,7 +296,7 @@ images:
   category: "rag"
   registry: "docker.io"
   tag: "latest"
-  digest: "sha256:5ed0323b5f5f8701264ef65e239a2bd83cb57098f2b971fa30bf79c06eeae271"
+  digest: "sha256:23482d8ecf7ddf66029479468ea04c1bb11d2b65785a17a7e629e2ffd13296ca"
   floating: true
   vanished: false
   build: false
@@ -326,7 +326,7 @@ images:
   category: "tools"
   registry: "docker.stirlingpdf.com"
   tag: "latest-fat"
-  digest: "sha256:b77d4fd0bb067bc03f0ca133ae551febaada9f1d0a1db915970dc0e35558dff3"
+  digest: "sha256:b63cd013fcd242210b137d6ac5aeb9fcf4c5cb9d4e004b8a3e3185fcd57d3c9e"
   floating: true
   vanished: false
   build: false

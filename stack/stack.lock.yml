@@ -14,7 +14,7 @@ categories:
 - tools
 - vdb
 - watch
-inputs_hash: "24339448f5cc712c838fc8f05fe08d287cffd19844b9cdc13d75a69a282ea25a"
+inputs_hash: a4713c30051ad3c3dfee619ba5e01dbdc62d43910c117c4d13ecaba5f0abbd7f
 services:
 - name: openhuman
   category: agent
@@ -70,11 +70,13 @@ services:
   - docling
   - embed
   - kokoro
+  - phoenix
   - playwright
   - qdrant
   - searxng
+  - vllm
   - yacy
-  level: 2
+  level: 3
 - name: ejev
   category: llm
   compose: stack/llm/ejev/compose.yml
@@ -147,7 +149,8 @@ services:
   port: 8000
   depends:
   - phoenix
-  dependents: []
+  dependents:
+  - docling
   closure:
   - phoenix
   level: 1
@@ -213,11 +216,14 @@ services:
   compose: stack/rag/docling/compose.yml
   files: []
   port: 5001
-  depends: []
+  depends:
+  - vllm
   dependents:
   - openwebui
-  closure: []
-  level: 0
+  closure:
+  - phoenix
+  - vllm
+  level: 2
 - name: pipelines
   category: rag
   compose: stack/rag/pipelines/compose.yml

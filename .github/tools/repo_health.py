@@ -1,8 +1,8 @@
-"""tools/repo_health.py: the three-area health of a wide repo — stack images, system dependencies, action pins.
+""".github/tools/repo_health.py: the three-area health of a wide repo — stack images, system dependencies, action pins.
 
 One report, three sections, split exactly the way the repo is maintained: ``stack`` reads the version
 ledger (vanished images, refs the ledger never covered, stale resolution), ``projects`` runs the package
-probe of ``tools/health.py`` over every system's dependencies and checks the template registry against
+probe of ``.github/tools/health.py`` over every system's dependencies and checks the template registry against
 disk, ``infra`` compares every action digest pinned in the CI fragments with its upstream release.
 Stdlib only; exit 0 means every area clean, exit 3 means findings — the contract the workflow reads."""
 
@@ -79,7 +79,7 @@ def stack_rows(root: Path) -> list[Row]:
 
 
 def projects_rows(root: Path, token: str) -> list[Row]:
-    """Findings per system: every dependency probed with tools/health, plus registry sources missing from disk."""
+    """Findings per system: every dependency probed with .github/tools/health, plus registry sources missing from disk."""
     projects = sorted(path.parent for path in root.glob("projects/python/*/pyproject.toml"))
     pairs = [(project.name, dep) for project in projects for dep in health.requirements(project)]
     with concurrent.futures.ThreadPoolExecutor(max_workers=CONCURRENCY) as pool:

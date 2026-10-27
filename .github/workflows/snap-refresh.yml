@@ -54,7 +54,7 @@ jobs:
         run: |
           git diff --quiet -- "projects/python/$SYSTEM/tests/acceptance" && { echo "no pixel movement"; exit 0; }
           BRANCH="snap/$SYSTEM-$(date -u +%Y-%m-%d)"
-          uv run --no-project python tools/changelog.py --area projects --line "\`$SYSTEM\` visual goldens refreshed on the runner (\`$BRANCH\`)"
+          uv run --no-project python .github/tools/changelog.py --area projects --line "\`$SYSTEM\` visual goldens refreshed on the runner (\`$BRANCH\`)"
           git config user.name "$SLUG[bot]"
           git config user.email "$SLUG[bot]@users.noreply.github.com"
           git checkout -b "$BRANCH"

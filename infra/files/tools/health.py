@@ -1,4 +1,4 @@
-"""tools/health.py: dependency health — archived, vanished, stale or dormant upstreams, as a Markdown report.
+""".github/tools/health.py: dependency health — archived, vanished, stale or dormant upstreams, as a Markdown report.
 
 Stdlib only, like every house tool that must run anywhere. Reads pyproject.toml (project deps and
 dependency-groups), probes PyPI for each package and, through the project's declared URLs, GitHub for

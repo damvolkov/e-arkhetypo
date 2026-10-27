@@ -14,4 +14,4 @@
           rustup component add llvm-tools-preview
           uv sync
           cargo llvm-cov --workspace --lcov --output-path lcov.info
-          python tools/coverage.py lcov.info {{coverage_floor}}
+          python .github/tools/coverage.py lcov.info {{coverage_floor}}

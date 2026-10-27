@@ -30,7 +30,7 @@ jobs:
           persist-credentials: false
       - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4  # v10.1.0
       - name: Resolve every remote image to its current digest
-        run: uv run --no-project python tools/stack_resolve.py --output stack/stack.versions.yml
+        run: uv run --no-project python .github/tools/stack_resolve.py --output stack/stack.versions.yml
       - name: Open a PR when the ledger moved
         env:
           TOKEN: ${{ steps.app.outputs.token }}
@@ -39,7 +39,7 @@ jobs:
         run: |
           git diff --quiet stack/stack.versions.yml && { echo "no movement"; exit 0; }
           BRANCH="stack/resolve-$(date -u +%Y-%m-%d)"
-          uv run --no-project python tools/changelog.py --area stack --line "floating tags resolved to current digests (\`$BRANCH\`)"
+          uv run --no-project python .github/tools/changelog.py --area stack --line "floating tags resolved to current digests (\`$BRANCH\`)"
           git config user.name "$SLUG[bot]"
           git config user.email "$SLUG[bot]@users.noreply.github.com"
           git checkout -b "$BRANCH"

@@ -48,7 +48,7 @@ jobs:
           SLUG: ${{ steps.app.outputs.app-slug }}
           BRANCH: ${{ github.head_ref }}
         run: |
-          uv run --no-project python tools/changelog.py --area projects --line "lockfiles refreshed after \`$BRANCH\`"
+          uv run --no-project python .github/tools/changelog.py --area projects --line "lockfiles refreshed after \`$BRANCH\`"
           git config user.name "$SLUG[bot]"
           git config user.email "$SLUG[bot]@users.noreply.github.com"
           git commit -am "chore(sync-projects): refresh the lockfiles"

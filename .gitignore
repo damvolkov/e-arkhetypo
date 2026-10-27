@@ -225,3 +225,5 @@ __marimo__/
 
 .serena
 .serena/
+# agent plans (persona: Plans) — working state, never committed
+.plans/

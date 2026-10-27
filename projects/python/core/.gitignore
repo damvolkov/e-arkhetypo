@@ -5,3 +5,6 @@
 /.github/dependabot.yml
 /.github/CODEOWNERS
 site/
+
+# agent plans (persona: Plans) — working state, never committed
+.plans/

@@ -11,3 +11,6 @@ prek.toml
 .github/dependabot.yml
 .github/CODEOWNERS
 data/
+
+# agent plans (persona: Plans) — working state, never committed
+.plans/

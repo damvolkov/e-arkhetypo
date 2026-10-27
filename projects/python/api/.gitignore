@@ -13,3 +13,5 @@ prek.toml
 site/
 data/
 data
+# agent plans (persona: Plans) — working state, never committed
+.plans/

@@ -1,6 +1,7 @@
 ##### CONFIG #####
 PROJECTS ?= projects/python/core projects/python/api projects/python/graph projects/python/mcp projects/python/cli projects/python/tui
 ARGS      = $(filter-out $@,$(MAKECMDGOALS))
+TAXIS    ?= ../e-taxis
 
 RESET   := \033[0m
 BOLD    := \033[1m
@@ -13,7 +14,7 @@ SHELL := bash
 MAKEFLAGS += --no-print-directory
 
 ##### TARGETS #####
-.PHONY: help install update stack-versions health check clean
+.PHONY: help install update stack-versions health check clean taxis
 
 help:
 	@printf "$(BOLD)$(CYAN)e-arkhetypo$(RESET) $(GRAY)· project blueprints, stacks and CI sources$(RESET)\n\n"
@@ -44,3 +45,8 @@ clean: ## clean caches and artifacts everywhere
 
 %:
 	@:
+
+taxis: ## put the taxis CLI on the PATH, editable from the e-taxis checkout (TAXIS=../e-taxis)
+	@uv tool install --force --editable $(TAXIS)
+	@taxis --version
+

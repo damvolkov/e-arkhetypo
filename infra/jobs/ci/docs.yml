@@ -1,5 +1,7 @@
   docs:
     name: docs build
+    # on a push to main the build only matters where it deploys: a public repo's Pages.
+    if: github.event_name == 'pull_request' || github.event.repository.visibility == 'public'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1

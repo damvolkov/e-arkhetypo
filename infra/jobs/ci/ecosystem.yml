@@ -1,5 +1,6 @@
   ecosystem:
     name: every system's CI
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     # the queue and postgres tests run on the stack's ParadeDB, at the port the tests default to.
     services:

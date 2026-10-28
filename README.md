@@ -11,7 +11,7 @@ The deterministic engine that assembles, materializes and generates from them is
 [e-taxis](https://github.com/damvolkov/e-taxis); it reads the registry `projects/templates.yml`.
 One style: materialize over import, drift-gate over trust, gates as code.
 
-One triumvirate, all Greek — the mind decides, the archetypes hold the forms, the order executes:
+The Triad, all Greek — the will decides (e-nous), the body holds the forms (e-arkhetypo), the hand executes (e-taxis):
 
 <p align="center">
   <img src="assets/triumvirate.svg" alt="e-nous · e-arkhetypo · e-taxis" height="230" />
@@ -19,9 +19,9 @@ One triumvirate, all Greek — the mind decides, the archetypes hold the forms, 
 
 | Pillar | Is | Changes here |
 |---|---|---|
-| [e-nous](https://github.com/damvolkov/e-nous) | the mind — persona, skills, agents, commands, workflows, evals, and the transpiler | doctrine |
+| [e-nous](https://github.com/damvolkov/e-nous) | the mind — persona, skills, agents, commands, workflows, evals, specs; data only | doctrine |
 | **e-arkhetypo** | the archetypes — project blueprints, stacks, CI sources; data only | templates |
-| [e-taxis](https://github.com/damvolkov/e-taxis) | the order — the deterministic engine that turns archetypes into running things and installs the mind into each harness | tools |
+| [e-taxis](https://github.com/damvolkov/e-taxis) | the order — all the code: turns archetypes into running things, transpiles, evaluates and enhances the mind, runs its workflows | tools |
 
 ##### PROJECTS — the templates #####
 
@@ -74,3 +74,14 @@ make check                       # the fast gate of every project
 ```
 
 `make` (no target) lists every command in any project.
+
+The code that operates these templates lives in [e-taxis](https://github.com/damvolkov/e-taxis): `make taxis` puts its
+CLI on the PATH, and from here it finds the brain (`../e-nous`) by itself. What a project taught the templates comes
+back through the brain's reverse-distill workflow; e-taxis' README lists every command.
+
+```bash
+make taxis                                            # the e-taxis CLI on the PATH (editable, from ../e-taxis)
+taxis workflow run reverse-distill project=<repo>     # what a project's work says the templates lack
+taxis repo resolve|tree|extract URL REF …             # deterministic git reads on a remote, no checkout
+taxis map · plan · verify --target T                  # the stack each harness expects, and whether it holds
+```

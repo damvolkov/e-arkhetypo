@@ -8,6 +8,13 @@ touches — `stack`, `systems`, `infra`. Lines under `[Unreleased]` are written 
 
 ### stack
 
+- The LLM slot's default is `llm/vllm` (Gemma 4 26B-A4B AWQ), `llm/strata` its alternative — the final fight on one
+  4090 and the same 20.6 GiB, measured 2026-10-28: 175 vs 57-86 tok/s decode, ~10k vs 4.1k prefill, 760 vs 59 tok/s
+  at 8 concurrent, prefix reuse 34x vs 2x; strata speaks no logprobs (jev). `llm/vllm` defaults to 0.86 · 131072
+  (desktop on the iGPU, TEI beside it: 212k KV tokens, embed+rerank stress 0 failures; 0.87 OOMs at start).
+- `llm/llama` and `llm/ikllama` born, parked: llama.cpp and ik_llama.cpp with the MoE experts in RAM over one shared
+  `llama-models` volume, ports 8082 / 8083, no slot alias. Kept for the day a CPU path nears vLLM — today Gemma 4 does
+  31 tok/s at 8 GiB of card, Qwen3.8-Flash-Next UD-IQ4_XS 11-16 tok/s with ~350-790 tok/s prefill.
 - `llm/reranker` born: `ghcr.io/huggingface/text-embeddings-inference:89-1.9` (GPU) serving
   `Alibaba-NLP/gte-multilingual-reranker-base` on `:80` (`POST /rerank`), a cross-encoder beside `llm/embed`; chosen over
   bge-reranker-v2-m3 on e-gnosis's sandbox (same pointer, twice as fast, the only one separating off-topic questions);

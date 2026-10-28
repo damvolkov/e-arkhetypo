@@ -1,12 +1,12 @@
 services:
 
   strata:
-    # The LLM slot: exactly one of strata/vllm ever holds this card, network name and port.
-    # Qwen3.8-Flash-Next (125B MoE, 6B active) on a single 12-24 GB card: every expert lives
-    # in host RAM (IQ2_XS ~36 GiB, UD-Q4_K_XL ~72), the hot ones cache on the GPU, and the
-    # model's own MTP layer drafts the tokens the big model then verifies. A 14900K/4090/192 GB
-    # bench, 2026-10-14: IQ2_XS 142 tok/s decode, 4091 tok/s prompt 16K — gemma 26B-A4B AWQ
-    # speed with the next size up of brains (its vllm record: 138 tok/s single).
+    # The LLM slot's alternative: exactly one of strata/vllm ever holds this card, network name and port; vllm is
+    # the default since 2026-10-28. Qwen3.8-Flash-Next (125B MoE, 6B active): every expert lives in host RAM, the hot
+    # ones cache on the GPU, the model's MTP layer drafts. Measured on a 14900K/4090/188 GB beside TEI, the same 20.6
+    # GiB of card as vllm's Gemma: IQ3_S (the quant that matches BF16; vision, 64k) 57-86 tok/s decode, 4.1k prefill,
+    # 59 tok/s at 8 concurrent, prefix reuse 2x; IQ2_XS 92-120 tok/s. Gemma on vllm: 175 tok/s, ~10k prefill, 760 at 8.
+    # Its speed is the VRAM expert cache: capped to 8 GiB, IQ2_XS falls to 35-42 tok/s. No logprobs, no /tokenize.
     # The image is compiled by ./setup.sh (the engine is built at docker build, never at run);
     # the model files and the prepared packs live in the strata-data volume.
     # API: /v1/chat/completions (OpenAI), /v1/messages (Anthropic), /v1/responses — and the

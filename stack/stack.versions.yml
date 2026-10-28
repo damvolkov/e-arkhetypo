@@ -111,6 +111,16 @@ images:
   vanished: false
   build: false
   parked: false
+- ref: "ghcr.io/ikawrakow/ik-llama-cpp:cu13-server"
+  service: "ikllama"
+  category: "llm"
+  registry: "ghcr.io"
+  tag: "cu13-server"
+  digest: "sha256:047068c27ef3916f16df591670006c3706e5b12d49235f3730264ce177cc1812"
+  floating: true
+  vanished: false
+  build: false
+  parked: false
 - ref: "jaegertracing/all-in-one:latest"
   service: "jaeger"
   category: "watch"
@@ -137,6 +147,16 @@ images:
   registry: "docker.io"
   tag: "latest"
   digest: "sha256:25cd902de7cacbd5f1f779f6a6ac1eae20ba8f56b0935934ce6b0ab80d1e3d20"
+  floating: true
+  vanished: false
+  build: false
+  parked: false
+- ref: "ghcr.io/ggml-org/llama.cpp:server-cuda"
+  service: "llama"
+  category: "llm"
+  registry: "ghcr.io"
+  tag: "server-cuda"
+  digest: "sha256:59633c1493f104de906b83a2588e9b44714ef2db0c9d7efbf01495dd5447e425"
   floating: true
   vanished: false
   build: false
@@ -306,7 +326,7 @@ images:
   category: "rag"
   registry: "docker.io"
   tag: "latest"
-  digest: "sha256:0f48ffe2152f388f5eaede27f96b610449cebfc890d0ad457304475a54ad7b6e"
+  digest: "sha256:268a4b460136dcefc8f2e896b6098ba3f770c8218dbbddcb86811b06b06816f1"
   floating: true
   vanished: false
   build: false

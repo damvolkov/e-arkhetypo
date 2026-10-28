@@ -1,0 +1,67 @@
+services:
+  ikllama:
+    # ik_llama.cpp, the CPU-tuned fork, over llama's models (the shared `llama-models` volume) — kept for the day a CPU
+    # path nears vLLM. Measured 2026-10-28, Qwen3.8-Flash-Next UD-IQ4_XS, experts in RAM: 14-16 tok/s, prefill 585-790
+    # (1.2x / 2x llama.cpp), 87 GiB of RAM, 17 GiB of card. qwen4exp with --parallel > 1 corrupts slot 1 unless
+    # -no-fidx (ik_llama.cpp#2663), which the published image (build 4921) lacks: IKLLAMA_PARALLEL=1 until it ships.
+    # Fused MoE is the default (-fmoe is gone); IKLLAMA_EXTRA carries any flag of the fork.
+    image: ghcr.io/ikawrakow/ik-llama-cpp:cu13-server
+    container_name: ikllama
+    hostname: ikllama
+    restart: unless-stopped
+    ipc: host
+    labels:
+      stack.category: "llm"
+      stack.port: "8083"
+    ports:
+      # default 8083 — ik_llama.cpp OpenAI-compatible server
+      - "${IKLLAMA_PORT:-8083}:8000"
+    volumes:
+      - llama-models:/models:ro
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu, compute, utility]
+    command: >-
+      --model /models/${IKLLAMA_MODEL:-gemma-4-26B-A4B-it-qat-UD-Q4_K_XL.gguf}
+      --mmproj /models/${IKLLAMA_MMPROJ:-mmproj-BF16.gguf}
+      --alias demian-model
+      --n-gpu-layers 99
+      --n-cpu-moe ${IKLLAMA_CPU_MOE:-99}
+      --flash-attn on
+      --cache-type-k q8_0
+      --cache-type-v q8_0
+      --ctx-size ${IKLLAMA_CTX:-65536}
+      --parallel ${IKLLAMA_PARALLEL:-1}
+      --batch-size ${IKLLAMA_BATCH:-4096}
+      --ubatch-size ${IKLLAMA_UBATCH:-4096}
+      --threads ${IKLLAMA_THREADS:-16}
+      --jinja
+      --host 0.0.0.0
+      --port 8000
+      --api-key ${LLM_API_KEY:-local-dev}
+      ${IKLLAMA_EXTRA:-}
+    # 1/4 of the default CPU weight: the experts run on the CPU, the desktop keeps priority under contention.
+    cpu_shares: 256
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8000/health || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 300s
+    networks:
+      - stack
+
+volumes:
+  llama-models:
+    name: llama-models
+
+networks:
+  stack:
+    name: stack

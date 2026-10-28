@@ -65,7 +65,7 @@ Infra y aplicaciones:
 | `auth` | identidad, secretos | — vacío |
 | `watch` | métricas, logs, trazas, monitor de contenedores | otel-collector, jaeger, phoenix, prometheus, loki, grafana, lazydocker |
 | `storage` | objetos/archivos, datalakes | minio |
-| `llm` | serving de modelos y embeddings | strata, vllm, clef, jev, llamacpp, ellm, embed, reranker, gliner |
+| `llm` | serving de modelos y embeddings | vllm, strata, clef, jev, llamacpp, llama, ikllama, ellm, embed, reranker, gliner |
 | `speech` | STT / TTS | evoice, speaches, fwhisper, wlive, kokoro |
 | `rag` | retrieval: búsqueda, loaders, extracción, pipelines | searxng (+ yacy), docling, playwright, pipelines |
 | `mem` | memoria de agentes | cortexdb |
@@ -85,11 +85,13 @@ Puerto = default en host (`:container`). GPU = necesita `nvidia` runtime.
 | cdb/redis | redis:latest | 6379 | | `redis.conf` |
 | vdb/qdrant | qdrant/qdrant:latest | 6333 / 6334 | | `config.yaml` |
 | storage/minio | minio/minio:latest | 9000 / 9001 | | **aparcado** — imagen muerta aguas arriba, fuera de uso |
-| llm/strata | build `strata:<tag>` (engine en local) | 8000 | ✓ | `setup.sh`; toma el hostname `vllm`: uno de {strata, vllm} en la tarjeta, nunca los dos |
-| llm/vllm | vllm/vllm-openai:latest | 8000 | ✓ | profesor de jev (reader de logprobs); sirve el alias `demian-model` |
+| llm/vllm | vllm/vllm-openai:latest | 8000 | ✓ | el slot por defecto (medido 2026-10-28): Gemma 4, alias `demian-model`; profesor de jev (logprobs) |
+| llm/strata | build `strata:<tag>` (engine en local) | 8000 | ✓ | `setup.sh`; alternativa del slot: uno de {vllm, strata} en la tarjeta, nunca los dos |
 | llm/clef | ghcr.io/ggml-org/llama.cpp:server-cuda | 8081 | ✓ | Clef-Flash, el modelo de decisión de jev (una pasada) |
 | llm/jev | damvolkov/e-jev:latest | 45160 | | flota clef + lectura; necesita `llm/vllm` |
 | llm/llamacpp | ggml-org/llama.cpp:server-cuda | 8080 | ✓ | `setup.sh` |
+| llm/llama | ggml-org/llama.cpp:server-cuda | 8082 | ✓ | expertos MoE en RAM (`--n-cpu-moe`); candidato aparcado: la CPU no se acerca a vLLM (medido 2026-10-28); modelos en el volumen `llama-models` |
+| llm/ikllama | ikawrakow/ik-llama-cpp:cu13-server | 8083 | ✓ | fork de llama.cpp afinado para CPU, mismos modelos (`llama-models`); `--parallel 1` hasta que la imagen traiga `-no-fidx` |
 | llm/ellm | damvolkov/e-llm:latest | 80 | ✓ | `config.yaml` |
 | llm/embed | hf/text-embeddings-inference:cpu-latest | 80 | | |
 | llm/reranker | hf/text-embeddings-inference:89-1.9 | 80 | ✓ | cross-encoder (`POST /rerank`), gte-multilingual-reranker-base; ~1 GiB de GPU, en CPU demasiado lento para una consulta |
@@ -121,7 +123,7 @@ Puerto = default en host (`:container`). GPU = necesita `nvidia` runtime.
 
 ```
 redis:6379        postgres:5432     qdrant:6333      minio:9000
-llm:8000/v1          clef:8081  jev:45160  llamacpp:8080  ellm:80      embed:80/v1  reranker:80  gliner:5800
+llm:8000/v1          clef:8081  jev:45160  llamacpp:8080  llama:8082  ikllama:8083  ellm:80      embed:80/v1  reranker:80  gliner:5800
 kokoro:8880/v1    fwhisper:8000     evoice:80        speaches:8000
 searxng:8080      yacy:8090         docling:5001      playwright:3000  pipelines:9099
 stirling:8080

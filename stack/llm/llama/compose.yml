@@ -1,0 +1,74 @@
+services:
+  llama:
+    # A candidate for the LLM slot, kept for the day a CPU path nears vLLM: llama.cpp with the MoE experts in RAM
+    # (--n-cpu-moe), attention and KV on the card, MTP drafting. Measured 2026-10-28 on a 14900K / 4090 / 188 GB:
+    # Gemma 4 26B-A4B QAT Q4 31 tok/s at 8 GiB of card (52 at 14 GiB), Qwen3.8-Flash-Next UD-IQ4_XS 11-13 tok/s and
+    # ~350 tok/s prefill — vLLM's Gemma does 175 and ~10k. Off the slot: no `llm`/`vllm` alias, its own port.
+    # Models are dropped into the `llama-models` volume (shared with ikllama); LLAMA_MODEL/MMPROJ/DRAFT pick them.
+    image: ghcr.io/ggml-org/llama.cpp:server-cuda
+    container_name: llama
+    hostname: llama
+    restart: unless-stopped
+    ipc: host
+    labels:
+      stack.category: "llm"
+      stack.port: "8082"
+    ports:
+      # default 8082 — llama.cpp OpenAI-compatible server (8080 llamacpp, 8081 clef)
+      - "${LLAMA_PORT:-8082}:8000"
+    volumes:
+      - llama-models:/models:ro
+      - llama-cache:/root/.cache/llama.cpp
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu, compute, utility]
+    # ubatch 4096: experts on the CPU are streamed to the card per ubatch — 512 left prefill at 500 tok/s, 4096 at 2.3k.
+    # --kv-unified: one request may take the whole context; without it each slot gets ctx/parallel.
+    command: >-
+      --model /models/${LLAMA_MODEL:-gemma-4-26B-A4B-it-qat-UD-Q4_K_XL.gguf}
+      --mmproj /models/${LLAMA_MMPROJ:-mmproj-BF16.gguf}
+      --model-draft /models/${LLAMA_DRAFT:-MTP/mtp-gemma-4-26B-A4B-it-Q8_0.gguf}
+      --spec-type draft-mtp
+      --alias demian-model
+      --n-gpu-layers 99
+      --n-cpu-moe ${LLAMA_CPU_MOE:-99}
+      --flash-attn on
+      --cache-type-k q8_0
+      --cache-type-v q8_0
+      --ctx-size ${LLAMA_CTX:-65536}
+      --parallel ${LLAMA_PARALLEL:-4}
+      --kv-unified
+      --batch-size ${LLAMA_BATCH:-4096}
+      --ubatch-size ${LLAMA_UBATCH:-4096}
+      --threads ${LLAMA_THREADS:-16}
+      --jinja
+      --reasoning off
+      --host 0.0.0.0
+      --port 8000
+      --api-key ${LLM_API_KEY:-local-dev}
+    # 1/4 of the default CPU weight: the experts run on the CPU, the desktop keeps priority under contention.
+    cpu_shares: 256
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8000/health || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 300s
+    networks:
+      - stack
+
+volumes:
+  llama-models:
+    name: llama-models
+  llama-cache:
+
+networks:
+  stack:
+    name: stack

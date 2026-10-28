@@ -11,7 +11,7 @@ The deterministic engine that assembles, materializes and generates from them is
 [e-taxis](https://github.com/damvolkov/e-taxis); it reads the registry `projects/templates.yml`.
 One style: materialize over import, drift-gate over trust, gates as code.
 
-One triumvirate, all Greek — the mind decides, the archetypes hold the forms, the order executes:
+The Triad, all Greek — the will decides (e-nous), the body holds the forms (e-arkhetypo), the hand executes (e-taxis):
 
 <p align="center">
   <img src="assets/triumvirate.svg" alt="e-nous · e-arkhetypo · e-taxis" height="230" />

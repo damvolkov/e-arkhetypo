@@ -8,6 +8,10 @@ touches — `stack`, `systems`, `infra`. Lines under `[Unreleased]` are written 
 
 ### stack
 
+- `llm/reranker` born: `ghcr.io/huggingface/text-embeddings-inference:89-1.9` (GPU) serving
+  `Alibaba-NLP/gte-multilingual-reranker-base` on `:80` (`POST /rerank`), a cross-encoder beside `llm/embed`; chosen over
+  bge-reranker-v2-m3 on e-gnosis's sandbox (same pointer, twice as fast, the only one separating off-topic questions);
+  floating tags resolved with it in the ledger (`feat/stack-reranker`)
 - floating tags resolved to current digests with `llm/gliner` in the ledger (`feat/gliner-ping`)
 - `llm/gliner` born: `ghcr.io/damvolkov/gliner:latest` (GLiNER NER, Rust/ONNX, CPU) on `:5800`, model registry in the named volume `gliner-models` mounted `:ro` and filled by hand (export or copy, see its README); no compose healthcheck — distroless, no shell, readiness is `GET /ready`
 - floating tags resolved to current digests (`stack/resolve-2026-10-20`)

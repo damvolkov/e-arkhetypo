@@ -65,7 +65,7 @@ Infra y aplicaciones:
 | `auth` | identidad, secretos | — vacío |
 | `watch` | métricas, logs, trazas, monitor de contenedores | otel-collector, jaeger, phoenix, prometheus, loki, grafana, lazydocker |
 | `storage` | objetos/archivos, datalakes | minio |
-| `llm` | serving de modelos y embeddings | strata, vllm, clef, jev, llamacpp, ellm, embed, gliner |
+| `llm` | serving de modelos y embeddings | strata, vllm, clef, jev, llamacpp, ellm, embed, reranker, gliner |
 | `speech` | STT / TTS | evoice, speaches, fwhisper, wlive, kokoro |
 | `rag` | retrieval: búsqueda, loaders, extracción, pipelines | searxng (+ yacy), docling, playwright, pipelines |
 | `mem` | memoria de agentes | cortexdb |
@@ -92,6 +92,7 @@ Puerto = default en host (`:container`). GPU = necesita `nvidia` runtime.
 | llm/llamacpp | ggml-org/llama.cpp:server-cuda | 8080 | ✓ | `setup.sh` |
 | llm/ellm | damvolkov/e-llm:latest | 80 | ✓ | `config.yaml` |
 | llm/embed | hf/text-embeddings-inference:cpu-latest | 80 | | |
+| llm/reranker | hf/text-embeddings-inference:89-1.9 | 80 | ✓ | cross-encoder (`POST /rerank`), gte-multilingual-reranker-base; ~1 GiB de GPU, en CPU demasiado lento para una consulta |
 | llm/gliner | damvolkov/gliner:latest | 5800 | | NER zero-shot (GLiNER bi-encoder, ONNX, CPU); registro de modelos en el volumen `gliner-models` (`:ro`), relleno a mano: ver su README |
 | speech/evoice | damvolkov/e-voice:latest | 80 | ✓ | `config.yaml` |
 | speech/speaches | speaches-ai/speaches:latest-cuda | 8000 | ✓ | `entrypoint.sh` |
@@ -120,7 +121,7 @@ Puerto = default en host (`:container`). GPU = necesita `nvidia` runtime.
 
 ```
 redis:6379        postgres:5432     qdrant:6333      minio:9000
-llm:8000/v1          clef:8081  jev:45160  llamacpp:8080  ellm:80      embed:80/v1  gliner:5800
+llm:8000/v1          clef:8081  jev:45160  llamacpp:8080  ellm:80      embed:80/v1  reranker:80  gliner:5800
 kokoro:8880/v1    fwhisper:8000     evoice:80        speaches:8000
 searxng:8080      yacy:8090         docling:5001      playwright:3000  pipelines:9099
 stirling:8080

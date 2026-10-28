@@ -1,0 +1,47 @@
+services:
+  reranker:
+    # TEI's CUDA image per GPU generation: 89 = Ada (RTX 40xx); `1.9` Ampere 80, `86-1.9` Ampere 86, `turing-1.9`.
+    image: ghcr.io/huggingface/text-embeddings-inference:89-1.9
+    container_name: reranker
+    hostname: reranker
+    restart: unless-stopped
+    labels:
+      stack.category: "llm"
+      stack.port: "80"
+    ports:
+      - "${RERANKER_PORT:-80}:80"
+    volumes:
+      - reranker-data:/data
+    environment:
+      - HUGGING_FACE_HUB_TOKEN=${HF_TOKEN:-}
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    # A cross-encoder (POST /rerank): reads the question with each passage, which one embedding per chunk cannot.
+    # gte-multilingual-reranker-base, multilingual (ES/EN cross-lingual), 8192 tokens, ~1 GiB of GPU; on CPU ~0.3 s per
+    # passage — too slow for a query path. Qwen3-Reranker is not served by TEI (vLLM only).
+    command: >-
+      --model-id ${RERANKER_MODEL:-Alibaba-NLP/gte-multilingual-reranker-base}
+      --port 80
+      --dtype float16
+      --max-batch-tokens ${RERANKER_MAX_BATCH:-8192}
+      --max-client-batch-size 128
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:80/health || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 120s
+    networks:
+      - stack
+
+volumes:
+  reranker-data:
+
+networks:
+  stack:
+    name: stack

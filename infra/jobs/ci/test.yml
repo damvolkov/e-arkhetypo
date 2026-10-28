@@ -5,15 +5,28 @@
       matrix:
         os: {{os}}
         python: {{python}}
+    # a push to main re-runs what its pull request already proved: tests run on pull requests only.
+    if: github.event_name == 'pull_request'
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
+          fetch-depth: 2
+      # the merge commit's first parent is the base: a change of docs alone (docs/, *.md, zensical.toml) tests nothing.
+      - name: What the change touches
+        id: changes
+        shell: bash
+        run: |
+          touched=$(git diff --name-only HEAD^1 HEAD | grep -vE '^docs/|\.md$|^zensical\.toml$' | head -1 || true)
+          echo "code=$([ -n "$touched" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
       - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4  # v10.1.0
+        if: steps.changes.outputs.code == 'true'
       - name: Sync env
+        if: steps.changes.outputs.code == 'true'
         run: uv sync --python ${{ matrix.python }}
       - name: Unit tests + coverage gate
+        if: steps.changes.outputs.code == 'true'
         shell: bash
         run: |
           mkdir -p ci-logs

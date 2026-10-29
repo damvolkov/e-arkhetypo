@@ -20,7 +20,7 @@ EDGES: Final[list[str]] = ["store", "telemetry", "redis", "http", "docling"]
 async def test_adapters_ping_every_edge(client: TestClient) -> None:
     """In field order, `store` the only required edge; the open sqlite file, the in-process telemetry provider and the
     open client always answer."""
-    pings = {ping.name: ping for ping in await client.app.state.system.adapters.ping(LIMIT)}
+    pings = {ping.name: ping for ping in await client.app.state.system.infra.adapters.ping(LIMIT)}
     assert list(pings) == EDGES
     assert [pings[name].required for name in EDGES] == [True, False, False, False, False]
     assert (pings["store"].ok, pings["telemetry"].ok, pings["http"].ok) == (True, True, True)

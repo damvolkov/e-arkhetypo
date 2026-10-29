@@ -22,7 +22,7 @@ async def lifespan(app: Litestar) -> AsyncGenerator[None]:
     """Build the tracer over the app's provider and the empty contexts store, then mount `system.instrument`."""
     system = AppState.of(app).system
     system.instrument = InstrumentState(
-        telemetry=InstrumentTelemetry(system.adapters.telemetry), contexts=InstrumentContexts()
+        telemetry=InstrumentTelemetry(system.infra.adapters.telemetry), contexts=InstrumentContexts()
     )
     logger.info("instrument ready", step="START")
     yield

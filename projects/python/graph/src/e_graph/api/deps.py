@@ -44,12 +44,12 @@ def system(state: AppState) -> State:
 
 def store(system: NamedDependency[State]) -> StorePort:
     """The KV edge the app's records live on; swap scope here to send a route elsewhere. Chain: system."""
-    return system.adapters.store
+    return system.infra.adapters.store
 
 
 def graphs(system: NamedDependency[State]) -> Mapping[str, InstrumentGraph]:
     """Every built pipeline by name — the singletons the registry built at startup. Chain: system."""
-    return system.graphs
+    return system.infra.graphs
 
 
 def graph(pipeline_id: FromPath[str], graphs: NamedDependency[Mapping[str, InstrumentGraph]]) -> InstrumentGraph:

@@ -71,7 +71,7 @@ A pipeline is a folder: `graph.py` declares nodes and edges on the fresh graph i
 it after the folder, compiles it and returns the built graph. Each node runs its section's specs through the
 DARTS orchestrator — see `docs/darts.md` for the taxonomy, the laws and the procedures. The registry sweeps
 `pipelines/` at boot — drop a folder, it is served, nothing to import — and the built graphs live once in
-`system.graphs`: singletons like the adapters; each run is the factory, the graph is shared.
+`system.infra.graphs`: singletons like the adapters; each run is the factory, the graph is shared.
 
 | Pipeline | Sections |
 |---|---|

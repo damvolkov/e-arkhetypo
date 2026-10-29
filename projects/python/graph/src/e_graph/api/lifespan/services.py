@@ -23,6 +23,6 @@ async def lifespan(app: Litestar) -> AsyncGenerator[None]:
     system = AppState.of(app).system
     system.crypto = Crypto(st.crypto)
     ### readers over the adapters: documents through liteparse and the docling edge, hybrid by page.
-    system.processors = ProcessorsState(doc=DocProcessor(system.adapters.docling))
+    system.infra.processors = ProcessorsState(doc=DocProcessor(system.infra.adapters.docling))
     logger.info("services ready", step="START")
     yield

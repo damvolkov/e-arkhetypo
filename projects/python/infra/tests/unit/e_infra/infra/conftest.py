@@ -3,11 +3,13 @@ database of its own.
 
 `durable` is either durable engine, unconnected; `background` is the facade over the engine a test is parametrized
 with, unentered, with one queue of the test's own (two slots) and every write of a snapshot unthrottled; `works` are
-the scripted works it runs, by kind. `warnings` records what the module warns, in place of its logger."""
+the scripted works it runs, by kind. `warnings` records what the module warns, in place of its logger.
+`Saved` and `Other` are the events the in-process publisher is tested with."""
 
 from typing import TYPE_CHECKING, Any
 
 import anyio
+import msgspec
 import pytest
 
 from e_infra.adapters.awa import AwaAdapter
@@ -52,6 +54,18 @@ class Works:
             await anyio.sleep_forever()
         finally:
             self.interrupted.set()
+
+
+class Saved(msgspec.Struct, frozen=True):
+    """An event a test publishes: something saved, by name."""
+
+    name: str
+
+
+class Other(msgspec.Struct, frozen=True):
+    """An event of another type: its subscribers never see a `Saved`."""
+
+    name: str
 
 
 class Warnings:

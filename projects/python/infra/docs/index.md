@@ -22,6 +22,7 @@ build.
 | Module | Purpose |
 |---|---|
 | [`e_infra.infra.background`](reference/e_infra/infra/background.md) | work that outlives the call that asked for it — one interface over a durable engine or memory. |
+| [`e_infra.infra.events`](reference/e_infra/infra/events.md) | events delivered in this process — subscribers by event type, none known to the publisher. |
 | [`e_infra.infra.errors`](reference/e_infra/infra/errors.md) | typed exception hierarchy — all domain exceptions inherit from CoreError. |
 | [`e_infra.infra.logger`](reference/e_infra/infra/logger.md) | structured JSON in prod, ordered plain text in dev/local. |
 | [`e_infra.infra.proxy`](reference/e_infra/infra/proxy.md) | import-safe lazy singletons — the object exists at module level, its load runs on first use. |
@@ -62,6 +63,7 @@ build.
 | [`e_infra.ops.compose`](reference/e_infra/ops/compose.md) | discover a stack tree and merge chosen fragments into one parameterized document. |
 | [`e_infra.ops.crypto`](reference/e_infra/ops/crypto.md) | everything that needs a key or entropy — keyed ids, bearer tokens, password hashing, JWS/JWE, AEAD. |
 | [`e_infra.ops.file`](reference/e_infra/ops/file.md) | agnostic discovery over an installed package — modules, classes, functions. |
+| [`e_infra.ops.hash`](reference/e_infra/ops/hash.md) | hashing without a key — every id a project mints is a hash of what it names. |
 | [`e_infra.ops.image`](reference/e_infra/ops/image.md) | deterministic square-font logos — banner by default, house colors, one rect per stroke. |
 | [`e_infra.ops.registry`](reference/e_infra/ops/registry.md) | static code registry — parse a scope with `ast`, register every symbol by its path, import nothing. |
 | [`e_infra.ops.snap`](reference/e_infra/ops/snap.md) | GallerySnap — the snapshot gallery for any set of Textual architectures. |

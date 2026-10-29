@@ -31,7 +31,7 @@ from infra.settings import settings as st
 
 @asynccontextmanager
 async def lifespan(app: Litestar) -> AsyncGenerator[None]:
-    """Open every external edge on the exit stack, then mount the typed section under `system.adapters`."""
+    """Open every external edge on the exit stack, then mount the typed section under `system.infra.adapters`."""
     system = AppState.of(app).system
     edges = AdaptersState(
         store=SQLiteAdapter(),
@@ -47,7 +47,7 @@ async def lifespan(app: Litestar) -> AsyncGenerator[None]:
             await stack.enter_async_context(cast("AbstractAsyncContextManager[object]", getattr(edges, role)))
             for role in roles
         ]
-        system.adapters = edges
+        system.infra.adapters = edges
         logger.info("adapters ready", edges=sorted(roles), step="START")
         _ = [
             (logger.info if ping.ok else logger.warning)(

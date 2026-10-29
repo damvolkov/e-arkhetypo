@@ -48,7 +48,7 @@ def test_singleton_load_is_idempotent(client) -> None:
 
 
 def test_adapters_section_is_typed_and_ported(client) -> None:
-    edges = client.app.state.system.adapters
+    edges = client.app.state.system.infra.adapters
     assert isinstance(edges, AdaptersState)
     assert isinstance(edges.store, StorePort)
     assert isinstance(edges.redis, StorePort)
@@ -66,7 +66,7 @@ def test_adapters_section_is_typed_and_ported(client) -> None:
 
 def test_state_opens_sealed(client) -> None:
     state = client.app.state.system
-    assert {"shared", "adapters", "crypto", "instrument", "logic", "graphs"} <= set(state)
+    assert {"shared", "crypto", "infra", "instrument", "logic"} <= set(state)
     with pytest.raises(RuntimeError, match="Sealed"):
         state.held_by_the_lifespan_only = 1
     with pytest.raises(AttributeError, match="Sealed state has no node"):
@@ -74,18 +74,18 @@ def test_state_opens_sealed(client) -> None:
 
 
 def test_graphs_section_holds_built_singletons(client) -> None:
-    graphs = client.app.state.system.graphs
+    graphs = client.app.state.system.infra.graphs
     assert list(graphs) == ["doc", "filing", "note"]
     graph = graphs["doc"]
     assert isinstance(graph, InstrumentGraph)
     assert (graph.name, graph._compiled is not None) == ("doc", True)
     ### a singleton: every read of the section is the same built graph, never a rebuild.
-    assert client.app.state.system.graphs["doc"] is graph
+    assert client.app.state.system.infra.graphs["doc"] is graph
 
 
 async def test_adapters_close_when_the_lifespan_exits() -> None:
     with TestClient(create_app()) as client:
-        store = client.app.state.system.adapters.store
+        store = client.app.state.system.infra.adapters.store
         assert client.get("/health").status_code == 200
         ### alive inside the cycle
         await store.get("anything")

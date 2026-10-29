@@ -3,13 +3,18 @@ a capture installed later never sees it; the lifespan module's `logger` is swapp
 sealed system walked whole, for the parity gate."""
 
 import dataclasses
+from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Final
 
 import pytest
 
 from e_api.api.lifespan import adapters
+from infra.proxy import LazyProxy
 from infra.state import State
+
+### shared by nature, never a node held twice: interned atoms, and the lazy singletons `shared` mirrors on purpose.
+ATOMS: Final[tuple[type, ...]] = (str, bytes, int, float, bool, type(None), LazyProxy)
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -67,3 +72,29 @@ def held(client: TestClient) -> list[tuple[str, str]]:
         for chain, module in leaves(client.app.state.system, ())
         if module.startswith(SERVICE) and not module.startswith(EDGE)
     ]
+
+
+def held_at(node: object, chain: tuple[str, ...]) -> Iterator[tuple[str, object]]:
+    """Every node under a node — sections and leaves alike — at its full dotted path."""
+    match node:
+        case State():
+            for name, child in node.items():
+                yield ".".join((*chain, name)), child
+                yield from held_at(child, (*chain, name))
+        case _ if dataclasses.is_dataclass(node):
+            for each in dataclasses.fields(node):
+                value = getattr(node, each.name)
+                yield ".".join((*chain, each.name)), value
+                yield from held_at(value, (*chain, each.name))
+
+
+@pytest.fixture
+def twins(client: TestClient) -> list[list[str]]:
+    """Every object the sealed system holds at more than one path, by identity: the paths of each, sorted."""
+    paths: defaultdict[int, list[str]] = defaultdict(list)
+    _ = [
+        paths[id(value)].append(path)
+        for path, value in held_at(client.app.state.system, ())
+        if not isinstance(value, ATOMS)
+    ]
+    return sorted(sorted(group) for group in paths.values() if len(group) > 1)

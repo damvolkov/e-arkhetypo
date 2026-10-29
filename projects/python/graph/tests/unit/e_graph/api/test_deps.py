@@ -20,18 +20,18 @@ def test_links_chain_over_the_live_system(client) -> None:
     """The root reads Litestar's reserved state, rebuilt as AppState over the same dict, as Litestar injects it."""
     root = system(AppState(client.app.state))
     assert root is client.app.state.system
-    assert store(root) is root.adapters.store
-    assert graphs(root) is root.graphs
-    assert graph("doc", root.graphs) is root.graphs["doc"]
-    assert section("extract", root.graphs["filing"]) == "extract"
+    assert store(root) is root.infra.adapters.store
+    assert graphs(root) is root.infra.graphs
+    assert graph("doc", root.infra.graphs) is root.infra.graphs["doc"]
+    assert section("extract", root.infra.graphs["filing"]) == "extract"
     assert lab(root).sections is not None
 
 
 def test_graph_link_refuses_an_unknown_name(client) -> None:
     with pytest.raises(NotFoundException, match="known: \\['doc', 'filing', 'note'\\]"):
-        graph("nope", client.app.state.system.graphs)
+        graph("nope", client.app.state.system.infra.graphs)
 
 
 def test_section_link_refuses_what_the_pipeline_does_not_mount(client) -> None:
     with pytest.raises(NotFoundException, match="filing mounts no 'validate'; mounted: \\['audit', 'extract'"):
-        section("validate", client.app.state.system.graphs["filing"])
+        section("validate", client.app.state.system.infra.graphs["filing"])

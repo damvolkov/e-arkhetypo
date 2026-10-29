@@ -7,7 +7,7 @@ The canvas speaks these routes exactly as curl or any other client would:
     POST /api/pipelines/batch/{id}       one run to completion: terminal outputs and the verdict
     WS   /api/pipelines/stream/{id}      one run live: send a RunRequest, receive every frame, then close
 
-Every route reads the graph singletons the registry built at startup (`system.graphs`); both runs
+Every route reads the graph singletons the registry built at startup (`system.infra.graphs`); both runs
 build a fresh `RunState` over the app's sealed system — the run is the factory, the graph is shared —
 and seed its `data` from the request.
 A malformed stream request closes the socket with 1007 before anything runs; an unknown id is a 404."""

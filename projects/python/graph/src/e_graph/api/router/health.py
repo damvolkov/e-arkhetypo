@@ -23,7 +23,7 @@ async def health() -> dict[str, str]:
 
 async def ready(system: NamedDependency[State]) -> Response[list[AdapterPing]]:
     """Readiness probe — every edge pinged, the required ones decide."""
-    pings: tuple[AdapterPing, ...] = await system.adapters.ping(st.ping.timeout)
+    pings: tuple[AdapterPing, ...] = await system.infra.adapters.ping(st.ping.timeout)
     answered = all(ping.ok for ping in pings if ping.required)
     return Response(list(pings), status_code=HTTP_200_OK if answered else HTTP_503_SERVICE_UNAVAILABLE)
 

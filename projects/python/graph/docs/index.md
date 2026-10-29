@@ -27,7 +27,7 @@ The service lives in `src/e_graph/`, layered by [tach](https://tach.dev). `src/i
 | [`e_graph.api.router.specs`](reference/e_graph/api/router/specs.md) | api | `/api/specs`: list, topology, svg, simulate — by pipeline and section, the spec-node level |
 | [`e_graph.api.router.ui`](reference/e_graph/api/router/ui.md) | api | The canvas as a static page at `/`, its tunables at `/api/ui` |
 | [`e_graph.api.state`](reference/e_graph/api/state.md) | api | Litestar's state, typed: the sealed system graph |
-| [`e_graph.api.lifespan.graphs`](reference/e_graph/api/lifespan/graphs.md) | api | Build every pipeline once: the graph singletons under `system.graphs` |
+| [`e_graph.api.lifespan.graphs`](reference/e_graph/api/lifespan/graphs.md) | api | Build every pipeline once: the graph singletons under `system.infra.graphs` |
 | [`e_graph.pipelines.base`](reference/e_graph/pipelines/base.md) | pipelines | PipelineBuilder (declare → build) and PipelineRegistry (sweeps the pipeline folders, mounts their sections) |
 | [`e_graph.pipelines.doc.graph`](reference/e_graph/pipelines/doc/graph.md) | pipelines | The demo document graph: sequence, parallel pair, join, retry loop — every section run by DARTS |
 | [`e_graph.pipelines.filing.graph`](reference/e_graph/pipelines/filing/graph.md) | pipelines | A 10-K read into its XBRL facts: ingest → extract → audit → report |

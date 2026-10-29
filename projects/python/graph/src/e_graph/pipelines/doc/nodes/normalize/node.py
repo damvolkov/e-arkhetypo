@@ -11,4 +11,4 @@ from e_graph.models.section import Section
 async def node_normalize(state: RunState) -> dict[str, Any]:
     """Fold the document into its canonical form."""
     await anyio.sleep(cast("float", state.context.get("pace", 0.0)))
-    return await state.infra.orchestrator.node(Section.NORMALIZE, state)
+    return await state.logic.orchestrator.node(Section.NORMALIZE, state)

@@ -1,17 +1,18 @@
-"""tests/unit: instrument.state — the RunState's fixed shape, its scoped context, the shared infra, the contexts store."""
+"""tests/unit: instrument.state — the RunState's fixed shape, its scoped context, the shared branches."""
 
 import uuid
 
 import pytest
 
-from e_graph.instrument.state import AdaptersState, Channels, ContextState, InfraState, RunState
+from e_graph.instrument.state import AdaptersState, Channels, InfraState, InstrumentState, RunState
 from e_graph.logic.agent import AgnosticAgent
+from e_graph.logic.state import LogicState
 from infra.state import State
 from processors.doc import DocProcessor
 
 
 def test_run_state_shape_fixed_at_birth(run_state: RunState) -> None:
-    assert set(run_state) == {"id", "correlation", "pipeline", "infra", "contexts"}
+    assert set(run_state) == {"id", "correlation", "pipeline", "infra", "logic", "instrument"}
     with pytest.raises(RuntimeError, match="Sealed"):
         run_state["infra"] = State()
     with pytest.raises(AttributeError, match="Sealed state has no node"):
@@ -27,7 +28,7 @@ def test_run_state_context_is_scoped_by_id(system: State) -> None:
     first, second = RunState(system), RunState(system)
     first.context.amount = "1"
     assert "amount" not in second.context
-    assert system.contexts[first.id] is first.context
+    assert system.instrument.contexts[first.id] is first.context
 
 
 def test_run_state_id_uuid7_unless_named(system: State) -> None:
@@ -51,29 +52,23 @@ def test_run_state_release_drops_its_context(system: State) -> None:
     state = RunState(system)
     state.release()
     state.release()
-    assert state.id not in system.contexts
+    assert state.id not in system.instrument.contexts
 
 
-def test_run_state_infra_typed(run_state: RunState) -> None:
+def test_run_state_branches_typed(run_state: RunState) -> None:
     infra = run_state.infra
     assert isinstance(infra, InfraState)
     assert isinstance(infra.adapters, AdaptersState)
-    assert isinstance(infra.agent, AgnosticAgent)
+    assert isinstance(run_state.logic, LogicState)
+    assert isinstance(run_state.logic.agent, AgnosticAgent)
+    assert isinstance(run_state.instrument, InstrumentState)
     assert infra.adapters.telemetry.name == "otel"
-    assert infra.telemetry.provider is infra.adapters.telemetry
+    assert run_state.instrument.telemetry.provider is infra.adapters.telemetry
 
 
 def test_run_state_graphs_are_the_system_singletons(run_state: RunState, system: State) -> None:
     assert run_state.infra is system.infra
     assert set(run_state.infra.graphs) == {"probe"}
-
-
-def test_contexts_store_maps_live_runs() -> None:
-    contexts = ContextState()
-    opened = contexts.open("r1")
-    assert (list(contexts), len(contexts), contexts["r1"]) == (["r1"], 1, opened)
-    contexts.drop("r1")
-    assert len(contexts) == 0
 
 
 def test_channels_outputs_default_empty(run_state: RunState) -> None:

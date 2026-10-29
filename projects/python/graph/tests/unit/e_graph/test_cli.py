@@ -113,7 +113,7 @@ def test_evaluate_exit_codes_come_from_the_readout(
 
     @asynccontextmanager
     async def fake_system() -> AsyncIterator[Any]:
-        yield SimpleNamespace(orchestrator=None, agent=None)
+        yield SimpleNamespace(logic=SimpleNamespace(orchestrator=None, agent=None))
 
     class FakeOps:
         def __init__(self, *_: Any, **__: Any) -> None:

@@ -17,7 +17,8 @@ from typing import TYPE_CHECKING, Any, Final, Protocol, cast
 
 import msgspec
 
-from e_graph.instrument.state import ContextState, RunState
+from e_graph.instrument.contexts import InstrumentContexts
+from e_graph.instrument.state import RunState
 from e_graph.logic.discover import KINDS, RUNNERS, SPECS, SpecDiscover
 from e_graph.logic.errors import Rule
 from e_graph.logic.models import (
@@ -55,7 +56,6 @@ if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
     from pathlib import Path
 
-    from e_graph.instrument.state import InfraState
     from e_graph.logic.models import SectionRun
     from e_graph.logic.orchestrator.core import OrchestratorCore
 
@@ -152,7 +152,7 @@ class DartsOps:
         self,
         pipeline: str,
         data: Mapping[str, Any],
-        infra: InfraState,
+        system: State,
         agent: Answers,
         *,
         expectations: Sequence[str] = (),
@@ -174,9 +174,14 @@ class DartsOps:
                         for tier, answer in down.items()
                     ),
                 )
-        system = State(infra=dataclasses.replace(infra, agent=agent), contexts=ContextState())
-        system.seal()
-        state = RunState(system, pipeline=pipeline)
+        ### the system's root, as RunState takes it: a copy of the whole tree, the agent swapped, its own contexts.
+        sandbox = State(
+            infra=system.infra,
+            logic=dataclasses.replace(system.logic, agent=agent),
+            instrument=dataclasses.replace(system.instrument, contexts=InstrumentContexts()),
+        )
+        sandbox.seal()
+        state = RunState(sandbox, pipeline=pipeline)
         state.context.update(data)
         runs = [
             (section, await self._orchestrator.run(section, state))

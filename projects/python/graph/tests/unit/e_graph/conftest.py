@@ -18,11 +18,13 @@ from litestar.testing import TestClient
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 
 from adapters.otel import OtelAdapter
+from e_graph.instrument.contexts import InstrumentContexts
 from e_graph.instrument.graph import InstrumentGraph
-from e_graph.instrument.state import AdaptersState, ContextState, InfraState, ProcessorsState, RunState
+from e_graph.instrument.state import AdaptersState, InfraState, InstrumentState, ProcessorsState, RunState
 from e_graph.instrument.telemetry import InstrumentTelemetry
 from e_graph.logic.agent import AgnosticAgent
 from e_graph.logic.orchestrator.core import OrchestratorCore
+from e_graph.logic.state import LogicState
 from e_graph.main import create_app
 from infra.config.otel import OtelSettings
 from infra.state import State
@@ -56,7 +58,8 @@ def exporter() -> InMemorySpanExporter:
 
 @pytest.fixture
 async def system(exporter: InMemorySpanExporter) -> AsyncIterator[State]:
-    """A sealed system graph shaped like the app's: `infra` with a live telemetry edge, an open contexts store.
+    """A sealed system graph shaped like the app's: `infra` with a live telemetry edge, `logic`, and `instrument` with an
+    open contexts store.
 
     The edges no instrument test touches stay absent; the agent is real but never called here; documents
     read through the golden conversions (`support.docling.GoldenPort`)."""
@@ -65,12 +68,13 @@ async def system(exporter: InMemorySpanExporter) -> AsyncIterator[State]:
         infra = InfraState(
             adapters=AdaptersState(store=None, telemetry=telemetry, redis=None, http=None, docling=port),  # ty: ignore[invalid-argument-type]
             processors=ProcessorsState(doc=DocProcessor(port)),
-            agent=agent,
-            orchestrator=OrchestratorCore(),
-            telemetry=InstrumentTelemetry(telemetry),
             graphs=MappingProxyType({"probe": InstrumentGraph(name="probe")}),
         )
-        graph = State(infra=infra, contexts=ContextState())
+        graph = State(
+            infra=infra,
+            logic=LogicState(agent=agent, orchestrator=OrchestratorCore()),
+            instrument=InstrumentState(telemetry=InstrumentTelemetry(telemetry), contexts=InstrumentContexts()),
+        )
         graph.seal()
         yield graph
 

@@ -1,6 +1,6 @@
 """logic.agent: the AgnosticAgent — one structured, async call over any model provider, for fused semantic specs.
 
-A singleton like the adapters: built once, opened and closed by the lifespan, mounted at `infra.agent`.
+A singleton like the adapters: built once, opened and closed by the lifespan, mounted at `logic.agent`.
 It speaks to every provider any-llm reaches (52, plus any OpenAI-compatible endpoint as `CUSTOM`) through
 one verb, `run`, and owns everything structured output needs above the transport:
 
@@ -198,7 +198,7 @@ class UsageMeter:
 
 ##### AGENT #####
 class AgnosticAgent:
-    """One structured async call to any provider, with our own models; a singleton in `infra.agent`."""
+    """One structured async call to any provider, with our own models; a singleton in `logic.agent`."""
 
     __slots__ = ("_pool", "_settings")
 

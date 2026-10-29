@@ -8,4 +8,4 @@ from e_graph.models.section import Section
 
 async def node_ingest(state: RunState) -> dict[str, Any]:
     """Read the filing page by page."""
-    return await state.infra.orchestrator.node(Section.INGEST, state)
+    return await state.logic.orchestrator.node(Section.INGEST, state)

@@ -34,7 +34,8 @@ from rich.table import Table
 from rich.tree import Tree
 
 from adapters.docling import DoclingAdapter
-from e_graph.instrument.state import InfraState, ProcessorsState
+from e_graph.instrument.contexts import InstrumentContexts
+from e_graph.instrument.state import InfraState, InstrumentState, ProcessorsState
 from e_graph.instrument.telemetry import InstrumentTelemetry
 from e_graph.logic.agent import AgnosticAgent
 from e_graph.logic.dartsops import DartsOps
@@ -44,11 +45,13 @@ from e_graph.logic.models import AgentCall, Breach, Report, SectionMap, SectionP
 from e_graph.logic.orchestrator.core import OrchestratorCore
 from e_graph.logic.orchestrator.lab import SectionLab
 from e_graph.logic.orchestrator.plan import DagPlan
+from e_graph.logic.state import LogicState
 from e_graph.models.section import Section
 from e_graph.pipelines.base import PipelineRegistry
 from infra.config.darts import DartsSettings
 from infra.logger import ELogger
 from infra.settings import settings as st
+from infra.state import State
 from processors.doc import DocProcessor
 
 CONSOLE: Final[Console] = Console(soft_wrap=True)
@@ -217,22 +220,25 @@ class LiveStream(io.TextIOBase):
 
 
 @asynccontextmanager
-async def system() -> AsyncIterator[InfraState]:
-    """The engines a rehearsal runs on, as the app assembles them: docling, the hybrid processor, the agent.
-    Their logs go to stderr: stdout is the command's answer, JSON included."""
+async def system() -> AsyncIterator[State]:
+    """The system a rehearsal runs on, branch for branch as the app's lifespans mount it: docling, the hybrid processor,
+    the agent. Their logs go to stderr: stdout is the command's answer, JSON included."""
     ### typeshed's TextIO is io.TextIOBase by alias: it checks nothing, while beartype demands the full
     ### protocol member by member — this class is built for the latter and cannot name it to the former.
     ELogger.setup(env=st.app.app_env, stream=LiveStream())  # ty: ignore[invalid-argument-type]
     graphs = await PipelineRegistry().build()
     async with DoclingAdapter() as docling, AgnosticAgent() as agent:
-        yield InfraState(
-            adapters=None,  # ty: ignore[invalid-argument-type] — no runner reaches an adapter but through a processor
-            processors=ProcessorsState(doc=DocProcessor(docling)),
-            agent=agent,
-            orchestrator=OrchestratorCore(),
-            telemetry=InstrumentTelemetry(),
-            graphs=MappingProxyType(dict(graphs)),
+        root = State(
+            infra=InfraState(
+                adapters=None,  # ty: ignore[invalid-argument-type] — no runner reaches an adapter but through a processor
+                processors=ProcessorsState(doc=DocProcessor(docling)),
+                graphs=MappingProxyType(dict(graphs)),
+            ),
+            logic=LogicState(agent=agent, orchestrator=OrchestratorCore()),
+            instrument=InstrumentState(telemetry=InstrumentTelemetry(), contexts=InstrumentContexts()),
         )
+        root.seal()
+        yield root
 
 
 async def mounted(pipeline: str, section: Section | None) -> tuple[SectionLab, str]:
@@ -453,9 +459,9 @@ async def evaluate(
             CONSOLE.print(f"[red]{reason}[/]")
             return EXIT[False]
     run_data = read_data(data, case)
-    async with system() as infra:
-        readout = await DartsOps(infra.orchestrator).evaluate(
-            pipeline, run_data, infra, infra.agent, expectations=expect
+    async with system() as root:
+        readout = await DartsOps(root.logic.orchestrator).evaluate(
+            pipeline, run_data, root, root.logic.agent, expectations=expect
         )
     match out:
         case None:
@@ -517,9 +523,9 @@ async def simulate(
         case _:
             CONSOLE.print(f"[red]{reason}[/]")
             return EXIT[False]
-    async with system() as infra:
-        found = SectionLab(infra.orchestrator, infra.graphs)
-        simulation = await found.simulate(pipeline, section, read_data(data, case), infra=infra, live=live)
+    async with system() as root:
+        found = SectionLab(root.logic.orchestrator, root.infra.graphs)
+        simulation = await found.simulate(pipeline, section, read_data(data, case), system=root, live=live)
     match out:
         case Path():
             keep_simulation(simulation, out)

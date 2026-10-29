@@ -35,9 +35,11 @@ The service lives in `src/e_graph/`, layered by [tach](https://tach.dev). `src/i
 | [`e_graph.instrument.graph`](reference/e_graph/instrument/graph.md) | instrument | InstrumentGraph: LangGraph builder with contract, topology (rustworkx) and run frames |
 | [`e_graph.instrument.node`](reference/e_graph/instrument/node.md) | instrument | InstrumentNode: function contract in, `RunState → NodeOutput` out, always |
 | [`e_graph.instrument.errors`](reference/e_graph/instrument/errors.md) | instrument | ContractError at load time, NodeError at run time |
-| [`e_graph.instrument.state`](reference/e_graph/instrument/state.md) | instrument | RunState (`id` · `infra` · `context`), the contexts store and the LangGraph channels |
+| [`e_graph.instrument.state`](reference/e_graph/instrument/state.md) | instrument | RunState (`id` · `infra` · `logic` · `instrument` · `context`), the instrument's branch and the LangGraph channels |
+| [`e_graph.instrument.contexts`](reference/e_graph/instrument/contexts.md) | instrument | InstrumentContexts: the store of live runs' contexts, `system.instrument.contexts` |
 | [`e_graph.instrument.models`](reference/e_graph/instrument/models.md) | instrument | NodeOutput (with its START/END/MID role), RunEnd, Topology — msgspec |
 | [`e_graph.logic.agent`](reference/e_graph/logic/agent.md) | engine | AgnosticAgent: one structured async call over any model provider, pooled, metered |
+| [`e_graph.logic.state`](reference/e_graph/logic/state.md) | logic | LogicState: the logic's branch, `system.logic` — the agent and the orchestrator |
 | [`e_graph.logic.models`](reference/e_graph/logic/models.md) | engine | The DARTS core's own models: the agent's, the specs' (kinds, slots, roles, scopes, `Call`), the catalog, the plan, the report |
 | [`e_graph.logic.discover`](reference/e_graph/logic/discover.md) | logic | SpecDiscover: lazy, per section — decode specs, resolve and read their runners, judge, validate args; SystemDiscover: the whole system's static check |
 | [`e_graph.logic.rules`](reference/e_graph/logic/rules.md) | logic | The coherence laws (tree, source, section), one function each — the discovery's tools |
@@ -69,8 +71,9 @@ are in [DARTS](darts.md). `e-graph darts check` is the static check; `e-graph da
 
 ## Run state
 
-Every node receives one `RunState`: `state.id`, `state.infra` (the app's singletons — `adapters`, `agent`,
-`telemetry`, `graphs`) and `state.context`, the run's own ephemeral zone, stored as `context.<id>`. The
+Every node receives one `RunState`: `state.id`, the app's singletons under the system's own branches —
+`state.infra` (`adapters`, `processors`, `graphs`), `state.logic` (`agent`, `orchestrator`), `state.instrument`
+(`telemetry`, `contexts`) — and `state.context`, the run's own ephemeral zone, stored as `context.<id>`. The
 instrument releases the context when the run closes — END or failure — unless `run(state, retain=True)`;
 the run span keeps a snapshot (`run.context`), so nothing is lost to telemetry.
 
@@ -80,7 +83,7 @@ status, latency, trace ids — always stand. When the node called the agent, `us
 
 ## Agent
 
-`state.infra.agent.run(instructions, prompt, output, endpoint=Tier.MEDIUM, api_base=None, api_key=None,
+`state.logic.agent.run(instructions, prompt, output, endpoint=Tier.MEDIUM, api_base=None, api_key=None,
 **generation)` returns a `Reply[T]`. `output` is always structured, resolved once by type dispatch:
 
 | `output` | Schema sent | Reply validated by | `Reply.output` |

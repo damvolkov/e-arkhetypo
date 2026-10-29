@@ -229,7 +229,7 @@ class InstrumentNode(StateNodeSpec[Channels, None]):
         latency meter and the agent's usage meter. Its report merges into the output, which closes the span.
         A raise never escapes: it becomes the FAILED output — usage included, tokens spent before the failure
         still count — its traceback goes to the log, and whether the run stops is the graph's business."""
-        emit, span, telemetry = self._run_writer(), NO_SPAN, state.infra.telemetry
+        emit, span, telemetry = self._run_writer(), NO_SPAN, state.instrument.telemetry
         self._run_emit(emit, self._run_output(state, NodeStatus.RUNNING))
         with LatencyWrapper() as latency, AgnosticAgent.meter() as meter:
             try:

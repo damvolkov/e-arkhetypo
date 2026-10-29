@@ -27,7 +27,8 @@ import rstr
 import rustworkx as rx
 import wasi_graphviz
 
-from e_graph.instrument.state import ContextState, RunState
+from e_graph.instrument.contexts import InstrumentContexts
+from e_graph.instrument.state import RunState
 from e_graph.logic.errors import EndpointError
 from e_graph.logic.models import (
     CallGroup,
@@ -51,9 +52,9 @@ if TYPE_CHECKING:
     from collections.abc import Callable, Mapping
 
     from e_graph.instrument.graph import InstrumentGraph
-    from e_graph.instrument.state import InfraState
     from e_graph.logic.models import Catalog, SectionPlan, Tier
     from e_graph.logic.orchestrator.core import OrchestratorCore
+    from e_graph.logic.state import LogicState
 
 MS_PER_SECOND: Final[float] = 1000.0
 WALK: Final[tuple[Section, ...]] = (*ORDER, Section.CUSTOM)
@@ -301,7 +302,7 @@ class SectionLab:
         return wasi_graphviz.render(dot, format="svg", backend="wasmtime").decode()
 
     async def simulate(
-        self, pipeline: str, section: Section, data: Mapping[str, Any], *, infra: InfraState, live: bool = False
+        self, pipeline: str, section: Section, data: Mapping[str, Any], *, system: State, live: bool = False
     ) -> Simulation:
         """The pipeline run up to `section`, the section included, on a copy of the system — rehearsed or live."""
         started = time.perf_counter()
@@ -316,10 +317,15 @@ class SectionLab:
             for name, node in catalog.nodes.items()
             if isinstance(node.spec, SemanticSpec) and node.spec.examples
         }
-        agent = infra.agent if live else RehearsalAgent(examples)
-        system = State(infra=dataclasses.replace(infra, agent=agent), contexts=ContextState())
-        system.seal()
-        state = RunState(system, pipeline=pipeline)
+        agent = system.logic.agent if live else RehearsalAgent(examples)
+        ### the system's root, as RunState takes it: a copy of the whole tree, the agent swapped, its own contexts.
+        sandbox = State(
+            infra=system.infra,
+            logic=dataclasses.replace(system.logic, agent=agent),
+            instrument=dataclasses.replace(system.instrument, contexts=InstrumentContexts()),
+        )
+        sandbox.seal()
+        state = RunState(sandbox, pipeline=pipeline)
         state.context.update(data)
         try:
             runs = [await self._orchestrator.run(name, state) for name in sections]
@@ -334,16 +340,16 @@ class SectionLab:
             live=live,
             runs=tuple(runs),
             calls=calls,
-            routes={str(tier): self.route(infra, tier) for tier in tiers},
+            routes={str(tier): self.route(system.logic, tier) for tier in tiers},
             written=written,
             latency_ms=(time.perf_counter() - started) * MS_PER_SECOND,
         )
 
     @staticmethod
-    def route(infra: InfraState, tier: Tier) -> Route:
+    def route(logic: LogicState, tier: Tier) -> Route:
         """Where a tier's calls go — provider, model, base; the key never leaves the agent."""
         try:
-            endpoint = infra.agent.resolve(tier)
+            endpoint = logic.agent.resolve(tier)
         except EndpointError as missing:
             return Route(error=str(missing))
         return Route(provider=str(endpoint.provider), model=endpoint.model, api_base=endpoint.api_base)

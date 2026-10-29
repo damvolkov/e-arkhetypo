@@ -6,7 +6,7 @@ import pytest
 from litestar.testing import TestClient
 
 from adapters.ports import DocumentPort, HttpPort, StorePort, TelemetryPort
-from e_graph.api.lifespan import adapters, graphs, sealed, services
+from e_graph.api.lifespan import adapters, graphs, instrument, logic, sealed, services
 from e_graph.api.lifespan.infra import SharedState
 from e_graph.api.lifespan.infra import lifespan as infra_lifespan
 from e_graph.instrument.graph import InstrumentGraph
@@ -19,7 +19,16 @@ from processors.doc import DocProcessor
 
 def test_lifespans_are_declared_not_built() -> None:
     assert all(
-        callable(cm) for cm in (infra_lifespan, adapters.lifespan, services.lifespan, graphs.lifespan, sealed.lifespan)
+        callable(cm)
+        for cm in (
+            infra_lifespan,
+            adapters.lifespan,
+            services.lifespan,
+            instrument.lifespan,
+            logic.lifespan,
+            graphs.lifespan,
+            sealed.lifespan,
+        )
     )
     assert list(inspect.signature(create_app).parameters) == []
 
@@ -48,7 +57,7 @@ def test_adapters_section_is_typed_and_ported(client) -> None:
     assert isinstance(edges.telemetry, TelemetryPort)
     assert edges.telemetry.name == "otel"
     ### the instrument's tracer is handed the very adapter the exit stack owns — one provider, one lifecycle.
-    assert client.app.state.system.telemetry.provider is edges.telemetry
+    assert client.app.state.system.instrument.telemetry.provider is edges.telemetry
     assert edges.store.name == "sqlite"
     assert edges.redis.name == "redis"
     assert edges.http.name == "http"
@@ -57,7 +66,7 @@ def test_adapters_section_is_typed_and_ported(client) -> None:
 
 def test_state_opens_sealed(client) -> None:
     state = client.app.state.system
-    assert {"shared", "adapters", "crypto", "telemetry", "graphs"} <= set(state)
+    assert {"shared", "adapters", "crypto", "instrument", "logic", "graphs"} <= set(state)
     with pytest.raises(RuntimeError, match="Sealed"):
         state.held_by_the_lifespan_only = 1
     with pytest.raises(AttributeError, match="Sealed state has no node"):

@@ -7,7 +7,7 @@ adapter, a singleton). `NullTelemetry` is the provider of no provider: spans are
 so the instrument runs untraced.
 
 `InstrumentTelemetry` is the instrument's own face over that provider, built once and mounted as
-`infra.telemetry`: it knows *what* is traced — a run, each node inside it — and *how it reads*: the run
+`instrument.telemetry`: it knows *what* is traced — a run, each node inside it — and *how it reads*: the run
 opens with its input and closes with its verdict (an ERROR status when it failed) and a snapshot of its
 context — the run's data survives its release here, recoverable from the trace; each node closes with its
 outcome: summary, the agent's token usage when it ran, and whatever extras the node reported. Attribute names follow the OpenInference conventions trace UIs render (`input.value`,

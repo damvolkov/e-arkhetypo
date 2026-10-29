@@ -23,10 +23,10 @@ from adapters.http import HttpAdapter
 from adapters.otel import OtelAdapter
 from adapters.redis import RedisAdapter
 from adapters.sqlite import SQLiteAdapter
-from core.logger import logger
-from core.settings import settings as st
 from e_graph.api.state import AppState
 from e_graph.instrument.state import AdaptersState
+from infra.logger import logger
+from infra.settings import settings as st
 
 
 @asynccontextmanager

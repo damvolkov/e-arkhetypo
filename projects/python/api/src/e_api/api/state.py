@@ -2,7 +2,7 @@
 
 Litestar owns `app.state` and types it as its own `State`; replacing it with another class breaks that
 contract and forces a cast at every read. Instead `AppState` *is* a Litestar `State`, handed to the
-constructor, holding one typed entry: `system`, the core `State` graph (auto-vivifying while the
+constructor, holding one typed entry: `system`, the infra `State` graph (auto-vivifying while the
 lifespans build it, sealed once they are done). Litestar itself builds this class wherever a
 dependency annotates the reserved `state: AppState` — HTTP and websocket alike — and lifespans,
 which receive the app, narrow it with `AppState.of(app)`: a runtime check, never a cast."""
@@ -10,7 +10,7 @@ which receive the app, narrow it with `AppState.of(app)`: a runtime check, never
 from litestar import Litestar
 from litestar.datastructures import State as LitestarState
 
-from core.state import State
+from infra.state import State
 
 
 class AppState(LitestarState):

@@ -17,12 +17,12 @@ from rich.console import Console
 
 from adapters.ports import StorePort
 from adapters.sqlite import SQLiteAdapter
-from core.settings import settings as st
-from core.state import State
 from e_cli.models.identity import Identity
 from e_cli.runtime.journal import StoreJournal
 from e_cli.services.auth import AuthService
 from e_cli.services.project import ProjectService
+from infra.settings import settings as st
+from infra.state import State
 
 T = TypeVar("T")
 ### cyclopts reads `Annotated` metadata but does not unwrap PEP 695 `type` aliases: the classic generic alias is what it sees.

@@ -21,13 +21,13 @@ from litestar.di import NamedDependency, Provide
 from litestar.handlers import HTTPRouteHandler, WebsocketRouteHandler
 from litestar.status_codes import WS_1007_INVALID_FRAME_PAYLOAD_DATA
 
-from core.state import State
 from e_graph.api.deps import DepKey, correlation_id, graph, graphs, system
 from e_graph.instrument.graph import InstrumentGraph
 from e_graph.instrument.models import RunResult, Topology
 from e_graph.instrument.state import RunState
 from e_graph.models.pipeline import PipelineInfo
 from e_graph.models.run import RunRequest
+from infra.state import State
 
 PREFIX: Final[str] = "/api/pipelines"
 DECODER: Final = msgspec.json.Decoder(RunRequest)

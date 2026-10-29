@@ -10,9 +10,9 @@ from contextlib import asynccontextmanager
 
 from litestar import Litestar
 
-from core.logger import logger
 from e_graph.api.state import AppState
 from e_graph.pipelines.base import PipelineRegistry
+from infra.logger import logger
 
 
 @asynccontextmanager

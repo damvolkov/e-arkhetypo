@@ -8,14 +8,14 @@ import pytest
 
 from adapters.otel import OtelAdapter
 from adapters.ports import SpanKind, SpanPort, SpanStatus
-from core.settings.otel import OtelSettings
-from core.state import State
 from e_graph.instrument.graph import InstrumentGraph
 from e_graph.instrument.models import NodeOutput, NodeStatus, RunEnd, RunStatus
 from e_graph.instrument.node import InstrumentNode
 from e_graph.instrument.state import ContextState, InfraState, RunState
 from e_graph.instrument.telemetry import NO_SPAN, InstrumentTelemetry, NullSpan, NullTelemetry, SpanTelemetry
 from e_graph.logic.models import Usage
+from infra.config.otel import OtelSettings
+from infra.state import State
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterator, Mapping

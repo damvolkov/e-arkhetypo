@@ -11,8 +11,6 @@ of `logic/orchestrator/core.py`."""
 from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, ClassVar, Final
 
-from core.settings.darts import DartsSettings
-from core.state import State
 from e_graph.instrument.state import ContextState, InfraState, RunState
 from e_graph.instrument.telemetry import InstrumentTelemetry
 from e_graph.logic.errors import ProviderError
@@ -30,6 +28,8 @@ from e_graph.logic.models import (
 )
 from e_graph.logic.orchestrator.core import OrchestratorCore
 from e_graph.models.section import Section
+from infra.config.darts import DartsSettings
+from infra.state import State
 from support.crafter import plug
 
 if TYPE_CHECKING:

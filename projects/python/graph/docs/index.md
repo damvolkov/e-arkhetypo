@@ -6,7 +6,7 @@ Served by Litestar + Granian + msgspec on uv · ruff · ty · tach · prek · py
 ## Quickstart
 
 ```bash
-make install    # materialize core/ops/adapters + shared files, uv sync, git hooks
+make install    # materialize infra/ops/adapters + shared files, uv sync, git hooks
 make check      # lint + types + architecture + drift + tests
 make serve      # build the canvas + start the server: api + canvas at :8000
 make docs       # serve this site at http://localhost:8001
@@ -15,8 +15,8 @@ make up         # docker compose up
 
 ## Layout
 
-The service lives in `src/e_graph/`, layered by [tach](https://tach.dev). `src/core/`, `src/ops/` and
-`src/adapters/` are **materialized** from the common core by `make core` — edit them there, never here:
+The service lives in `src/e_graph/`, layered by [tach](https://tach.dev). `src/infra/`, `src/ops/` and
+`src/adapters/` are **materialized** from the infra blueprint by `make infra` — edit them there, never here:
 
 | Module | Layer | Purpose |
 |---|---|---|
@@ -56,8 +56,8 @@ The service lives in `src/e_graph/`, layered by [tach](https://tach.dev). `src/c
 | [`adapters.docling`](reference/adapters/docling.md) | adapters | DocumentPort over docling-serve: conversions as server tasks, options from `DOCLING_*` (materialized) |
 | [`adapters.otel`](reference/adapters/otel.md) | adapters | TelemetryPort over the OpenTelemetry SDK, OTLP/HTTP export — common to every system (materialized) |
 | [`ops.wrappers`](reference/ops/wrappers.md) | ops | LatencyWrapper and the agnostic measuring wrappers (materialized) |
-| [`core.settings`](reference/core/settings/index.md) | core | Composed settings: one BaseSettings reader, per-scope structs (materialized) |
-| [`core.logger`](reference/core/logger.md) | core | Structured logging: JSON in prod, ordered plain text in dev (materialized) |
+| [`infra.settings`](reference/infra/settings.md) | infra | Composed settings: one BaseSettings reader over the per-scope structs of `infra.config` (materialized) |
+| [`infra.logger`](reference/infra/logger.md) | infra | Structured logging: JSON in prod, ordered plain text in dev (materialized) |
 
 Reference pages are generated automatically from the sources: drop a new module under `src/` and it
 appears here on the next build.
@@ -91,7 +91,7 @@ status, latency, trace ids — always stand. When the node called the agent, `us
 
 The endpoint is an `Endpoint` or a `Tier` read from `AGENT_HIGH` / `AGENT_MEDIUM` / `AGENT_LOW`; base and
 key resolve run argument → endpoint → the provider's standard variables (see `.env.example`, full table
-in `core/settings/agent.py`) → a dummy key for local servers. Invalid replies are retried with the
+in `infra/config/agent.py`) → a dummy key for local servers. Invalid replies are retried with the
 validation error (`AGENT_RETRIES`). No token limit is imposed unless the caller sets `max_tokens`; a
 reply cut at it is asked again with the budget doubled, on the same retry budget.
 

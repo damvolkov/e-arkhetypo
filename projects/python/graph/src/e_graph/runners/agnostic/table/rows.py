@@ -11,9 +11,9 @@ from typing import Annotated, Any, Final
 
 import msgspec
 
-from core.struct import CheckedStruct
 from e_graph.instrument.state import RunState
 from e_graph.logic.models import Address, Call
+from infra.struct import CheckedStruct
 
 RULE: Final[re.Pattern[str]] = re.compile(r"[\s:|-]+")
 MARKS: Final[re.Pattern[str]] = re.compile(r"[*†‡]+$")

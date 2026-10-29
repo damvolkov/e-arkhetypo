@@ -22,8 +22,8 @@ from typing import TYPE_CHECKING, Annotated, Final, TypedDict, cast
 
 from adapters.base import AdapterPing, BaseAdapter
 from adapters.ports import DocumentPort, HttpPort, StorePort, TelemetryPort
-from core.state import State
 from e_graph.instrument.models import NodeOutput
+from infra.state import State
 
 if TYPE_CHECKING:
     from datetime import timedelta
@@ -84,7 +84,7 @@ class InfraState:
 class ContextState(Mapping[str, State]):
     """The process-wide store of live runs' contexts, `context.<id>`: opened by a run, released when it closes.
 
-    Not a core `State` on purpose: sealing the app's graph at startup freezes `infra`, while this store
+    Not an infra `State` on purpose: sealing the app's graph at startup freezes `infra`, while this store
     must keep taking and dropping runs for the app's whole life."""
 
     __slots__ = ("_runs",)

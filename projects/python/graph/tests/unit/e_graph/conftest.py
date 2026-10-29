@@ -18,14 +18,14 @@ from litestar.testing import TestClient
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 
 from adapters.otel import OtelAdapter
-from core.settings.otel import OtelSettings
-from core.state import State
 from e_graph.instrument.graph import InstrumentGraph
 from e_graph.instrument.state import AdaptersState, ContextState, InfraState, ProcessorsState, RunState
 from e_graph.instrument.telemetry import InstrumentTelemetry
 from e_graph.logic.agent import AgnosticAgent
 from e_graph.logic.orchestrator.core import OrchestratorCore
 from e_graph.main import create_app
+from infra.config.otel import OtelSettings
+from infra.state import State
 from processors.doc import DocProcessor
 from support.docling import GoldenPort
 

@@ -15,8 +15,8 @@ from e_graph.pipelines.doc.graph import DocGraph
 if TYPE_CHECKING:
     from pytest_resources import Resources
 
-    from core.state import State
     from e_graph.instrument.graph import InstrumentGraph
+    from infra.state import State
 
 ALL: tuple[str, ...] = ("ingest", "normalize", "classify", "extract", "validate", "transform", "report")
 

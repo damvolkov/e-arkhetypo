@@ -16,12 +16,12 @@ from cyclopts import App, Parameter
 from rich.console import Console
 from rich.markup import escape
 
-from core.settings import settings as st
 from e_cli.models.command import CommandCard
 from e_cli.models.error import CliError
 from e_cli.models.identity import Identity, IdentityOrigin
 from e_cli.models.session import Session
 from e_cli.runtime.lifespan import lifespan
+from infra.settings import settings as st
 
 
 ##### TYPES #####

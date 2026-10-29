@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Any
 
 import pytest
 
-from core.settings.agent import PROVIDERS, AgentSettings
+from infra.config.agent import PROVIDERS, AgentSettings
 from support.crafter import SpecCrafter
 
 if TYPE_CHECKING:

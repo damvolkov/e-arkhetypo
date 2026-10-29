@@ -1,0 +1,4 @@
+site/
+
+# agent plans (persona: Plans) — working state, never committed
+.plans/

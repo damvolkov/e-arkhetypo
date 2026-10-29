@@ -2,8 +2,8 @@
 
 from typing import TYPE_CHECKING, cast
 
-from core.settings.api import ApiSettings, HttpMethod
 from e_graph.api.middlewares import AccessLogMiddleware, cors_config
+from infra.config.api import ApiSettings, HttpMethod
 
 if TYPE_CHECKING:
     from litestar.types import Receive, Scope, Send

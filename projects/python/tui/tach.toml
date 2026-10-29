@@ -14,7 +14,7 @@ root_module = "forbid"
 # layout derivations · `flow`: the graph engine (page, graph, pages, state, walk) — domain, no widgets ·
 # `interact`: the interactive objects (toggle/choice/input/confirm/report) — widgets, no graph · `layout`: the
 # mini-framework (spec, render, frame, shape) · then the shared core, the ops helpers and data.
-layers = ["examples", "app", "templates", "flow", "interact", "layout", "processors", "adapters", "core", "ops", "models"]
+layers = ["examples", "app", "templates", "flow", "interact", "layout", "processors", "adapters", "infra", "ops", "models"]
 
 [rules]
 unused_ignore_directives = "error"
@@ -76,8 +76,8 @@ layer = "adapters"
 depends_on = []
 
 [[modules]]
-path = "core"
-layer = "core"
+path = "infra"
+layer = "infra"
 depends_on = []
 
 [[modules]]

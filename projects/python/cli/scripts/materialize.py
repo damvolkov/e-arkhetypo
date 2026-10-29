@@ -1,9 +1,9 @@
-"""scripts/materialize: the hardened sed — copy `projects/python/core` sections into `src/` with a structural rewrite.
+"""scripts/materialize: the hardened sed — copy `projects/python/infra` sections into `src/` with a structural rewrite.
 
 libcst parses each source file as real 3.14 syntax (PEP 695 included, verified against the whole
-`e_core` tree) and rewrites *only* the import nodes `e_core.{core,ops,adapters,processors} → {core,ops,adapters,processors}`;
-every result is re-parsed with `ast.parse` and scanned for leftovers before it is written. `make core`
-materializes into `src/`; `make core-check` materializes into a throwaway tree under `/tmp` and diffs,
+`e_infra` tree) and rewrites *only* the import nodes `e_infra.{infra,ops,adapters,processors} → {infra,ops,adapters,processors}`;
+every result is re-parsed with `ast.parse` and scanned for leftovers before it is written. `make infra`
+materializes into `src/`; `make infra-check` materializes into a throwaway tree under `/tmp` and diffs,
 so both modes run the exact same generation path and the drift-check cannot lie about a second one.
 """
 
@@ -22,8 +22,8 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
 ROOT: Path = Path(__file__).resolve().parents[1]
-CORE_SRC: Path = ROOT.parent / "core" / "src" / "e_core"
-SECTIONS: tuple[str, ...] = ("adapters", "core", "ops", "processors")
+INFRA_SRC: Path = ROOT.parent / "infra" / "src" / "e_infra"
+SECTIONS: tuple[str, ...] = ("adapters", "infra", "ops", "processors")
 ### the TUI header belongs to the boilerplate wizard, not to a running service: same topology as the old sed.
 ### the compose tool belongs to stack management (e-taxis materializes the whole ops area), not to a running service.
 ### postgres and the durable background engines ride in only for a service that runs them: add psqlpy /
@@ -65,10 +65,10 @@ def _dotted(parts: Sequence[str]) -> cst.BaseExpression:
             return cst.Attribute(value=_dotted(init), attr=cst.Name(last))
 
 
-def _strip_e_core(name: cst.BaseExpression) -> cst.BaseExpression:
-    """`e_core.core.x` → `core.x`; anything outside a materialized section is returned untouched."""
+def _strip_e_infra(name: cst.BaseExpression) -> cst.BaseExpression:
+    """`e_infra.infra.x` → `infra.x`; anything outside a materialized section is returned untouched."""
     parts = _parts(name)
-    hit = parts is not None and parts[0] == "e_core" and len(parts) > 1 and parts[1] in SECTIONS
+    hit = parts is not None and parts[0] == "e_infra" and len(parts) > 1 and parts[1] in SECTIONS
     return _dotted(parts[1:]) if hit else name
 
 
@@ -76,14 +76,14 @@ def _strip_alias(alias: object) -> object:
     """One `import a.b [as c]` alias, stripped whatever its wrapper shape; anything else passes through."""
     match alias:
         case cst.ImportAlias(name=name):
-            return alias.with_changes(name=_strip_e_core(name))
+            return alias.with_changes(name=_strip_e_infra(name))
         case cst.Element(node=cst.ImportAlias() as inner):
             return alias.with_changes(node=_strip_alias(inner))
         case _:
             return alias
 
 
-class _StripECore(cst.CSTTransformer):
+class _StripEInfra(cst.CSTTransformer):
     """Import statements only: docstrings and comments keep naming the source of truth verbatim."""
 
     def leave_Import(  # noqa: N802 — libcst dispatches visitor methods by node class name
@@ -102,26 +102,26 @@ class _StripECore(cst.CSTTransformer):
             case None:
                 return updated_node
             case module:
-                return updated_node.with_changes(module=_strip_e_core(module))
+                return updated_node.with_changes(module=_strip_e_infra(module))
 
 
 ##### VALIDATION #####
-def _is_e_core_import(node: ast.AST) -> bool:
+def _is_e_infra_import(node: ast.AST) -> bool:
     match node:
         case ast.ImportFrom(module=module) | ast.Import(names=[ast.alias(name=module), *_]):
-            return bool(module) and module.split(".")[0] == "e_core"
+            return bool(module) and module.split(".")[0] == "e_infra"
         case _:
             return False
 
 
 def rewrite_source(text: str, path: str) -> str:
-    """One file rewritten structurally, then hard-validated: parseable by `ast`, free of `e_core` imports."""
-    out = cst.parse_module(text).visit(_StripECore()).code
-    match [node for node in ast.walk(ast.parse(out, filename=path)) if _is_e_core_import(node)]:
+    """One file rewritten structurally, then hard-validated: parseable by `ast`, free of `e_infra` imports."""
+    out = cst.parse_module(text).visit(_StripEInfra()).code
+    match [node for node in ast.walk(ast.parse(out, filename=path)) if _is_e_infra_import(node)]:
         case []:
             return out
         case leftovers:
-            msg = f"{path}: unresolved e_core imports survive the rewrite: {[n.lineno for n in leftovers]}"
+            msg = f"{path}: unresolved e_infra imports survive the rewrite: {[n.lineno for n in leftovers]}"
             raise SystemExit(msg)
 
 
@@ -130,8 +130,8 @@ def _sources(section: str) -> list[Path]:
     """Every .py of one section, in stable order, minus the excluded files."""
     return [
         path
-        for path in sorted((CORE_SRC / section).rglob("*.py"))
-        if "__pycache__" not in path.parts and str(path.relative_to(CORE_SRC)) not in EXCLUDES
+        for path in sorted((INFRA_SRC / section).rglob("*.py"))
+        if "__pycache__" not in path.parts and str(path.relative_to(INFRA_SRC)) not in EXCLUDES
     ]
 
 
@@ -141,7 +141,7 @@ def materialize(dest_root: Path) -> None:
         shutil.rmtree(dest_root / "src" / section, ignore_errors=True)
     for section in SECTIONS:
         for path in _sources(section):
-            rel = path.relative_to(CORE_SRC)
+            rel = path.relative_to(INFRA_SRC)
             target = dest_root / "src" / rel
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_text(rewrite_source(path.read_text(), str(rel)))
@@ -161,7 +161,7 @@ def check(dest_root: Path) -> int:
     tmp = Path(tempfile.mkdtemp(prefix="e-cli-materialize-"))
     try:
         materialize(tmp)
-        expected = {path.relative_to(CORE_SRC) for section in SECTIONS for path in _sources(section)}
+        expected = {path.relative_to(INFRA_SRC) for section in SECTIONS for path in _sources(section)}
         actual = _materialized(dest_root)
         issues = [
             *(f"{rel}: missing" for rel in sorted(expected - actual)),
@@ -174,10 +174,10 @@ def check(dest_root: Path) -> int:
         ]
         match issues:
             case []:
-                print("✓ materialized core/ops/adapters in sync")
+                print("✓ materialized infra/ops/adapters in sync")
                 return 0
             case _:
-                print("✗ drift from projects/python/core (run make core):")
+                print("✗ drift from projects/python/infra (run make infra):")
                 print("\n".join(f"  {issue}" for issue in issues))
                 return 1
     finally:
@@ -195,7 +195,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             return check(ROOT)
         case _:
             materialize(ROOT)
-            print("✓ materialized adapters/, core/, ops/ from projects/python/core")
+            print("✓ materialized adapters/, infra/, ops/ from projects/python/infra")
             return 0
 
 

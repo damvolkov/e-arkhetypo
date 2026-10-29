@@ -30,7 +30,6 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 from langgraph.types import CachePolicy, RetryPolicy, TimeoutPolicy
 
-from core.logger import logger
 from e_graph.instrument.errors import ContractError, ContractRule, NodeError
 from e_graph.instrument.models import (
     EdgeKind,
@@ -48,6 +47,7 @@ from e_graph.instrument.models import (
 from e_graph.instrument.node import InstrumentNode, NodeFunc
 from e_graph.instrument.state import Channels, ChannelUpdate, RunState
 from e_graph.models.section import Section
+from infra.logger import logger
 from ops.wrappers import LatencyWrapper
 
 type Route = Callable[[RunState], Hashable | Awaitable[Hashable]]

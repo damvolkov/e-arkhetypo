@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING, Any
 import polars as pl
 import pytest
 
-from core.settings.doc import DocMode, DocSettings, DocSignal
+from infra.config.doc import DocMode, DocSettings, DocSignal
 from processors.doc import DocProcessor
 from processors.models import Backend, Document
 from support.docling import GoldenPort

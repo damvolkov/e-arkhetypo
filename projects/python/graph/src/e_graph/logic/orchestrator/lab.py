@@ -27,7 +27,6 @@ import rstr
 import rustworkx as rx
 import wasi_graphviz
 
-from core.state import State
 from e_graph.instrument.state import ContextState, RunState
 from e_graph.logic.errors import EndpointError
 from e_graph.logic.models import (
@@ -46,6 +45,7 @@ from e_graph.logic.models import (
 )
 from e_graph.logic.orchestrator.fusion import SpecFusion
 from e_graph.models.section import ORDER, Section
+from infra.state import State
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Mapping

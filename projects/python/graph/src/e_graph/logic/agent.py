@@ -45,7 +45,6 @@ import pydantic
 from any_llm import AnyLLM
 from any_llm.exceptions import MissingApiKeyError
 
-from core.settings import settings as st
 from e_graph.logic.errors import (
     EndpointError,
     InvalidError,
@@ -68,6 +67,7 @@ from e_graph.logic.models import (
     Tier,
     Usage,
 )
+from infra.settings import settings as st
 
 if TYPE_CHECKING:
     from _typeshed import DataclassInstance

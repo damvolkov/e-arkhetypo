@@ -1,4 +1,4 @@
-"""tests/unit/e_api: the live app on the real graph — env seeded before the lazy core singletons ever load.
+"""tests/unit/e_api: the live app on the real graph — env seeded before the lazy infra singletons ever load.
 
 `os.environ` stays untouched at module import (doctrine: no side-effect between imports); the seeding
 rides `pytest_configure`, which pytest runs before collection. Collection matters: pytest probes every

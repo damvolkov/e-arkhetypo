@@ -10,7 +10,7 @@ root_module = "forbid"
 ##### LAYERS #####
 # Ordered high → low: a layer may import lower layers, importing upward fails. The logic sees models only;
 # the MCP edge and the config depend downward, never the reverse; main is the composition root.
-layers = ["root", "edge", "logic", "models", "adapters", "core", "ops"]
+layers = ["root", "edge", "logic", "models", "adapters", "infra", "ops"]
 
 [rules]
 unused_ignore_directives = "error"
@@ -47,8 +47,8 @@ layer = "adapters"
 depends_on = []
 
 [[modules]]
-path = "core"
-layer = "core"
+path = "infra"
+layer = "infra"
 depends_on = []
 
 [[modules]]

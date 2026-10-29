@@ -7,7 +7,7 @@ handed (every `add_*` returns the graph) and returns it. `build` owns everything
 named after the folder, the compile, the built `InstrumentGraph` handed back — so a builder can never
 return half a graph. The folder name is the pipeline's name: the path is the name.
 
-`PipelineRegistry` sweeps the package with the core `FileFinder`: drop a new pipeline folder in
+`PipelineRegistry` sweeps the package with the infra `FileFinder`: drop a new pipeline folder in
 `pipelines/` and the next boot serves it, nothing else to touch. `build` returns the graphs by name —
 singletons the system holds for every run to share."""
 

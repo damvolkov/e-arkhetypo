@@ -19,7 +19,7 @@ import eserde
 import msgspec
 
 from adapters.docling import DoclingAdapter
-from core.settings.docling import DoclingSettings
+from infra.config.docling import DoclingSettings
 from processors.doc import DocProcessor
 
 if TYPE_CHECKING:

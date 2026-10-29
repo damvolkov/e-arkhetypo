@@ -3,8 +3,8 @@
 from importlib.metadata import version
 
 import e_graph.main as entrypoint
-from core.settings import Settings
-from core.settings import settings as st
+from infra.settings import Settings
+from infra.settings import settings as st
 
 
 def test_importing_main_has_no_side_effects() -> None:

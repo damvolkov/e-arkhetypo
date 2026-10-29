@@ -14,13 +14,13 @@ import eserde
 import pytest
 
 from adapters.otel import OtelAdapter
-from core.settings.otel import OtelSettings
-from core.state import State
 from e_graph.instrument.models import RunStatus
 from e_graph.instrument.state import ContextState, InfraState, ProcessorsState, RunState
 from e_graph.instrument.telemetry import InstrumentTelemetry
 from e_graph.logic.orchestrator.core import OrchestratorCore
 from e_graph.pipelines.note.graph import NoteGraph
+from infra.config.otel import OtelSettings
+from infra.state import State
 from processors.doc import DocProcessor
 from support.docling import GoldenPort
 

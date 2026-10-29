@@ -12,9 +12,9 @@ from contextlib import asynccontextmanager
 from litestar import Litestar
 
 from adapters.postgres import PostgresAdapter, PostgresError
-from core.logger import logger
-from core.settings import settings as st
-from core.settings.postgres import PostgresSettings
+from infra.config.postgres import PostgresSettings
+from infra.logger import logger
+from infra.settings import settings as st
 
 
 ##### ROWS #####

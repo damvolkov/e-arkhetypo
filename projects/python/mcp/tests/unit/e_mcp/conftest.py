@@ -2,8 +2,8 @@
 
 import pytest
 
-from core.settings.base import Secret
 from e_mcp.config.mcp import McpSettings
+from infra.config.base import Secret
 
 
 @pytest.fixture

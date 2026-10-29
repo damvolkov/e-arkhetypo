@@ -2,7 +2,7 @@
 
 from pydantic_settings import SettingsConfigDict
 
-from core.settings.base import BaseSettings, Secret
+from infra.config.base import BaseSettings, Secret
 
 
 class McpSettings(BaseSettings):

@@ -9,9 +9,9 @@ from typing import TYPE_CHECKING, Any
 import pytest
 
 from adapters.otel import OtelAdapter
-from core.settings.otel import OtelSettings
 from e_graph.logic.agent import AgnosticAgent
 from e_graph.logic.models import SpecStatus
+from infra.config.otel import OtelSettings
 from support.crafter import SpecCrafter
 from support.darts import DartsHarness
 

@@ -1,6 +1,6 @@
 """api.middlewares: the ASGI stack, declared once as data — correlation, CORS, and the house access log.
 
-The config struct lives in the settings package (`core.settings.api`); this module only
+The config struct lives in the config package (`infra.config.api`); this module only
 translates it into litestar behaviour and owns the house middleware.
 """
 
@@ -12,13 +12,13 @@ from litestar.config.cors import CORSConfig
 from litestar.enums import HttpMethod as LitestarHttpMethod
 from litestar.types import ASGIApp
 
-from core.logger import logger
-from core.settings import settings as st
+from infra.logger import logger
+from infra.settings import settings as st
 
 if TYPE_CHECKING:
     from litestar.types import Message, Receive, Scope, Send
 
-    from core.settings.api import ApiSettings
+    from infra.config.api import ApiSettings
 
 
 ##### MIDDLEWARES #####

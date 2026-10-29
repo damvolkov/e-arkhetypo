@@ -31,9 +31,9 @@ from typing import TYPE_CHECKING, Annotated, Any, ClassVar, Final
 import jsonschema_rs
 import msgspec
 
-from core.struct import CheckedStruct
 from e_graph.logic.errors import Rule, Severity
 from e_graph.models.section import PREFIXES, Section
+from infra.struct import CheckedStruct
 
 if TYPE_CHECKING:
     from collections.abc import Mapping

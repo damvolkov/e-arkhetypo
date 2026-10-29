@@ -24,8 +24,8 @@ ORDER: Final[Mapping[Tier, int]] = MappingProxyType({tier: position for position
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
 
-    from core.settings.darts import DartsSettings
     from e_graph.logic.models import Catalog
+    from infra.config.darts import DartsSettings
 
 
 class DagPlan:

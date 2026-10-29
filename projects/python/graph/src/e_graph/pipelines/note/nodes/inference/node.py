@@ -8,4 +8,4 @@ from e_graph.models.section import Section
 
 async def node_inference(state: RunState) -> dict[str, Any]:
     """Derive the term, the coupon, the drag, the ladder and the scenarios."""
-    return await state.infra.orchestrator.node(Section.INFERENCE, state)
+    return await state.logic.orchestrator.node(Section.INFERENCE, state)

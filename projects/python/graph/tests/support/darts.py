@@ -11,7 +11,8 @@ of `logic/orchestrator/core.py`."""
 from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, ClassVar, Final
 
-from e_graph.instrument.state import ContextState, InfraState, RunState
+from e_graph.instrument.contexts import InstrumentContexts
+from e_graph.instrument.state import InfraState, InstrumentState, RunState
 from e_graph.instrument.telemetry import InstrumentTelemetry
 from e_graph.logic.errors import ProviderError
 from e_graph.logic.models import (
@@ -27,6 +28,7 @@ from e_graph.logic.models import (
     Usage,
 )
 from e_graph.logic.orchestrator.core import OrchestratorCore
+from e_graph.logic.state import LogicState
 from e_graph.models.section import Section
 from infra.config.darts import DartsSettings
 from infra.state import State
@@ -142,12 +144,13 @@ class DartsHarness:
         infra = InfraState(
             adapters=None,  # ty: ignore[invalid-argument-type]
             processors=None,  # ty: ignore[invalid-argument-type]
-            agent=self.agent,  # ty: ignore[invalid-argument-type]
-            orchestrator=self.orchestrator,
-            telemetry=self._telemetry,
             graphs=MappingProxyType({}),
         )
-        system = State(infra=infra, contexts=ContextState())
+        system = State(
+            infra=infra,
+            logic=LogicState(agent=self.agent, orchestrator=self.orchestrator),  # ty: ignore[invalid-argument-type]
+            instrument=InstrumentState(telemetry=self._telemetry, contexts=InstrumentContexts()),
+        )
         system.seal()
         return RunState(system, pipeline=pipeline)
 

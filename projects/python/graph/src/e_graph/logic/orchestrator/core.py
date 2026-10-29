@@ -162,7 +162,7 @@ class OrchestratorCore:
     async def _spec_attempt(self, name: str, step: int, scope: ScopeCore) -> SpecOutcome:
         """One spec produced alone, in its span: succeeded, blocked, or handed to its fallback."""
         node, started = scope.catalog.nodes[name], time.perf_counter()
-        telemetry = scope.state.infra.telemetry
+        telemetry = scope.state.instrument.telemetry
         with telemetry.spec(name, scope.catalog.section, self._spec_kind(node.spec), scope.state.id) as span:
             try:
                 self._spec_write(scope, name, await self._spec_produce(node, step, scope))
@@ -334,7 +334,7 @@ class OrchestratorCore:
     ) -> None:
         """One fused call, in its span: every spec it answers finished on its own; a failed call hands each to its fallback."""
         nodes, started = scope.catalog.nodes, time.perf_counter()
-        telemetry = scope.state.infra.telemetry
+        telemetry = scope.state.instrument.telemetry
         async with scope.calls:
             index = next(scope.counter)
             with telemetry.spec(f"call-{index}", scope.catalog.section, "fused", scope.state.id) as span:
@@ -398,7 +398,7 @@ class OrchestratorCore:
     @staticmethod
     async def _fused_ask(call: AgentCall, scope: ScopeCore) -> Reply[dict[str, Any]]:
         """The agent asked once, exactly as the call says: what it answers is what the run was given."""
-        return await scope.state.infra.agent.run(call.instructions, call.prompt, call.schema, endpoint=call.tier)
+        return await scope.state.logic.agent.run(call.instructions, call.prompt, call.schema, endpoint=call.tier)
 
     async def _fused_finish(
         self,

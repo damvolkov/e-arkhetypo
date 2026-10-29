@@ -73,7 +73,7 @@ def section(section_id: FromPath[str], graph: NamedDependency[InstrumentGraph]) 
 
 def lab(system: NamedDependency[State]) -> SectionLab:
     """The orchestrator's sections seen from outside, over the app's own orchestrator and graphs. Chain: system."""
-    return SectionLab(system.infra.orchestrator, system.infra.graphs)
+    return SectionLab(system.logic.orchestrator, system.infra.graphs)
 
 
 def correlation_id() -> str:

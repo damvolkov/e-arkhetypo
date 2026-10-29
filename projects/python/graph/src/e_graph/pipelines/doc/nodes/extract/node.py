@@ -11,7 +11,7 @@ from e_graph.models.section import Section
 async def node_extract(state: RunState) -> dict[str, Any]:
     """Pull the amount out of the canonical text."""
     await anyio.sleep(cast("float", state.context.get("pace", 0.0)))
-    report = await state.infra.orchestrator.node(Section.EXTRACT, state)
+    report = await state.logic.orchestrator.node(Section.EXTRACT, state)
     ### the section's own words for the canvas: which pass, which amount — the specs' statuses travel beside.
     found = state.context.extract["EXT-amount"]
     return {**report, "summary": f"attempt {found['attempt']}: amount {found['amount'] or 'missing'}"}

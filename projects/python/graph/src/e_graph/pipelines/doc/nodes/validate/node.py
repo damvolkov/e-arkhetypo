@@ -13,7 +13,7 @@ ATTEMPTS: Final[int] = 2
 async def node_validate(state: RunState) -> dict[str, Any]:
     """Check the extracted amount is a number."""
     await anyio.sleep(cast("float", state.context.get("pace", 0.0)))
-    return await state.infra.orchestrator.node(Section.VALIDATE, state)
+    return await state.logic.orchestrator.node(Section.VALIDATE, state)
 
 
 def route_validate(state: RunState) -> Literal["extract", "transform"]:

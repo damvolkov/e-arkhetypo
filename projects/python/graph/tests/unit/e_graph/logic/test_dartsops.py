@@ -5,14 +5,17 @@ from typing import TYPE_CHECKING, Any
 
 import pytest
 
-from e_graph.instrument.state import InfraState
+from e_graph.instrument.contexts import InstrumentContexts
+from e_graph.instrument.state import InfraState, InstrumentState
 from e_graph.instrument.telemetry import InstrumentTelemetry
 from e_graph.logic import dartsops
 from e_graph.logic.dartsops import MISSING, DartsOps, _dig
 from e_graph.logic.errors import Rule
 from e_graph.logic.models import DeterministicSpec, JsonSchema, Reply, Role, Section, SemanticSpec, Tier
 from e_graph.logic.orchestrator.core import OrchestratorCore
+from e_graph.logic.state import LogicState
 from infra.settings import settings as st
+from infra.state import State
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
@@ -57,15 +60,18 @@ def ops_of(harness: DartsHarness) -> DartsOps:
     return DartsOps(harness.orchestrator, specs=harness.crafter.specs, runners=harness.crafter.runners)
 
 
-def infra_of(harness: DartsHarness, agent: Any) -> InfraState:
-    return InfraState(
-        adapters=None,  # ty: ignore[invalid-argument-type]
-        processors=None,  # ty: ignore[invalid-argument-type]
-        agent=agent,
-        orchestrator=harness.orchestrator,
-        telemetry=InstrumentTelemetry(),
-        graphs=MappingProxyType({}),
+def tree_of(harness: DartsHarness, agent: Any) -> State:
+    root = State(
+        infra=InfraState(
+            adapters=None,  # ty: ignore[invalid-argument-type]
+            processors=None,  # ty: ignore[invalid-argument-type]
+            graphs=MappingProxyType({}),
+        ),
+        logic=LogicState(agent=agent, orchestrator=harness.orchestrator),
+        instrument=InstrumentState(telemetry=InstrumentTelemetry(), contexts=InstrumentContexts()),
     )
+    root.seal()
+    return root
 
 
 ##### CONTRACT #####
@@ -126,7 +132,7 @@ async def test_a_green_tree_walks_to_a_green_readout(darts: DartsHarness) -> Non
     darts.semantic("EXT-kind", output=Y_SCHEMA)
     darts.agent.answers["EXT-kind"] = {"y": 2}
     readout = await ops_of(darts).evaluate(
-        "doc", {}, infra_of(darts, darts.agent), darts.agent, expectations=["extract/EXT-lines.x==1", "extract/EXT-kind.y==2"]
+        "doc", {}, tree_of(darts, darts.agent), darts.agent, expectations=["extract/EXT-lines.x==1", "extract/EXT-kind.y==2"]
     )  # fmt: skip
     assert (readout.ok, readout.mode, readout.pipeline) == (True, "live", "doc")
     assert list(readout.summaries) == ["extract"]
@@ -156,7 +162,7 @@ async def test_every_wrong_the_system_knows_becomes_a_signal(darts: DartsHarness
     readout = await ops_of(darts).evaluate(
         "doc",
         {},
-        infra_of(darts, darts.agent),
+        tree_of(darts, darts.agent),
         darts.agent,
         expectations=["extract/EXT-lost.nope==1"],
     )
@@ -169,7 +175,7 @@ async def test_every_wrong_the_system_knows_becomes_a_signal(darts: DartsHarness
 
 
 async def test_an_unreachable_tier_is_infra_alone_and_stops_the_walk(darts: DartsHarness) -> None:
-    readout = await ops_of(darts).evaluate("doc", {}, infra_of(darts, DownHigh(darts.agent)), DownHigh(darts.agent))
+    readout = await ops_of(darts).evaluate("doc", {}, tree_of(darts, DownHigh(darts.agent)), DownHigh(darts.agent))
     assert readout.mode == "infra"
     assert [signal.kind for signal in readout.signals] == ["infra"]
     assert readout.summaries == {}

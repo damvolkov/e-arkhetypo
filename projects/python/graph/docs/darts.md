@@ -166,7 +166,7 @@ Make a runner a tool (`agnostic/`) when it knows nothing of one pipeline: what i
 ```python
 async def node_extract(state: RunState) -> dict[str, Any]:
     """Read the cover and the statements' headline figures."""
-    return await state.infra.orchestrator.node(Section.EXTRACT, state)
+    return await state.logic.orchestrator.node(Section.EXTRACT, state)
 ```
 
 `node(section, state)` runs the section and reports its summary and every spec's status. Strict by default:

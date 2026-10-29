@@ -40,7 +40,8 @@ Two contracts, one per side:
   `NodeOutput` fills the output's empty slots, unknown keys land in `extra`; `None` falls back to the
   docstring headline. Workflow data lives in `state.context` (`context.<id>`), released when the run
   closes unless `run(state, retain=True)` — the run span keeps its snapshot. Singletons live in
-  `state.infra`: `adapters`, `agent`, `telemetry`, `graphs`. A node that calls the agent reports its `usage`.
+  the system's branches, read under the same names: `state.infra` (`adapters`, `processors`, `graphs`),
+  `state.logic` (`agent`, `orchestrator`), `state.instrument` (`telemetry`, `contexts`). A node that calls the agent reports its `usage`.
 - **the node** — `InstrumentNode.run(state) -> NodeOutput`, always: a raise never escapes, it becomes the
   FAILED output (traceback in the log, error recorded on the span). The graph alone speaks LangGraph's
   channels: it hands the RunState over, appends the output, and turns a FAILED output into the
@@ -63,7 +64,7 @@ class DocGraph(PipelineBuilder):
 
 async def node_extract(state: RunState) -> dict[str, Any]:
     """Pull the amount out of the canonical text."""
-    return await state.infra.orchestrator.node(Section.EXTRACT, state)
+    return await state.logic.orchestrator.node(Section.EXTRACT, state)
 ```
 
 A pipeline is a folder: `graph.py` declares nodes and edges on the fresh graph it is handed; `build` names

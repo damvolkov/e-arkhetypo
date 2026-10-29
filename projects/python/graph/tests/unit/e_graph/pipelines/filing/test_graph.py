@@ -11,10 +11,12 @@ from typing import TYPE_CHECKING, Any, Final
 
 import pytest
 
+from e_graph.instrument.contexts import InstrumentContexts
 from e_graph.instrument.models import RunStatus
-from e_graph.instrument.state import ContextState, InfraState, ProcessorsState, RunState
+from e_graph.instrument.state import InfraState, InstrumentState, ProcessorsState, RunState
 from e_graph.instrument.telemetry import InstrumentTelemetry
 from e_graph.logic.orchestrator.core import OrchestratorCore
+from e_graph.logic.state import LogicState
 from e_graph.pipelines.filing.graph import FilingGraph
 from infra.state import State
 from processors.doc import DocProcessor
@@ -55,12 +57,13 @@ def state(agent: ScriptedAgent) -> RunState:
     infra = InfraState(
         adapters=None,  # ty: ignore[invalid-argument-type]
         processors=ProcessorsState(doc=DocProcessor(GoldenPort())),
-        agent=agent,  # ty: ignore[invalid-argument-type]
-        orchestrator=OrchestratorCore(),
-        telemetry=InstrumentTelemetry(),
         graphs=MappingProxyType({}),
     )
-    system = State(infra=infra, contexts=ContextState())
+    system = State(
+        infra=infra,
+        logic=LogicState(agent=agent, orchestrator=OrchestratorCore()),  # ty: ignore[invalid-argument-type]
+        instrument=InstrumentState(telemetry=InstrumentTelemetry(), contexts=InstrumentContexts()),
+    )
     system.seal()
     run = RunState(system, pipeline="filing")
     run.context.source = str(FILINGS / "aapl-10k-2025.pdf")

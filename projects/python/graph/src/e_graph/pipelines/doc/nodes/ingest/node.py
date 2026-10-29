@@ -11,4 +11,4 @@ from e_graph.models.section import Section
 async def node_ingest(state: RunState) -> dict[str, Any]:
     """Receive the document and fingerprint it."""
     await anyio.sleep(cast("float", state.context.get("pace", 0.0)))
-    return await state.infra.orchestrator.node(Section.INGEST, state)
+    return await state.logic.orchestrator.node(Section.INGEST, state)

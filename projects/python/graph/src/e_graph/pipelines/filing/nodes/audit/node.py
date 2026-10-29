@@ -8,4 +8,4 @@ from e_graph.models.section import Section
 
 async def node_audit(state: RunState) -> dict[str, Any]:
     """Hold the figures read to the statements' identities."""
-    return await state.infra.orchestrator.node(Section.AUDIT, state)
+    return await state.logic.orchestrator.node(Section.AUDIT, state)

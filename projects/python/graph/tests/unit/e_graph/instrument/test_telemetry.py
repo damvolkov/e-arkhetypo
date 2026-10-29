@@ -8,12 +8,14 @@ import pytest
 
 from adapters.otel import OtelAdapter
 from adapters.ports import SpanKind, SpanPort, SpanStatus
+from e_graph.instrument.contexts import InstrumentContexts
 from e_graph.instrument.graph import InstrumentGraph
 from e_graph.instrument.models import NodeOutput, NodeStatus, RunEnd, RunStatus
 from e_graph.instrument.node import InstrumentNode
-from e_graph.instrument.state import ContextState, InfraState, RunState
+from e_graph.instrument.state import InfraState, InstrumentState, RunState
 from e_graph.instrument.telemetry import NO_SPAN, InstrumentTelemetry, NullSpan, NullTelemetry, SpanTelemetry
 from e_graph.logic.models import Usage
+from e_graph.logic.state import LogicState
 from infra.config.otel import OtelSettings
 from infra.state import State
 
@@ -159,12 +161,13 @@ async def test_a_node_runs_untraced_without_a_provider(located: Callable[..., An
     infra = InfraState(
         adapters=absent,
         processors=absent,
-        agent=absent,
-        orchestrator=absent,
-        telemetry=InstrumentTelemetry(),
         graphs={},
     )
-    system = State(infra=infra, contexts=ContextState())
+    system = State(
+        infra=infra,
+        logic=LogicState(agent=absent, orchestrator=absent),
+        instrument=InstrumentState(telemetry=InstrumentTelemetry(), contexts=InstrumentContexts()),
+    )
     system.seal()
     node = InstrumentGraph().add_node(located(node_quiet)).nodes["quiet"]
     assert isinstance(node, InstrumentNode)

@@ -14,10 +14,12 @@ import eserde
 import pytest
 
 from adapters.otel import OtelAdapter
+from e_graph.instrument.contexts import InstrumentContexts
 from e_graph.instrument.models import RunStatus
-from e_graph.instrument.state import ContextState, InfraState, ProcessorsState, RunState
+from e_graph.instrument.state import InfraState, InstrumentState, ProcessorsState, RunState
 from e_graph.instrument.telemetry import InstrumentTelemetry
 from e_graph.logic.orchestrator.core import OrchestratorCore
+from e_graph.logic.state import LogicState
 from e_graph.pipelines.note.graph import NoteGraph
 from infra.config.otel import OtelSettings
 from infra.state import State
@@ -50,12 +52,13 @@ async def read(agent: AgnosticAgent, note: str) -> tuple[RunStatus, dict[str, An
         infra = InfraState(
             adapters=None,  # ty: ignore[invalid-argument-type]
             processors=ProcessorsState(doc=DocProcessor(GoldenPort())),
-            agent=agent,
-            orchestrator=OrchestratorCore(),
-            telemetry=InstrumentTelemetry(telemetry),
             graphs=MappingProxyType({}),
         )
-        system = State(infra=infra, contexts=ContextState())
+        system = State(
+            infra=infra,
+            logic=LogicState(agent=agent, orchestrator=OrchestratorCore()),
+            instrument=InstrumentState(telemetry=InstrumentTelemetry(telemetry), contexts=InstrumentContexts()),
+        )
         system.seal()
         state = RunState(system, pipeline="note")
         state.context.source = str(DOCUMENTS / NOTES / note)

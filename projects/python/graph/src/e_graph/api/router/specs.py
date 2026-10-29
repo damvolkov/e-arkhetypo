@@ -69,7 +69,7 @@ async def simulate(
 ) -> Simulation:
     """The pipeline rehearsed up to the section: every section's run and the section's agent calls, whole."""
     try:
-        return await lab.simulate(graph.name, section, data.data, infra=system.infra, live=data.live)
+        return await lab.simulate(graph.name, section, data.data, system=system, live=data.live)
     except CatalogError as error:
         raise broken(error) from error
 

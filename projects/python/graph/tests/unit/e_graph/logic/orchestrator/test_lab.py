@@ -7,14 +7,17 @@ from typing import TYPE_CHECKING, Any, Final
 
 import pytest
 
-from e_graph.instrument.state import InfraState, ProcessorsState
+from e_graph.instrument.contexts import InstrumentContexts
+from e_graph.instrument.state import InfraState, InstrumentState, ProcessorsState
 from e_graph.instrument.telemetry import InstrumentTelemetry
 from e_graph.logic.agent import AgnosticAgent
 from e_graph.logic.models import CallGroup, LinkKind, Route, SpecLink, Tier
 from e_graph.logic.orchestrator.core import OrchestratorCore
 from e_graph.logic.orchestrator.lab import RehearsalAgent, SectionLab
+from e_graph.logic.state import LogicState
 from e_graph.models.section import Section
 from e_graph.pipelines.base import PipelineRegistry
+from infra.state import State
 from processors.doc import DocProcessor
 from support.darts import SECTION, ScriptedAgent
 from support.docling import GoldenPort
@@ -33,16 +36,19 @@ async def graphs() -> Mapping[str, InstrumentGraph]:
     return await PipelineRegistry().build()
 
 
-def infra(graphs: Mapping[str, InstrumentGraph], agent: Any) -> InfraState:
-    """The system a rehearsal copies: the real processor over replayed docling spans, the agent given."""
-    return InfraState(
-        adapters=None,  # ty: ignore[invalid-argument-type]
-        processors=ProcessorsState(doc=DocProcessor(GoldenPort())),
-        agent=agent,
-        orchestrator=OrchestratorCore(),
-        telemetry=InstrumentTelemetry(),
-        graphs=MappingProxyType(dict(graphs)),
+def tree(graphs: Mapping[str, InstrumentGraph], agent: Any) -> State:
+    """The sealed system a rehearsal copies, branch for branch as the lifespans mount it: the real processor over replayed docling spans, the agent given."""
+    root = State(
+        infra=InfraState(
+            adapters=None,  # ty: ignore[invalid-argument-type]
+            processors=ProcessorsState(doc=DocProcessor(GoldenPort())),
+            graphs=MappingProxyType(dict(graphs)),
+        ),
+        logic=LogicState(agent=agent, orchestrator=OrchestratorCore()),
+        instrument=InstrumentState(telemetry=InstrumentTelemetry(), contexts=InstrumentContexts()),
     )
+    root.seal()
+    return root
 
 
 ##### THE MAP #####
@@ -125,10 +131,10 @@ async def test_an_empty_mounted_section_lists_as_empty(darts: DartsHarness) -> N
 
 ##### THE REHEARSAL #####
 async def test_a_rehearsal_runs_every_earlier_section_once(graphs: Mapping[str, InstrumentGraph]) -> None:
-    system = infra(graphs, ScriptedAgent())
-    lab = SectionLab(system.orchestrator, graphs)
+    system = tree(graphs, ScriptedAgent())
+    lab = SectionLab(system.logic.orchestrator, graphs)
     data = {"document": "invoice 3 total 7.25"}
-    simulation = await lab.simulate("doc", Section.VALIDATE, data, infra=system)
+    simulation = await lab.simulate("doc", Section.VALIDATE, data, system=system)
     assert [run.section for run in simulation.runs] == ["ingest", "classify", "normalize", "extract", "validate"]
     assert (simulation.written, simulation.calls, simulation.routes, simulation.live) == (
         {"VAL-amount": {"valid": True}},
@@ -143,9 +149,9 @@ async def test_a_rehearsal_sends_what_a_live_run_sends_and_answers_without_a_mod
     graphs: Mapping[str, InstrumentGraph],
 ) -> None:
     agent = ScriptedAgent()
-    system = infra(graphs, agent)
-    simulation = await SectionLab(system.orchestrator, graphs).simulate(
-        "filing", Section.EXTRACT, {"source": AAPL}, infra=system
+    system = tree(graphs, agent)
+    simulation = await SectionLab(system.logic.orchestrator, graphs).simulate(
+        "filing", Section.EXTRACT, {"source": AAPL}, system=system
     )
     (call,) = simulation.calls
     assert (call.specs, call.tier, agent.calls) == (("EXT-balance", "EXT-cover", "EXT-income"), Tier.MEDIUM, [])
@@ -164,9 +170,9 @@ async def test_a_rehearsal_sends_what_a_live_run_sends_and_answers_without_a_mod
 async def test_a_live_rehearsal_asks_the_real_agent(graphs: Mapping[str, InstrumentGraph]) -> None:
     agent = ScriptedAgent()
     agent.answers["EXT-cover"] = {"company": "Apple Inc.", "period_end": "2025-09-27", "shares_outstanding": 7}
-    system = infra(graphs, agent)
-    simulation = await SectionLab(system.orchestrator, graphs).simulate(
-        "filing", Section.EXTRACT, {"source": AAPL}, infra=system, live=True
+    system = tree(graphs, agent)
+    simulation = await SectionLab(system.logic.orchestrator, graphs).simulate(
+        "filing", Section.EXTRACT, {"source": AAPL}, system=system, live=True
     )
     assert (simulation.live, len(agent.calls)) == (True, 1)
     assert simulation.written["EXT-cover"]["company"] == "Apple Inc."
@@ -177,17 +183,17 @@ async def test_examples_answer_first(darts: DartsHarness, graphs: Mapping[str, I
     darts.semantic("EXT-a", output=total, examples=({"total": 9.5},))
     darts.semantic("EXT-b", output=total)
     graph = graphs["doc"]
-    system = infra({"doc": graph}, ScriptedAgent())
+    system = tree({"doc": graph}, ScriptedAgent())
     lab = SectionLab(darts.orchestrator, {"doc": graph})
-    simulation = await lab.simulate("doc", Section.INGEST, {}, infra=system)
+    simulation = await lab.simulate("doc", Section.INGEST, {}, system=system)
     assert simulation.runs[-1].section == Section.INGEST
-    rehearsed = await lab.simulate("doc", SECTION, {}, infra=system)
+    rehearsed = await lab.simulate("doc", SECTION, {}, system=system)
     assert rehearsed.written == {"EXT-a": {"total": 9.5}, "EXT-b": {"total": 0.0}}
 
 
 async def test_a_tier_without_endpoint_routes_to_its_reason(settings: Callable[..., Any]) -> None:
     async with AgnosticAgent(settings()) as agent:
-        route = SectionLab.route(infra({}, agent), Tier.HIGH)
+        route = SectionLab.route(tree({}, agent).logic, Tier.HIGH)
     assert route.error.startswith("tier high has no endpoint")
 
 

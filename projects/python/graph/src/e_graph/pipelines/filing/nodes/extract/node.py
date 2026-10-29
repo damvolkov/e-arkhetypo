@@ -8,4 +8,4 @@ from e_graph.models.section import Section
 
 async def node_extract(state: RunState) -> dict[str, Any]:
     """Read the cover and the statements' headline figures."""
-    return await state.infra.orchestrator.node(Section.EXTRACT, state)
+    return await state.logic.orchestrator.node(Section.EXTRACT, state)

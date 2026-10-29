@@ -349,7 +349,7 @@ class InstrumentGraph(StateGraph[Channels, None, Channels, Channels]):
 
         When the run closes — reaching END or failing, or abandoned by its consumer — its context is
         released from the store; the run span keeps a snapshot. `retain=True` keeps it (tests, debugging)."""
-        compiled, reached, telemetry = self._stream_compiled(), set[str](), state.infra.telemetry
+        compiled, reached, telemetry = self._stream_compiled(), set[str](), state.instrument.telemetry
         logger.info("run started", run_id=state.id)
         try:
             with telemetry.run(state.id, state.context, state.correlation) as span, LatencyWrapper() as latency:

@@ -46,9 +46,9 @@ from e_graph.logic.orchestrator.lab import SectionLab
 from e_graph.logic.orchestrator.plan import DagPlan
 from e_graph.models.section import Section
 from e_graph.pipelines.base import PipelineRegistry
+from infra.config.darts import DartsSettings
 from infra.logger import ELogger
 from infra.settings import settings as st
-from infra.settings.darts import DartsSettings
 from processors.doc import DocProcessor
 
 CONSOLE: Final[Console] = Console(soft_wrap=True)

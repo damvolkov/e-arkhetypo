@@ -7,15 +7,15 @@ from awa import AwaError
 
 from e_infra.adapters.awa import AwaAdapter
 from e_infra.adapters.base import PingError
-from e_infra.conftest import settled
 from e_infra.infra.background import BackgroundError, BackgroundPort, BackgroundState
-from e_infra.infra.settings.base import Secret
+from e_infra.infra.config.base import Secret
+from unit.e_infra.conftest import settled
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
 
     from e_infra.infra.background import BackgroundHandler, BackgroundRun
-    from e_infra.infra.settings.queue import QueueSettings
+    from e_infra.infra.config.queue import QueueSettings
 
 pytestmark = pytest.mark.db
 

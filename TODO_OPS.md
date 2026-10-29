@@ -112,7 +112,7 @@ entropy (it protects things). Cryptography is an agnostic tool: it lives in `ops
       category set; `references/functions.md` and `references/tree.md` gain the `ops` law (category, never particular;
       ≤ 20; `<category>_<scope>`), with the e-gnosis before/after as the sample.
 - [ ] `proj-py-layout`: the `ops` layer described as the closed set; cryptography is `ops/crypto`, `infra` keeps
-      only its configuration (`infra/settings/crypto`); `infra/` is the project's internal infrastructure, `core/` and
+      only its configuration (`infra/config/crypto`, composed by `infra/settings`); `infra/` is the project's internal infrastructure, `core/` and
       `common/` are banned names — every scaffold and sample tree updated.
 - [ ] Every other skill, reference and agent that names `core/` (settings, lifespan, logger, background…) says
       `infra/`.

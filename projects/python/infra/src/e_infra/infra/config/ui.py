@@ -1,8 +1,8 @@
-"""infra/settings/ui: the canvas's tunables — toast lifetime, run pace and grid spacing (UI_*)."""
+"""infra/config/ui: the canvas's tunables — toast lifetime, run pace and grid spacing (UI_*)."""
 
 from datetime import timedelta
 
-from e_infra.infra.settings.base import BaseSettings
+from e_infra.infra.config.base import BaseSettings
 
 
 class UiSettings(BaseSettings):

@@ -17,9 +17,9 @@ from structlog.typing import (  # noqa: TC002 — beartype resolves ELogger's an
     WrappedLogger,
 )
 
+from e_infra.infra.config.app import Env
 from e_infra.infra.proxy import LazyProxy
 from e_infra.infra.settings import settings as st
-from e_infra.infra.settings.app import Env
 
 
 ##### TYPES #####

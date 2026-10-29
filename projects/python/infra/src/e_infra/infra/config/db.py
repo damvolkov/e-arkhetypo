@@ -1,8 +1,8 @@
-"""infra/settings/db: the embedded sqlite store — DB_PATH."""
+"""infra/config/db: the embedded sqlite store — DB_PATH."""
 
 from pathlib import Path
 
-from e_infra.infra.settings.base import BaseSettings
+from e_infra.infra.config.base import BaseSettings
 
 
 class DbSettings(BaseSettings):

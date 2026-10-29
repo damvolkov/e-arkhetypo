@@ -1,11 +1,11 @@
-"""infra/settings/postgres: the Postgres edge — POSTGRES_DSN, pool and statement limits (POSTGRES_*)."""
+"""infra/config/postgres: the Postgres edge — POSTGRES_DSN, pool and statement limits (POSTGRES_*)."""
 
 from datetime import timedelta
 
 from pydantic import Field
 from pydantic_settings import SettingsConfigDict
 
-from e_infra.infra.settings.base import BaseSettings, Secret
+from e_infra.infra.config.base import BaseSettings, Secret
 
 
 class PostgresSettings(BaseSettings):

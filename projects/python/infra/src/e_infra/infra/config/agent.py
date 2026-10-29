@@ -1,4 +1,4 @@
-"""infra/settings/agent: the agnostic agent's edge — per-provider key and base, tier endpoints, retries, timeout.
+"""infra/config/agent: the agnostic agent's edge — per-provider key and base, tier endpoints, retries, timeout.
 
 Every provider the agent can reach has two optional settings, `<provider>_api_key` and
 `<provider>_api_base`, read under the provider's own standard variable names (OPENAI_API_KEY,
@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING, Any, Final, Literal
 
 from pydantic import AliasChoices, BaseModel, ConfigDict, Field, create_model
 
-from e_infra.infra.settings.base import BaseSettings, Secret
+from e_infra.infra.config.base import BaseSettings, Secret
 
 if TYPE_CHECKING:
     from collections.abc import Mapping

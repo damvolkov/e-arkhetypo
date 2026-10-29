@@ -127,7 +127,7 @@ known-first-party = ["e_mcp", "infra", "ops", "adapters"]
 ### pydantic and msgspec resolve these classes' annotations at runtime: their imports must stay real.
 runtime-evaluated-base-classes = [
     "pydantic.BaseModel",
-    "infra.settings.base.BaseSettings",
+    "infra.config.base.BaseSettings",
     "msgspec.Struct",
     "infra.struct.CheckedStruct",
 ]

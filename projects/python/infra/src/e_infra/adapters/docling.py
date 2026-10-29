@@ -21,13 +21,13 @@ import wreq
 
 from e_infra.adapters.base import BaseAdapter
 from e_infra.adapters.ports import DocumentConversion
+from e_infra.infra.config.docling import DoclingImages
 from e_infra.infra.settings import settings as st
-from e_infra.infra.settings.docling import DoclingImages
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
-    from e_infra.infra.settings.docling import DoclingSettings
+    from e_infra.infra.config.docling import DoclingSettings
 
 DONE: Final[frozenset[str]] = frozenset({"success", "partial_success"})
 FAILED: Final[frozenset[str]] = frozenset({"failure", "skipped"})

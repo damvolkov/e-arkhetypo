@@ -1,10 +1,10 @@
-"""infra/settings/darts: the DARTS orchestrator — how much of a section runs at once, how semantic specs fuse (DARTS_*)."""
+"""infra/config/darts: the DARTS orchestrator — how much of a section runs at once, how semantic specs fuse (DARTS_*)."""
 
 from datetime import timedelta
 
 from pydantic import Field
 
-from e_infra.infra.settings.base import BaseSettings
+from e_infra.infra.config.base import BaseSettings
 
 
 class DartsSettings(BaseSettings):

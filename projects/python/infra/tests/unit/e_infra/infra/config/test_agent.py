@@ -1,4 +1,4 @@
-"""tests/unit/e_infra/infra/settings: AgentSettings — every provider's key and base under its standard names."""
+"""tests/unit/e_infra/infra/config: AgentSettings — every provider's key and base under its standard names."""
 
 from datetime import timedelta
 from typing import TYPE_CHECKING
@@ -6,8 +6,8 @@ from typing import TYPE_CHECKING
 import pytest
 from pydantic import ValidationError
 
+from e_infra.infra.config.agent import PROVIDERS, AgentSettings
 from e_infra.infra.settings import settings as st
-from e_infra.infra.settings.agent import PROVIDERS, AgentSettings
 
 if TYPE_CHECKING:
     from pathlib import Path

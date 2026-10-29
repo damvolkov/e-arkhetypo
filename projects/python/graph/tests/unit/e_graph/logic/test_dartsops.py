@@ -24,7 +24,7 @@ if TYPE_CHECKING:
     from support.darts import DartsHarness
 
 from adapters.otel import OtelAdapter
-from infra.settings.otel import OtelSettings
+from infra.config.otel import OtelSettings
 from support.crafter import SpecCrafter
 from support.darts import DartsHarness
 

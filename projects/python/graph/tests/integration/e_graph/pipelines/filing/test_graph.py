@@ -20,7 +20,7 @@ from e_graph.instrument.state import ContextState, InfraState, ProcessorsState, 
 from e_graph.instrument.telemetry import InstrumentTelemetry
 from e_graph.logic.orchestrator.core import OrchestratorCore
 from e_graph.pipelines.filing.graph import FilingGraph
-from infra.settings.otel import OtelSettings
+from infra.config.otel import OtelSettings
 from infra.state import State
 from processors.doc import DocProcessor
 from support.docling import GoldenPort

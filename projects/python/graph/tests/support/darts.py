@@ -28,7 +28,7 @@ from e_graph.logic.models import (
 )
 from e_graph.logic.orchestrator.core import OrchestratorCore
 from e_graph.models.section import Section
-from infra.settings.darts import DartsSettings
+from infra.config.darts import DartsSettings
 from infra.state import State
 from support.crafter import plug
 

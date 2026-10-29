@@ -22,7 +22,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from e_infra.adapters.ports import MdConvertPort
-    from e_infra.infra.settings.md import MDSettings
+    from e_infra.infra.config.md import MDSettings
 
 
 ##### ERRORS #####

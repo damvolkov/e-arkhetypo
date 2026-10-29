@@ -1,8 +1,8 @@
-"""infra/settings/crypto: the configuration of the crypto engine (`ops/crypto`), loaded from CRYPTO__*."""
+"""infra/config/crypto: the configuration of the crypto engine (`ops/crypto`), loaded from CRYPTO__*."""
 
 from pydantic_settings import SettingsConfigDict
 
-from e_infra.infra.settings.base import BaseSettings, Secret
+from e_infra.infra.config.base import BaseSettings, Secret
 from e_infra.ops.crypto import BCRYPT_ROUNDS, PasswordHasher, TokenAlg, TokenEnc
 
 

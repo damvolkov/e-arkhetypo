@@ -1,11 +1,11 @@
-"""infra/settings/docling: the document-conversion edge — where docling-serve lives and how it converts (DOCLING_*)."""
+"""infra/config/docling: the document-conversion edge — where docling-serve lives and how it converts (DOCLING_*)."""
 
 from datetime import timedelta
 from enum import StrEnum, auto
 
 from pydantic import Field
 
-from e_infra.infra.settings.base import BaseSettings
+from e_infra.infra.config.base import BaseSettings
 
 
 ##### ENUMS #####

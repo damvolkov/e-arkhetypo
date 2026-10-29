@@ -22,15 +22,15 @@ from e_infra.adapters.awa import AwaAdapter
 from e_infra.adapters.base import BaseAdapter
 from e_infra.adapters.pgqueuer import PgqueuerAdapter
 from e_infra.adapters.postgres import PostgresAdapter
-from e_infra.conftest import DSN, admin, create
-from e_infra.infra.settings.base import Secret
-from e_infra.infra.settings.postgres import PostgresSettings
+from e_infra.infra.config.base import Secret
+from e_infra.infra.config.postgres import PostgresSettings
+from unit.e_infra.conftest import DSN, admin, create
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator, Awaitable, Callable, Iterator
 
     from e_infra.infra.background import BackgroundHandler, BackgroundRun
-    from e_infra.infra.settings.queue import QueueSettings
+    from e_infra.infra.config.queue import QueueSettings
 
 
 class JsonHandler(BaseHTTPRequestHandler):

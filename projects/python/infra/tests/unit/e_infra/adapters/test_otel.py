@@ -14,8 +14,8 @@ from opentelemetry.trace import StatusCode
 from e_infra.adapters.base import PingError
 from e_infra.adapters.otel import KINDS, STATUSES, OtelAdapter, OtelSpan, export_grpc, export_http
 from e_infra.adapters.ports import SpanKind, SpanPort, SpanStatus, TelemetryPort
-from e_infra.infra.settings.base import Secret
-from e_infra.infra.settings.otel import OtelProtocol, OtelSettings
+from e_infra.infra.config.base import Secret
+from e_infra.infra.config.otel import OtelProtocol, OtelSettings
 
 
 @pytest.fixture

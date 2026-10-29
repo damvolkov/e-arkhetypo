@@ -35,7 +35,7 @@ if TYPE_CHECKING:
     from pgqueuer.domain.models import Context, Job
 
     from e_infra.infra.background import BackgroundHandler
-    from e_infra.infra.settings.queue import QueueSettings
+    from e_infra.infra.config.queue import QueueSettings
 
 ### PgQueuer re-picks a job whose heartbeat (sent every half of this) is older than it: a crashed worker's job is
 ### rescued after it, and a loop blocked for longer runs the job twice.

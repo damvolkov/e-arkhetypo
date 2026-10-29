@@ -1,4 +1,4 @@
-"""infra/settings/theme: the house theme — background, corporate hue and ink.
+"""infra/config/theme: the house theme — background, corporate hue and ink.
 
 Three colors, no more: the background the frames sit on, the corporate hue (frames, mastheads,
 rules, emphasis — the same #0277bd `ops.tui.HeaderTui` paints with) and the ink for content text.
@@ -8,7 +8,7 @@ import re
 
 from pydantic import field_validator
 
-from e_infra.infra.settings.base import BaseSettings
+from e_infra.infra.config.base import BaseSettings
 
 ##### DEFAULTS #####
 BACKGROUND: str = "#000000"

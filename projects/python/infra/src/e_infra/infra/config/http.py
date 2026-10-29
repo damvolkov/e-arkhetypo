@@ -1,8 +1,8 @@
-"""infra/settings/http: the outbound HTTP edge — HTTP_BASE_URL, HTTP_TIMEOUT."""
+"""infra/config/http: the outbound HTTP edge — HTTP_BASE_URL, HTTP_TIMEOUT."""
 
 from datetime import timedelta
 
-from e_infra.infra.settings.base import BaseSettings
+from e_infra.infra.config.base import BaseSettings
 
 
 class HttpSettings(BaseSettings):

@@ -6,7 +6,7 @@ import pytest
 from e_infra.adapters import redis as redis_module
 from e_infra.adapters.base import PingError
 from e_infra.adapters.redis import RedisAdapter
-from e_infra.infra.settings.redis import RedisSettings
+from e_infra.infra.config.redis import RedisSettings
 
 
 async def test_redis_offline_contract() -> None:

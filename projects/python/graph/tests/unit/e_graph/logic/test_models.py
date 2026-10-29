@@ -3,7 +3,7 @@
 from any_llm import LLMProvider
 
 from e_graph.logic.models import LOCAL, STRICT, Endpoint, Provider, Usage
-from infra.settings.agent import PROVIDERS
+from infra.config.agent import PROVIDERS
 
 
 def test_provider_mirrors_any_llm_plus_custom() -> None:

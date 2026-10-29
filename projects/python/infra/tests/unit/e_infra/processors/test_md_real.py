@@ -12,8 +12,8 @@ import zlib
 import pytest
 
 from e_infra.adapters.anytomd import AnytomdAdapter
-from e_infra.infra.settings.base import Secret
-from e_infra.infra.settings.md import MDSettings
+from e_infra.infra.config.base import Secret
+from e_infra.infra.config.md import MDSettings
 from e_infra.processors.md import MDProcessor
 
 RESOURCES = pathlib.Path(__file__).resolve().parents[3] / "resources"

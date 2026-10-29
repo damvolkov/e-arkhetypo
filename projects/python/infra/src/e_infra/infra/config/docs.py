@@ -1,11 +1,11 @@
-"""infra/settings/docs: where the OpenAPI pages live, which aliases lead there, which renderers serve (DOCS_*)."""
+"""infra/config/docs: where the OpenAPI pages live, which aliases lead there, which renderers serve (DOCS_*)."""
 
 from enum import StrEnum
 from typing import Self
 
 from pydantic import Field, field_validator, model_validator
 
-from e_infra.infra.settings.base import BaseSettings
+from e_infra.infra.config.base import BaseSettings
 
 
 ##### ENUMS #####

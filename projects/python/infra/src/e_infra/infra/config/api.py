@@ -1,10 +1,10 @@
-"""infra/settings/api: the HTTP edge of this app — ALLOW_ORIGINS, ALLOW_METHODS."""
+"""infra/config/api: the HTTP edge of this app — ALLOW_ORIGINS, ALLOW_METHODS."""
 
 from enum import StrEnum
 
 from pydantic import Field
 
-from e_infra.infra.settings.base import BaseSettings
+from e_infra.infra.config.base import BaseSettings
 
 
 ##### ENUMS #####

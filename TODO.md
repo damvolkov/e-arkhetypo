@@ -24,7 +24,7 @@
   page: `system db modules confirm report`) en orden de montaje, camina y emite un `AppBlueprint` (JSON vía
   `eserde`) al terminar. `make run` / `etui` lo abre interactivo (radios `api/cli/tui` + barra). Copiable tal
   cual como host real; `e_tui.pages`/`demo`/`__main__` en capa `examples`, nunca al revés.
-- `projects/python/infra` — `infra/settings/theme.py` (3 colores) y `ops/snap.py` (GallerySnap);
+- `projects/python/infra` — `infra/config/theme.py` (3 colores) y `ops/snap.py` (GallerySnap);
   cli/api/tui los excluyen al materializar. Snapshots SVG aceptados visualmente.
 - Textual 8.2.8 · syrupy≥6.1 por override · PTS 1.1.0.
 

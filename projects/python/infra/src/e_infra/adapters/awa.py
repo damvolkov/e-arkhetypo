@@ -33,7 +33,7 @@ if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable, Mapping
 
     from e_infra.infra.background import BackgroundHandler
-    from e_infra.infra.settings.queue import QueueSettings
+    from e_infra.infra.config.queue import QueueSettings
 
 SCHEMA: Final[tuple[str, ...]] = (
     "CREATE SCHEMA IF NOT EXISTS background",

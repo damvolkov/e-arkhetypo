@@ -7,7 +7,6 @@ import pytest
 from e_infra.adapters.awa import AwaAdapter
 from e_infra.adapters.base import PingError
 from e_infra.adapters.pgqueuer import PgqueuerAdapter
-from e_infra.conftest import outage, settled
 from e_infra.infra.background import (
     Background,
     BackgroundError,
@@ -18,15 +17,16 @@ from e_infra.infra.background import (
     MemoryBackground,
     MemoryRun,
 )
-from e_infra.infra.conftest import Works, build
-from e_infra.infra.settings.base import Secret
-from e_infra.infra.settings.queue import QueueSettings
+from e_infra.infra.config.base import Secret
+from e_infra.infra.config.queue import QueueSettings
+from unit.e_infra.conftest import outage, settled
+from unit.e_infra.infra.conftest import Works, build
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
     from e_infra.infra.background import BackgroundReporter
-    from e_infra.infra.conftest import Warnings
+    from unit.e_infra.infra.conftest import Warnings
 
 
 NOW: Final[datetime] = datetime(2026, 1, 1, tzinfo=UTC)

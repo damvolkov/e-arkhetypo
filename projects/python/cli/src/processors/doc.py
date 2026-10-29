@@ -28,9 +28,9 @@ import polars as pl
 from liteparse import LiteParse
 
 from adapters.ports import DocumentConversion
+from infra.config.doc import DocMode, DocSignal
 from infra.logger import logger
 from infra.settings import settings as st
-from infra.settings.doc import DocMode, DocSignal
 from processors.models import Backend, Document, Formula, Page, Picture, Section, Table
 
 if TYPE_CHECKING:
@@ -40,7 +40,7 @@ if TYPE_CHECKING:
     from liteparse import ParsedPage, ParseResult
 
     from adapters.ports import DocumentPort
-    from infra.settings.doc import DocSettings
+    from infra.config.doc import DocSettings
 
 type Node = dict[str, Any]
 type Span = tuple[int, int]

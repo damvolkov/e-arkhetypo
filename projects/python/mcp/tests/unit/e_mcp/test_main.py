@@ -7,7 +7,7 @@ from fakes import lifespan
 from e_mcp.config.mcp import McpSettings
 from e_mcp.main import _ToStructlog, assemble
 from e_mcp.mcp.guard import TokenGuard
-from infra.settings.base import Secret
+from infra.config.base import Secret
 
 INIT = {
     "jsonrpc": "2.0",

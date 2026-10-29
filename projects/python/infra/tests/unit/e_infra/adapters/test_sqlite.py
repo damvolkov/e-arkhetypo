@@ -6,7 +6,7 @@ import pytest
 
 from e_infra.adapters.base import PingError
 from e_infra.adapters.sqlite import SQLiteAdapter
-from e_infra.infra.settings.db import DbSettings
+from e_infra.infra.config.db import DbSettings
 
 if TYPE_CHECKING:
     from pathlib import Path

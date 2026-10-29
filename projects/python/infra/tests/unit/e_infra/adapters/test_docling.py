@@ -8,10 +8,10 @@ import pytest
 import wreq
 
 from e_infra.adapters.base import PingError
-from e_infra.adapters.conftest import DOWN
 from e_infra.adapters.docling import DoclingAdapter, DoclingError
 from e_infra.adapters.ports import DocumentConversion, DocumentPort
-from e_infra.infra.settings.docling import DoclingBackend, DoclingFormat, DoclingImages, DoclingSettings, DoclingTables
+from e_infra.infra.config.docling import DoclingBackend, DoclingFormat, DoclingImages, DoclingSettings, DoclingTables
+from unit.e_infra.adapters.conftest import DOWN
 
 if TYPE_CHECKING:
     from pathlib import Path

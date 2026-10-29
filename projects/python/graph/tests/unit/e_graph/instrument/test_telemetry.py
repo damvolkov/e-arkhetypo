@@ -14,7 +14,7 @@ from e_graph.instrument.node import InstrumentNode
 from e_graph.instrument.state import ContextState, InfraState, RunState
 from e_graph.instrument.telemetry import NO_SPAN, InstrumentTelemetry, NullSpan, NullTelemetry, SpanTelemetry
 from e_graph.logic.models import Usage
-from infra.settings.otel import OtelSettings
+from infra.config.otel import OtelSettings
 from infra.state import State
 
 if TYPE_CHECKING:

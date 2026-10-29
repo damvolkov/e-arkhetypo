@@ -4,7 +4,7 @@ import pytest
 
 from e_infra.adapters.queue import ENGINES
 from e_infra.infra.background import BackgroundPort
-from e_infra.infra.settings.queue import QueueEngine, QueueSettings
+from e_infra.infra.config.queue import QueueEngine, QueueSettings
 
 
 @pytest.mark.parametrize("engine", list(QueueEngine))

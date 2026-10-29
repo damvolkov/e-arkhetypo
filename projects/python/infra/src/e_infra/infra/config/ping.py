@@ -1,10 +1,10 @@
-"""infra/settings/ping: how long one adapter's ping may take — PING_TIMEOUT."""
+"""infra/config/ping: how long one adapter's ping may take — PING_TIMEOUT."""
 
 from datetime import timedelta
 
 from pydantic_settings import SettingsConfigDict
 
-from e_infra.infra.settings.base import BaseSettings
+from e_infra.infra.config.base import BaseSettings
 
 
 class PingSettings(BaseSettings):

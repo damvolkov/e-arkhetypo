@@ -10,8 +10,8 @@ from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from joserfc import jwe
 from joserfc.jwk import OctKey
 
+from e_infra.infra.config.crypto import CryptoSettings
 from e_infra.infra.settings import Secret
-from e_infra.infra.settings.crypto import CryptoSettings
 from e_infra.ops import crypto as crypto_module
 from e_infra.ops.crypto import (
     ENC_KEY_SIZES,

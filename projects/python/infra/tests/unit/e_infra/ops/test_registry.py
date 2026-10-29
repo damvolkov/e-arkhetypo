@@ -34,9 +34,9 @@ def test_every_level_of_the_hierarchy_is_registered_by_path(registry: CodeRegist
 
 def test_module_facts_read_the_source_without_importing(registry: CodeRegistry) -> None:
     settings = registry["e_infra.infra.settings"]
-    assert settings.kind is Kind.PACKAGE
+    assert settings.kind is Kind.MODULE
     assert settings.doc.startswith("infra/settings: the dynamic composer")
-    assert {"e_infra.infra.settings.base", "e_infra.ops.file", "e_infra.infra.proxy"} <= set(settings.imports)
+    assert {"e_infra.infra.config.base", "e_infra.ops.file", "e_infra.infra.proxy"} <= set(settings.imports)
     crypto = registry["e_infra.ops.crypto.Crypto.hash_password"]
     assert crypto.signature == "async def hash_password(self, password: str) -> str"
     assert registry["e_infra.ops.file.FileFinder.adiscover"].signature.startswith("async def adiscover(self, target")
@@ -48,7 +48,7 @@ def test_module_facts_read_the_source_without_importing(registry: CodeRegistry) 
 def test_discover_sweeps_selects_and_filters(registry: CodeRegistry) -> None:
     assert {"e_infra.ops.file.FileFinder", "e_infra.ops.compose.StackCompose"} <= set(registry.discover(Kind.CLASS))
     found = registry.discover("BaseSettings")
-    assert "e_infra.infra.settings.crypto.CryptoSettings" in found
+    assert "e_infra.infra.config.crypto.CryptoSettings" in found
     assert "e_infra.infra.state.State" not in found  ### syntactic bases only: State names nothing.
     async_defs = registry.discover(lambda sym: sym.signature.startswith("async def"))
     assert "e_infra.ops.file.FileFinder.adiscover" in async_defs

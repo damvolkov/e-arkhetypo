@@ -25,8 +25,8 @@ from litestar.openapi.spec import Components
 from litestar.response import Redirect
 from litestar.status_codes import HTTP_307_TEMPORARY_REDIRECT
 
+from infra.config.docs import DocsRenderer, DocsSettings
 from infra.settings import settings as st
-from infra.settings.docs import DocsRenderer, DocsSettings
 
 ### each concrete plugin defaults its own subpath (`/swagger`, `/redoc`, ...): the map holds zero-argument factories.
 RENDERERS: Final[Mapping[DocsRenderer, Callable[[], OpenAPIRenderPlugin]]] = MappingProxyType(

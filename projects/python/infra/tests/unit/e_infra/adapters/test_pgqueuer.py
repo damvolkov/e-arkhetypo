@@ -9,16 +9,16 @@ import pytest
 from e_infra.adapters import pgqueuer
 from e_infra.adapters.base import PingError
 from e_infra.adapters.pgqueuer import PgqueuerAdapter
-from e_infra.conftest import running, settled
 from e_infra.infra.background import BackgroundError, BackgroundPort, BackgroundState
-from e_infra.infra.settings.base import Secret
+from e_infra.infra.config.base import Secret
+from unit.e_infra.conftest import running, settled
 
 if TYPE_CHECKING:
     from collections.abc import Callable
 
     from e_infra.adapters.awa import AwaAdapter
-    from e_infra.adapters.conftest import Flaky, Hang
     from e_infra.infra.background import BackgroundHandler
+    from unit.e_infra.adapters.conftest import Flaky, Hang
 
 pytestmark = pytest.mark.db
 

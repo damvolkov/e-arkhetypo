@@ -1,6 +1,6 @@
-"""infra/settings/redis: the redis edge — REDIS_URL."""
+"""infra/config/redis: the redis edge — REDIS_URL."""
 
-from e_infra.infra.settings.base import BaseSettings
+from e_infra.infra.config.base import BaseSettings
 
 
 class RedisSettings(BaseSettings):

@@ -1,9 +1,9 @@
-"""tests/unit/e_infra/infra/settings: ThemeSettings — three colors, hex-validated at load, never at runtime."""
+"""tests/unit/e_infra/infra/config: ThemeSettings — three colors, hex-validated at load, never at runtime."""
 
 import pytest
 from pydantic import ValidationError
 
-from e_infra.infra.settings.theme import CORPORATE, ThemeSettings
+from e_infra.infra.config.theme import CORPORATE, ThemeSettings
 
 
 def test_theme_defaults_hold_the_house_trio() -> None:

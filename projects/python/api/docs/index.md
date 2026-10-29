@@ -28,7 +28,7 @@ The service lives in `src/e_api/`, layered by [tach](https://tach.dev). `src/inf
 | [`adapters.ports`](reference/adapters/ports.md) | adapters | Structural contracts — StorePort, HttpPort; sqlite, redis, http implement them (materialized) |
 | [`e_api.models.user`](reference/e_api/models/user.md) | models | msgspec DTO families — the only place data crosses trust boundaries |
 | [`e_api.websockets.telemetry`](reference/e_api/websockets/telemetry.md) | api | Typed websocket listeners — structured frames in and out |
-| [`infra.settings`](reference/infra/settings/index.md) | infra | Composed settings: one BaseSettings reader, per-scope structs (materialized) |
+| [`infra.settings`](reference/infra/settings.md) | infra | Composed settings: one BaseSettings reader over the per-scope structs of `infra.config` (materialized) |
 | [`infra.logger`](reference/infra/logger.md) | infra | Structured logging: JSON in prod, ordered plain text in dev (materialized) |
 | [`ops.crypto`](reference/ops/crypto.md) | ops | Everything that needs a key or entropy: keyed ids, bearer tokens, password hashing, JWS/JWE, AEAD (materialized) |
 | [`ops.file`](reference/ops/file.md) | ops | Package discovery — the settings composer's engine (materialized) |

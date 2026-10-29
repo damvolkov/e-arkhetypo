@@ -8,7 +8,7 @@ from typing import Final
 import pytest
 
 from e_infra.adapters.base import AdapterPing, BaseAdapter, PingError
-from e_infra.adapters.conftest import StubAdapter
+from unit.e_infra.adapters.conftest import StubAdapter
 
 LIMIT: Final[timedelta] = timedelta(seconds=1)
 REQUIRED: Final[frozenset[str]] = frozenset({"store"})

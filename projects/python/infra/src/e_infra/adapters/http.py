@@ -12,7 +12,7 @@ from e_infra.adapters.base import BaseAdapter
 from e_infra.infra.settings import settings as st
 
 if TYPE_CHECKING:
-    from e_infra.infra.settings.http import HttpSettings
+    from e_infra.infra.config.http import HttpSettings
 
 
 ##### TYPES #####

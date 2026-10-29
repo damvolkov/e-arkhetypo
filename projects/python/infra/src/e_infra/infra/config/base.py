@@ -1,4 +1,4 @@
-"""infra/settings/base: pydantic-settings — frozen, typed, layered config.
+"""infra/config/base: pydantic-settings — frozen, typed, layered config.
 
 This module wires the five layers every scope shares: config file < secrets < .env < environment <
 kwargs. `Secret` is pydantic's `SecretStr`: masked through repr, str and f-strings, readable only

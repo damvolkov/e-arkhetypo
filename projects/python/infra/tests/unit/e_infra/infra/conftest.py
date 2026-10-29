@@ -13,13 +13,13 @@ import pytest
 from e_infra.adapters.awa import AwaAdapter
 from e_infra.adapters.pgqueuer import PgqueuerAdapter
 from e_infra.infra.background import Background
-from e_infra.infra.settings.base import Secret
+from e_infra.infra.config.base import Secret
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
     from e_infra.infra.background import BackgroundReporter
-    from e_infra.infra.settings.queue import QueueSettings
+    from e_infra.infra.config.queue import QueueSettings
 
 
 class Works:

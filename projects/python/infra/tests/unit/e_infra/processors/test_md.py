@@ -13,7 +13,7 @@ import anyio
 import pytest
 
 from e_infra.adapters.ports import MdConversion
-from e_infra.infra.settings.md import MDSettings
+from e_infra.infra.config.md import MDSettings
 from e_infra.processors.md import (
     InputTooLargeError,
     MDProcessor,

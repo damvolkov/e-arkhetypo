@@ -1,4 +1,4 @@
-"""infra/settings/queue: the durable job queue — a Postgres database of its own, apart from the service's data (QUEUE_*)."""
+"""infra/config/queue: the durable job queue — a Postgres database of its own, apart from the service's data (QUEUE_*)."""
 
 from datetime import timedelta
 from enum import StrEnum, auto
@@ -6,7 +6,7 @@ from enum import StrEnum, auto
 from pydantic import Field
 from pydantic_settings import SettingsConfigDict
 
-from e_infra.infra.settings.base import BaseSettings, Secret
+from e_infra.infra.config.base import BaseSettings, Secret
 
 
 class QueueEngine(StrEnum):

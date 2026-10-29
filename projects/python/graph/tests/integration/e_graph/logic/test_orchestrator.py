@@ -11,7 +11,7 @@ import pytest
 from adapters.otel import OtelAdapter
 from e_graph.logic.agent import AgnosticAgent
 from e_graph.logic.models import SpecStatus
-from infra.settings.otel import OtelSettings
+from infra.config.otel import OtelSettings
 from support.crafter import SpecCrafter
 from support.darts import DartsHarness
 

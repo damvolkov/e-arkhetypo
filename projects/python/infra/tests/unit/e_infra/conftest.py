@@ -21,8 +21,8 @@ from psqlpy import ConnectionPool
 from psqlpy.exceptions import Error as PsqlError
 
 from e_infra.infra.background import SETTLED, BackgroundState
-from e_infra.infra.settings.base import Secret
-from e_infra.infra.settings.queue import QueueSettings
+from e_infra.infra.config.base import Secret
+from e_infra.infra.config.queue import QueueSettings
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator

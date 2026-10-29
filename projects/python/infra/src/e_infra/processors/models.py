@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     import polars as pl
 
-    from e_infra.infra.settings.doc import DocSignal
+    from e_infra.infra.config.doc import DocSignal
 
 
 class Backend(StrEnum):

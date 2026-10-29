@@ -1,6 +1,6 @@
-"""infra/settings/cli: the command-line edge of this app — CLI_TOKEN, CLI_HISTORY."""
+"""infra/config/cli: the command-line edge of this app — CLI_TOKEN, CLI_HISTORY."""
 
-from e_infra.infra.settings.base import BaseSettings, Secret
+from e_infra.infra.config.base import BaseSettings, Secret
 
 ##### DEFAULTS #####
 DEFAULT_HISTORY: int = 50

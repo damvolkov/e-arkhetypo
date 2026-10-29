@@ -13,8 +13,8 @@ from e_infra.adapters import anytomd
 from e_infra.adapters.anytomd import AnytomdAdapter
 from e_infra.adapters.base import PingError
 from e_infra.adapters.ports import MdConversion
-from e_infra.infra.settings.base import Secret
-from e_infra.infra.settings.md import MDSettings
+from e_infra.infra.config.base import Secret
+from e_infra.infra.config.md import MDSettings
 
 PDF_KW: dict[str, Any] = {}
 DESC_KW: dict[str, Any] = {}

@@ -27,9 +27,9 @@ build.
 | [`e_infra.infra.proxy`](reference/e_infra/infra/proxy.md) | import-safe lazy singletons — the object exists at module level, its load runs on first use. |
 | [`e_infra.infra.state`](reference/e_infra/infra/state.md) | the app resource graph — dynamic attribute access all the way down. |
 | [`e_infra.infra.struct`](reference/e_infra/infra/struct.md) | msgspec models validated however they are born — decoded at the edge or built in code. |
-| [`e_infra.infra.settings`](reference/e_infra/infra/settings/index.md) | The dynamic composer — every `*Settings` of the package, merged into one `Settings` |
+| [`e_infra.infra.settings`](reference/e_infra/infra/settings.md) | The dynamic composer — every `*Settings` of `infra.config`, merged into one `Settings` |
 
-`infra.settings` discovers its scopes on import — adding a scope is dropping a file here:
+`infra.settings` discovers its scopes in `infra.config` on import — adding a scope is dropping a file there:
 
 | Scope | Purpose |
 |---|---|

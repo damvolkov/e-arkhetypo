@@ -14,7 +14,7 @@ if TYPE_CHECKING:
     from collections.abc import AsyncIterator
     from pathlib import Path
 
-    from e_infra.infra.settings.db import DbSettings
+    from e_infra.infra.config.db import DbSettings
 
 
 ##### TYPES #####

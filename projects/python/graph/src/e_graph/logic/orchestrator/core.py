@@ -55,7 +55,7 @@ if TYPE_CHECKING:
     from e_graph.instrument.state import RunState
     from e_graph.logic.models import Catalog, Reply, SectionPlan, Spec, SpecNode, Step, Tier
     from e_graph.models.section import Section
-    from infra.settings.darts import DartsSettings
+    from infra.config.darts import DartsSettings
 
 MS_PER_SECOND: Final[float] = 1000.0
 LOST: Final[frozenset[SpecStatus]] = frozenset({SpecStatus.FAILED, SpecStatus.BLOCKED})

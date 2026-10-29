@@ -1,7 +1,7 @@
-"""infra/settings: the dynamic composer — every ``*Settings`` in this package, merged into one ``Settings``.
+"""infra/settings: the dynamic composer — every ``*Settings`` in ``infra/config``, merged into one ``Settings``.
 
 Each subsystem keeps its own sources (``env_prefix``, ``env_file``, ``toml_file``, ``secrets_dir``), so
-adding a scope is just dropping a file here — ``__init__`` and ``base`` are the only things skipped.
+adding a scope is just dropping a file in ``infra/config`` — ``base`` is the only thing skipped.
 Consumers import the lazy singleton: ``from e_infra.infra.settings import settings as st`` → ``st.crypto.alg``
 (env, secrets and config files are read on that first access, never at import)."""
 
@@ -10,16 +10,19 @@ from typing import Any
 
 from pydantic import ConfigDict, create_model
 
+from e_infra.infra.config.base import BaseSettings, Secret
 from e_infra.infra.proxy import LazyProxy
-from e_infra.infra.settings.base import BaseSettings, Secret
 from e_infra.ops.file import FileFinder
 
 __all__ = ["BaseSettings", "Secret", "Settings", "settings"]
 
 _SETTINGS_RE = re.compile(r"^([A-Z]\w*)Settings$")
+### derived from the package, never spelled: materialization rewrites imports, not strings (`e_infra.infra` → `infra`).
 _SCOPES: dict[str, type[BaseSettings]] = {
     name.removesuffix("Settings").lower(): cls
-    for name, cls in FileFinder(__name__, skip=frozenset({"base"})).discover(BaseSettings, pattern=_SETTINGS_RE).items()
+    for name, cls in FileFinder(f"{__package__}.config", skip=frozenset({"base"}))
+    .discover(BaseSettings, pattern=_SETTINGS_RE)
+    .items()
 }
 
 _FIELDS: dict[str, Any] = {scope: (cls, ...) for scope, cls in _SCOPES.items()}

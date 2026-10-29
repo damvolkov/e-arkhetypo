@@ -25,7 +25,7 @@ if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
 
     from e_graph.logic.models import Catalog
-    from infra.settings.darts import DartsSettings
+    from infra.config.darts import DartsSettings
 
 
 class DagPlan:

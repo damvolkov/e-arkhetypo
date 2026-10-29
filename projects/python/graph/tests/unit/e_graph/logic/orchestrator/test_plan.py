@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 from e_graph.logic.models import FusedCall, SemanticSpec, Step, Tier
 from e_graph.logic.orchestrator.plan import DagPlan
-from infra.settings.darts import DartsSettings
+from infra.config.darts import DartsSettings
 from support.darts import SECTION
 
 if TYPE_CHECKING:

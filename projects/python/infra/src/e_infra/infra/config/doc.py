@@ -1,12 +1,12 @@
-"""infra/settings/doc: the document processor — which engine reads which page, and how hard to push the deep one (DOC_*)."""
+"""infra/config/doc: the document processor — which engine reads which page, and how hard to push the deep one (DOC_*)."""
 
 from enum import StrEnum, auto
 from pathlib import Path
 
 from pydantic import Field
 
-from e_infra.infra.settings.base import BaseSettings
-from e_infra.infra.settings.docling import DoclingTables
+from e_infra.infra.config.base import BaseSettings
+from e_infra.infra.config.docling import DoclingTables
 
 
 ##### ENUMS #####

@@ -6,7 +6,7 @@ import wreq
 
 from e_infra.adapters.base import PingError
 from e_infra.adapters.http import HttpAdapter
-from e_infra.infra.settings.http import HttpSettings
+from e_infra.infra.config.http import HttpSettings
 
 
 class Greeting(msgspec.Struct, frozen=True):

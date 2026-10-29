@@ -6,9 +6,9 @@ from e_infra.adapters.http import HttpAdapter
 from e_infra.adapters.ports import HttpPort, StorePort
 from e_infra.adapters.redis import RedisAdapter
 from e_infra.adapters.sqlite import SQLiteAdapter
-from e_infra.infra.settings.db import DbSettings
-from e_infra.infra.settings.http import HttpSettings
-from e_infra.infra.settings.redis import RedisSettings
+from e_infra.infra.config.db import DbSettings
+from e_infra.infra.config.http import HttpSettings
+from e_infra.infra.config.redis import RedisSettings
 
 if TYPE_CHECKING:
     from pathlib import Path

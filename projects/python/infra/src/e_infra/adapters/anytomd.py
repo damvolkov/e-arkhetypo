@@ -14,7 +14,7 @@ from e_infra.adapters.ports import MdConversion
 from e_infra.infra.settings import settings as st
 
 if TYPE_CHECKING:
-    from e_infra.infra.settings.md import MDSettings
+    from e_infra.infra.config.md import MDSettings
 
 
 ##### ADAPTER #####

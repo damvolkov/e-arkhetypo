@@ -6,21 +6,23 @@ from typing import TYPE_CHECKING, Any, cast
 
 import pytest
 
-from e_infra.infra.settings import crypto as crypto_mod
-from e_infra.infra.settings.base import BaseSettings
+from e_infra.infra.config import crypto as crypto_mod
+from e_infra.infra.config.base import BaseSettings
 from e_infra.ops.file import FileError, FileFinder, Kind
 
 if TYPE_CHECKING:
     from pathlib import Path
 
 INFRA = FileFinder("e_infra.infra")
-SETTINGS = FileFinder("e_infra.infra.settings")
+CONFIG = FileFinder("e_infra.infra.config")
 
 
 def test_modules_skips_packages_and_declared_names() -> None:
-    assert {"logger", "state"} <= set(INFRA.discover(Kind.MODULES))  # `settings` is a package: excluded
-    assert "base" in SETTINGS.discover(Kind.MODULES)
-    strict = FileFinder("e_infra.infra.settings", skip=frozenset({"base"}))
+    assert {"logger", "settings", "state"} <= set(INFRA.discover(Kind.MODULES))
+    ### `config` is a package: excluded.
+    assert "config" not in INFRA.discover(Kind.MODULES)
+    assert "base" in CONFIG.discover(Kind.MODULES)
+    strict = FileFinder("e_infra.infra.config", skip=frozenset({"base"}))
     assert "base" not in strict.discover(Kind.MODULES)
 
 
@@ -31,19 +33,19 @@ def test_classes_and_functions_are_own_symbols_only() -> None:
 
 
 def test_base_selects_subclasses_and_module_target_reads_one_file() -> None:
-    assert {"CryptoSettings", "OAuthSettings"} <= set(SETTINGS.discover(BaseSettings))
+    assert {"CryptoSettings", "OAuthSettings"} <= set(CONFIG.discover(BaseSettings))
     ### `base.py` is part of the sweep: the base itself is still never a result.
-    assert "BaseSettings" not in SETTINGS.discover(BaseSettings)
-    assert set(SETTINGS.discover(crypto_mod)) == {"CryptoSettings"}
+    assert "BaseSettings" not in CONFIG.discover(BaseSettings)
+    assert set(CONFIG.discover(crypto_mod)) == {"CryptoSettings"}
 
 
 def test_predicate_and_pattern_filter_rejects_unknown_target() -> None:
-    found = SETTINGS.discover(lambda obj: isinstance(obj, type) and obj.__name__.endswith("Settings"))
+    found = CONFIG.discover(lambda obj: isinstance(obj, type) and obj.__name__.endswith("Settings"))
     assert "CryptoSettings" in found
     assert "TokenAlg" not in found
-    assert set(SETTINGS.discover(Kind.CLASSES, pattern=re.compile("^Crypto"))) == {"CryptoSettings"}
+    assert set(CONFIG.discover(Kind.CLASSES, pattern=re.compile("^Crypto"))) == {"CryptoSettings"}
     with pytest.raises(FileError, match="Unsupported discover target"):
-        SETTINGS.discover(cast("Any", 42))
+        CONFIG.discover(cast("Any", 42))
 
 
 def test_private_modules_are_never_imported_nor_seen(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -63,20 +65,19 @@ async def test_adiscover_answers_like_discover() -> None:
 def test_summary_reads_the_top_description_line() -> None:
     summary = FileFinder.summary(crypto_mod)
     assert (
-        summary
-        == "infra/settings/crypto: the configuration of the crypto engine (`ops/crypto`), loaded from CRYPTO__*."
+        summary == "infra/config/crypto: the configuration of the crypto engine (`ops/crypto`), loaded from CRYPTO__*."
     )
     assert "\n" not in summary
 
 
 def test_summaries_answers_every_module_with_its_description() -> None:
-    found = SETTINGS.summaries()
-    assert set(found) == set(SETTINGS.discover(Kind.MODULES))
-    assert all(desc.startswith(f"infra/settings/{name}: ") for name, desc in found.items())
+    found = CONFIG.summaries()
+    assert set(found) == set(CONFIG.discover(Kind.MODULES))
+    assert all(desc.startswith(f"infra/config/{name}: ") for name, desc in found.items())
 
 
 async def test_asummaries_answers_like_summaries() -> None:
-    assert await SETTINGS.asummaries() == SETTINGS.summaries()
+    assert await CONFIG.asummaries() == CONFIG.summaries()
 
 
 def test_summary_survives_missing_and_blank_docstrings() -> None:

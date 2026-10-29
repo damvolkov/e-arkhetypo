@@ -8,7 +8,7 @@ from litestar.status_codes import HTTP_307_TEMPORARY_REDIRECT
 from litestar.testing import TestClient
 
 from e_graph.api.docs import RENDERERS, openapi_config, routes
-from infra.settings.docs import DocsRenderer, DocsSettings
+from infra.config.docs import DocsRenderer, DocsSettings
 
 
 @pytest.mark.parametrize("path", ["/docs", "/docs/swagger", "/docs/redoc", "/docs/elements", "/docs/rapidoc"])

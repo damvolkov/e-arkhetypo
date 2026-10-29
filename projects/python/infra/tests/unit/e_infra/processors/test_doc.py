@@ -15,8 +15,8 @@ import polars as pl
 import pytest
 
 from e_infra.adapters.ports import DocumentConversion
-from e_infra.infra.settings.doc import DocMode, DocSettings, DocSignal
-from e_infra.infra.settings.docling import DoclingTables
+from e_infra.infra.config.doc import DocMode, DocSettings, DocSignal
+from e_infra.infra.config.docling import DoclingTables
 from e_infra.processors.doc import BREAK, DocProcessor
 from e_infra.processors.models import Backend, Document, Section
 

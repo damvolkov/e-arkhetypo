@@ -5,8 +5,8 @@ import pytest
 from e_infra.adapters.base import PingError
 from e_infra.adapters.ports import SqlPort, Vector
 from e_infra.adapters.postgres import PostgresAdapter, PostgresError
-from e_infra.infra.settings.base import Secret
-from e_infra.infra.settings.postgres import PostgresSettings
+from e_infra.infra.config.base import Secret
+from e_infra.infra.config.postgres import PostgresSettings
 
 pytestmark = pytest.mark.db
 

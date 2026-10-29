@@ -142,7 +142,7 @@ known-first-party = ["e_infra"]
 ### pydantic and msgspec resolve these classes' annotations at runtime: their imports must stay real.
 runtime-evaluated-base-classes = [
     "pydantic.BaseModel",
-    "e_infra.infra.settings.base.BaseSettings",
+    "e_infra.infra.config.base.BaseSettings",
     "msgspec.Struct",
     "e_infra.infra.struct.CheckedStruct",
 ]
@@ -168,8 +168,8 @@ error-on-warning = true
 minversion = "9.0"
 testpaths = ["tests"]
 addopts = ["--import-mode=importlib", "-ra"]
-### tests/unit on the path: a test imports a conftest's plain helpers by name (`from e_infra.conftest import settled`).
-pythonpath = ["src", "tests/unit"]
+### tests on the path, not tests/unit: the mirror stays out of the `e_infra` namespace (`from unit.e_infra.conftest import settled`).
+pythonpath = ["src", "tests"]
 strict = true
 filterwarnings = [
     "error",

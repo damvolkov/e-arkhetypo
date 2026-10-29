@@ -9,13 +9,13 @@ from typing import TYPE_CHECKING, Final
 
 from e_infra.adapters.awa import AwaAdapter
 from e_infra.adapters.pgqueuer import PgqueuerAdapter
-from e_infra.infra.settings.queue import QueueEngine
+from e_infra.infra.config.queue import QueueEngine
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Mapping
 
     from e_infra.infra.background import BackgroundPort
-    from e_infra.infra.settings.queue import QueueSettings
+    from e_infra.infra.config.queue import QueueSettings
 
 ENGINES: Final[Mapping[QueueEngine, Callable[[QueueSettings], BackgroundPort]]] = MappingProxyType(
     {QueueEngine.AWA: AwaAdapter, QueueEngine.PGQUEUER: PgqueuerAdapter}

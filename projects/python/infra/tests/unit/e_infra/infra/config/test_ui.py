@@ -1,9 +1,9 @@
-"""tests/unit/e_infra/infra/settings: UiSettings — the canvas tunables, defaults and env overrides."""
+"""tests/unit/e_infra/infra/config: UiSettings — the canvas tunables, defaults and env overrides."""
 
 from datetime import timedelta
 from typing import TYPE_CHECKING
 
-from e_infra.infra.settings.ui import UiSettings
+from e_infra.infra.config.ui import UiSettings
 
 if TYPE_CHECKING:
     import pytest

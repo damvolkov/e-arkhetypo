@@ -1,11 +1,11 @@
-"""tests/unit/e_infra/infra/settings: DocsSettings — canonical root, its aliases, its renderers, validated on load."""
+"""tests/unit/e_infra/infra/config: DocsSettings — canonical root, its aliases, its renderers, validated on load."""
 
 from typing import TYPE_CHECKING
 
 import pytest
 from pydantic import ValidationError
 
-from e_infra.infra.settings.docs import DocsRenderer, DocsSettings
+from e_infra.infra.config.docs import DocsRenderer, DocsSettings
 
 if TYPE_CHECKING:
     from typing import Any

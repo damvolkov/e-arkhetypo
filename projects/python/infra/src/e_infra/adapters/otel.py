@@ -25,8 +25,8 @@ from opentelemetry.trace import Status, StatusCode
 
 from e_infra.adapters.base import BaseAdapter, PingError
 from e_infra.adapters.ports import SpanKind, SpanStatus
+from e_infra.infra.config.otel import OtelProtocol
 from e_infra.infra.settings import settings as st
-from e_infra.infra.settings.otel import OtelProtocol
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Generator, Mapping
@@ -34,7 +34,7 @@ if TYPE_CHECKING:
     from opentelemetry.trace import Tracer
 
     from e_infra.adapters.ports import AttributeValue
-    from e_infra.infra.settings.otel import OtelSettings
+    from e_infra.infra.config.otel import OtelSettings
 
 TRACES_PATH: Final[str] = "/v1/traces"
 MS_PER_SECOND: Final[float] = 1000.0

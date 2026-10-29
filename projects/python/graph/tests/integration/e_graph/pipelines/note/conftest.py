@@ -9,7 +9,7 @@ from typing import Any, Final
 
 import pytest
 
-from infra.settings.agent import AgentSettings
+from infra.config.agent import AgentSettings
 
 ### the endpoint these cassettes were recorded against; the key never lands here — CUSTOM is a local-server
 ### provider and the agent supplies a dummy, while the header is redacted before the request is written.

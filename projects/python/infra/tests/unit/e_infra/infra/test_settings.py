@@ -8,13 +8,13 @@ import pytest
 from pydantic import BaseModel, ValidationError
 from pydantic_settings import SettingsConfigDict
 
+from e_infra.infra.config.api import ApiSettings, HttpMethod
+from e_infra.infra.config.app import AppSettings, Env
+from e_infra.infra.config.crypto import CryptoSettings
+from e_infra.infra.config.db import DbSettings
+from e_infra.infra.config.http import HttpSettings
 from e_infra.infra.settings import BaseSettings, Secret
 from e_infra.infra.settings import settings as st
-from e_infra.infra.settings.api import ApiSettings, HttpMethod
-from e_infra.infra.settings.app import AppSettings, Env
-from e_infra.infra.settings.crypto import CryptoSettings
-from e_infra.infra.settings.db import DbSettings
-from e_infra.infra.settings.http import HttpSettings
 
 
 class DB(BaseModel):

@@ -22,7 +22,7 @@ if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, Sequence
     from contextlib import AbstractAsyncContextManager
 
-    from e_infra.infra.settings.postgres import PostgresSettings
+    from e_infra.infra.config.postgres import PostgresSettings
 
 ### psqlpy refuses a pool of one connection.
 FLOOR: Final[int] = 2

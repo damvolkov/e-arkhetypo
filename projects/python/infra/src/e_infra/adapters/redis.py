@@ -10,7 +10,7 @@ from e_infra.infra.settings import settings as st
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
 
-    from e_infra.infra.settings.redis import RedisSettings
+    from e_infra.infra.config.redis import RedisSettings
 
 
 ##### TYPES #####

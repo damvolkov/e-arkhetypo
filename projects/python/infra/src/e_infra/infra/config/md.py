@@ -1,8 +1,8 @@
-"""infra/settings/md: the anytomd Markdown converter — its PDF and vision capabilities and the ZIP fan-out (MD_*)."""
+"""infra/config/md: the anytomd Markdown converter — its PDF and vision capabilities and the ZIP fan-out (MD_*)."""
 
 from pydantic import Field
 
-from e_infra.infra.settings.base import BaseSettings, Secret
+from e_infra.infra.config.base import BaseSettings, Secret
 
 
 ##### SETTINGS #####

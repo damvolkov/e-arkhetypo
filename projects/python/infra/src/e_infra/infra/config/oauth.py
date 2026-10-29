@@ -1,6 +1,6 @@
-"""infra/settings/oauth: the OAuth2 identity provider — name, client, secret and metadata URL."""
+"""infra/config/oauth: the OAuth2 identity provider — name, client, secret and metadata URL."""
 
-from e_infra.infra.settings.base import BaseSettings, Secret
+from e_infra.infra.config.base import BaseSettings, Secret
 
 
 class OAuthSettings(BaseSettings):

@@ -7,8 +7,8 @@ from litestar import Litestar
 
 from adapters.postgres import PostgresError
 from e_graph.api.lifespan import db
-from infra.settings.base import Secret
-from infra.settings.postgres import PostgresSettings
+from infra.config.base import Secret
+from infra.config.postgres import PostgresSettings
 
 
 class FakeAdapter:

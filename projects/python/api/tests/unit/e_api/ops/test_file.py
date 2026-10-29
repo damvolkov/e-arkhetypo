@@ -5,19 +5,20 @@ from typing import Any, cast
 
 import pytest
 
-from infra.settings import crypto as crypto_mod
-from infra.settings.base import BaseSettings
+from infra.config import crypto as crypto_mod
+from infra.config.base import BaseSettings
 from ops.file import FileFinder, Kind
 
 INFRA = FileFinder("infra")
-SETTINGS = FileFinder("infra.settings")
+CONFIG = FileFinder("infra.config")
 
 
 def test_modules_skips_packages_and_declared_names() -> None:
-    ### `settings` is a package: excluded
-    assert {"logger", "state"} <= set(INFRA.discover(Kind.MODULES))
-    assert "base" in SETTINGS.discover(Kind.MODULES)
-    strict = FileFinder("infra.settings", skip=frozenset({"base"}))
+    assert {"logger", "settings", "state"} <= set(INFRA.discover(Kind.MODULES))
+    ### `config` is a package: excluded.
+    assert "config" not in INFRA.discover(Kind.MODULES)
+    assert "base" in CONFIG.discover(Kind.MODULES)
+    strict = FileFinder("infra.config", skip=frozenset({"base"}))
     assert "base" not in strict.discover(Kind.MODULES)
 
 
@@ -29,17 +30,17 @@ def test_classes_and_functions_are_own_symbols_only() -> None:
 
 
 def test_base_selects_subclasses_and_module_target_reads_one_file() -> None:
-    assert {"CryptoSettings", "OAuthSettings"} <= set(SETTINGS.discover(BaseSettings))
-    assert set(SETTINGS.discover(crypto_mod)) == {"CryptoSettings"}
+    assert {"CryptoSettings", "OAuthSettings"} <= set(CONFIG.discover(BaseSettings))
+    assert set(CONFIG.discover(crypto_mod)) == {"CryptoSettings"}
 
 
 def test_predicate_and_pattern_filter_rejects_unknown_target() -> None:
-    found = SETTINGS.discover(lambda obj: isinstance(obj, type) and obj.__name__.endswith("Settings"))
+    found = CONFIG.discover(lambda obj: isinstance(obj, type) and obj.__name__.endswith("Settings"))
     assert "CryptoSettings" in found
     assert "TokenAlg" not in found
-    assert set(SETTINGS.discover(Kind.CLASSES, pattern=re.compile("^Crypto"))) == {"CryptoSettings"}
+    assert set(CONFIG.discover(Kind.CLASSES, pattern=re.compile("^Crypto"))) == {"CryptoSettings"}
     with pytest.raises(TypeError, match="Unsupported discover target"):
-        SETTINGS.discover(cast("Any", 42))
+        CONFIG.discover(cast("Any", 42))
 
 
 async def test_adiscover_answers_like_discover() -> None:

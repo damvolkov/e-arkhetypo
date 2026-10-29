@@ -1,8 +1,8 @@
-"""infra/settings/app: process-level knobs — APP_ENV, APP_HOST, APP_PORT."""
+"""infra/config/app: process-level knobs — APP_ENV, APP_HOST, APP_PORT."""
 
 from enum import StrEnum
 
-from e_infra.infra.settings.base import BaseSettings
+from e_infra.infra.config.base import BaseSettings
 
 
 ##### ENUMS #####

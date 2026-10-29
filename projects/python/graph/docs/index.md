@@ -56,7 +56,7 @@ The service lives in `src/e_graph/`, layered by [tach](https://tach.dev). `src/i
 | [`adapters.docling`](reference/adapters/docling.md) | adapters | DocumentPort over docling-serve: conversions as server tasks, options from `DOCLING_*` (materialized) |
 | [`adapters.otel`](reference/adapters/otel.md) | adapters | TelemetryPort over the OpenTelemetry SDK, OTLP/HTTP export — common to every system (materialized) |
 | [`ops.wrappers`](reference/ops/wrappers.md) | ops | LatencyWrapper and the agnostic measuring wrappers (materialized) |
-| [`infra.settings`](reference/infra/settings/index.md) | infra | Composed settings: one BaseSettings reader, per-scope structs (materialized) |
+| [`infra.settings`](reference/infra/settings.md) | infra | Composed settings: one BaseSettings reader over the per-scope structs of `infra.config` (materialized) |
 | [`infra.logger`](reference/infra/logger.md) | infra | Structured logging: JSON in prod, ordered plain text in dev (materialized) |
 
 Reference pages are generated automatically from the sources: drop a new module under `src/` and it
@@ -91,7 +91,7 @@ status, latency, trace ids — always stand. When the node called the agent, `us
 
 The endpoint is an `Endpoint` or a `Tier` read from `AGENT_HIGH` / `AGENT_MEDIUM` / `AGENT_LOW`; base and
 key resolve run argument → endpoint → the provider's standard variables (see `.env.example`, full table
-in `infra/settings/agent.py`) → a dummy key for local servers. Invalid replies are retried with the
+in `infra/config/agent.py`) → a dummy key for local servers. Invalid replies are retried with the
 validation error (`AGENT_RETRIES`). No token limit is imposed unless the caller sets `max_tokens`; a
 reply cut at it is asked again with the budget doubled, on the same retry budget.
 

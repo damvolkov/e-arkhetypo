@@ -1,11 +1,11 @@
-"""infra/settings/otel: the telemetry edge — where spans go, how, how fast, how many (OTEL_*)."""
+"""infra/config/otel: the telemetry edge — where spans go, how, how fast, how many (OTEL_*)."""
 
 from datetime import timedelta
 from enum import StrEnum, auto
 
 from pydantic import Field
 
-from e_infra.infra.settings.base import BaseSettings, Secret
+from e_infra.infra.config.base import BaseSettings, Secret
 
 
 ##### ENUMS #####

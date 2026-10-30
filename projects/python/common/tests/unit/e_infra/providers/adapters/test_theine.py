@@ -5,7 +5,7 @@ from datetime import timedelta
 import anyio
 import pytest
 
-from e_infra.infra.errors import ProviderError
+from e_infra.infra.errors import CacheError
 from e_infra.ports.cache import CachePort
 from e_infra.providers.adapters.theine import TheineAdapter
 
@@ -31,7 +31,7 @@ async def test_theine_ttl() -> None:
 async def test_theine_lifecycle() -> None:
     cache = TheineAdapter[int](size=10)
     assert not await cache.health()
-    with pytest.raises(ProviderError, match="not open"):
+    with pytest.raises(CacheError, match="not open"):
         await cache.get("a")
     async with cache:
         assert await cache.health()

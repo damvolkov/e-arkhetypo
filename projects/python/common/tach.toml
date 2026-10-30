@@ -10,7 +10,7 @@ root_module = "forbid"
 ##### LAYERS #####
 # Ordered high → low: a layer may import lower layers, importing upward fails. engines, processors, drivers and adapters
 # share one layer: none of them imports another (the layer is horizontal), each reaches only ports, infra and ops.
-layers = ["execution", "ports", "infra", "ops"]
+layers = ["execution", "ports", "infra", "ops", "base"]
 
 [rules]
 unused_ignore_directives = "error"
@@ -44,6 +44,12 @@ depends_on = []
 [[modules]]
 path = "e_infra.infra"
 layer = "infra"
+depends_on = []
+
+### the error tree is the floor of the package: every layer, `ops` included, raises from it and it imports nothing.
+[[modules]]
+path = "e_infra.infra.errors"
+layer = "base"
 depends_on = []
 
 [[modules]]

@@ -2,7 +2,7 @@
 
 Signatures and tokens ride on joserfc over cryptography; hashing without a key is `ops/hash`, and the two never
 overlap. Agnostic: the engine reads its configuration through `CryptoConfig` (what `infra/config/crypto`
-satisfies, or the `CryptoKeys` that `generate_keys` mints), and its errors are its own.
+satisfies, or the `CryptoKeys` that `generate_keys` mints), and its errors are `infra/errors`'s.
 
 bcrypt is Rust-backed, argon2 the PHC winner; async only where hashing is intentionally slow, everything else is microseconds."""
 
@@ -36,36 +36,10 @@ from joserfc.jwk import ECKey, KeySet, OctKey, OKPKey, RSAKey
 from joserfc.jwt import JWTClaimsRegistry
 from pydantic import SecretStr
 
+from e_infra.infra.errors import CryptoError, TokenError, TokenFailure
+
 if TYPE_CHECKING:
     from collections.abc import Callable, Mapping
-
-
-##### ERRORS #####
-class CryptoError(Exception):
-    """The crypto engine refused: key material missing, corrupt input or failed decryption."""
-
-    def __init__(self, message: str) -> None:
-        super().__init__(message)
-        self.message = message
-
-
-class TokenFailure(StrEnum):
-    """Distinct reasons a JWT token will not pass validation."""
-
-    MALFORMED = "malformed"  # count "." ≠ JWS(2) / JWE(4)
-    EXPIRED = "expired"  # exp claim validation failed
-    FORGED = "forged"  # signature mismatch with our keys
-    INVALID_CLAIM = "invalid_claim"  # issuer/audience mismatch
-    EMPTY_JWE = "empty_jwe"  # decrypted payload was None
-    MISSING_FIELD = "missing_field"  # required claim absent
-
-
-class TokenError(CryptoError):
-    """A token that will not pass: malformed, forged, expired or failing its claim registry."""
-
-    def __init__(self, message: str, *, kind: TokenFailure = TokenFailure.MALFORMED) -> None:
-        super().__init__(message)
-        self.kind = kind
 
 
 ##### TYPES #####

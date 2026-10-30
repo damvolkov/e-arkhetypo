@@ -22,15 +22,13 @@ import eserde
 import msgspec
 from msgspec import Struct, field
 
+from e_infra.infra.errors import ComposeError
+
 if TYPE_CHECKING:
     from collections.abc import Iterable, Mapping
     from pathlib import Path
 
 ##### TYPES #####
-
-
-class ComposeError(ValueError):
-    """A fragment, a selection or a policy the engine refuses to interpret."""
 
 
 class SpecCompose(Struct, frozen=True, kw_only=True):

@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING
 
 import anyio
 
+from e_infra.infra.errors import InputTooLargeError, UnsupportedFormatError, ZipBombError
 from e_infra.infra.logger import logger
 from e_infra.infra.settings import settings as st
 from e_infra.processors.models import MarkdownFile
@@ -22,23 +23,6 @@ if TYPE_CHECKING:
 
     from e_infra.infra.config.md import MDSettings
     from e_infra.ports.markdown import MarkdownPort
-
-
-##### ERRORS #####
-class MDError(RuntimeError):
-    """The processor refused the input before any conversion: not a format it knows, or too big."""
-
-
-class UnsupportedFormatError(MDError):
-    """No format was detected from the bytes and name: outside the spectrum, so it is not guessed."""
-
-
-class InputTooLargeError(MDError):
-    """The file crosses MD_MAX_INPUT_BYTES: rejected before the engine is invoked."""
-
-
-class ZipBombError(MDError):
-    """The archive crosses MD_ZIP_MAX_ENTRIES or MD_ZIP_MAX_BYTES: its members are never read."""
 
 
 class MDProcessor:

@@ -24,7 +24,7 @@ from opentelemetry.sdk.trace.sampling import ParentBased, TraceIdRatioBased
 from opentelemetry.trace import Status, StatusCode
 
 from e_infra.infra.config.otel import OtelProtocol
-from e_infra.infra.errors import ProviderError
+from e_infra.infra.errors import TelemetryError
 from e_infra.infra.settings import settings as st
 from e_infra.ports.provider import Isolation, Locality, ProviderSpec, Workload
 from e_infra.ports.telemetry import SpanKind, SpanStatus
@@ -152,7 +152,7 @@ class OtelDriver:
         match self._tracer:
             case None:
                 msg = "OtelDriver is not open: the lifespan opens it, handlers never do"
-                raise ProviderError(msg)
+                raise TelemetryError(msg)
             case tracer:
                 return tracer
 

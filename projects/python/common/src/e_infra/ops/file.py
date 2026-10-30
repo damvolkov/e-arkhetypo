@@ -18,16 +18,14 @@ from typing import TYPE_CHECKING, Any
 
 import anyio
 
+from e_infra.infra.errors import FileError
+
 if TYPE_CHECKING:
     import re
     from collections.abc import Callable
 
 
 ##### TYPES #####
-class FileError(TypeError):
-    """A discover target this tool refuses to interpret."""
-
-
 class Kind(StrEnum):
     MODULES = auto()
     CLASSES = auto()

@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, ClassVar, Self
 
 from theine import Cache
 
-from e_infra.infra.errors import ProviderError
+from e_infra.infra.errors import CacheError
 from e_infra.ports.provider import Isolation, Locality, ProviderSpec, Workload
 
 if TYPE_CHECKING:
@@ -34,7 +34,7 @@ class TheineAdapter[T]:
         match self._store:
             case None:
                 msg = "TheineAdapter is not open: the lifespan opens it, callers never do"
-                raise ProviderError(msg)
+                raise CacheError(msg)
             case store:
                 return store
 

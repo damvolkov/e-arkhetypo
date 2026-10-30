@@ -20,7 +20,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, Final, Self
 import anyio
 
 from e_infra.infra.config.docling import DoclingImages
-from e_infra.infra.errors import HttpTimeoutError, ParseError, ProviderError
+from e_infra.infra.errors import DocumentError, HttpTimeoutError, ProviderError
 from e_infra.infra.settings import settings as st
 from e_infra.ports.documents import DocumentConversion
 from e_infra.ports.provider import Isolation, Locality, ProviderSpec, Workload
@@ -110,7 +110,7 @@ class DoclingDriver:
                     return
                 case state if state in FAILED:
                     msg = f"docling task {task} {state}: {status.get('error_message') or 'no reason given'}"
-                    raise ParseError(msg)
+                    raise DocumentError(msg)
                 case _:
                     await anyio.sleep(min(interval, self._common_remaining(deadline)))
 

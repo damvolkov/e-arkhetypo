@@ -18,6 +18,8 @@ from typing import TYPE_CHECKING, Final
 
 from msgspec import Struct
 
+from e_infra.infra.errors import LogoError
+
 if TYPE_CHECKING:
     from collections.abc import Iterator, Mapping
     from pathlib import Path
@@ -35,10 +37,6 @@ FOREGROUND: Final[str] = "#166b7e"
 PREFIX: Final[str] = "e"
 
 ##### TYPES #####
-
-
-class LogoError(ValueError):
-    """A name, prefix or color the generator refuses to render."""
 
 
 class Glyph(StrEnum):

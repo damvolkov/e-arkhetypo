@@ -8,7 +8,7 @@ import pytest
 import wreq
 
 from e_infra.infra.config.docling import DoclingBackend, DoclingFormat, DoclingImages, DoclingSettings, DoclingTables
-from e_infra.infra.errors import HttpError, HttpTimeoutError, ParseError
+from e_infra.infra.errors import DocumentError, HttpError, HttpTimeoutError
 from e_infra.ports.documents import DocumentConversion, DocumentPort
 from e_infra.providers.drivers.docling import DoclingDriver
 from unit.e_infra.providers.drivers.conftest import DOWN
@@ -98,7 +98,7 @@ async def test_defaults_ask_markdown_json_and_embedded_pictures(docling_server: 
 
 async def test_a_failed_task_raises_with_its_reason(docling_server: Any, http: HttpPort) -> None:
     async with DoclingDriver(http, settings(docling_server.url)) as adapter:
-        with pytest.raises(ParseError, match="docling task fail failure: bad pdf"):
+        with pytest.raises(DocumentError, match="docling task fail failure: bad pdf"):
             await adapter.convert("https://example.org/fail")
 
 

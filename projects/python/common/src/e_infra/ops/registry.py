@@ -22,6 +22,8 @@ import eserde
 import msgspec
 from msgspec import Struct
 
+from e_infra.infra.errors import RegistryError
+
 if TYPE_CHECKING:
     import re
     from collections.abc import Callable, Sequence
@@ -29,10 +31,6 @@ if TYPE_CHECKING:
 
 
 ##### TYPES #####
-class RegistryError(ValueError):
-    """An empty scope, a syntax the parser refuses, or a discover target the registry will not interpret."""
-
-
 class Kind(StrEnum):
     PACKAGE = auto()
     MODULE = auto()

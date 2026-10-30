@@ -13,14 +13,10 @@ import anyio
 import pytest
 
 from e_infra.infra.config.md import MDSettings
+from e_infra.infra.errors import InputTooLargeError, UnsupportedFormatError, ZipBombError
 from e_infra.ports.markdown import MdConversion
 from e_infra.ports.provider import Isolation, Locality, ProviderSpec, Workload
-from e_infra.processors.md import (
-    InputTooLargeError,
-    MDProcessor,
-    UnsupportedFormatError,
-    ZipBombError,
-)
+from e_infra.processors.md import MDProcessor
 from e_infra.providers.adapters.anytomd import AnytomdAdapter
 
 DETECTOR = AnytomdAdapter(MDSettings())

@@ -35,7 +35,7 @@ from e_infra.infra.background import (
     BackgroundState,
     BackgroundWork,
 )
-from e_infra.infra.errors import QueueError
+from e_infra.infra.errors import QueueError, ScheduleError, UnknownWorkError
 from e_infra.infra.logger import logger
 from e_infra.ports.queue import QueuePort, SchedulePort
 
@@ -202,10 +202,10 @@ class DispatchEngine:
         match (croniter.is_valid(cron, second_at_beginning=True), kind in self._works):
             case (False, _):
                 message = f"schedule {name!r}: {cron!r} is no cron expression"
-                raise ValueError(message)
+                raise ScheduleError(message)
             case (_, False):
                 message = f"schedule {name!r}: no work registered for kind {kind!r}"
-                raise LookupError(message)
+                raise UnknownWorkError(message)
             case _:
                 self._schedules[name] = BackgroundSchedule(name=name, cron=cron, kind=kind, args=args)
 

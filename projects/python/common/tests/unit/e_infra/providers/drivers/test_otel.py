@@ -13,7 +13,7 @@ from opentelemetry.trace import StatusCode
 
 from e_infra.infra.config.base import Secret
 from e_infra.infra.config.otel import OtelProtocol, OtelSettings
-from e_infra.infra.errors import ProviderError
+from e_infra.infra.errors import TelemetryError
 from e_infra.ports.telemetry import SpanKind, SpanPort, SpanStatus, TelemetryPort
 from e_infra.providers.drivers.otel import KINDS, STATUSES, OtelDriver, OtelSpan, export_grpc, export_http
 
@@ -144,7 +144,7 @@ async def test_closed_driver_refuses_spans() -> None:
     async with adapter:
         pass
     await adapter.__aexit__(None, None, None)
-    with pytest.raises(ProviderError, match="not open"), adapter.span("late", {}):
+    with pytest.raises(TelemetryError, match="not open"), adapter.span("late", {}):
         pass
 
 

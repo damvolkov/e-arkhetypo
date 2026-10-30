@@ -6,7 +6,7 @@ import pytest
 
 from e_infra.engines.cache import CacheEngine
 from e_infra.infra.errors import DatabaseError
-from e_infra.providers.adapters.theine import TheineAdapter
+from e_infra.providers.adapters.cache.theine import TheineAdapter
 from unit.e_infra.conftest import Warnings
 
 if TYPE_CHECKING:

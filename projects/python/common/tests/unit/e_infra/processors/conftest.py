@@ -5,7 +5,7 @@ synchronous constructor can hand it to the processor under test."""
 
 from typing import TYPE_CHECKING
 
-from e_infra.providers.adapters.liteparse import LiteparseAdapter
+from e_infra.providers.adapters.pages.liteparse import LiteparseAdapter
 
 if TYPE_CHECKING:
     from e_infra.infra.config.doc import DocSettings

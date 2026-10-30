@@ -19,10 +19,10 @@ from psqlpy.exceptions import Error as PsqlError
 
 from e_infra.infra.config.base import Secret
 from e_infra.infra.config.postgres import PostgresSettings
-from e_infra.providers.drivers.awa import AwaDriver
-from e_infra.providers.drivers.http import HttpDriver
-from e_infra.providers.drivers.pgqueuer import PgqueuerDriver
-from e_infra.providers.drivers.postgres import PostgresDriver
+from e_infra.providers.drivers.database.psqlpy import PsqlpyDriver
+from e_infra.providers.drivers.http.wreq import WreqDriver
+from e_infra.providers.drivers.queue.awa import AwaDriver
+from e_infra.providers.drivers.queue.pgqueuer import PgqueuerDriver
 from unit.e_infra.conftest import DSN, admin, create
 
 if TYPE_CHECKING:
@@ -222,7 +222,7 @@ DOWN: Final[str] = "http://127.0.0.1:9"
 @pytest.fixture
 async def http() -> AsyncIterator[HttpPort]:
     """The process's HTTP driver, open, with no base: the drivers that ride it name absolute URLs."""
-    async with HttpDriver() as driver:
+    async with WreqDriver() as driver:
         yield driver
 
 
@@ -350,9 +350,9 @@ def pg_settings(database: str) -> PostgresSettings:
 
 
 @pytest.fixture
-async def pg(pg_settings: PostgresSettings) -> AsyncIterator[PostgresDriver]:
+async def pg(pg_settings: PostgresSettings) -> AsyncIterator[PsqlpyDriver]:
     """A connected adapter over a fresh `adapters` schema holding one probe table, dropped after the test."""
-    async with PostgresDriver(pg_settings) as adapter:
+    async with PsqlpyDriver(pg_settings) as adapter:
         await adapter.execute("CREATE EXTENSION IF NOT EXISTS vector")
         await adapter.execute("DROP SCHEMA IF EXISTS adapters CASCADE")
         await adapter.execute("CREATE SCHEMA adapters")

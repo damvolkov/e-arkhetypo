@@ -3,16 +3,19 @@
 Imports are read with `ast` (tach enforces the layers in CI too; this is the second, readable gate): a port imports
 no provider, engine or processor; a provider reaches only ports, infra and ops; engines and processors never meet a
 concrete provider nor each other. Every class that names itself a driver or an adapter declares its spec and the
-lifecycle, and the folder it lives in agrees with its locality: `EMBEDDED` is an adapter, the rest are drivers."""
+lifecycle, and the folder it lives in agrees with its locality: `EMBEDDED` is an adapter, the rest are drivers. A
+provider lives at `providers/<drivers|adapters>/<capability>/<name>.py`, where `<capability>` is the module of a port
+and the provider meets that port; class names are unique, `<Name><Nature>`."""
 
 import ast
 import importlib
+from collections import Counter
 from pathlib import Path
-from typing import Final
+from typing import Final, get_protocol_members
 
 import pytest
 
-from e_infra.ports.provider import Locality, ProviderSpec
+from e_infra.ports.provider import Locality, Provider, ProviderSpec
 
 PACKAGE: Final = Path(__file__).resolve().parents[2] / "src" / "e_infra"
 FORBIDDEN: Final[dict[str, frozenset[str]]] = {
@@ -88,3 +91,48 @@ def test_taxonomy_provider_declares_spec_and_lifecycle(folder: str, cls: type) -
     assert (spec.locality is Locality.EMBEDDED) is (folder == "providers/adapters"), (
         f"{cls.__name__}: {spec.locality} does not belong in {folder}"
     )
+
+
+##### THE PATH IS THE CAPABILITY #####
+NATURES: Final = ("drivers", "adapters")
+PORTS: Final = frozenset(path.stem for path in _modules("ports")) - {"provider"}
+PROVIDER_PATHS: Final = [path for nature in NATURES for path in _modules(f"providers/{nature}")]
+
+
+@pytest.mark.parametrize("path", PROVIDER_PATHS, ids=[str(path.relative_to(PACKAGE)) for path in PROVIDER_PATHS])
+def test_taxonomy_provider_sits_at_nature_capability_name(path: Path) -> None:
+    nature, capability, _ = path.relative_to(PACKAGE / "providers").parts
+    assert nature in NATURES
+    assert capability in PORTS, f"{path.relative_to(PACKAGE)}: {capability!r} is no module of ports/"
+
+
+def _port_of(capability: str) -> type:
+    """The capability's port: the one Protocol of its module that extends `Provider`."""
+    module = importlib.import_module(f"e_infra.ports.{capability}")
+    (port,) = (
+        cls
+        for cls in vars(module).values()
+        if isinstance(cls, type)
+        and cls.__module__ == module.__name__
+        and Provider in cls.__mro__
+        and cls is not Provider
+    )
+    return port
+
+
+@pytest.mark.parametrize(("folder", "cls"), PROVIDERS, ids=[cls.__name__ for _, cls in PROVIDERS])
+def test_taxonomy_provider_meets_the_port_of_its_folder(folder: str, cls: type) -> None:
+    capability = cls.__module__.split(".")[-2]
+    port = _port_of(capability)
+    missing = sorted(member for member in get_protocol_members(port) if not hasattr(cls, member))
+    assert not missing, f"{cls.__name__} does not meet {port.__name__}: lacks {missing}"
+
+
+def test_taxonomy_provider_class_names_are_unique() -> None:
+    names = Counter(cls.__name__ for _, cls in PROVIDERS)
+    assert not [name for name, count in names.items() if count > 1]
+
+
+@pytest.mark.parametrize(("folder", "cls"), PROVIDERS, ids=[cls.__name__ for _, cls in PROVIDERS])
+def test_taxonomy_provider_class_carries_its_nature(folder: str, cls: type) -> None:
+    assert cls.__name__.endswith(folder.removeprefix("providers/").title().removesuffix("s"))

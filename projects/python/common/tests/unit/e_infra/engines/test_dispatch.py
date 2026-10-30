@@ -8,8 +8,8 @@ from e_infra.engines.dispatch import DispatchEngine
 from e_infra.infra.background import Background, BackgroundState
 from e_infra.infra.config.base import Secret
 from e_infra.infra.config.queue import QueueSettings
-from e_infra.providers.drivers.awa import AwaDriver
-from e_infra.providers.drivers.pgqueuer import PgqueuerDriver
+from e_infra.providers.drivers.queue.awa import AwaDriver
+from e_infra.providers.drivers.queue.pgqueuer import PgqueuerDriver
 from unit.e_infra.conftest import Warnings, Works, outage, settled, until
 from unit.e_infra.engines.conftest import build
 

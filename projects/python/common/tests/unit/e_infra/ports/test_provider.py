@@ -11,9 +11,9 @@ from e_infra.infra.config.redis import RedisSettings
 from e_infra.ports.http import HttpPort
 from e_infra.ports.provider import Isolation, Locality, Provider, ProviderSpec, Workload
 from e_infra.ports.store import StorePort
-from e_infra.providers.drivers.http import HttpDriver
-from e_infra.providers.drivers.redis import RedisDriver
-from e_infra.providers.drivers.sqlite import SqliteDriver
+from e_infra.providers.drivers.http.wreq import WreqDriver
+from e_infra.providers.drivers.store.redis import RedisDriver
+from e_infra.providers.drivers.store.sqlite import SqliteDriver
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -41,7 +41,7 @@ async def test_redis_satisfies_store() -> None:
 
 
 async def test_http_satisfies_client() -> None:
-    assert isinstance(HttpDriver(HttpSettings()), HttpPort)
+    assert isinstance(WreqDriver(HttpSettings()), HttpPort)
 
 
 async def test_a_class_without_lifecycle_is_no_provider() -> None:

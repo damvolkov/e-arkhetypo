@@ -36,7 +36,7 @@ from support.crafter import plug
 
 if TYPE_CHECKING:
     from e_graph.logic.models import SectionRun
-    from providers.drivers.otel import OtelDriver
+    from providers.drivers.telemetry.otel import OtelDriver
     from support.crafter import SpecCrafter
 
 SECTION: Final[Section] = Section.EXTRACT

@@ -27,16 +27,17 @@ COMMON_SRC: Path = ROOT.parent / "common" / "src" / "e_infra"
 SECTIONS: tuple[str, ...] = ("infra", "ops", "ports", "providers", "engines", "processors")
 ### the TUI header belongs to the boilerplate wizard, not to a running service: same topology as the old sed.
 ### the compose tool belongs to stack management (e-taxis materializes the whole ops area), not to a running service.
-### postgres and the durable queue drivers ride in only for a service that runs them: add psqlpy /
-### pgqueuer[asyncpg] and awa-pg, drop the exclusions (the composition root hands one to DispatchEngine).
+### the Postgres drivers (psqlpy, asyncpg) and the durable queue drivers (awa, pgqueuer) ride in only for a service that
+### runs them: add psqlpy / pgqueuer[asyncpg] / awa-pg, drop the exclusions (the composition root hands one to DispatchEngine).
 EXCLUDES: frozenset[str] = frozenset(
     {
         "ops/tui.py",
         "ops/snap.py",
         "ops/compose.py",
-        "providers/drivers/awa.py",
-        "providers/drivers/pgqueuer.py",
-        "providers/drivers/postgres.py",
+        "providers/drivers/queue/awa.py",
+        "providers/drivers/queue/pgqueuer.py",
+        "providers/drivers/database/asyncpg.py",
+        "providers/drivers/database/psqlpy.py",
     }
 )
 

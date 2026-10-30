@@ -22,7 +22,7 @@ from e_cli.services.project import ProjectService
 from infra.settings import settings as st
 from infra.state import State
 from ports.store import StorePort
-from providers.drivers.sqlite import SqliteDriver
+from providers.drivers.store.sqlite import SqliteDriver
 
 T = TypeVar("T")
 ### cyclopts reads `Annotated` metadata but does not unwrap PEP 695 `type` aliases: the classic generic alias is what it sees.
@@ -53,7 +53,7 @@ class Deps:
     async def _resolve_store(self) -> StoreJournal:
         """The local store behind the undo journal: every command write is revertible by construction."""
         store = await self._stack.enter_async_context(SqliteDriver())
-        journal = StoreJournal(store, command=self._state.session.command, depth=st.cli.cli_history)
+        journal = StoreJournal(store, command=self._state.session.command, depth=st.cli.history)
         return await self._stack.enter_async_context(journal)
 
     async def _resolve_projects(self) -> ProjectService:

@@ -18,9 +18,9 @@ from infra.logger import logger
 from ports.http import HttpPort
 from ports.provider import Provider
 from ports.store import StorePort
-from providers.drivers.http import HttpDriver
-from providers.drivers.redis import RedisDriver
-from providers.drivers.sqlite import SqliteDriver
+from providers.drivers.http.wreq import WreqDriver
+from providers.drivers.store.redis import RedisDriver
+from providers.drivers.store.sqlite import SqliteDriver
 
 
 ##### SECTION #####
@@ -49,7 +49,7 @@ async def lifespan(app: Litestar) -> AsyncGenerator[None]:
         enter = stack.enter_async_context
         store = await enter(SqliteDriver())
         redis = await enter(RedisDriver())
-        http = await enter(HttpDriver())
+        http = await enter(WreqDriver())
         providers = ProvidersState(store=store, redis=redis, http=http)
         system.providers = providers
         logger.info("providers ready", providers=sorted(providers.named), step="START")

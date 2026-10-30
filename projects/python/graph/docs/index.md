@@ -56,9 +56,9 @@ them there, never here:
 | [`e_graph.models.pipeline`](reference/e_graph/models/pipeline.md) | models | How the list names a pipeline |
 | [`e_graph.models.ui`](reference/e_graph/models/ui.md) | models | The canvas tunables as the UI reads them |
 | [`processors.doc`](reference/processors/doc.md) | execution | DocProcessor: liteparse on every page, docling-serve on the pages that hold tables, figures or scans — one engine-neutral `Document` (materialized) |
-| [`providers.drivers.docling`](reference/providers/drivers/docling.md) | execution | DocumentPort over docling-serve, riding the HttpPort: conversions as server tasks, options from `DOCLING_*` (materialized) |
-| [`providers.adapters.liteparse`](reference/providers/adapters/liteparse.md) | execution | PagesPort over liteparse, in-process: the DocProcessor's fast pass, every page and its signals (materialized) |
-| [`providers.drivers.otel`](reference/providers/drivers/otel.md) | execution | TelemetryPort over the OpenTelemetry SDK, OTLP/HTTP export — common to every system (materialized) |
+| [`providers.drivers.documents.docling`](reference/providers/drivers/documents/docling.md) | execution | DocumentPort over docling-serve, riding the HttpPort: conversions as server tasks, options from `DOCLING_*` (materialized) |
+| [`providers.adapters.pages.liteparse`](reference/providers/adapters/pages/liteparse.md) | execution | PagesPort over liteparse, in-process: the DocProcessor's fast pass, every page and its signals (materialized) |
+| [`providers.drivers.telemetry.otel`](reference/providers/drivers/telemetry/otel.md) | execution | TelemetryPort over the OpenTelemetry SDK, OTLP/HTTP export — common to every system (materialized) |
 | [`engines.health`](reference/engines/health.md) | execution | HealthEngine: every provider surveyed at once — the startup log and `GET /ready` (materialized) |
 | [`ports.provider`](reference/ports/provider.md) | ports | Provider: the lifecycle, `health()` and `ProviderSpec` every provider declares (materialized) |
 | [`ops.wrappers`](reference/ops/wrappers.md) | ops | LatencyWrapper and the agnostic measuring wrappers (materialized) |

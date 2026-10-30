@@ -7,8 +7,8 @@ from typing import TYPE_CHECKING
 import pytest
 
 from e_api.api.lifespan.providers import ProvidersState
-from providers.drivers.redis import RedisDriver
-from providers.drivers.sqlite import SqliteDriver
+from providers.drivers.store.redis import RedisDriver
+from providers.drivers.store.sqlite import SqliteDriver
 
 if TYPE_CHECKING:
     from litestar.testing import TestClient

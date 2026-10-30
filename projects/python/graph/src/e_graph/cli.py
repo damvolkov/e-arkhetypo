@@ -52,9 +52,9 @@ from infra.logger import ELogger
 from infra.settings import settings as st
 from infra.state import State
 from processors.doc import DocProcessor
-from providers.adapters.liteparse import LiteparseAdapter
-from providers.drivers.docling import DoclingDriver
-from providers.drivers.http import HttpDriver
+from providers.adapters.pages.liteparse import LiteparseAdapter
+from providers.drivers.documents.docling import DoclingDriver
+from providers.drivers.http.wreq import WreqDriver
 
 CONSOLE: Final[Console] = Console(soft_wrap=True)
 EXIT: Final[dict[bool, int]] = {True: 0, False: 1}
@@ -227,10 +227,10 @@ async def system() -> AsyncIterator[State]:
     the agent. Their logs go to stderr: stdout is the command's answer, JSON included."""
     ### typeshed's TextIO is io.TextIOBase by alias: it checks nothing, while beartype demands the full
     ### protocol member by member — this class is built for the latter and cannot name it to the former.
-    ELogger.setup(env=st.app.app_env, stream=LiveStream())  # ty: ignore[invalid-argument-type]
+    ELogger.setup(env=st.app.env, stream=LiveStream())  # ty: ignore[invalid-argument-type]
     graphs = await PipelineRegistry().build()
     async with (
-        HttpDriver() as http,
+        WreqDriver() as http,
         DoclingDriver(http) as docling,
         LiteparseAdapter() as pages,
         AgnosticAgent() as agent,

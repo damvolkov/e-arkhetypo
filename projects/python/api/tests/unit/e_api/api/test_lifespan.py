@@ -58,7 +58,7 @@ def test_providers_section_is_typed_and_ported(client) -> None:
     assert isinstance(section.http, HttpPort)
     assert section.store.spec.name == "sqlite"
     assert section.redis.spec.name == "redis"
-    assert section.http.spec.name == "http"
+    assert section.http.spec.name == "wreq"
 
 
 def test_engines_section_is_typed(client) -> None:

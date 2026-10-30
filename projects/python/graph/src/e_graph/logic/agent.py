@@ -86,9 +86,9 @@ DUMMY_KEY: Final[str] = "not-needed"
 MS_PER_SECOND: Final[float] = 1000.0
 TIERS: Final[Mapping[Tier, str]] = MappingProxyType(
     {
-        Tier.HIGH: "agent_high",
-        Tier.MEDIUM: "agent_medium",
-        Tier.LOW: "agent_low",
+        Tier.HIGH: "high",
+        Tier.MEDIUM: "medium",
+        Tier.LOW: "low",
     }
 )
 RETRY_PROMPT: Final[str] = (
@@ -320,7 +320,7 @@ class AgnosticAgent:
                 messages=cast("list[dict[str, Any] | ChatCompletionMessage]", messages),
                 response_format=request,
                 stream=False,
-                timeout=self._settings.agent_timeout.total_seconds(),
+                timeout=self._settings.timeout.total_seconds(),
                 **options,
             )
         except Exception as error:
@@ -439,7 +439,7 @@ class AgnosticAgent:
         request = self._run_format(shape, resolved.provider)
         messages = self._run_messages(instructions, prompt)
         started, spent, attempts = time.perf_counter(), Usage(), 0
-        retries = self._settings.agent_retries
+        retries = self._settings.retries
         while True:
             attempts += 1
             done = await self._run_call(client, resolved, messages, request, options)

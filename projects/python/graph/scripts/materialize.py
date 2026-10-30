@@ -26,9 +26,9 @@ COMMON_SRC: Path = API_ROOT.parent / "common" / "src" / "e_infra"
 SECTIONS: tuple[str, ...] = ("engines", "infra", "ops", "ports", "processors", "providers")
 ### the TUI header belongs to the boilerplate wizard, not to a running service: same topology as the old sed.
 ### the compose tool belongs to stack management (e-taxis materializes the whole ops area), not to a running service.
-### the durable queue drivers ride in only for a service that runs them: add pgqueuer[asyncpg] and awa-pg, drop their
-### exclusions and pick one in the composition root; the in-process supervisor (infra/background) and the dispatch
-### engine over it ride in always. postgres rides in always — the db lifespan provisions every database the settings name.
+### the durable queue drivers (and the asyncpg driver PgQueuer rides) ride in only for a service that runs them: add
+### asyncpg, pgqueuer and awa-pg, drop their exclusions and pick one in the composition root; the in-process
+### supervisor (infra/background) and the dispatch engine over it ride in always. postgres rides in always — the db lifespan provisions every database the settings name.
 ### the embedding server, the in-process cache and the page extractor ride in only for a service that uses them: add
 ### tokenizers, theine or rtrafilatura and drop the exclusion.
 EXCLUDES: frozenset[str] = frozenset(
@@ -36,11 +36,13 @@ EXCLUDES: frozenset[str] = frozenset(
         "ops/tui.py",
         "ops/snap.py",
         "ops/compose.py",
-        "providers/drivers/awa.py",
-        "providers/drivers/pgqueuer.py",
-        "providers/drivers/tei.py",
-        "providers/adapters/theine.py",
-        "providers/adapters/rtrafilatura.py",
+        "providers/drivers/database/asyncpg.py",
+        "providers/drivers/queue/awa.py",
+        "providers/drivers/queue/pgqueuer.py",
+        "providers/drivers/embed/tei.py",
+        "providers/drivers/rerank/tei.py",
+        "providers/adapters/cache/theine.py",
+        "providers/adapters/extract/rtrafilatura.py",
     }
 )
 

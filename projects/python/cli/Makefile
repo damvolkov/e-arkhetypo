@@ -3,7 +3,7 @@ PROJECT  ?= e-cli
 PACKAGE  ?= src/e_cli
 MODULE   ?= e_cli
 COMMON_SRC ?= ../common/src/e_infra
-TESTARGS  =
+TESTARGS  ?= -m "not slow and not integration"   ## real-service tests leave the gate: make test TESTARGS="-m slow", make integration
 ARGS      = $(filter-out $@,$(MAKECMDGOALS))
 
 RESET   := \033[0m
@@ -19,7 +19,7 @@ MAKEFLAGS += --no-print-directory
 export PYTHONPATH := $(CURDIR)/src
 
 ##### TARGETS #####
-.PHONY: help install sync lock common common-check lint type arch validate harden hooks test cov check ci run release ci-vars clean
+.PHONY: help install sync lock common common-check lint type arch validate harden hooks test integration cov check ci run release ci-vars clean
 
 help:
 	@printf "$(BOLD)$(CYAN)$(PROJECT)$(RESET) $(GRAY)· uv · cyclopts · ruff · ty · tach · pytest — infra/ops/ports/providers/engines/processors materialized from $(COMMON_SRC)$(RESET)\n\n"
@@ -81,8 +81,11 @@ hooks: ## run all prek hooks on every file (ruff, ty, tach, zizmor, gitleaks)
 test: ## run tests [TESTARGS='-k expr']
 	@uv run pytest tests $(TESTARGS) -n auto -q
 
-cov: ## run tests with coverage gate (fail under 100%)
-	@uv run pytest tests --cov --cov-report=term-missing
+integration: ## the tests that need a real service (none yet); skipped when none answers
+	@uv run pytest tests -m integration -q
+
+cov: ## run tests with coverage gate (fail under 100%), real-service tests out like the CI matrix
+	@uv run pytest tests $(TESTARGS) --cov --cov-report=term-missing
 
 # — aggregate —
 check: lint type arch validate common-check test ## fast local gate: lint + type + arch + validate + drift + test

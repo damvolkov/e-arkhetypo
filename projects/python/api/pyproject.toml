@@ -27,6 +27,8 @@ dependencies = [
     "structlog>=26.1",
     ##### data #####
     "msgspec>=0.21",
+    ### ops/registry dumps through it; the compose loader of the whole stack.
+    "e-serde>=0.6.1",
     "pydantic>=2.10",
     "pydantic-settings>=2.6",
     "pyyaml>=6.0",
@@ -80,8 +82,9 @@ test = [
     "pytest-randomly>=5.0",
     "pytest-timeout>=2.4",
     "pytest-stress>=1.0.1",
-    "fakeredis>=2.38.0",
-    "pytest-resources[serde]>=0.3.2",
+    "fakeredis>=2.40.0",
+    ### no [serde] extra: it pins e-serde<0.6 and the main dependency (ops/registry) needs >=0.6.1, which the plugin loads through.
+    "pytest-resources>=0.3.2",
 ]
 docs = [
     "mkdocstrings[python]>=1.0.7",
@@ -176,6 +179,8 @@ error-on-warning = true
 minversion = "9.0"
 testpaths = ["tests"]
 addopts = ["--import-mode=importlib", "-ra"]
+### tests on the path beside src: `from support.psqlpy import FakePsqlpyServer`, the fakes the mirror shares.
+pythonpath = ["src", "tests"]
 strict = true
 filterwarnings = [
     "error",
@@ -188,6 +193,7 @@ asyncio_default_fixture_loop_scope = "function"
 markers = [
     "slow: slow tests (deselect with -m 'not slow')",
     "stress: concurrent-load tests, soaken for a duration with `make stress` (pytest-stress)",
+    "integration: needs a real service (Postgres, redis, an IdP) and stays out of the default run: `make integration`",
 ]
 
 ##### COVERAGE #####

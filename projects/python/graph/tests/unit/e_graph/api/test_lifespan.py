@@ -70,7 +70,7 @@ def test_providers_section_is_typed_and_ported(client) -> None:
         "store": "sqlite",
         "telemetry": "otel",
         "redis": "redis",
-        "http": "http",
+        "http": "wreq",
         "docling": "docling-serve",
         "pages": "liteparse",
     }

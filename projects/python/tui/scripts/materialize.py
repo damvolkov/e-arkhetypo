@@ -26,32 +26,35 @@ COMMON_SRC: Path = ROOT.parent / "common" / "src" / "e_infra"
 SECTIONS: tuple[str, ...] = ("infra", "ops", "ports", "providers", "engines", "processors")
 ### the opt-in table of projects/python/common/docs/index.md, read for a TUI: what it does not take stays at the source.
 ### the compose tool belongs to stack management (e-taxis materializes the whole ops area), not to a running service.
-### postgres and the durable queues ride in only for a service that runs them: add psqlpy / pgqueuer[asyncpg] / awa-pg,
+### postgres (psqlpy, asyncpg) and the durable queues (awa, pgqueuer) ride in only for a service that runs them: add psqlpy / asyncpg / pgqueuer / awa-pg,
 ### drop the exclusions, and name the class that fills QueuePort at the composition root.
 ### tracing, the cache and the model and web edges are opt-in everywhere: each brings its library with it.
 EXCLUDES: frozenset[str] = frozenset(
     {
         "ops/compose.py",
         "ports/database.py",
-        "providers/drivers/postgres.py",
+        "providers/drivers/database/psqlpy.py",
+        "providers/drivers/database/asyncpg.py",
         "ports/queue.py",
-        "providers/drivers/awa.py",
-        "providers/drivers/pgqueuer.py",
+        "providers/drivers/queue/awa.py",
+        "providers/drivers/queue/pgqueuer.py",
         "engines/dispatch.py",
         "ports/telemetry.py",
-        "providers/drivers/otel.py",
+        "providers/drivers/telemetry/otel.py",
         "ports/cache.py",
-        "providers/adapters/theine.py",
+        "providers/adapters/cache/theine.py",
+        "providers/drivers/cache/postgres.py",
         "engines/cache.py",
         "ports/embed.py",
         "ports/rerank.py",
-        "providers/drivers/tei.py",
+        "providers/drivers/embed/tei.py",
+        "providers/drivers/rerank/tei.py",
         "ports/llm.py",
-        "providers/drivers/openai.py",
+        "providers/drivers/llm/openai.py",
         "ports/ner.py",
-        "providers/drivers/gliner.py",
+        "providers/drivers/ner/gliner.py",
         "ports/extract.py",
-        "providers/adapters/rtrafilatura.py",
+        "providers/adapters/extract/rtrafilatura.py",
     }
 )
 

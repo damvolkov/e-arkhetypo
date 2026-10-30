@@ -31,7 +31,7 @@ if TYPE_CHECKING:
 
     from e_graph.instrument.graph import InstrumentGraph
     from e_graph.logic.models import SectionPlan
-    from providers.adapters.liteparse import LiteparseAdapter
+    from providers.adapters.pages.liteparse import LiteparseAdapter
 
 NOTES = Path(__file__).resolve().parents[5] / "tests" / "resources" / "documents" / "notes"
 PAYMENT_DATES: Final = (

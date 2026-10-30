@@ -4,6 +4,7 @@ src/ops/
 src/ports/
 src/providers/
 src/engines/
+src/processors/
 .venv/
 .env
 # materialized from ../common — run `make common`; do not edit or commit these

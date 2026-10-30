@@ -4,8 +4,8 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from infra.config.otel import OtelSettings
-from providers.drivers.otel import OtelDriver
+from infra.config.providers.drivers.telemetry.otel import OtelSettings
+from providers.drivers.telemetry.otel import OtelDriver
 from support.crafter import SpecCrafter
 from support.darts import DartsHarness
 

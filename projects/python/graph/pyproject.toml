@@ -93,6 +93,7 @@ test = [
     "pytest-timeout>=2.4",
     "pytest-stress>=1.0.1",
     "fakeredis>=2.38.0",
+    "pytest-httpserver>=1.2.0",
     "pytest-resources[serde,objects]>=0.3.2",
     ##### agent tests: mocks for unit, recorded cassettes (vcrpy) for integration #####
     "pytest-mock>=3.16",
@@ -226,7 +227,7 @@ asyncio_default_test_loop_scope = "session"
 markers = [
     "slow: slow tests (deselect with -m 'not slow')",
     "stress: concurrent-load tests, soaken for a duration with `make stress` (pytest-stress)",
-    "integration: the agent against a real model, replayed from cassettes; `make record` re-records them",
+    "integration: the agent against a real model, replayed from recorded cassettes — out of the default run: `make integration` replays them, `make record` re-records them against the live model",
     "ui: browser snapshots of the canvas — chromium + the built bundle (`make bundle`); `make snap` accepts them",
 ]
 

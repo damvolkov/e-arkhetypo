@@ -18,11 +18,11 @@ from typing import TYPE_CHECKING, Any, ClassVar, Final, Self
 import eserde
 import msgspec
 
-from infra.config.docling import DoclingSettings
+from infra.config.providers.drivers.documents.docling import DoclingSettings
 from processors.doc import DocProcessor
-from providers.adapters.liteparse import LiteparseAdapter
-from providers.drivers.docling import DoclingDriver
-from providers.drivers.http import HttpDriver
+from providers.adapters.pages.liteparse import LiteparseAdapter
+from providers.drivers.documents.docling import DoclingDriver
+from providers.drivers.http.wreq import WreqDriver
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -86,7 +86,7 @@ async def main() -> None:
     CONVERSIONS.mkdir(exist_ok=True)
     gate = asyncio.Semaphore(PARALLEL)
     async with (
-        HttpDriver() as http,
+        WreqDriver() as http,
         DoclingDriver(http, DoclingSettings(docling_images_scale=1.0)) as driver,
         LiteparseAdapter() as pages,
         asyncio.TaskGroup() as group,

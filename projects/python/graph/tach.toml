@@ -16,8 +16,9 @@ root_module = "forbid"
 # every node runs inside · `engine`: the DARTS pieces that stand alone — the agnostic agent and the engine's
 # own models — low enough for the instrument to meter the agent and read its models · then the materialized taxonomy:
 # `execution` (engines, processors, providers' drivers and adapters — one horizontal layer, none imports another),
-# `ports` (one contract per capability), the shared infra and ops, and data.
-layers = ["api", "pipelines", "logic", "runners", "instrument", "engine", "execution", "ports", "infra", "ops", "models"]
+# `ports` (one contract per capability), the shared infra and ops, `errors` — the floor, the single root of every
+# exception the materialized sections raise: it imports nothing, and ops raises from it — and data.
+layers = ["api", "pipelines", "logic", "runners", "instrument", "engine", "execution", "ports", "infra", "ops", "errors", "models"]
 
 [rules]
 unused_ignore_directives = "error"
@@ -121,6 +122,11 @@ depends_on = []
 [[modules]]
 path = "infra"
 layer = "infra"
+depends_on = []
+
+[[modules]]
+path = "infra.errors"
+layer = "errors"
 depends_on = []
 
 [[modules]]

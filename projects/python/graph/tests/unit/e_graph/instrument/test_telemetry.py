@@ -14,10 +14,10 @@ from e_graph.instrument.state import InfraState, InstrumentState, RunState
 from e_graph.instrument.telemetry import NO_SPAN, InstrumentTelemetry, NullSpan, NullTelemetry, SpanTelemetry
 from e_graph.logic.models import Usage
 from e_graph.logic.state import LogicState
-from infra.config.otel import OtelSettings
+from infra.config.providers.drivers.telemetry.otel import OtelSettings
 from infra.state import State
 from ports.telemetry import SpanKind, SpanPort, SpanStatus
-from providers.drivers.otel import OtelDriver
+from providers.drivers.telemetry.otel import OtelDriver
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterator, Mapping

@@ -25,10 +25,10 @@ MS_PER_SECOND: Final[int] = 1000
 async def view() -> UiView:
     """The canvas tunables, in the units it draws with: milliseconds, seconds of pace, pixels."""
     return UiView(
-        toast_ms=round(st.ui.ui_toast.total_seconds() * MS_PER_SECOND),
-        pace=st.ui.ui_pace.total_seconds(),
-        lane_gap=st.ui.ui_lane_gap,
-        rank_gap=st.ui.ui_rank_gap,
+        toast_ms=round(st.ui.toast.total_seconds() * MS_PER_SECOND),
+        pace=st.ui.pace.total_seconds(),
+        lane_gap=st.ui.lane_gap,
+        rank_gap=st.ui.rank_gap,
     )
 
 

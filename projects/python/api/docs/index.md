@@ -26,15 +26,16 @@ edit them there, never here:
 | [`e_api.api.middlewares`](reference/e_api/api/middlewares.md) | api | Correlation id, CORS and the middleware chain |
 | [`e_api.api.deps`](reference/e_api/api/deps.md) | api | Dependency chains: store access, current user, graph |
 | [`e_api.api.lifespan.infra`](reference/e_api/api/lifespan/infra.md) | api | One-time load of the infra singletons, mirrored into `state.shared` |
-| [`e_api.api.lifespan.providers`](reference/e_api/api/lifespan/providers.md) | api | The composition root's providers — sqlite, redis, http opened on one exit stack, typed by port |
+| [`e_api.api.lifespan.providers`](reference/e_api/api/lifespan/providers.md) | api | The composition root's providers — sqlite, redis, wreq opened on one exit stack, typed by port |
 | [`e_api.api.lifespan.engines`](reference/e_api/api/lifespan/engines.md) | api | The engines over the providers' ports — `HealthEngine` for the startup survey and `GET /ready` |
-| [`ports.store`](reference/ports/store.md) | ports | Contracts — StorePort, HttpPort, one per capability; the sqlite, redis and http drivers fill them (materialized) |
-| [`providers.drivers.sqlite`](reference/providers/drivers/sqlite.md) | execution | Drivers for what lives outside the process — sqlite, redis, http, postgres (materialized) |
+| [`ports.store`](reference/ports/store.md) | ports | Contracts — StorePort, HttpPort, one per capability; the sqlite, redis and wreq drivers fill them (materialized) |
+| [`providers.drivers.store.sqlite`](reference/providers/drivers/store/sqlite.md) | execution | Drivers by capability, `providers/drivers/<capability>/<name>.py` — sqlite and redis (store), wreq (http), psqlpy (database); every one logs (materialized) |
 | [`engines.health`](reference/engines/health.md) | execution | Every provider surveyed at once — the startup log and the readiness verdicts (materialized) |
 | [`e_api.models.user`](reference/e_api/models/user.md) | models | msgspec DTO families — the only place data crosses trust boundaries |
 | [`e_api.websockets.telemetry`](reference/e_api/websockets/telemetry.md) | api | Typed websocket listeners — structured frames in and out |
-| [`infra.settings`](reference/infra/settings.md) | infra | Composed settings: one BaseSettings reader over the per-scope structs of `infra.config` (materialized) |
+| [`infra.settings`](reference/infra/settings.md) | infra | Composed settings: the `infra.config` tree mirrors the module tree, so `st.providers.drivers.store.redis.url` is the redis driver's scope (materialized) |
 | [`infra.logger`](reference/infra/logger.md) | infra | Structured logging: JSON in prod, ordered plain text in dev (materialized) |
+| [`infra.errors`](reference/infra/errors.md) | infra | The one root of every exception — `CoreError`, its provider, engine, processor and ops branches (materialized) |
 | [`ops.crypto`](reference/ops/crypto.md) | ops | Everything that needs a key or entropy: keyed ids, bearer tokens, password hashing, JWS/JWE, AEAD (materialized) |
 | [`ops.file`](reference/ops/file.md) | ops | Package discovery — the settings composer's engine (materialized) |
 

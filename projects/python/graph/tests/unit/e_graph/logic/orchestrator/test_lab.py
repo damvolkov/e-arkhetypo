@@ -26,7 +26,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable, Mapping
 
     from e_graph.instrument.graph import InstrumentGraph
-    from providers.adapters.liteparse import LiteparseAdapter
+    from providers.adapters.pages.liteparse import LiteparseAdapter
     from support.darts import DartsHarness
 
 AAPL: Final[str] = str(Path(__file__).resolve().parents[5] / "tests/resources/documents/filings/aapl-10k-2025.pdf")

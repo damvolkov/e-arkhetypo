@@ -9,10 +9,10 @@ from infra.settings import settings as st
 if __name__ == "__main__":
     Granian(
         target="e_api.main:create_app",
-        address=st.app.app_host,
-        port=st.app.app_port,
+        address=st.app.host,
+        port=st.app.port,
         interface=Interfaces.ASGI,
         factory=True,
         ### reload is a dev convenience only: prod and local never re-import modules behind the running server.
-        reload=st.app.app_env is Env.DEV,
+        reload=st.app.env is Env.DEV,
     ).serve()

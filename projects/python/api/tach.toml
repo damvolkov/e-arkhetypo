@@ -4,69 +4,75 @@ exclude = ["tests", "docs"]
 
 ##### RULES #####
 forbid_circular_dependencies = true
-exact = true
+### the table below is the import table of the taxonomy, spelled edge by edge: an import that is not an edge fails. `exact`
+### stays off because the table declares what a layer MAY import (every execution module may reach `ops`, none does yet);
+### the graph itself — no edge between engines, processors, drivers and adapters, none upward — is what the gate holds.
+exact = false
 root_module = "forbid"
-
-##### LAYERS #####
-# Ordered high → low: a layer may import lower layers, importing upward fails. engines, processors, drivers and adapters
-# share one layer: none of them imports another (the layer is horizontal), each reaches only ports, infra and ops.
-layers = ["api", "execution", "ports", "infra", "ops", "models"]
 
 [rules]
 unused_ignore_directives = "error"
 
-##### MODULES #####
+##### SERVICE #####
+### the service stands on the materialized sections and on its own models; nothing materialized imports it back.
 [[modules]]
 path = "e_api"
-layer = "api"
-depends_on = ["e_api.api", "e_api.websockets"]
+depends_on = ["e_api.api", "e_api.websockets", "infra"]
 
 [[modules]]
 path = "e_api.api"
-layer = "api"
-depends_on = []
+depends_on = [
+    "e_api.models",
+    "engines",
+    "providers.drivers",
+    "providers.adapters",
+    "ports",
+    "infra",
+    "infra.errors",
+    "ops",
+]
 
 [[modules]]
 path = "e_api.websockets"
-layer = "api"
-depends_on = ["e_api.api"]
+depends_on = ["e_api.api", "e_api.models", "infra", "infra.errors"]
 
 [[modules]]
+path = "e_api.models"
+depends_on = ["infra", "infra.errors"]
+
+##### MATERIALIZED #####
+### engines, processors, drivers and adapters are the execution level: each stands on ports, infra and ops, and none
+### lists another — the horizontal ban is the absence of an edge.
+[[modules]]
 path = "engines"
-layer = "execution"
-depends_on = []
+depends_on = ["ports", "infra", "infra.errors", "ops"]
 
 [[modules]]
 path = "processors"
-layer = "execution"
-depends_on = []
+depends_on = ["ports", "infra", "infra.errors", "ops"]
 
 [[modules]]
 path = "providers.drivers"
-layer = "execution"
-depends_on = []
+depends_on = ["ports", "infra", "infra.errors", "ops"]
 
 [[modules]]
 path = "providers.adapters"
-layer = "execution"
-depends_on = []
+depends_on = ["ports", "infra", "infra.errors", "ops"]
 
+### ports are the bottleneck of the import graph: they see infra and nothing else.
 [[modules]]
 path = "ports"
-layer = "ports"
-depends_on = []
+depends_on = ["infra", "infra.errors"]
 
 [[modules]]
 path = "infra"
-layer = "infra"
+depends_on = ["ops", "infra.errors"]
+
+### the error tree is the floor of the package: every module, `ops` included, raises from it and it imports nothing.
+[[modules]]
+path = "infra.errors"
 depends_on = []
 
 [[modules]]
 path = "ops"
-layer = "ops"
-depends_on = []
-
-[[modules]]
-path = "e_api.models"
-layer = "models"
-depends_on = []
+depends_on = ["infra.errors"]

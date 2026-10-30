@@ -10,8 +10,8 @@ import pytest
 
 from e_graph.logic.agent import AgnosticAgent
 from e_graph.logic.models import SpecStatus
-from infra.config.otel import OtelSettings
-from providers.drivers.otel import OtelDriver
+from infra.config.providers.drivers.telemetry.otel import OtelSettings
+from providers.drivers.telemetry.otel import OtelDriver
 from support.crafter import SpecCrafter
 from support.darts import DartsHarness
 
@@ -36,12 +36,12 @@ RATIO = {"type": "object", "properties": {"margin": {"type": "number"}}, "requir
 @pytest.mark.timeout(600)
 async def test_fused_specs_read_the_statement(resources: Resources, tmp_path: Path, settings: Any) -> None:
     async with (
-        AgnosticAgent(settings.model_copy(update={"agent_timeout": timedelta(minutes=8)})) as agent,
+        AgnosticAgent(settings.model_copy(update={"timeout": timedelta(minutes=8)})) as agent,
         OtelDriver(OtelSettings()) as telemetry,
     ):
         ### a reasoning model answering two specs at once: deadlines sized for the recording, not the replay.
         darts = DartsHarness(
-            SpecCrafter(resources, tmp_path, seed=1), telemetry, agent=agent, darts_timeout=timedelta(minutes=9)
+            SpecCrafter(resources, tmp_path, seed=1), telemetry, agent=agent, timeout=timedelta(minutes=9)
         )
         for name, line in (("EXT-revenue", "total net sales"), ("EXT-net-income", "net income")):
             darts.semantic(

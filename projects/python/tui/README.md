@@ -101,7 +101,7 @@ conditional route, one condition, and a `result` view that emits the accumulated
 make install    # materializes infra/ops/ports/providers/engines/processors, syncs deps, git hooks
 make run        # the reference wizard over the standard architecture (etui)
 make check      # lint + type + arch + validate + drift + tests
-make cov        # ... with the 100 % gate
+make cov        # ... with the 100 % gate (real-service tests, marked `integration`, stay out: `make integration`)
 ```
 
 ##### SNAPSHOTS #####

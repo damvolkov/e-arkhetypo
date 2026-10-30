@@ -59,8 +59,8 @@ class DagPlan:
             for tier, group in groupby(ordered, key=tiers.__getitem__)
             for specs in SpecFusion.pack(
                 {name: SpecFusion.weight(nodes[name], catalog.wiki) for name in group},
-                budget=conf.darts_fusion_tokens,
-                most=conf.darts_fusion_specs,
+                budget=conf.fusion_tokens,
+                most=conf.fusion_specs,
             )
         ]
         return Step(

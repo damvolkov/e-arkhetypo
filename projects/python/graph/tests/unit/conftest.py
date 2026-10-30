@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING
 import pytest
 from pytest_resources import FileType, eserde_loaders
 
-from providers.adapters.liteparse import LiteparseAdapter
+from providers.adapters.pages.liteparse import LiteparseAdapter
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator

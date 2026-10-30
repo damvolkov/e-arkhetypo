@@ -7,7 +7,7 @@ from litestar import Litestar
 
 from e_graph.api.lifespan import db
 from infra.config.base import Secret
-from infra.config.postgres import PostgresSettings
+from infra.config.providers.drivers.database.psqlpy import PsqlpySettings
 from infra.errors import DatabaseError
 
 
@@ -17,7 +17,7 @@ class FakeDriver:
 
     log: ClassVar[list[str]] = []
 
-    def __init__(self, settings: PostgresSettings) -> None:
+    def __init__(self, settings: PsqlpySettings) -> None:
         self.dsn = settings.dsn.get_secret_value()
 
     async def provision(self) -> bool:
@@ -33,7 +33,7 @@ class FakeDriver:
 @pytest.fixture
 def fake(monkeypatch: pytest.MonkeyPatch) -> type[FakeDriver]:
     FakeDriver.log = []
-    monkeypatch.setattr(db, "PostgresDriver", FakeDriver)
+    monkeypatch.setattr(db, "PsqlpyDriver", FakeDriver)
     return FakeDriver
 
 
@@ -44,8 +44,8 @@ async def test_db_provisions_every_row(fake: type[FakeDriver]) -> None:
 
 async def test_db_failure_warns(fake: type[FakeDriver]) -> None:
     """A database that cannot be provisioned reads as not created; startup goes on."""
-    assert await db.provision("background", PostgresSettings(dsn=Secret("postgresql://h:1/down"))) is False
-    assert await db.provision("background", PostgresSettings(dsn=Secret("postgresql://h:1/up"))) is True
+    assert await db.provision("background", PsqlpySettings(dsn=Secret("postgresql://h:1/down"))) is False
+    assert await db.provision("background", PsqlpySettings(dsn=Secret("postgresql://h:1/up"))) is True
 
 
 def test_db_rows_are_the_queue() -> None:

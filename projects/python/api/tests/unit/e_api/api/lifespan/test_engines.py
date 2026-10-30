@@ -7,7 +7,7 @@ from litestar.testing import TestClient
 
 from e_api.api.lifespan.providers import ProvidersState
 from e_api.main import create_app
-from providers.drivers.sqlite import SqliteDriver
+from providers.drivers.store.sqlite import SqliteDriver
 
 if TYPE_CHECKING:
     import pytest

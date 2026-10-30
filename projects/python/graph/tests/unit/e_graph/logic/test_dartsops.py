@@ -26,8 +26,8 @@ if TYPE_CHECKING:
 
     from support.darts import DartsHarness
 
-from infra.config.otel import OtelSettings
-from providers.drivers.otel import OtelDriver
+from infra.config.providers.drivers.telemetry.otel import OtelSettings
+from providers.drivers.telemetry.otel import OtelDriver
 from support.crafter import SpecCrafter
 from support.darts import DartsHarness
 
@@ -84,7 +84,7 @@ def test_the_contract_mirrors_grammar_laws_and_budgets() -> None:
     assert (contract["sections"]["extract"], contract["sections"]["report"]) == ("EXT", "REP")
     assert set(contract["roles"]) == {"run", "check", "pre_run", "post_run"}
     assert contract["slots"] == {"runner": "run", "check": "check", "pre": "pre_run", "post": "post_run"}
-    assert contract["budget"]["darts_fusion_specs"] == st.darts.darts_fusion_specs
+    assert contract["budget"]["darts_fusion_specs"] == st.darts.fusion_specs
     assert contract["budget"]["darts_timeout"].startswith("PT")
 
 

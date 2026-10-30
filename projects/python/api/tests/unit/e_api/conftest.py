@@ -1,4 +1,5 @@
-"""tests/unit/e_api: the live app on the real graph — env seeded before the lazy infra singletons ever load.
+"""tests/unit/e_api: the live app on the real graph — env seeded before the lazy infra singletons ever load, and no
+service behind it: redis answers from fakeredis, Postgres from the scripted pool of `tests/support/psqlpy`.
 
 `os.environ` stays untouched at module import (doctrine: no side-effect between imports); the seeding
 rides `pytest_configure`, which pytest runs before collection. Collection matters: pytest probes every
@@ -12,23 +13,43 @@ from datetime import timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+import fakeredis
+import fakeredis.aioredis
 import pytest
 from litestar.testing import TestClient
 
 from e_api.api.deps import USER_KEY
 from e_api.main import create_app
+from providers.drivers.database import psqlpy as psqlpy_module
+from providers.drivers.store import redis as redis_module
+from support.psqlpy import FakePsqlpyServer
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterator
 
 
 def pytest_configure() -> None:
-    """Seed SECRET, a private DB_PATH and a test queue database before any collection-time settings touch; external
-    env wins."""
-    ### the db lifespan provisions the queue database on the local ParadeDB: a test one, never the service's.
-    os.environ.setdefault("QUEUE_DSN", "postgresql://postgres:postgres@127.0.0.1:45011/e_api_test_background")
+    """Seed SECRET and a private DB_PATH before any collection-time settings touch; external env wins."""
     os.environ.setdefault("CRYPTO__SECRET", "unit-test-secret-0123456789")
     os.environ.setdefault("DB_PATH", str(Path(tempfile.mkdtemp(prefix="e-api-tests-")) / "test.db"))
+
+
+@pytest.fixture(autouse=True)
+def redis_server(monkeypatch: pytest.MonkeyPatch) -> fakeredis.FakeServer:
+    """The redis every driver of the test talks to: an in-memory server, `connected = False` takes it down."""
+    server = fakeredis.FakeServer()
+    monkeypatch.setattr(
+        redis_module.redis, "from_url", lambda _url, **_kwargs: fakeredis.aioredis.FakeRedis(server=server)
+    )
+    return server
+
+
+@pytest.fixture(autouse=True)
+def psqlpy(monkeypatch: pytest.MonkeyPatch) -> FakePsqlpyServer:
+    """The Postgres the db lifespan provisions on: scripted rows and recorded SQL, no database."""
+    server = FakePsqlpyServer()
+    monkeypatch.setattr(psqlpy_module, "ConnectionPool", server.pool)
+    return server
 
 
 @pytest.fixture

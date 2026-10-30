@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Final
 from litestar.testing import TestClient
 
 from e_graph.main import create_app
-from providers.drivers.sqlite import SqliteDriver
+from providers.drivers.store.sqlite import SqliteDriver
 
 if TYPE_CHECKING:
     import pytest

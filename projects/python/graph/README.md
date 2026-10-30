@@ -50,7 +50,7 @@ Two contracts, one per side:
 Routers read the RunState and must name their targets (`Literal[...]` or `path_map`), so the topology
 is always total. Every node carries a `role` — `start` (wired from LangGraph's START), `end` (leading
 into END; END wins a tie) or `mid` — stamped at compile from the edges themselves, and spelled on every
-`NodeOutput` and topology node: the sentinels are never vertices, the role says where they are. Telemetry is the common `providers/drivers/otel.py` (`OTEL_ENDPOINT`), fixed at `state.infra.providers.telemetry`.
+`NodeOutput` and topology node: the sentinels are never vertices, the role says where they are. Telemetry is the common `providers/drivers/telemetry/otel.py` (`OTEL_ENDPOINT`), fixed at `state.infra.providers.telemetry`.
 
 ##### PIPELINES #####
 
@@ -165,7 +165,8 @@ minutes and real tokens; budget the loop's copies accordingly.
 ##### TESTS #####
 
 ```
-tests/unit/        # mirrors src; inputs from tests/resources via pytest-resources (decoded by e-serde)
+tests/unit/        # mirrors src; inputs from tests/resources via pytest-resources (decoded by e-serde); no service answers — Postgres and Redis are fakes, docling a local HTTP server
+tests/integration/ # the agent against a recorded model (vcr cassettes), marked `integration`: out of the default run, `make integration` replays them
 tests/acceptance/  # granian serving the built canvas + chromium (pytest-playwright-asyncio), PNG snapshots (syrupy)
 ```
 
@@ -179,6 +180,7 @@ make install        # materialize infra + sync deps + ui deps + chromium
 make serve          # the whole piece: build the canvas, start the server — api + canvas at :8000
 make check          # lint (ruff + biome) + type (ty + tsc) + arch + validate + drift + test (ui snapshots included)
 make snap           # accept the canvas snapshots after a reviewed visual change
+make integration    # replay the agent's recorded cassettes
 make stress         # soak concurrent-load tests
 make up             # docker compose up
 ```

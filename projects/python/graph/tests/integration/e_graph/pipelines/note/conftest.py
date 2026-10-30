@@ -24,4 +24,4 @@ def settings(request: pytest.FixtureRequest) -> Any:
         case True:
             return AgentSettings()
         case _:
-            return AgentSettings(agent_medium=ALIBABA, agent_high=ALIBABA, agent_low=ALIBABA)
+            return AgentSettings(medium=ALIBABA, high=ALIBABA, low=ALIBABA)

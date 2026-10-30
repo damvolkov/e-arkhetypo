@@ -6,7 +6,7 @@ PORT     ?= 8000
 COMPOSE  ?= compose.yml
 COMMON_SRC ?= ../common/src/e_infra
 UI       ?= src/e_graph/ui
-TESTARGS  ?= -m "not ui"   ## visual goldens are runner-canonical: make snap-refresh (workflow) owns them
+TESTARGS  ?= -m "not ui and not integration"   ## visual goldens are runner-canonical (make snap-refresh owns them); the model's cassettes leave the gate: make integration
 ARGS      = $(filter-out $@,$(MAKECMDGOALS))
 
 RESET   := \033[0m
@@ -22,7 +22,7 @@ MAKEFLAGS += --no-print-directory
 export PYTHONPATH := $(CURDIR)/src
 
 ##### TARGETS #####
-.PHONY: help install sync lock common common-check lint type arch validate harden hooks test cov record conversions dartsops dartsops-eval dartsops-gate stress docs docs-build bundle snap check ci serve up down build logs release ci-vars clean
+.PHONY: help install sync lock common common-check lint type arch validate harden hooks test integration cov record conversions dartsops dartsops-eval dartsops-gate stress docs docs-build bundle snap check ci serve up down build logs release ci-vars clean
 
 help:
 	@printf "$(BOLD)$(CYAN)$(PROJECT)$(RESET) $(GRAY)· uv · ruff · ty · tach · pytest · zensical · docker · pnpm — infra/ops/ports/providers/engines/processors materialized from $(COMMON_SRC)$(RESET)\n\n"
@@ -90,10 +90,13 @@ hooks: ## run all prek hooks on every file (ruff, ty, tach, zizmor, gitleaks)
 	@uv run prek run --all-files
 
 # — tests —
-test: bundle ## run tests, visual goldens out by default (the canvas is still built) [TESTARGS='-k expr']
+test: bundle ## run tests, visual goldens and model cassettes out by default (the canvas is still built) [TESTARGS='-k expr']
 	@uv run pytest tests $(TESTARGS) -n auto -q
 
-cov: bundle ## run tests with coverage gate (fail under 100%), goldens out like test
+integration: ## replay the agent's recorded cassettes (the tests that need a real model: make record re-records them)
+	@uv run pytest tests -m integration -q
+
+cov: bundle ## run tests with coverage gate (fail under 100%), goldens and cassettes out like test
 	@uv run pytest tests $(TESTARGS) --cov --cov-report=term-missing
 
 snap: bundle ## accept the canvas snapshots after a reviewed visual change (rewrites __snapshots__ PNGs)

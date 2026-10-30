@@ -11,7 +11,7 @@ import pytest
 from e_graph.logic.agent import AgnosticAgent
 from e_graph.logic.models import Endpoint, Provider, Tier
 from infra.config.agent import AgentSettings
-from providers.adapters.liteparse import LiteparseAdapter
+from providers.adapters.pages.liteparse import LiteparseAdapter
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
@@ -50,12 +50,12 @@ def settings(request: pytest.FixtureRequest) -> Any:
     retarget, and then the cassettes are rewritten to whatever the tiers point at."""
     declared = AgentSettings()
     recording = str(request.config.getoption("--record-mode", "none")).lower() in {"all", "rewrite", "new_episodes"}
-    match declared.agent_medium is not None and recording:
+    match declared.medium is not None and recording:
         case True:
             return declared
         case _:
             local = {"provider": VLLM.provider, "model": VLLM.model, "api_base": VLLM.api_base}
-            return AgentSettings(agent_medium=local, agent_high=local, agent_low=local)
+            return AgentSettings(medium=local, high=local, low=local)
 
 
 @pytest.fixture

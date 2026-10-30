@@ -20,15 +20,15 @@ from e_graph.instrument.telemetry import InstrumentTelemetry
 from e_graph.logic.orchestrator.core import OrchestratorCore
 from e_graph.logic.state import LogicState
 from e_graph.pipelines.note.graph import NoteGraph
-from infra.config.otel import OtelSettings
+from infra.config.providers.drivers.telemetry.otel import OtelSettings
 from infra.state import State
 from processors.doc import DocProcessor
-from providers.drivers.otel import OtelDriver
+from providers.drivers.telemetry.otel import OtelDriver
 from support.docling import GoldenPort
 
 if TYPE_CHECKING:
     from e_graph.logic.agent import AgnosticAgent
-    from providers.adapters.liteparse import LiteparseAdapter
+    from providers.adapters.pages.liteparse import LiteparseAdapter
 
 pytestmark = [pytest.mark.vcr, pytest.mark.integration]
 

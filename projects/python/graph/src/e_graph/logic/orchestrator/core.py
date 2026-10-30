@@ -283,7 +283,7 @@ class OrchestratorCore:
             raise TimeoutError(msg) from passed
 
     def _spec_timeout(self, node: SpecNode) -> float:
-        timeout = node.spec.timeout or self._conf.darts_timeout
+        timeout = node.spec.timeout or self._conf.timeout
         return timeout.total_seconds()
 
     @staticmethod
@@ -314,7 +314,7 @@ class OrchestratorCore:
         material = {name: value for name, value in prepared.items() if isinstance(value, str)}
         nodes, wiki = scope.catalog.nodes, scope.catalog.wiki
         weights = {name: SpecFusion.weight(nodes[name], wiki, text) for name, text in material.items()}
-        groups = SpecFusion.pack(weights, budget=self._conf.darts_fusion_tokens, most=self._conf.darts_fusion_specs)
+        groups = SpecFusion.pack(weights, budget=self._conf.fusion_tokens, most=self._conf.fusion_specs)
         async with anyio.create_task_group() as group:
             _ = [group.start_soon(self._fused_send, specs, tier, step, material, scope) for specs in groups]
 
@@ -390,7 +390,7 @@ class OrchestratorCore:
             prompt=SpecFusion.prompt(material),
             schema=dict(SpecFusion.schema(nodes)),
             weights={node.spec.name: SpecFusion.weight(node, wiki, material.get(node.spec.name, "")) for node in nodes},
-            budget=self._conf.darts_fusion_tokens,
+            budget=self._conf.fusion_tokens,
         )
         scope.issued.append(call)
         return call
@@ -454,8 +454,8 @@ class OrchestratorCore:
             plan=plan,
             ledger={},
             issued=[],
-            specs=anyio.Semaphore(self._conf.darts_concurrency),
-            calls=anyio.Semaphore(self._conf.darts_calls),
+            specs=anyio.Semaphore(self._conf.concurrency),
+            calls=anyio.Semaphore(self._conf.calls),
             counter=count(),
         )
         await self._run_steps(plan.steps, scope)

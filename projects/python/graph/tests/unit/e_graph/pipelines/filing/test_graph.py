@@ -27,7 +27,7 @@ if TYPE_CHECKING:
     from pytest_resources import Resources
 
     from e_graph.instrument.graph import InstrumentGraph
-    from providers.adapters.liteparse import LiteparseAdapter
+    from providers.adapters.pages.liteparse import LiteparseAdapter
 
 FILINGS: Final[Path] = Path(__file__).resolve().parents[5] / "tests" / "resources" / "documents" / "filings"
 MILLION: Final[int] = 1_000_000

@@ -5,8 +5,8 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from providers.drivers.docling import DoclingDriver
-from providers.drivers.sqlite import SqliteDriver
+from providers.drivers.documents.docling import DoclingDriver
+from providers.drivers.store.sqlite import SqliteDriver
 
 if TYPE_CHECKING:
     from litestar.testing import TestClient

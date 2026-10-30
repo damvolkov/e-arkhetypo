@@ -16,12 +16,12 @@ from litestar import Litestar
 from e_graph.api.state import AppState
 from e_graph.instrument.state import ProvidersState
 from infra.logger import logger
-from providers.adapters.liteparse import LiteparseAdapter
-from providers.drivers.docling import DoclingDriver
-from providers.drivers.http import HttpDriver
-from providers.drivers.otel import OtelDriver
-from providers.drivers.redis import RedisDriver
-from providers.drivers.sqlite import SqliteDriver
+from providers.adapters.pages.liteparse import LiteparseAdapter
+from providers.drivers.documents.docling import DoclingDriver
+from providers.drivers.http.wreq import WreqDriver
+from providers.drivers.store.redis import RedisDriver
+from providers.drivers.store.sqlite import SqliteDriver
+from providers.drivers.telemetry.otel import OtelDriver
 
 
 @asynccontextmanager
@@ -33,7 +33,7 @@ async def lifespan(app: Litestar) -> AsyncGenerator[None]:
         store = await enter(SqliteDriver())
         telemetry = await enter(OtelDriver())
         redis = await enter(RedisDriver())
-        http = await enter(HttpDriver())
+        http = await enter(WreqDriver())
         docling = await enter(DoclingDriver(http))
         pages = await enter(LiteparseAdapter())
         providers = ProvidersState(

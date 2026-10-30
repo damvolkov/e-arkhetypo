@@ -26,7 +26,7 @@ dependencies = [
     "structlog>=26.1",
     ##### data #####
     "msgspec>=0.21",
-    "e-serde>=0.5.1",
+    "e-serde>=0.6.1",
     "pydantic>=2.10",
     "pydantic-settings>=2.6",
     "pyyaml>=6.0",
@@ -75,8 +75,9 @@ test = [
     "pytest-randomly>=5.0",
     "pytest-timeout>=2.4",
     "pytest-textual-snapshot>=1.1",
-    "fakeredis>=2.38.0",
-    "pytest-resources[serde]>=0.3.2",
+    "fakeredis>=2.40.0",
+    ### no [serde] extra: it pins e-serde<0.6 and the materialized ops/registry needs >=0.6.1, which the plugin loads through.
+    "pytest-resources>=0.3.2",
 ]
 dev = [
     { include-group = "lint" },
@@ -183,7 +184,10 @@ filterwarnings = [
 timeout = "60"
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
-markers = ["slow: slow tests (deselect with -m 'not slow')"]
+markers = [
+    "slow: slow tests (deselect with -m 'not slow')",
+    "integration: needs a real service, skipped when unreachable, and stays out of the default run: `make integration`",
+]
 
 ##### COVERAGE #####
 [tool.coverage.run]

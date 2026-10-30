@@ -5,7 +5,7 @@ MODULE   ?= e_api
 PORT     ?= 8000
 COMPOSE  ?= compose.yml
 COMMON_SRC ?= ../common/src/e_infra
-TESTARGS  =
+TESTARGS  ?= -m "not slow and not integration"   ## real-service tests leave the gate: make test TESTARGS="-m slow", make integration
 ARGS      = $(filter-out $@,$(MAKECMDGOALS))
 
 RESET   := \033[0m
@@ -21,7 +21,7 @@ MAKEFLAGS += --no-print-directory
 export PYTHONPATH := $(CURDIR)/src
 
 ##### TARGETS #####
-.PHONY: help install sync lock common common-check lint type arch validate harden hooks test cov stress docs docs-build check ci run up down build logs release ci-vars clean
+.PHONY: help install sync lock common common-check lint type arch validate harden hooks test integration cov stress docs docs-build check ci run up down build logs release ci-vars clean
 
 help:
 	@printf "$(BOLD)$(CYAN)$(PROJECT)$(RESET) $(GRAY)· uv · ruff · ty · tach · pytest · zensical · docker — infra/ops/ports/providers/engines/processors materialized from $(COMMON_SRC)$(RESET)\n\n"
@@ -83,8 +83,11 @@ hooks: ## run all prek hooks on every file (ruff, ty, tach, zizmor, gitleaks)
 test: ## run tests [TESTARGS='-k expr']
 	@uv run pytest tests $(TESTARGS) -n auto -q
 
-cov: ## run tests with coverage gate (fail under 100%)
-	@uv run pytest tests --cov --cov-report=term-missing
+integration: ## the tests that need a real service (Postgres at POSTGRES_DSN, redis at REDIS_URL); skipped when none answers
+	@uv run pytest tests -m integration -q
+
+cov: ## run tests with coverage gate (fail under 100%), real-service tests out like the default run
+	@uv run pytest tests $(TESTARGS) --cov --cov-report=term-missing
 
 stress: ## soak stress-marked tests for ARGS seconds (pytest-stress)
 	@uv run pytest tests -m stress -q -p no:randomly --seconds $(or $(ARGS),30)

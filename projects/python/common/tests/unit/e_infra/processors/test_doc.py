@@ -7,18 +7,20 @@ so routing and merging are tested on real engines' output, offline."""
 
 import gzip
 from pathlib import Path
-from typing import Any, ClassVar
+from typing import Any, ClassVar, Self
 
 import anyio
 import msgspec
 import polars as pl
 import pytest
 
-from e_infra.adapters.ports import DocumentConversion
 from e_infra.infra.config.doc import DocMode, DocSettings, DocSignal
 from e_infra.infra.config.docling import DoclingTables
+from e_infra.ports.documents import DocumentConversion
+from e_infra.ports.provider import Isolation, Locality, ProviderSpec, Workload
 from e_infra.processors.doc import BREAK, DocProcessor
 from e_infra.processors.models import Backend, Document, Section
+from unit.e_infra.processors.conftest import opened
 
 RESOURCES = Path(__file__).resolve().parents[3] / "resources"
 FILING = RESOURCES / "documents" / "filing.pdf"
@@ -31,12 +33,21 @@ TEXT, WORKFORCE, STATEMENT, SCAN = 1, 2, 3, 4
 class FakePort:
     """docling-serve as the processor sees it: one conversion per span, cut from the golden one; calls kept."""
 
-    name: ClassVar[str] = "docling"
+    spec: ClassVar[ProviderSpec] = ProviderSpec("fake", Locality.REMOTE, Workload.IO_BOUND, Isolation.LOOP)
 
     def __init__(self, *, fail: frozenset[int] = frozenset(), delay: float = 0.0) -> None:
         self.calls: list[dict[str, Any]] = []
         self.fail, self.delay = fail, delay
         self.flight = self.peak = 0
+
+    async def __aenter__(self) -> Self:
+        return self
+
+    async def __aexit__(self, *exc: object) -> None:
+        """Nothing to release."""
+
+    async def health(self) -> bool:
+        return True
 
     async def convert(self, source: Any, *, filename: str = "", options: Any = None) -> DocumentConversion:
         self.calls.append({"filename": filename, "options": dict(options or {}), "size": len(source)})
@@ -55,19 +66,11 @@ class FakePort:
 
 
 def processor(port: FakePort | None = None, **conf: Any) -> DocProcessor:
-    return DocProcessor(port or FakePort(), DocSettings(**conf))
+    settings = DocSettings(**conf)
+    return DocProcessor(port or FakePort(), opened(settings), settings)
 
 
 ##### SIGNALS AND ROUTING #####
-async def test_signals_tell_text_tables_and_scans_apart() -> None:
-    reader = processor()
-    lite = await reader._parser.aparse(FILING.read_bytes())
-    signals = {number: reader._process_signals(lite.get_page(number)) for number in range(1, 5)}
-    assert signals[TEXT] == signals[WORKFORCE] == ()
-    assert DocSignal.TABLE in signals[STATEMENT]
-    assert {DocSignal.SCANNED, DocSignal.IMAGES} <= set(signals[SCAN])
-
-
 @pytest.mark.parametrize(
     ("mode", "route", "expected"),
     [

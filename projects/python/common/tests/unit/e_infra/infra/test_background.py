@@ -1,111 +1,54 @@
-from datetime import UTC, datetime, timedelta
-from typing import TYPE_CHECKING, Any, Final
+"""tests/unit/e_infra/infra/background: the supervisor — jobs, retries, cancel, keep, reporter and clock, in process."""
 
-import anyio
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING, Final
+
 import pytest
 
-from e_infra.adapters.awa import AwaAdapter
-from e_infra.adapters.base import PingError
-from e_infra.adapters.pgqueuer import PgqueuerAdapter
 from e_infra.infra.background import (
     Background,
-    BackgroundError,
     BackgroundJob,
-    BackgroundPort,
     BackgroundReport,
     BackgroundState,
-    MemoryBackground,
-    MemoryRun,
+    BackgroundTask,
 )
-from e_infra.infra.config.base import Secret
-from e_infra.infra.config.queue import QueueSettings
-from unit.e_infra.conftest import outage, settled
-from unit.e_infra.infra.conftest import Works, build
+from e_infra.infra.errors import QueueError
+from unit.e_infra.conftest import Warnings, Works, settled, until
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
-    from e_infra.infra.background import BackgroundReporter
-    from unit.e_infra.infra.conftest import Warnings
-
-
 NOW: Final[datetime] = datetime(2026, 1, 1, tzinfo=UTC)
+QUEUE: Final[str] = "q"
 
 
-##### CONTRACT — the same on every engine #####
+async def supervisor(works: Works, *, keep: int = 1000) -> Background:
+    """A supervisor with every scripted work registered on `QUEUE`, not yet entered."""
+    background = Background(keep=keep)
+    _ = [
+        background.register(kind, QUEUE, lambda run, work=work: work(run.job.args, run.report))
+        for kind, work in {"ok": works.ok, "boom": works.boom, "flaky": works.flaky, "hang": works.hang}.items()
+    ]
+    return background
 
 
-async def test_background_completed(background: Background, works: Works) -> None:
-    async with background:
-        queued = await background.submit("ok", source="s1", force=True)
-        done = await settled(background, queued.id)
-        assert (queued.state, queued.args) == (BackgroundState.AVAILABLE, {"source": "s1", "force": True})
-        assert (done.state, done.attempt, done.progress) == (
-            BackgroundState.COMPLETED,
-            1,
-            {"stage": "smoke", "seen": 2},
-        )
-        assert (done.errors, done.finished is not None, works.calls) == ((), True, [{"source": "s1", "force": True}])
-
-
-async def test_background_failed(background: Background) -> None:
-    async with background:
-        done = await settled(background, (await background.submit("boom", attempts=1)).id)
-        assert (done.state, done.attempt, done.errors) == (BackgroundState.FAILED, 1, ("ValueError: bad",))
-
-
-async def test_background_cancel_running(background: Background, works: Works) -> None:
-    async with background:
-        job = await background.submit("hang")
-        await works.started.wait()
-        await background.cancel(job.id)
-        with anyio.fail_after(5):
-            await works.interrupted.wait()
-        done = await settled(background, job.id)
-        assert (done.state, done.progress) == (BackgroundState.CANCELLED, {"stage": "discover"})
-
-
-async def test_background_cancel_settled(background: Background) -> None:
-    async with background:
-        done = await settled(background, (await background.submit("ok")).id)
-        again = await background.cancel(done.id)
-        assert again is not None
-        assert (again.state, again.progress) == (done.state, done.progress)
-        assert (await background.cancel("4611686018427387904"), await background.job("unknown")) == (None, None)
-
-
-async def test_background_jobs(background: Background) -> None:
-    async with background:
-        first = await settled(background, (await background.submit("ok")).id)
-        second = await settled(background, (await background.submit("boom")).id)
-        assert [job.id for job in await background.jobs(limit=2)] == [second.id, first.id]
-        assert [job.id for job in await background.jobs(kind="ok", limit=1)] == [first.id]
-        assert [job.id for job in await background.jobs(state=BackgroundState.FAILED, limit=1)] == [second.id]
-
-
-async def test_background_unregistered(background: Background) -> None:
-    async with background:
-        with pytest.raises(KeyError):
-            await background.submit("nobody")
-
-
-##### MEMORY #####
-
-
-async def test_background_retried(queue: str, works: Works) -> None:
+async def test_background_retried(works: Works) -> None:
     """A failed attempt is retried while attempts remain; its error stays on the job."""
-    async with build(None, queue, works) as background:
-        done = await settled(background, (await background.submit("flaky", attempts=2)).id)
+    async with await supervisor(works) as background:
+        await background.start({QUEUE: 2})
+        job = await background.enqueue("flaky", {}, queue=QUEUE, attempts=2)
+        done = await settled(background, job.id)
     assert (done.state, done.attempt, done.errors) == (BackgroundState.COMPLETED, 2, ("ValueError: bad",))
     assert done.progress == {"stage": "smoke"}
 
 
-async def test_background_cancel_queued(queue: str, works: Works) -> None:
+async def test_background_cancel_queued(works: Works) -> None:
     """Both slots held: the third job waits, and a cancel settles it without its work ever running."""
-    async with build(None, queue, works) as background:
-        holding = [await background.submit("hang"), await background.submit("hang")]
+    async with await supervisor(works) as background:
+        await background.start({QUEUE: 2})
+        holding = [await background.enqueue("hang", {}, queue=QUEUE, attempts=1) for _ in range(2)]
         await works.started.wait()
-        waiting = await background.submit("ok")
+        waiting = await background.enqueue("ok", {}, queue=QUEUE, attempts=1)
         assert (await background.job(waiting.id) or waiting).state is BackgroundState.AVAILABLE
         cancelled = await background.cancel(waiting.id)
         _ = [await background.cancel(job.id) for job in holding]
@@ -113,142 +56,104 @@ async def test_background_cancel_queued(queue: str, works: Works) -> None:
     assert (cancelled.state, works.calls) == (BackgroundState.CANCELLED, [])
 
 
-async def test_background_exit_cancels(queue: str, works: Works) -> None:
-    async with build(None, queue, works) as background:
-        job = await background.submit("hang")
+async def test_background_exit_cancels(works: Works) -> None:
+    async with await supervisor(works) as background:
+        await background.start({QUEUE: 2})
+        job = await background.enqueue("hang", {}, queue=QUEUE, attempts=1)
         await works.started.wait()
     assert (await background.job(job.id) or job).state is BackgroundState.CANCELLED
 
 
-async def test_background_memory_alone(queue: str, works: Works, warnings: Warnings) -> None:
-    async with build(None, queue, works) as background:
-        assert background.engine == "memory"
-        assert (await settled(background, (await background.submit("ok")).id)).state is BackgroundState.COMPLETED
-    assert warnings.events == ["background in memory: jobs will not survive a restart"]
+async def test_background_unentered(works: Works) -> None:
+    with pytest.raises(QueueError, match="not entered"):
+        await (await supervisor(works)).enqueue("ok", {}, queue=QUEUE, attempts=1)
 
 
-async def test_background_throttled(queue: str) -> None:
-    """Within the throttle only the first snapshot is written; the last one always is, once the work ends."""
-    seen: list[Mapping[str, Any] | None] = []
-
-    async def chatty(_args: Mapping[str, Any], report: BackgroundReporter) -> None:
-        _ = [await report({"n": n}) for n in range(5)]
-        seen.append((await background.job(job.id) or job).progress)
-
-    background = Background(None, {queue: 1}, throttle=60)
-    background.register("chatty", chatty, queue=queue)
-    async with background:
-        job = await background.submit("chatty")
-        done = await settled(background, job.id)
-    assert (seen, done.progress) == ([{"n": 0}], {"n": 4})
+async def test_background_unknown(works: Works) -> None:
+    background = await supervisor(works)
+    assert (await background.job("ghost"), await background.cancel("ghost")) == (None, None)
 
 
-async def test_memory_port() -> None:
-    assert isinstance(MemoryBackground(), BackgroundPort)
-
-
-async def test_memory_unconnected() -> None:
-    with pytest.raises(BackgroundError, match="not connected"):
-        await MemoryBackground().enqueue("ok", {}, queue="q", attempts=1)
-
-
-async def test_memory_unknown() -> None:
-    memory = MemoryBackground()
-    assert (await memory.job("ghost"), await memory.cancel("ghost")) == (None, None)
-
-
-async def test_memory_keep(works: Works) -> None:
+async def test_background_keep(works: Works) -> None:
     """Past `keep` jobs the oldest settled one leaves; a running one is never dropped."""
-    memory = MemoryBackground(keep=2)
-    memory.register("ok", "q", lambda run: works.ok({}, run.report))
-    memory.register("hang", "q", lambda run: works.hang({}, run.report))
-    await memory.connect()
-    await memory.connect()
-    await memory.start({"q": 4})
-    first = await settled(memory, (await memory.enqueue("ok", {}, queue="q", attempts=1)).id)
-    hanging = await memory.enqueue("hang", {}, queue="q", attempts=1)
-    await works.started.wait()
-    last = await memory.enqueue("ok", {}, queue="q", attempts=1)
-    after = await memory.enqueue("ok", {}, queue="q", attempts=1)
-    assert await memory.job(first.id) is None
-    assert {job.id for job in await memory.jobs(limit=10)} == {hanging.id, last.id, after.id}
-    await memory.close()
+    async with await supervisor(works, keep=2) as background:
+        await background.start({QUEUE: 4})
+        first = await settled(background, (await background.enqueue("ok", {}, queue=QUEUE, attempts=1)).id)
+        hanging = await background.enqueue("hang", {}, queue=QUEUE, attempts=1)
+        await works.started.wait()
+        last = await background.enqueue("ok", {}, queue=QUEUE, attempts=1)
+        after = await background.enqueue("ok", {}, queue=QUEUE, attempts=1)
+        assert await background.job(first.id) is None
+        assert {job.id for job in await background.jobs(limit=10)} == {hanging.id, last.id, after.id}
+
+
+async def test_background_entered_twice(works: Works) -> None:
+    """Entering again keeps the task group the first entry made."""
+    background = await supervisor(works)
+    async with background:
+        group = background._group
+        await background.__aenter__()
+        assert background._group is group
 
 
 async def test_report_idle() -> None:
     """A reporter with nothing pending writes nothing on flush."""
-    run = MemoryRun(
+    run = BackgroundTask(
         BackgroundJob(id="j", kind="ok", queue="q", state=BackgroundState.RUNNING, attempt=1, args={}, created=NOW)
     )
     await BackgroundReport(run, throttle=60).flush()
     assert run.job.progress is None
 
 
-##### FALLBACK — the durable engine absent, unreachable or failing #####
+@pytest.mark.parametrize(
+    ("cron", "after", "tick"),
+    [
+        ("* * * * *", datetime(2026, 1, 1, 0, 0, 30, tzinfo=UTC), datetime(2026, 1, 1, 0, 1, tzinfo=UTC)),
+        ("*/10 * * * * *", datetime(2026, 1, 1, 0, 0, 1, tzinfo=UTC), datetime(2026, 1, 1, 0, 0, 10, tzinfo=UTC)),
+    ],
+    ids=["five-fields", "six-fields-seconds-first"],
+)
+async def test_background_next_tick(cron: str, after: datetime, tick: datetime) -> None:
+    assert Background.next_tick(cron, after) == tick
 
 
-@pytest.mark.db
-async def test_background_durable(queue_settings: QueueSettings, queue: str, works: Works) -> None:
-    async with build(AwaAdapter(queue_settings), queue, works) as background:
-        job = await background.submit("ok")
-        assert (background.engine, job.id.isdecimal()) == ("awa", True)
-        assert (await settled(background, job.id)).state is BackgroundState.COMPLETED
+async def test_background_clock(works: Works) -> None:
+    """A schedule is a clock task of the group: it fires every second until the supervisor exits."""
+    fired: list[int] = []
+
+    async def fire() -> None:
+        fired.append(1)
+
+    background = await supervisor(works)
+    background.schedule("tick", "* * * * * *", fire)
+    async with background:
+        await background.start({QUEUE: 1})
+        await until(lambda: len(fired) >= 2)
 
 
-@pytest.mark.db
-async def test_background_unreachable(
-    queue_settings: QueueSettings, queue: str, works: Works, warnings: Warnings
-) -> None:
-    missing = queue_settings.model_copy(update={"dsn": Secret(f"{queue_settings.dsn.get_secret_value()}_missing")})
-    async with build(AwaAdapter(missing), queue, works) as background:
-        job = await background.submit("ok")
-        assert (background.engine, job.id.isdecimal()) == ("memory", False)
-        assert (await settled(background, job.id)).state is BackgroundState.COMPLETED
-    assert warnings.events == ["background engine unreachable, in memory: jobs will not survive a restart"]
+async def test_background_clock_survives_failure(works: Works, warnings: Warnings) -> None:
+    """A fire that raises is said and skipped; the clock goes on to the next tick."""
+    calls: list[int] = []
+
+    async def fire() -> None:
+        calls.append(1)
+        msg = "no"
+        raise RuntimeError(msg)
+
+    background = await supervisor(works)
+    background.schedule("tick", "* * * * * *", fire)
+    async with background:
+        await background.start({QUEUE: 1})
+        await until(lambda: len(calls) >= 2)
+    assert warnings.events[:2] == ["schedule fire failed", "schedule fire failed"]
 
 
-@pytest.mark.db
-async def test_background_outage(queue_settings: QueueSettings, queue: str, works: Works, warnings: Warnings) -> None:
-    """The durable database down after entry: new work runs in memory, its jobs stay readable, the durable ones read
-    as unknown — every fall a warning; once it is back, work goes durable again."""
-    async with build(AwaAdapter(queue_settings), queue, works) as background:
-        durable = await settled(background, (await background.submit("ok")).id)
-        async with outage(queue_settings.dsn.get_secret_value()):
-            fallen = await background.submit("ok")
-            done = await settled(background, fallen.id)
-            listed = [job.id for job in await background.jobs()]
-            lost = (await background.job(durable.id), await background.cancel(durable.id))
-        back = await background.submit("ok")
-    assert (fallen.id.isdecimal(), done.state, listed, lost) == (
-        False,
-        BackgroundState.COMPLETED,
-        [fallen.id],
-        (None, None),
-    )
-    assert back.id.isdecimal()
-    assert warnings.events == [
-        "background enqueue fell back to memory",
-        "background engine unreadable",
-        "background engine unreadable",
-        "background engine unreadable",
-    ]
-
-
-##### PING — the durable engine answering, memory standing in for it #####
-
-
-async def test_background_ping_durable(durable: AwaAdapter | PgqueuerAdapter, queue: str, works: Works) -> None:
-    """The durable engine entered answers; closed, its own ping says why not."""
-    async with build(durable, queue, works) as background:
-        await background.ping()
-    with pytest.raises(PingError, match=rf"^{durable.name}: "):
-        await background.ping()
-
-
-@pytest.mark.parametrize("unreachable", [False, True], ids=["absent", "unreachable"])
-async def test_background_ping_memory(queue: str, works: Works, unreachable: bool) -> None:
-    """No durable engine, or one unreachable on entry: memory runs the work, and the ping says jobs are not durable."""
-    dead = QueueSettings(dsn=Secret("postgresql://u:p@127.0.0.1:1/x"), timeout=timedelta(seconds=1))
-    async with build(PgqueuerAdapter(dead) if unreachable else None, queue, works) as background:
-        with pytest.raises(BackgroundError, match=r"^in memory: "):
-            await background.ping()
+async def test_background_progress_view(works: Works) -> None:
+    """A work's progress is the job's, readable while it runs."""
+    async with await supervisor(works) as background:
+        await background.start({QUEUE: 1})
+        job = await background.enqueue("hang", {}, queue=QUEUE, attempts=1)
+        await works.started.wait()
+        progress: Mapping[str, object] | None = (await background.job(job.id) or job).progress
+        await background.cancel(job.id)
+    assert progress == {"stage": "discover"}

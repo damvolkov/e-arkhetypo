@@ -1,4 +1,4 @@
-"""tests/unit/e_infra: the queue's test Postgres, shared by the background and adapter tests.
+"""tests/unit/e_infra: the queue's test Postgres, shared by the background, dispatch and driver tests.
 
 `queue_database` is this worker's own database beside POSTGRES_TEST_DSN's (default the stack's ParadeDB :45011),
 created on the server's maintenance database when missing; with no server answering, every test that needs it skips
@@ -12,7 +12,7 @@ import uuid
 from contextlib import asynccontextmanager
 from datetime import timedelta
 from itertools import count
-from typing import TYPE_CHECKING, Final, Protocol
+from typing import TYPE_CHECKING, Any, Final, Protocol
 
 import anyio
 import pytest
@@ -25,9 +25,9 @@ from e_infra.infra.config.base import Secret
 from e_infra.infra.config.queue import QueueSettings
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncGenerator
+    from collections.abc import AsyncGenerator, Callable, Mapping
 
-    from e_infra.infra.background import BackgroundJob
+    from e_infra.infra.background import BackgroundJob, BackgroundReporter
 
 DSN: Final[str] = os.environ.get("POSTGRES_TEST_DSN", "postgresql://postgres:postgres@127.0.0.1:45011/e_infra_test")
 
@@ -87,6 +87,18 @@ async def settled(reader: Reader, job: str, seconds: float = 10) -> BackgroundJo
         return await anext(found for _ in count() if (found := await reader.job(job)) and await done(found))
 
 
+async def idle() -> bool:
+    """A pause of 50 ms that answers False: the not-yet of a poll."""
+    await anyio.sleep(0.05)
+    return False
+
+
+async def until(ready: Callable[[], bool], seconds: float = 10) -> None:
+    """Returns once `ready()` holds, checked every 50 ms; the test fails after `seconds`."""
+    with anyio.fail_after(seconds):
+        await anext(None for _ in count() if ready() or await idle())
+
+
 @asynccontextmanager
 async def outage(dsn: str) -> AsyncGenerator[None]:
     """The database down for the block: no new connection admitted, every open one terminated; back up after."""
@@ -101,6 +113,56 @@ async def outage(dsn: str) -> AsyncGenerator[None]:
         yield
     finally:
         await admin(dsn, (f'ALTER DATABASE "{name}" WITH ALLOW_CONNECTIONS true', []))
+
+
+class Works:
+    """Scripted works: `ok` reports twice, `boom` raises, `flaky` raises on its first attempt only, `hang` reports
+    once then waits until cancelled — `started` and `interrupted` mark it."""
+
+    def __init__(self) -> None:
+        self.started = anyio.Event()
+        self.interrupted = anyio.Event()
+        self.calls: list[Mapping[str, Any]] = []
+
+    async def ok(self, args: Mapping[str, Any], report: BackgroundReporter) -> None:
+        self.calls.append(args)
+        await report({"stage": "fetch", "seen": 1})
+        await report({"stage": "smoke", "seen": 2})
+
+    async def boom(self, _args: Mapping[str, Any], _report: BackgroundReporter) -> None:
+        msg = "bad"
+        raise ValueError(msg)
+
+    async def flaky(self, args: Mapping[str, Any], report: BackgroundReporter) -> None:
+        self.calls.append(args)
+        _ = len(self.calls) == 1 and await self.boom(args, report)
+        await report({"stage": "smoke"})
+
+    async def hang(self, _args: Mapping[str, Any], report: BackgroundReporter) -> None:
+        await report({"stage": "discover"})
+        self.started.set()
+        try:
+            await anyio.sleep_forever()
+        finally:
+            self.interrupted.set()
+
+
+class Warnings:
+    """A logger that keeps the events it is warned of."""
+
+    def __init__(self) -> None:
+        self.events: list[str] = []
+
+    def warning(self, event: str, **_: object) -> None:
+        self.events.append(event)
+
+    def info(self, event: str, **_: object) -> None:
+        """Said, not kept: only warnings are asserted."""
+
+
+@pytest.fixture
+def works() -> Works:
+    return Works()
 
 
 @pytest_asyncio.fixture(scope="session", loop_scope="session")

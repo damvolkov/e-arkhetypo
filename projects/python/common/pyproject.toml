@@ -7,7 +7,7 @@ build-backend = "hatchling.build"
 [project]
 name = "e-infra"
 dynamic = ["version"]
-description = "e-stack python infra blueprint: layered settings composer, structured logger, state, ops agnostic tools (file discovery, crypto), service adapters"
+description = "e-stack python infra blueprint: layered settings composer, structured logger, state, ops agnostic tools (file discovery, crypto), ports with their drivers and adapters, engines and processors"
 requires-python = ">=3.14"
 license = "MIT"
 authors = [{ name = "damvolkov", email = "damvolkovv@gmail.com" }]
@@ -41,6 +41,14 @@ dependencies = [
     "awa-pg>=0.6.9",
     ##### http #####
     "wreq>=0.10",
+    ##### cache — theine: W-TinyLFU, Rust core #####
+    "theine>=2.0",
+    ##### queue clock #####
+    "croniter>=6.0",
+    ##### models — tokenizers sizes what the embedding server sees #####
+    "tokenizers>=0.23",
+    ##### web — rtrafilatura: a page's main content #####
+    "rtrafilatura>=0.2",
     ##### telemetry #####
     "opentelemetry-sdk>=1.44",
     "opentelemetry-exporter-otlp-proto-http>=1.44",
@@ -95,8 +103,8 @@ dev = [
 required-version = ">=0.12"
 default-groups = ["dev"]
 exclude-newer = "2026-10-20"
-### e-serde is first-party (the compose loader); exempt it from the freshness window.
-exclude-newer-package = { "e-serde" = "2100-01-01T00:00:00Z" }
+### e-serde is first-party (the compose loader) and rtrafilatura ships fast; exempt both from the freshness window.
+exclude-newer-package = { "e-serde" = "2100-01-01T00:00:00Z", "rtrafilatura" = "2100-01-01T00:00:00Z" }
 cache-keys = [{ file = "pyproject.toml" }, { git = { commit = true, tags = true } }]
 
 ##### VERSION #####

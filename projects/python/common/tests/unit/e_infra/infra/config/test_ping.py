@@ -1,4 +1,4 @@
-"""tests/unit/e_infra/infra/config: PingSettings — how long one adapter's ping may take, default and env."""
+"""tests/unit/e_infra/infra/config: PingSettings — how long one provider's health may take, default and env."""
 
 from datetime import timedelta
 from typing import TYPE_CHECKING

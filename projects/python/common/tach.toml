@@ -8,21 +8,37 @@ exact = true
 root_module = "forbid"
 
 ##### LAYERS #####
-# Ordered high → low: a layer may import lower layers, importing upward fails.
-layers = ["processors", "adapters", "infra", "ops"]
+# Ordered high → low: a layer may import lower layers, importing upward fails. engines, processors, drivers and adapters
+# share one layer: none of them imports another (the layer is horizontal), each reaches only ports, infra and ops.
+layers = ["execution", "ports", "infra", "ops"]
 
 [rules]
 unused_ignore_directives = "error"
 
 ##### MODULES #####
 [[modules]]
-path = "e_infra.processors"
-layer = "processors"
+path = "e_infra.engines"
+layer = "execution"
 depends_on = []
 
 [[modules]]
-path = "e_infra.adapters"
-layer = "adapters"
+path = "e_infra.processors"
+layer = "execution"
+depends_on = []
+
+[[modules]]
+path = "e_infra.providers.drivers"
+layer = "execution"
+depends_on = []
+
+[[modules]]
+path = "e_infra.providers.adapters"
+layer = "execution"
+depends_on = []
+
+[[modules]]
+path = "e_infra.ports"
+layer = "ports"
 depends_on = []
 
 [[modules]]

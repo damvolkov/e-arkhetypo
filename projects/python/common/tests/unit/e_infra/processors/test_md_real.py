@@ -11,10 +11,10 @@ import zlib
 
 import pytest
 
-from e_infra.adapters.anytomd import AnytomdAdapter
 from e_infra.infra.config.base import Secret
 from e_infra.infra.config.md import MDSettings
 from e_infra.processors.md import MDProcessor
+from e_infra.providers.adapters.anytomd import AnytomdAdapter
 
 RESOURCES = pathlib.Path(__file__).resolve().parents[3] / "resources"
 PDF = (RESOURCES / "documents" / "filing.pdf").read_bytes()

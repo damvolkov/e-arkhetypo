@@ -7,15 +7,15 @@ tables with TableFormer, crops and classifies pictures, OCRs scans keeping their
 page plus ~1.8 s a request. No signal liteparse computes *before* parsing predicts which of its tables
 are wrong; what it does tell, almost free, is which pages *hold* tables, figures or scans. So:
 
-1. liteparse reads every page (`aparse`, off the loop) and reports its signals per page;
+1. the fast pass (`PagesPort`: liteparse, in-process) reads every page and reports its signals per page;
 2. the pages whose signals are in DOC_ROUTE go to docling — the rest keep liteparse's reading;
 3. routed pages become spans: neighbours closer than DOC_GAP pages merge (a request costs more than the
    pages between); a long run halves into DOC_CONCURRENCY lanes when each half still pays off (`LANE`);
 4. each span asks docling only for what its pages need — OCR for scans, pictures for figures, TableFormer in
    DOC_TABLES mode — and spans convert concurrently, bounded; a failed span falls back to liteparse, said so.
 
-The processor holds the document port (docling) and its own liteparse parser — singletons both — and no
-state per document: `process` returns a `Document` whose objects are engine-neutral."""
+The processor holds both ports — the deep reader (`DocumentPort`: docling-serve or the library) and the fast pass,
+singletons both — and no state per document: `process` returns a `Document` whose objects are engine-neutral."""
 
 import base64
 import re
@@ -25,22 +25,20 @@ from typing import TYPE_CHECKING, Any, Final
 
 import anyio
 import polars as pl
-from liteparse import LiteParse
 
-from e_infra.adapters.ports import DocumentConversion
 from e_infra.infra.config.doc import DocMode, DocSignal
 from e_infra.infra.logger import logger
 from e_infra.infra.settings import settings as st
+from e_infra.ports.documents import DocumentConversion
 from e_infra.processors.models import Backend, Document, Formula, Page, Picture, Section, Table
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
     from pathlib import Path
 
-    from liteparse import ParsedPage, ParseResult
-
-    from e_infra.adapters.ports import DocumentPort
     from e_infra.infra.config.doc import DocSettings
+    from e_infra.ports.documents import DocumentPort
+    from e_infra.ports.pages import FastPage, PagesPort
 
 type Node = dict[str, Any]
 type Span = tuple[int, int]
@@ -60,7 +58,6 @@ BODY: Final[frozenset[str]] = frozenset({"text", "list_item", "paragraph"})
 KINDS: Final[Mapping[str, str]] = MappingProxyType(
     {"heading": "section_header", "paragraph": "text", "list_item": "list_item"}
 )
-SCANNED: Final[frozenset[str]] = frozenset({"scanned", "vector-text", "garbled"})
 ITEMS: Final[Mapping[str, pl.DataType]] = MappingProxyType(
     {
         "ref": pl.String(),
@@ -76,45 +73,15 @@ ITEMS: Final[Mapping[str, pl.DataType]] = MappingProxyType(
 class DocProcessor:
     """Reads documents page by page: liteparse everywhere, docling where the page's signals ask for it."""
 
-    __slots__ = ("_conf", "_parser", "_port")
+    __slots__ = ("_conf", "_pages", "_port")
 
-    def __init__(self, port: DocumentPort, settings: DocSettings | None = None) -> None:
+    def __init__(self, port: DocumentPort, pages: PagesPort, settings: DocSettings | None = None) -> None:
         ### the default is read on call, not at import: the settings singleton stays lazy.
         self._conf = st.doc if settings is None else settings
         self._port = port
-        tessdata = self._conf.doc_tessdata
-        self._parser = LiteParse(
-            ocr_enabled=self._conf.doc_ocr,
-            tessdata_path=str(tessdata) if tessdata is not None else None,
-            ocr_language=self._conf.doc_ocr_language,
-            num_workers=self._conf.doc_workers or None,
-            extract_blocks=True,
-            include_complexity=True,
-            output_format="markdown",
-            quiet=True,
-        )
+        self._pages = pages
 
     ##### PRIVATE — routing #####
-
-    @staticmethod
-    def _process_signals(page: ParsedPage) -> tuple[DocSignal, ...]:
-        """What liteparse's fast pass saw on the page that docling reads better, in DocSignal order."""
-        stats = page.complexity
-        layout = stats.layout if stats is not None else None
-        reasons = set(stats.reasons) if stats is not None else set()
-        shapes = set(layout.reasons) if layout is not None else set()
-        seen = {
-            DocSignal.TABLE: any(block.kind == "table" for block in page.blocks or ())
-            or "table-likely" in shapes
-            or bool(layout is not None and layout.text_table_run_count),
-            DocSignal.GRAPHICS: "dense-graphics" in shapes or bool(layout is not None and layout.figure_count),
-            ### `no-text` alone is a blank page; only with an image under it is it a scan.
-            DocSignal.SCANNED: bool(reasons & SCANNED)
-            or ("no-text" in reasons and bool(stats.full_page_image or stats.has_substantial_images)),
-            DocSignal.IMAGES: "embedded-images" in reasons,
-            DocSignal.COLUMNS: "multi-column" in shapes,
-        }
-        return tuple(signal for signal in DocSignal if seen[signal])
 
     def _process_route(self, signals: Mapping[int, tuple[DocSignal, ...]]) -> list[int]:
         """The pages docling reads, ascending: none, all, or those whose signals DOC_ROUTE names."""
@@ -180,19 +147,19 @@ class DocProcessor:
             _ = [group.start_soon(convert, span) for span in spans]
         return outcomes
 
-    ##### PRIVATE — liteparse pages #####
+    ##### PRIVATE — fast pages #####
 
     @classmethod
-    def _lite_read(cls, page: ParsedPage, number: int) -> tuple[Rows, list[Table]]:
-        """A liteparse page's text items and tables, in block order."""
-        blocks = list(enumerate(page.blocks or ()))
+    def _lite_read(cls, page: FastPage, number: int) -> tuple[Rows, list[Table]]:
+        """A fast page's text items and tables, in block order."""
+        blocks = list(enumerate(page.blocks))
         rows: Rows = [
             {
                 "ref": f"liteparse:p{number}/b{index}",
                 "page": number,
                 "label": KINDS[block.kind],
-                "text": block.text or "",
-                "level": block.level if block.kind == "heading" else None,
+                "text": block.text,
+                "level": block.level,
                 "backend": Backend.LITEPARSE,
             }
             for index, block in blocks
@@ -204,8 +171,8 @@ class DocProcessor:
                 page=number,
                 caption="",
                 frame=cls._common_frame(
-                    [[cell.text or "" for cell in block.header]] if block.header else [],
-                    [[cell.text or "" for cell in row] for row in block.rows or ()],
+                    [list(block.header)] if block.header else [],
+                    [list(row) for row in block.rows],
                 ),
                 backend=Backend.LITEPARSE,
             )
@@ -340,10 +307,9 @@ class DocProcessor:
         """Read a document: liteparse on every page, docling on the pages its signals route, one Document out."""
         raw = source if isinstance(source, bytes) else await anyio.Path(source).read_bytes()
         name = name or (getattr(source, "name", "") or "document.pdf")
-        lite: ParseResult = await self._parser.aparse(raw)
-        numbers = range(1, lite.num_pages + 1)
-        pages = {number: lite.get_page(number) for number in numbers}
-        signals = {number: self._process_signals(page) for number, page in pages.items()}
+        pages = {page.number: page for page in await self._pages.parse(raw)}
+        numbers = list(pages)
+        signals = {number: page.signals for number, page in pages.items()}
         spans = self._process_spans(self._process_route(signals))
         outcomes = await self._process_deep(raw, name, spans, signals)
         owner = {number: span for span in spans for number in range(span[0], span[1] + 1)}
@@ -368,7 +334,7 @@ class DocProcessor:
 
     def _process_page(
         self,
-        page: ParsedPage,
+        page: FastPage,
         number: int,
         signals: tuple[DocSignal, ...],
         owned: tuple[Span, DocumentConversion | str] | None,
@@ -377,7 +343,7 @@ class DocProcessor:
         match owned:
             case (span, DocumentConversion() as conversion):
                 rows, tables, pictures, formulas = self._deep_read(conversion, span, number)
-                markdown = self._deep_markdown(conversion, span).get(number, page.markdown or "")
+                markdown = self._deep_markdown(conversion, span).get(number, page.markdown)
                 read = Page(number=number, backend=Backend.DOCLING, signals=signals, markdown=markdown)
                 return read, rows, tables, pictures, formulas
             case (_, str() as failure):
@@ -386,13 +352,13 @@ class DocProcessor:
                     number=number,
                     backend=Backend.LITEPARSE,
                     signals=signals,
-                    markdown=page.markdown or "",
+                    markdown=page.markdown,
                     fallback=failure,
                 )
                 return read, rows, tables, [], []
             case _:
                 rows, tables = self._lite_read(page, number)
-                read = Page(number=number, backend=Backend.LITEPARSE, signals=signals, markdown=page.markdown or "")
+                read = Page(number=number, backend=Backend.LITEPARSE, signals=signals, markdown=page.markdown)
                 return read, rows, tables, [], []
 
     @staticmethod

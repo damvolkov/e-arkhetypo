@@ -1,6 +1,6 @@
 """infra/state: the app resource graph — dynamic attribute access all the way down.
 
-Shape is created by referencing it: `state.adapters.store = SQLiteAdapter()`, even
+Shape is created by referencing it: `state.providers.store = SqliteDriver()`, even
 `state.buses.events.sinks = []` from zero — reading an unset node auto-vivifies an empty child
 `State` that stays in the tree. After `seal()` (the lifespan chain's last act) the graph is
 strict: no writes anywhere, and a typo on read raises instead of silently growing a node. The

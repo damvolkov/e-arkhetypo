@@ -7,25 +7,29 @@ port that fails marks one file and lets the run continue; the concurrency bound 
 import io
 import zipfile
 from pathlib import Path
-from typing import Any, ClassVar
+from typing import Any, ClassVar, Self
 
 import anyio
 import pytest
 
-from e_infra.adapters.ports import MdConversion
 from e_infra.infra.config.md import MDSettings
+from e_infra.ports.markdown import MdConversion
+from e_infra.ports.provider import Isolation, Locality, ProviderSpec, Workload
 from e_infra.processors.md import (
     InputTooLargeError,
     MDProcessor,
     UnsupportedFormatError,
     ZipBombError,
 )
+from e_infra.providers.adapters.anytomd import AnytomdAdapter
+
+DETECTOR = AnytomdAdapter(MDSettings())
 
 
 class FakePort:
-    """An `MdConvertPort`: fixed Markdown, optional failure and delay, and a peak-concurrency counter."""
+    """A `MarkdownPort`: fixed Markdown, optional failure and delay, and a peak-concurrency counter."""
 
-    name: ClassVar[str] = "fake"
+    spec: ClassVar[ProviderSpec] = ProviderSpec("fake", Locality.EMBEDDED, Workload.CPU_BOUND, Isolation.LOOP)
 
     def __init__(
         self,
@@ -38,6 +42,19 @@ class FakePort:
         self.markdown, self.warnings, self.fail, self.delay = markdown, warnings, fail, delay
         self.calls: list[tuple[bytes, str]] = []
         self.flight = self.peak = 0
+
+    async def __aenter__(self) -> Self:
+        return self
+
+    async def __aexit__(self, *exc: object) -> None:
+        """Nothing to release."""
+
+    async def health(self) -> bool:
+        return True
+
+    def detect(self, name: str, data: bytes) -> str | None:
+        """The real engine's detection: every route is graded on the formats anytomd actually recognises."""
+        return DETECTOR.detect(name, data)
 
     async def convert(self, data: bytes, *, extension: str) -> MdConversion:
         self.calls.append((data, extension))

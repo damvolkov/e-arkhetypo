@@ -157,7 +157,24 @@ async def test_settings_proxy_loads_once_per_process() -> None:
 async def test_composite_scopes_discovered() -> None:
     """Every settings module in the package became a scope on the composite."""
     assert all(
-        hasattr(st, scope) for scope in ("api", "app", "cli", "crypto", "db", "http", "oauth", "otel", "redis", "ui")
+        hasattr(st, scope)
+        for scope in (
+            "api",
+            "app",
+            "cache",
+            "cli",
+            "crypto",
+            "db",
+            "embed",
+            "gliner",
+            "http",
+            "llm",
+            "oauth",
+            "otel",
+            "redis",
+            "rerank",
+            "ui",
+        )
     )
 
 

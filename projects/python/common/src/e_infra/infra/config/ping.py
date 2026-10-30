@@ -1,4 +1,4 @@
-"""infra/config/ping: how long one adapter's ping may take — PING_TIMEOUT."""
+"""infra/config/ping: how long one provider's health check may take — PING_TIMEOUT."""
 
 from datetime import timedelta
 
@@ -8,7 +8,7 @@ from e_infra.infra.config.base import BaseSettings
 
 
 class PingSettings(BaseSettings):
-    """PING_TIMEOUT — how long one adapter's ping may take before it counts as down, at startup and on `GET /ready`
+    """PING_TIMEOUT — how long one provider's health check may take before it counts as down, at startup and on `GET /ready`
     (`timedelta`: plain seconds in a config file, `PT2S` in env)."""
 
     model_config = SettingsConfigDict(env_prefix="PING_")

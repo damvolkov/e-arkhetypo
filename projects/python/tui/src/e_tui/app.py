@@ -95,7 +95,7 @@ class LayoutApp(App[None]):
 class WizardApp(LayoutApp):
     """A `LayoutApp` driven by a flow graph: the page under the cursor fills `content`, its trail `steps`, its controls `keys`."""
 
-    BINDINGS: ClassVar[list[Binding]] = [
+    BINDINGS: ClassVar[list[Binding | tuple[str, str] | tuple[str, str, str]]] = [
         Binding("enter", "page_accept", "accept", priority=True),  # advance regardless of what holds focus
         Binding("backspace", "page_back", "back"),
         Binding("escape", "page_back", "back"),

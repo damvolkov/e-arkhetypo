@@ -7,7 +7,7 @@ build-backend = "hatchling.build"
 [project]
 name = "e-graph"
 dynamic = ["version"]
-description = "e-stack graph template: LangGraph runtime, rustworkx topology, React Flow canvas over Litestar + Granian, shared infra materialized from projects/python/infra"
+description = "e-stack graph template: LangGraph runtime, rustworkx topology, React Flow canvas over Litestar + Granian, shared infra materialized from projects/python/common"
 readme = "README.md"
 requires-python = ">=3.14"
 license = "MIT"
@@ -57,6 +57,8 @@ dependencies = [
     ##### stores #####
     "redis>=6.2",
     "aiosqlite>=0.20",
+    ##### background — the in-process supervisor and the dispatch engine schedule cron jobs #####
+    "croniter>=6.0",
     ### the db lifespan provisions the databases the settings name: CREATE DATABASE, outside any transaction.
     "psqlpy>=0.12",
     "beartype>=0.22.9",
@@ -91,6 +93,7 @@ test = [
     "pytest-timeout>=2.4",
     "pytest-stress>=1.0.1",
     "fakeredis>=2.38.0",
+    "pytest-httpserver>=1.2.0",
     "pytest-resources[serde,objects]>=0.3.2",
     ##### agent tests: mocks for unit, recorded cassettes (vcrpy) for integration #####
     "pytest-mock>=3.16",
@@ -109,7 +112,7 @@ dev = [
     { include-group = "test" },
     { include-group = "docs" },
     "prek>=0.4",
-    ### structural rewrite of projects/python/infra at materialization time (scripts/materialize.py); parses real 3.14 syntax.
+    ### structural rewrite of projects/python/common at materialization time (scripts/materialize.py); parses real 3.14 syntax.
     "libcst>=1.9",
 ]
 
@@ -135,7 +138,7 @@ bump = true
 fallback-version = "0.0.0"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/e_graph", "src/infra", "src/ops", "src/adapters", "src/processors"]
+packages = ["src/e_graph", "src/engines", "src/infra", "src/ops", "src/ports", "src/processors", "src/providers"]
 ### the canvas is part of the package: its built bundle ships (gitignored, so declared), its sources never do.
 artifacts = ["src/e_graph/ui/dist/**"]
 exclude = ["src/e_graph/ui/*", "!src/e_graph/ui/dist"]
@@ -173,7 +176,7 @@ ignore = ["E501", "ISC001", "PLR0913"]
 "src/e_graph/runners/**" = ["TC001", "TC002", "TC003", "ARG001"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["e_graph", "infra", "ops", "adapters"]
+known-first-party = ["e_graph", "engines", "infra", "ops", "ports", "processors", "providers"]
 
 [tool.ruff.lint.flake8-type-checking]
 ### pydantic and msgspec resolve these classes' annotations at runtime: their imports must stay real.
@@ -224,13 +227,13 @@ asyncio_default_test_loop_scope = "session"
 markers = [
     "slow: slow tests (deselect with -m 'not slow')",
     "stress: concurrent-load tests, soaken for a duration with `make stress` (pytest-stress)",
-    "integration: the agent against a real model, replayed from cassettes; `make record` re-records them",
+    "integration: the agent against a real model, replayed from recorded cassettes — out of the default run: `make integration` replays them, `make record` re-records them against the live model",
     "ui: browser snapshots of the canvas — chromium + the built bundle (`make bundle`); `make snap` accepts them",
 ]
 
 ##### COVERAGE #####
 [tool.coverage.run]
-### infra/, ops/ and adapters/ are materialized and tested at their source (projects/python/infra); the gate covers the service.
+### engines/, infra/, ops/, ports/, processors/ and providers/ are materialized and tested at their source (projects/python/common); the gate covers the service.
 source_pkgs = ["e_graph"]
 ### runners a test writes to its tmp dir load under `e_graph.runners.*`: fixtures, never the product.
 omit = ["*/pytest-of-*/*"]

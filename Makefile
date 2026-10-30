@@ -1,5 +1,5 @@
 ##### CONFIG #####
-PROJECTS ?= projects/python/infra projects/python/api projects/python/graph projects/python/mcp projects/python/cli projects/python/tui
+PROJECTS ?= projects/python/common projects/python/api projects/python/graph projects/python/cli projects/python/tui
 ARGS      = $(filter-out $@,$(MAKECMDGOALS))
 TAXIS    ?= ../e-taxis
 
@@ -26,7 +26,7 @@ install: ## sync every project
 
 update: ## re-materialize projects/python/api from its sources (infra/ops + shared root files)
 	@$(MAKE) -C projects/python/api infra
-	@$(MAKE) -C projects/python/api infra-check
+	@$(MAKE) -C projects/python/api common-check
 
 stack-versions: ## resolve every floating stack tag to its current digest (the ledger)
 	@uv run --no-project python .github/tools/stack_resolve.py --output stack/stack.versions.yml

@@ -74,6 +74,20 @@ Infra y aplicaciones:
 | `media` | WebRTC / tiempo real | livekit, sip |
 | `tools` | cajas de documentos/imagen con UI+API+MCP | stirling |
 
+Capacidades de los providers ↔ categoría del stack:
+
+| Capacidad (módulo del port) | Categoría del stack |
+|---|---|
+| `database` | `rdb` |
+| `store`, `cache` | `cdb` |
+| `http` | — (transporte que componen otros drivers) |
+| `queue` | `queue` |
+| `telemetry` | `watch` |
+| `documents`, `markdown`, `pages`, `extract` | `rag` |
+| `embed`, `rerank`, `llm`, `ner` | `llm` |
+
+El stack agrupa lo que se despliega, los providers agrupan contratos; los dos vocabularios se mantienen alineados y una capacidad nueva entra en ambos a la vez.
+
 ## Inventario
 
 Puerto = default en host (`:container`). GPU = necesita `nvidia` runtime.

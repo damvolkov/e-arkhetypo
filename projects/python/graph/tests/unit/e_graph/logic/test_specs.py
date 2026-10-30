@@ -178,7 +178,7 @@ def test_an_extension_cannot_reshape_inherited_fields() -> None:
     with pytest.raises(TypeError, match=r"redefines inherited spec fields \['instructions', 'output'\]"):
 
         class Broken[N: str](SemanticSpec[N], frozen=True, kw_only=True, tag="broken"):
-            output: str
+            output: JsonSchema
             instructions: int
 
 

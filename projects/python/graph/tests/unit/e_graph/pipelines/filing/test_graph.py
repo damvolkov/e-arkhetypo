@@ -27,6 +27,7 @@ if TYPE_CHECKING:
     from pytest_resources import Resources
 
     from e_graph.instrument.graph import InstrumentGraph
+    from providers.adapters.pages.liteparse import LiteparseAdapter
 
 FILINGS: Final[Path] = Path(__file__).resolve().parents[5] / "tests" / "resources" / "documents" / "filings"
 MILLION: Final[int] = 1_000_000
@@ -52,11 +53,12 @@ def agent() -> ScriptedAgent:
 
 
 @pytest.fixture
-def state(agent: ScriptedAgent) -> RunState:
+def state(agent: ScriptedAgent, pages: LiteparseAdapter) -> RunState:
     """A run over Apple's 10-K: the real processor on replayed docling spans, the scripted agent."""
     infra = InfraState(
-        adapters=None,  # ty: ignore[invalid-argument-type]
-        processors=ProcessorsState(doc=DocProcessor(GoldenPort())),
+        providers=None,  # ty: ignore[invalid-argument-type]
+        engines=None,  # ty: ignore[invalid-argument-type]
+        processors=ProcessorsState(doc=DocProcessor(GoldenPort(), pages)),
         graphs=MappingProxyType({}),
     )
     system = State(

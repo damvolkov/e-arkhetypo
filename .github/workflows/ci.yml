@@ -37,7 +37,7 @@ jobs:
           persist-credentials: false
       - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4  # v10.1.0
       - name: Pin the Python the ecosystem declares
-        run: echo "UV_PYTHON=$(cat projects/python/infra/.python-version)" >> "$GITHUB_ENV"
+        run: echo "UV_PYTHON=$(cat projects/python/common/.python-version)" >> "$GITHUB_ENV"
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413  # v6.1.0
         with:
           package_json_file: projects/python/graph/src/e_graph/ui/package.json
@@ -68,12 +68,12 @@ jobs:
           persist-credentials: false
       - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4  # v10.1.0
       - name: Pin the Python the ecosystem declares
-        run: echo "UV_PYTHON=$(cat projects/python/infra/.python-version)" >> "$GITHUB_ENV"
+        run: echo "UV_PYTHON=$(cat projects/python/common/.python-version)" >> "$GITHUB_ENV"
       - name: Materialize every project, then prove nothing drifted from infra (generated trees are not committed)
         run: |
           for d in projects/python/*/; do
             [ -f "$d/Makefile" ] || continue
-            if grep -q '^infra:' "$d/Makefile"; then make -C "$d" infra infra-check; fi
+            if grep -q '^common:' "$d/Makefile"; then make -C "$d" common common-check; fi
           done
       - name: workflow hardening scan
         run: uvx zizmor@1.30.1 --persona=regular .github/workflows

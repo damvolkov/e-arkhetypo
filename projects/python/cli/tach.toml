@@ -9,9 +9,11 @@ root_module = "forbid"
 
 ##### LAYERS #####
 # Ordered high → low: a layer may import lower layers, importing upward fails.
-# `cli`: the root and the commands it mounts (driving adapters) · `runtime`: the run's lifecycle and the
-# port→adapter binding · `services`: the use cases, which see ports only · then the shared core, and data.
-layers = ["cli", "runtime", "services", "processors", "adapters", "infra", "ops", "models"]
+# `cli`: the root and the commands it mounts · `runtime`: the run's lifecycle and the port→provider binding
+# (the composition root) · `services`: the use cases, which see ports only · `execution`: engines, processors,
+# drivers and adapters share one horizontal layer, none imports another · then ports, the shared core, and data ·
+# `errors`: the floor — the one root of every error, importing nothing (same edge as the common blueprint).
+layers = ["cli", "runtime", "services", "execution", "ports", "infra", "ops", "models", "errors"]
 
 [rules]
 unused_ignore_directives = "error"
@@ -38,14 +40,30 @@ layer = "services"
 depends_on = []
 
 [[modules]]
-path = "processors"
-layer = "processors"
+path = "engines"
+layer = "execution"
 depends_on = []
 
 [[modules]]
-path = "adapters"
-layer = "adapters"
+path = "processors"
+layer = "execution"
 depends_on = []
+
+[[modules]]
+path = "providers.drivers"
+layer = "execution"
+depends_on = []
+
+[[modules]]
+path = "providers.adapters"
+layer = "execution"
+depends_on = []
+
+[[modules]]
+path = "ports"
+layer = "ports"
+depends_on = []
+
 
 [[modules]]
 path = "infra"
@@ -60,4 +78,9 @@ depends_on = []
 [[modules]]
 path = "e_cli.models"
 layer = "models"
+depends_on = []
+
+[[modules]]
+path = "infra.errors"
+layer = "errors"
 depends_on = []

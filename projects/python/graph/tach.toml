@@ -14,8 +14,11 @@ root_module = "forbid"
 # atomic async functions specs plug, owned by a pipeline's section or agnostic tools · `processors`: the stateless readers runners
 # drive (documents through the docling service) · `instrument`: the LangGraph wrapper
 # every node runs inside · `engine`: the DARTS pieces that stand alone — the agnostic agent and the engine's
-# own models — low enough for the instrument to meter the agent and read its models · then the shared infra, and data.
-layers = ["api", "pipelines", "logic", "runners", "instrument", "engine", "processors", "adapters", "infra", "ops", "models"]
+# own models — low enough for the instrument to meter the agent and read its models · then the materialized taxonomy:
+# `execution` (engines, processors, providers' drivers and adapters — one horizontal layer, none imports another),
+# `ports` (one contract per capability), the shared infra and ops, `errors` — the floor, the single root of every
+# exception the materialized sections raise: it imports nothing, and ops raises from it — and data.
+layers = ["api", "pipelines", "logic", "runners", "instrument", "engine", "execution", "ports", "infra", "ops", "errors", "models"]
 
 [rules]
 unused_ignore_directives = "error"
@@ -92,18 +95,38 @@ layer = "instrument"
 depends_on = []
 
 [[modules]]
-path = "processors"
-layer = "processors"
+path = "engines"
+layer = "execution"
 depends_on = []
 
 [[modules]]
-path = "adapters"
-layer = "adapters"
+path = "processors"
+layer = "execution"
+depends_on = []
+
+[[modules]]
+path = "providers.drivers"
+layer = "execution"
+depends_on = []
+
+[[modules]]
+path = "providers.adapters"
+layer = "execution"
+depends_on = []
+
+[[modules]]
+path = "ports"
+layer = "ports"
 depends_on = []
 
 [[modules]]
 path = "infra"
 layer = "infra"
+depends_on = []
+
+[[modules]]
+path = "infra.errors"
+layer = "errors"
 depends_on = []
 
 [[modules]]

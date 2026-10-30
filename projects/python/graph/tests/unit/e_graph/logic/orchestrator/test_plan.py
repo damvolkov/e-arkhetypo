@@ -42,10 +42,10 @@ async def test_tiers_never_share_a_call_and_higher_tiers_come_first(darts: Darts
 async def test_a_group_over_budget_splits_into_calls(darts: DartsHarness) -> None:
     for name in ("EXT-a", "EXT-b", "EXT-c"):
         darts.semantic(name, instructions="Read the totals carefully. " * 40)
-    darts.configure(darts_fusion_tokens=400)
+    darts.configure(fusion_tokens=400)
     (step,) = (await darts.orchestrator.plan("doc", SECTION)).steps
     assert [call.specs for call in step.fused] == [("EXT-a",), ("EXT-b",), ("EXT-c",)]
-    darts.configure(darts_fusion_specs=2)
+    darts.configure(fusion_specs=2)
     (step,) = (await darts.orchestrator.plan("doc", SECTION)).steps
     assert [len(call.specs) for call in step.fused] == [2, 1]
 

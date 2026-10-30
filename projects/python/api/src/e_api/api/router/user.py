@@ -13,9 +13,8 @@ from litestar import delete, get, patch, post
 from litestar.di import NamedDependency, Provide
 from litestar.exceptions import NotFoundException
 from litestar.handlers import HTTPRouteHandler
-from litestar.params import FromPath
+from litestar.params import FromPath, JSONBody
 
-from adapters.ports import StorePort
 from e_api.api.deps import (
     USER_KEY,
     DepKey,
@@ -30,10 +29,13 @@ from e_api.api.security import SECURITY, auth_guard
 from e_api.models.user import User, UserCreate, UserRecord, UserUpdate
 from infra.logger import logger
 from infra.state import State
+from ports.store import StorePort
 
 
 ##### HANDLERS #####
-async def create_user(data: UserCreate, graph: NamedDependency[State], store: NamedDependency[StorePort]) -> User:
+async def create_user(
+    data: JSONBody[UserCreate], graph: NamedDependency[State], store: NamedDependency[StorePort]
+) -> User:
     """Public registration: hash through crypto, persist through the store — the credential never returns."""
     record = UserRecord(
         id=uuid4(),
@@ -72,7 +74,7 @@ async def read_user(
             return to_user(record)
 
 
-async def update_user(user_id: FromPath[UUID], data: UserUpdate, store: NamedDependency[StorePort]) -> User:
+async def update_user(user_id: FromPath[UUID], data: JSONBody[UserUpdate], store: NamedDependency[StorePort]) -> User:
     """PATCH with the UNSET sentinel: absent fields stay, nulls apply."""
     match await load_record(store, str(user_id)):
         case None:

@@ -2,7 +2,7 @@
 
 Generic **e-stack** terminal-UI template: three orthogonal, declarative systems over Textual — a
 config-driven **layout**, a graph-based **flow** engine, and a table-driven **interact**ive-object set —
-with shared infra materialized from `projects/python/infra`.
+with shared infra materialized from `projects/python/common`.
 
 * **Layout** — *frames are architecture, slots are content*. A layout is a tree of boxes (relative
   measures, base figures, static/dynamic kind) declared in code or a YAML/TOML/JSON file and compiled
@@ -38,9 +38,10 @@ src/e_tui/
     system.py db.py modules.py confirm.py report.py
 ```
 
-Layers (`tach`, high → low): `examples · app · templates · flow · interact · layout · adapters · infra · ops ·
-models`. `examples` (the fake app: `demo` + `pages/`) sits above the framework and is what a host copies — it
-is never imported by the layers below it. `flow` imports no Textual; `interact` imports no `flow`. They meet
+Layers (`tach`, high → low): `examples · app · templates · flow · interact · layout · execution · ports · infra ·
+ops · models`, where `execution` holds the materialized engines, processors and providers (drivers and adapters).
+`examples` (the fake app: `demo` + `pages/`) sits above the framework and is what a host copies — it is never
+imported by the layers below it. `flow` imports no Textual; `interact` imports no `flow`. They meet
 only on `ObjectPort` and `Commit`.
 
 ##### GEOMETRY LANGUAGE #####
@@ -97,10 +98,10 @@ conditional route, one condition, and a `result` view that emits the accumulated
 ##### USAGE #####
 
 ```bash
-make install    # materializes infra/ops/adapters, syncs deps, git hooks
+make install    # materializes infra/ops/ports/providers/engines/processors, syncs deps, git hooks
 make run        # the reference wizard over the standard architecture (etui)
 make check      # lint + type + arch + validate + drift + tests
-make cov        # ... with the 100 % gate
+make cov        # ... with the 100 % gate (real-service tests, marked `integration`, stay out: `make integration`)
 ```
 
 ##### SNAPSHOTS #####

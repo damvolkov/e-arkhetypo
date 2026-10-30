@@ -29,13 +29,12 @@ Each is an independent uv project with its own `pyproject.toml`, `Makefile`, tes
 App vs library is what changes, not the rules: `ruff · ty · tach · pytest+coverage · strict docs ·
 zizmor`, git-tag releases, all publishing gates inert by default.
 
-- `projects/python/infra` — **e-infra**: the shared source of truth. Layered settings composer, structured logger,
+- `projects/python/common` — **e-infra**: the shared source of truth. Layered settings composer, structured logger,
   state, ops agnostic tools (file discovery, crypto), service adapters. Services do not import `e_infra` — they
   **materialize** it. Edit shared code only here, never in a service's `src/infra/`.
 - `projects/python/api` — **e-api**: Litestar + Granian API service template, msgspec end to end.
 - `projects/python/graph` — **e-graph**: LangGraph runtime, rustworkx topology, React Flow canvas over
   Litestar + Granian (api + canvas).
-- `projects/python/mcp` — **e-mcp**: in-process `MCPServer` over Streamable HTTP, granian factory, bearer gate
   on loopback.
 - `projects/python/cli` — **e-cli**: cyclopts on uv, lazy declarative commands, typed injection, undo journal.
 - `projects/python/tui` — **e-tui**: config-driven responsive layout mini-framework over Textual, fillable
@@ -52,11 +51,11 @@ Indivisible pairs are `include`d and health-gated. Details in `stack/README.md`.
 
 ##### INFRA — CI/CD as source #####
 
-`infra/` is to every project's `.github/` what `projects/python/infra` is to its `src/`: the source of truth,
+`infra/` is to every project's `.github/` what `projects/python/common` is to its `src/`: the source of truth,
 materialized and assembled — a feature map (`features.yml`), atomic jobs, workflow shells with token
 slots, one-time install instructions, and the generated contract test (`test_ci_contract.py`) that
 validates manifest vs workflows in both directions. No workflow is hand-written twice; e-taxis
-assembles them. Two `infra/`, two jobs, never confused: this one assembles CI/CD; `projects/python/infra`
+assembles them. Two `infra/`, two jobs, never confused: this one assembles CI/CD; `projects/python/common`
 materializes the python modules and the shared root files.
 
 The repo keeps its three mutable areas honest with `repo-maintain`: Renovate opens PRs for

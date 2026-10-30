@@ -4,8 +4,8 @@ PACKAGE  ?= src/e_api
 MODULE   ?= e_api
 PORT     ?= 8000
 COMPOSE  ?= compose.yml
-INFRA_SRC ?= ../infra/src/e_infra
-TESTARGS  =
+COMMON_SRC ?= ../common/src/e_infra
+TESTARGS  ?= -m "not slow and not integration"   ## real-service tests leave the gate: make test TESTARGS="-m slow", make integration
 ARGS      = $(filter-out $@,$(MAKECMDGOALS))
 
 RESET   := \033[0m
@@ -21,14 +21,14 @@ MAKEFLAGS += --no-print-directory
 export PYTHONPATH := $(CURDIR)/src
 
 ##### TARGETS #####
-.PHONY: help install sync lock infra infra-check lint type arch validate harden hooks test cov stress docs docs-build check ci run up down build logs release ci-vars clean
+.PHONY: help install sync lock common common-check lint type arch validate harden hooks test integration cov stress docs docs-build check ci run up down build logs release ci-vars clean
 
 help:
-	@printf "$(BOLD)$(CYAN)$(PROJECT)$(RESET) $(GRAY)· uv · ruff · ty · tach · pytest · zensical · docker — infra/ops/adapters materialized from $(INFRA_SRC)$(RESET)\n\n"
+	@printf "$(BOLD)$(CYAN)$(PROJECT)$(RESET) $(GRAY)· uv · ruff · ty · tach · pytest · zensical · docker — infra/ops/ports/providers/engines/processors materialized from $(COMMON_SRC)$(RESET)\n\n"
 	@awk 'BEGIN{FS=":.*##"} /^[a-z][a-zA-Z0-9_-]*:.*##/{printf "  $(GREEN)%-12s$(RESET) $(GRAY)%s$(RESET)\n",$$1,$$2}' $(MAKEFILE_LIST)
 
 # — env —
-install: infra ## full setup: materialize shared assets + sync deps + git hooks
+install: common ## full setup: materialize shared assets + sync deps + git hooks
 	@uv sync
 	@uv run prek install
 	@printf "$(GREEN)✓ ready$(RESET)\n"
@@ -36,33 +36,33 @@ install: infra ## full setup: materialize shared assets + sync deps + git hooks
 sync: ## sync all deps (main + dev)
 	@uv sync
 
-lock: infra ## refresh uv lockfile (against the current materialized infra)
+lock: common ## refresh uv lockfile (against the current materialized common)
 	@uv lock
 
-# — infra —
-INFRA_ROOT ?= ../infra
+# — common —
+COMMON_ROOT ?= ../common
 
-infra: ## materialize shared infra/ + ops/ + adapters/ from projects/python/infra (source of truth) via a structural rewrite, and the shared root files into the project root
+common: ## materialize shared infra/ ops/ ports/ providers/ engines/ processors/ from projects/python/common (source of truth) via a structural rewrite, and the shared root files into the project root
 	@uv run python scripts/materialize.py
-	@cp $(INFRA_ROOT)/prek.toml prek.toml
-	@cp $(INFRA_ROOT)/.gitattributes .gitattributes
-	@cp $(INFRA_ROOT)/.python-version .python-version
-	@cp $(INFRA_ROOT)/.github/dependabot.yml .github/dependabot.yml
-	@cp $(INFRA_ROOT)/.github/CODEOWNERS .github/CODEOWNERS
+	@cp $(COMMON_ROOT)/prek.toml prek.toml
+	@cp $(COMMON_ROOT)/.gitattributes .gitattributes
+	@cp $(COMMON_ROOT)/.python-version .python-version
+	@cp $(COMMON_ROOT)/.github/dependabot.yml .github/dependabot.yml
+	@cp $(COMMON_ROOT)/.github/CODEOWNERS .github/CODEOWNERS
 
-infra-check: ## fail if the materialized infra/ops/adapters or the shared root files drifted from projects/python/infra
+common-check: ## fail if the materialized sections or the shared root files drifted from projects/python/common
 	@uv run python scripts/materialize.py --check
-	@diff $(INFRA_ROOT)/prek.toml prek.toml \
-	 && diff $(INFRA_ROOT)/.gitattributes .gitattributes \
-	 && diff $(INFRA_ROOT)/.python-version .python-version \
-	 && diff $(INFRA_ROOT)/.github/dependabot.yml .github/dependabot.yml \
-	 && diff $(INFRA_ROOT)/.github/CODEOWNERS .github/CODEOWNERS \
-	 && printf "$(GREEN)✓ infra in sync$(RESET)\n"
+	@diff $(COMMON_ROOT)/prek.toml prek.toml \
+	 && diff $(COMMON_ROOT)/.gitattributes .gitattributes \
+	 && diff $(COMMON_ROOT)/.python-version .python-version \
+	 && diff $(COMMON_ROOT)/.github/dependabot.yml .github/dependabot.yml \
+	 && diff $(COMMON_ROOT)/.github/CODEOWNERS .github/CODEOWNERS \
+	 && printf "$(GREEN)✓ common in sync$(RESET)\n"
 
 # — gates —
 lint: ## ruff check + format
-	@uv run ruff check --fix $(PACKAGE) src/infra src/ops src/adapters src/processors scripts tests
-	@uv run ruff format $(PACKAGE) src/infra src/ops src/adapters src/processors scripts tests
+	@uv run ruff check --fix $(PACKAGE) src/infra src/ops src/ports src/providers src/engines src/processors scripts tests
+	@uv run ruff format $(PACKAGE) src/infra src/ops src/ports src/providers src/engines src/processors scripts tests
 
 type: ## ty type check
 	@uv run ty check
@@ -83,8 +83,11 @@ hooks: ## run all prek hooks on every file (ruff, ty, tach, zizmor, gitleaks)
 test: ## run tests [TESTARGS='-k expr']
 	@uv run pytest tests $(TESTARGS) -n auto -q
 
-cov: ## run tests with coverage gate (fail under 100%)
-	@uv run pytest tests --cov --cov-report=term-missing
+integration: ## the tests that need a real service (Postgres at POSTGRES_DSN, redis at REDIS_URL); skipped when none answers
+	@uv run pytest tests -m integration -q
+
+cov: ## run tests with coverage gate (fail under 100%), real-service tests out like the default run
+	@uv run pytest tests $(TESTARGS) --cov --cov-report=term-missing
 
 stress: ## soak stress-marked tests for ARGS seconds (pytest-stress)
 	@uv run pytest tests -m stress -q -p no:randomly --seconds $(or $(ARGS),30)
@@ -97,8 +100,8 @@ docs-build: ## strict docs build to site/
 	@uv run zensical build --strict
 
 # — aggregate —
-check: lint type arch validate infra-check test ## fast local gate: lint + type + arch + validate + drift + test
-ci: lint type arch validate harden infra-check docs-build cov ## full pipeline: every gate CI runs, in one command
+check: lint type arch validate common-check test ## fast local gate: lint + type + arch + validate + drift + test
+ci: lint type arch validate harden common-check docs-build cov ## full pipeline: every gate CI runs, in one command
 
 # — release —
 release: ## cut a GitHub release via the release workflow [args: patch|minor|major]
@@ -114,22 +117,22 @@ ci-vars: ## list optional CI/CD gates (all inert by default) and their defaults
 run: ## run app locally [args: forwarded]
 	@uv run python -m $(MODULE) $(ARGS)
 
-up: infra ## docker compose up (materializes infra into the build context first) [args: services]
+up: common ## docker compose up (materializes common into the build context first) [args: services]
 	@docker compose -f $(COMPOSE) up -d $(ARGS)
 	@printf "$(GREEN)✓ up$(RESET) $(GRAY)http://localhost:$(PORT)$(RESET)\n"
 
 down: ## docker compose down
 	@docker compose -f $(COMPOSE) down
 
-build: infra ## docker image build [args: services]
+build: common ## docker image build [args: services]
 	@docker compose -f $(COMPOSE) build $(ARGS)
 
 logs: ## tail docker logs [args: service]
 	@docker compose -f $(COMPOSE) logs -f $(ARGS)
 
-clean: ## remove caches + build artifacts + materialized infra
+clean: ## remove caches + build artifacts + materialized common
 	@find . -type d \( -name __pycache__ -o -name .pytest_cache -o -name .ruff_cache \) -exec rm -rf {} + 2>/dev/null || true
-	@rm -rf dist build *.egg-info .coverage .coverage.* .ty_cache site src/infra src/ops src/adapters src/processors prek.toml .gitattributes .python-version
+	@rm -rf dist build *.egg-info .coverage .coverage.* .ty_cache site src/infra src/ops src/ports src/providers src/engines src/processors prek.toml .gitattributes .python-version
 	@printf "$(GREEN)✓ clean$(RESET)\n"
 
 %:

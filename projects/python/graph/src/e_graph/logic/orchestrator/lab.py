@@ -167,7 +167,7 @@ class SectionLab:
     def _map_build(self, catalog: Catalog, plan: SectionPlan) -> SectionMap:
         places = self._map_lanes(plan)
         groups = self._map_groups(catalog, plan)
-        budget = self._orchestrator.conf.darts_fusion_tokens
+        budget = self._orchestrator.conf.fusion_tokens
         calls = {name: group.index for group in groups for name in group.specs}
         rescues = {fallback: parent for parent, fallback in plan.fallbacks.items()}
         nodes = tuple(

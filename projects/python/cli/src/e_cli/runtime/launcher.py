@@ -43,7 +43,7 @@ class Launcher:
     @staticmethod
     def _run_identity(token: str) -> Identity | None:
         """The flag beats CLI_TOKEN; neither leaves the stored login to `Deps`."""
-        env = st.cli.cli_token
+        env = st.cli.token
         offered = ((token, IdentityOrigin.FLAG), ("" if env is None else env.get_secret_value(), IdentityOrigin.ENV))
         return next((Identity(origin=origin, token=value) for value, origin in offered if value), None)
 

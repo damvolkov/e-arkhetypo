@@ -12,7 +12,7 @@ from litestar.exceptions import NotAuthorizedException
 from litestar.openapi.spec import SecurityScheme
 
 from e_api.api.state import AppState
-from ops.crypto import TokenError
+from infra.errors import TokenError
 
 if TYPE_CHECKING:
     from litestar.connection import ASGIConnection

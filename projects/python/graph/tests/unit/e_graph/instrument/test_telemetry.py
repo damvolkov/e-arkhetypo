@@ -6,8 +6,6 @@ from typing import TYPE_CHECKING, Any
 
 import pytest
 
-from adapters.otel import OtelAdapter
-from adapters.ports import SpanKind, SpanPort, SpanStatus
 from e_graph.instrument.contexts import InstrumentContexts
 from e_graph.instrument.graph import InstrumentGraph
 from e_graph.instrument.models import NodeOutput, NodeStatus, RunEnd, RunStatus
@@ -16,11 +14,13 @@ from e_graph.instrument.state import InfraState, InstrumentState, RunState
 from e_graph.instrument.telemetry import NO_SPAN, InstrumentTelemetry, NullSpan, NullTelemetry, SpanTelemetry
 from e_graph.logic.models import Usage
 from e_graph.logic.state import LogicState
-from infra.config.otel import OtelSettings
+from infra.config.providers.drivers.telemetry.otel import OtelSettings
 from infra.state import State
+from ports.telemetry import SpanKind, SpanPort, SpanStatus
+from providers.drivers.telemetry.otel import OtelDriver
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Iterator, Mapping
+    from collections.abc import Callable, Generator, Mapping
 
 
 class RecordingSpan:
@@ -56,7 +56,7 @@ class RecordingTelemetry:
         self.spans: list[RecordingSpan] = []
 
     @contextmanager
-    def span(self, name: str, attributes: Mapping[str, Any], kind: SpanKind = SpanKind.INTERNAL) -> Iterator[SpanPort]:
+    def span(self, name: str, attributes: Mapping[str, Any], kind: SpanKind = SpanKind.INTERNAL) -> Generator[SpanPort]:
         self.opened.append((name, dict(attributes), kind))
         self.spans.append(span := RecordingSpan())
         yield span
@@ -67,7 +67,7 @@ async def node_quiet(state: RunState) -> None:
 
 
 def test_providers_and_spans_line_up_by_shape() -> None:
-    assert isinstance(OtelAdapter(OtelSettings()), SpanTelemetry)
+    assert isinstance(OtelDriver(OtelSettings()), SpanTelemetry)
     assert isinstance(NullTelemetry(), SpanTelemetry)
     assert isinstance(RecordingTelemetry(), SpanTelemetry)
     assert isinstance(NO_SPAN, SpanPort)
@@ -155,11 +155,12 @@ def test_run_closes_with_its_verdict(status: RunStatus, error: str, verdict: Spa
 
 
 async def test_a_node_runs_untraced_without_a_provider(located: Callable[..., Any]) -> None:
-    ### nothing but the instrument's tracer: a node needs no adapter to be traced, or not traced.
-    ### no edge, no processor, no agent, no orchestrator: only the tracer is real.
+    ### nothing but the instrument's tracer: a node needs no provider to be traced, or not traced.
+    ### no provider, no engine, no processor, no agent, no orchestrator: only the tracer is real.
     absent: Any = None
     infra = InfraState(
-        adapters=absent,
+        providers=absent,
+        engines=absent,
         processors=absent,
         graphs={},
     )

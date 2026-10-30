@@ -14,9 +14,9 @@ def test_importing_main_has_no_side_effects() -> None:
 
 def test_composite_settings_expose_every_scope() -> None:
     scopes = set(Settings.model_fields)
-    assert {"api", "app", "crypto", "db", "http", "otel", "redis", "ui"} <= scopes
-    assert st.redis.redis_url.startswith("redis://")
-    assert st.app.app_port == 8000
+    assert {"api", "app", "crypto", "engines", "processors", "providers", "ui"} <= scopes
+    assert st.providers.drivers.store.redis.url.get_secret_value().startswith("redis://")
+    assert st.app.port == 8000
 
 
 def test_create_app_registers_every_router(client) -> None:

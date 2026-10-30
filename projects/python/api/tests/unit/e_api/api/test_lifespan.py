@@ -1,4 +1,5 @@
-"""tests/unit: the lifespan contract — infra loaded once, edges opened as typed ports, graph sealed last."""
+"""tests/unit: the lifespan contract — infra loaded once, providers opened as typed ports, engines over them, graph
+sealed last."""
 
 import inspect
 from types import SimpleNamespace
@@ -7,25 +8,31 @@ from typing import TYPE_CHECKING, cast
 import pytest
 from litestar.testing import TestClient
 
-from adapters.ports import HttpPort, StorePort
 from e_api.api.deps import registered_providers
-from e_api.api.lifespan import adapters, sealed, services
-from e_api.api.lifespan.adapters import AdaptersState
+from e_api.api.lifespan import engines, providers, sealed, services
+from e_api.api.lifespan.engines import EnginesState
 from e_api.api.lifespan.infra import SharedState
 from e_api.api.lifespan.infra import lifespan as infra_lifespan
+from e_api.api.lifespan.providers import ProvidersState
 from e_api.api.state import AppState
 from e_api.main import create_app
+from infra.errors import StoreError
 from infra.logger import logger
 from infra.settings import Settings
 from infra.settings import settings as st
 from infra.state import State
+from ports.http import HttpPort
+from ports.store import StorePort
 
 if TYPE_CHECKING:
     from litestar import Litestar
 
 
 def test_lifespans_are_declared_not_built() -> None:
-    assert all(callable(cm) for cm in (infra_lifespan, adapters.lifespan, services.lifespan, sealed.lifespan))
+    assert all(
+        callable(cm)
+        for cm in (infra_lifespan, providers.lifespan, engines.lifespan, services.lifespan, sealed.lifespan)
+    )
     assert list(inspect.signature(create_app).parameters) == []
 
 
@@ -43,33 +50,37 @@ def test_singleton_load_is_idempotent(client) -> None:
     assert st.app is st.app
 
 
-def test_adapters_section_is_typed_and_ported(client) -> None:
-    edges = client.app.state.system.adapters
-    assert isinstance(edges, AdaptersState)
-    assert isinstance(edges.store, StorePort)
-    assert isinstance(edges.redis, StorePort)
-    assert isinstance(edges.http, HttpPort)
-    assert edges.store.name == "sqlite"
-    assert edges.redis.name == "redis"
-    assert edges.http.name == "http"
+def test_providers_section_is_typed_and_ported(client) -> None:
+    section = client.app.state.system.providers
+    assert isinstance(section, ProvidersState)
+    assert isinstance(section.store, StorePort)
+    assert isinstance(section.redis, StorePort)
+    assert isinstance(section.http, HttpPort)
+    assert section.store.spec.name == "sqlite"
+    assert section.redis.spec.name == "redis"
+    assert section.http.spec.name == "wreq"
+
+
+def test_engines_section_is_typed(client) -> None:
+    assert isinstance(client.app.state.system.engines, EnginesState)
 
 
 def test_graph_opens_sealed(client) -> None:
     graph = client.app.state.system
-    assert {"shared", "adapters", "crypto", "oauth"} <= set(graph)
+    assert {"shared", "providers", "engines", "crypto", "oauth"} <= set(graph)
     with pytest.raises(RuntimeError, match="Sealed"):
         graph.held_by_the_lifespan_only = 1
     with pytest.raises(AttributeError, match="Sealed state has no node"):
         _ = graph.typo_of_a_node
 
 
-async def test_adapters_close_when_the_lifespan_exits() -> None:
+async def test_providers_close_when_the_lifespan_exits() -> None:
     with TestClient(create_app()) as client:
-        store = client.app.state.system.adapters.store
+        store = client.app.state.system.providers.store
         assert client.get("/health").status_code == 200
         ### alive inside the cycle
         await store.get("anything")
-    with pytest.raises(RuntimeError, match="not connected"):
+    with pytest.raises(StoreError, match="not open"):
         ### the stack closed it on shutdown
         await store.get("anything")
 

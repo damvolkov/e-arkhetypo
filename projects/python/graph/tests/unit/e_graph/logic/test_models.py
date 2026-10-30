@@ -6,8 +6,9 @@ from e_graph.logic.models import LOCAL, STRICT, Endpoint, Provider, Usage
 from infra.config.agent import PROVIDERS
 
 
-def test_provider_mirrors_any_llm_plus_custom() -> None:
-    assert {provider.value for provider in Provider} == {provider.value for provider in LLMProvider} | {"custom"}
+def test_provider_routes_only_any_llm_plus_custom() -> None:
+    """Every routed provider is one any-llm knows, or ours; a provider any-llm adds later breaks nothing."""
+    assert {provider.value for provider in Provider} <= {provider.value for provider in LLMProvider} | {"custom"}
 
 
 def test_provider_has_its_settings_row() -> None:

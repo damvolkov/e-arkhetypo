@@ -83,7 +83,7 @@ def test_credential_is_stored_only_as_an_argon2_hash(client, created_user) -> No
     """The crypto-through-the-store chain end to end: what persists is a hash, verifiable and never the password."""
     graph = client.app.state.system
     with client.portal() as portal:
-        raw = portal.call(graph.adapters.store.get, USER_KEY + created_user["id"])
+        raw = portal.call(graph.providers.store.get, USER_KEY + created_user["id"])
         record = msgspec.json.decode(raw, type=UserRecord)
         assert record.password_hash.startswith("$argon2id$")
         assert portal.call(graph.crypto.verify_password, "correct-horse-1", record.password_hash)

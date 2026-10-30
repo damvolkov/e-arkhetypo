@@ -6,33 +6,42 @@ templates:
     brand: e-api
     drops: [uv.lock, scripts/materialize.py, .github/workflows, .github/ci.map.yml, .github/ci.vars.example, .github/INSTALL.md, tests/unit/test_ci_contract.py]
     common:
-      root: projects/python/infra
+      root: projects/python/common
       package: e_infra
       skip: [ops/tui]
       ##### DETACH — how the system lets go of a common unit it wires; without rules a wired unit stays locked #####
       detach:
-        - unit: adapters/redis
+        - unit: providers/drivers/store/redis
           prunes:
-            - {file: src/e_api/api/lifespan/adapters.py, pattern: '^from adapters\.redis import RedisAdapter\n'}
-            - {file: src/e_api/api/lifespan/adapters.py, pattern: '^    redis: StorePort\n'}
-            - {file: src/e_api/api/lifespan/adapters.py, pattern: '^        redis=RedisAdapter\(\),\n'}
-            - {file: tests/unit/e_api/api/test_lifespan.py, pattern: '^    assert (isinstance\(edges\.redis, StorePort\)|edges\.redis\.name == "redis")\n'}
+            - {file: src/e_api/api/lifespan/providers.py, pattern: '^from providers\.drivers\.store\.redis import RedisDriver\n'}
+            - {file: src/e_api/api/lifespan/providers.py, pattern: '^    redis: StorePort\n'}
+            - {file: src/e_api/api/lifespan/providers.py, pattern: '^        redis = await enter\(RedisDriver\(\)\)\n'}
+            - {file: src/e_api/api/lifespan/providers.py, pattern: ', redis=redis'}
+            - {file: tests/unit/e_api/api/test_lifespan.py, pattern: '^    assert (isinstance\(section\.redis, StorePort\)|section\.redis\.spec\.name == "redis")\n'}
+            - {file: tests/unit/e_api/api/router/test_health.py, pattern: '^from providers\.drivers\.store\.redis import RedisDriver\n'}
+            - {file: tests/unit/e_api/conftest.py, pattern: '^import fakeredis\nimport fakeredis\.aioredis\n'}
+            - {file: tests/unit/e_api/conftest.py, pattern: '^from providers\.drivers\.store import redis as redis_module\n'}
+            - {file: tests/unit/e_api/conftest.py, pattern: '^@pytest\.fixture\(autouse=True\)\ndef redis_server[\s\S]*?(?=^@pytest\.fixture)'}
+            - {file: tests/unit/e_api/api/router/test_health.py, pattern: '\(RedisDriver, "redis", 200\), '}
+            - {file: tests/unit/e_api/api/router/test_health.py, pattern: '"optional-down", '}
+            - {file: tests/unit/e_api/api/router/test_health.py, pattern: ' \| RedisDriver'}
             - {file: pyproject.toml, pattern: '^    "(fake)?redis>=[^"]*",\n'}
-        - unit: adapters/http
+        - unit: providers/drivers/http/wreq
           prunes:
-            - {file: src/e_api/api/lifespan/adapters.py, pattern: '^from adapters\.http import HttpAdapter\n'}
-            - {file: src/e_api/api/lifespan/adapters.py, pattern: '^from adapters\.ports import HttpPort, StorePort$', to: 'from adapters.ports import StorePort'}
-            - {file: src/e_api/api/lifespan/adapters.py, pattern: '^    http: HttpPort\n'}
-            - {file: src/e_api/api/lifespan/adapters.py, pattern: '^        http=HttpAdapter\(\),\n'}
-            - {file: tests/unit/e_api/api/test_lifespan.py, pattern: '^from adapters\.ports import HttpPort, StorePort$', to: 'from adapters.ports import StorePort'}
-            - {file: tests/unit/e_api/api/test_lifespan.py, pattern: '^    assert (isinstance\(edges\.http, HttpPort\)|edges\.http\.name == "http")\n'}
+            - {file: src/e_api/api/lifespan/providers.py, pattern: '^from providers\.drivers\.http\.wreq import WreqDriver\n'}
+            - {file: src/e_api/api/lifespan/providers.py, pattern: '^from ports\.http import HttpPort\n'}
+            - {file: src/e_api/api/lifespan/providers.py, pattern: '^    http: HttpPort\n'}
+            - {file: src/e_api/api/lifespan/providers.py, pattern: '^        http = await enter\(WreqDriver\(\)\)\n'}
+            - {file: src/e_api/api/lifespan/providers.py, pattern: ', http=http'}
+            - {file: tests/unit/e_api/api/test_lifespan.py, pattern: '^from ports\.http import HttpPort\n'}
+            - {file: tests/unit/e_api/api/test_lifespan.py, pattern: '^    assert (isinstance\(section\.http, HttpPort\)|section\.http\.spec\.name == "wreq")\n'}
             - {file: pyproject.toml, pattern: '^    ##### http #####\n    "wreq>=[^"]*",\n'}
     materials: &materials
-      - {src: projects/python/infra/prek.toml, dst: prek.toml}
-      - {src: projects/python/infra/.gitattributes, dst: .gitattributes}
-      - {src: projects/python/infra/.python-version, dst: .python-version}
-      - {src: projects/python/infra/.github/dependabot.yml, dst: .github/dependabot.yml}
-      - {src: projects/python/infra/.github/CODEOWNERS, dst: .github/CODEOWNERS}
+      - {src: projects/python/common/prek.toml, dst: prek.toml}
+      - {src: projects/python/common/.gitattributes, dst: .gitattributes}
+      - {src: projects/python/common/.python-version, dst: .python-version}
+      - {src: projects/python/common/.github/dependabot.yml, dst: .github/dependabot.yml}
+      - {src: projects/python/common/.github/CODEOWNERS, dst: .github/CODEOWNERS}
 
     ##### MANDATORY — tests that survive every selection; no choice may delete them #####
     mandatory:
@@ -40,6 +49,7 @@ templates:
       - tests/unit/test_resources.py
       - tests/resources
       - tests/unit/e_api/conftest.py
+      - tests/support
       - tests/unit/e_api/api/test_assembly.py
       - tests/unit/e_api/api/test_lifespan.py
       - tests/unit/e_api/api/test_stress.py
@@ -58,7 +68,7 @@ templates:
           - {file: src/e_api/main.py, pattern: '^from e_api\.websockets import telemetry\n'}
           - {file: src/e_api/main.py, pattern: '^    app\.register\(Router\(path="/", route_handlers=list\(telemetry\.ws_routes\(\)\)\)\)\n'}
           - {file: tach.toml, pattern: ', "e_api\.websockets"'}
-          - {file: tach.toml, pattern: '\[\[modules\]\]\npath = "e_api\.websockets"\nlayer = "api"\ndepends_on = \["e_api\.api"\]\n\n'}
+          - {file: tach.toml, pattern: '\[\[modules\]\]\npath = "e_api\.websockets"\ndepends_on = \["e_api\.api", "e_api\.models", "infra", "infra\.errors"\]\n\n'}
           - {file: tests/unit/e_api/api/test_assembly.py, pattern: '"/ws/telemetry", '}
 
       # ·· stack ··
@@ -68,9 +78,9 @@ templates:
         default: true
         paths: [Dockerfile, compose.yml, .dockerignore]
         prunes:
-          - {file: Makefile, pattern: '^up: infra ## docker compose up[^\n]*\n(?:\t[^\n]*\n)+'}
+          - {file: Makefile, pattern: '^up: common ## docker compose up[^\n]*\n(?:\t[^\n]*\n)+'}
           - {file: Makefile, pattern: '^down: ## docker compose down\n(?:\t[^\n]*\n)+'}
-          - {file: Makefile, pattern: '^build: infra ## docker image build[^\n]*\n(?:\t[^\n]*\n)+'}
+          - {file: Makefile, pattern: '^build: common ## docker image build[^\n]*\n(?:\t[^\n]*\n)+'}
           - {file: Makefile, pattern: '^logs: ## docker compose logs[^\n]*\n(?:\t[^\n]*\n)+'}
           - {file: Makefile, pattern: '^(PORT|COMPOSE) \?=[^\n]*\n'}
           - {file: Makefile, pattern: ' up down build logs'}
@@ -100,22 +110,22 @@ templates:
 
     ##### FINALIZE — engine plumbing, never a user choice (strips the template's own machinery) #####
     finalize: &finalize
-      - {file: Makefile, pattern: '^# — infra —\n[\s\S]*?(?=^# — gates —)'}
-      - {file: Makefile, pattern: '^INFRA_SRC \?= .*\n'}
-      - {file: Makefile, pattern: '^INFRA_ROOT \?= .*\n'}
-      - {file: Makefile, pattern: ' infra-check'}
-      - {file: Makefile, pattern: ' infra\b(?!/)'}
+      - {file: Makefile, pattern: '^# — common —\n[\s\S]*?(?=^# — gates —)'}
+      - {file: Makefile, pattern: '^COMMON_SRC \?= .*\n'}
+      - {file: Makefile, pattern: '^COMMON_ROOT \?= .*\n'}
+      - {file: Makefile, pattern: ' common-check'}
+      - {file: Makefile, pattern: ' common\b(?![/-])'}
       - {file: .gitignore, pattern: '^# (generated|materialized).*\n'}
-      - {file: .gitignore, pattern: '^src/(infra|ops|adapters)/\n'}
+      - {file: .gitignore, pattern: '^src/(infra|ops|ports|providers|engines|processors)/\n'}
       - {file: .gitignore, pattern: '^(prek\.toml|\.(gitattributes|python-version))\n'}
       - {file: .gitignore, pattern: '^\.github/(dependabot\.yml|CODEOWNERS)\n'}
-      - {file: pyproject.toml, pattern: ', shared infra materialized from projects/python/infra'}
+      - {file: pyproject.toml, pattern: ', shared infra materialized from projects/python/common'}
       - {file: pyproject.toml, pattern: '^    ### structural rewrite.*materialization time.*\n    "libcst>=[^"]*",\n'}
-      - {file: Makefile, pattern: ' — infra/ops/adapters materialized from \$\(INFRA_SRC\)'}
-      - {file: README.md, pattern: '^.*\b(GENERATED|make infra)\b.*\n'}
+      - {file: Makefile, pattern: ' — infra/ops/ports/providers/engines/processors materialized from \$\(COMMON_SRC\)'}
+      - {file: README.md, pattern: '^.*\b(GENERATED|make common)\b.*\n'}
       ### a detached project owns its infra set: `clean` must not delete source the generator no longer restores.
-      - {file: Makefile, pattern: ' src/infra src/ops src/adapters src/processors prek\.toml \.gitattributes \.python-version'}
-      - {file: Makefile, pattern: ' \+ materialized infra'}
+      - {file: Makefile, pattern: ' src/infra src/ops src/ports src/providers src/engines src/processors prek\.toml \.gitattributes \.python-version'}
+      - {file: Makefile, pattern: ' \+ materialized common'}
       ### an e- service runs as one word: its compose service, container and host name drop the brand's hyphen (egnosis).
       - {file: compose.yml, pattern: '^(  |    container_name: |    hostname: )e-([a-z0-9]+)(:?)$', to: '\1e\2\3'}
 
@@ -124,7 +134,7 @@ templates:
     package: e_cli
     brand: e-cli
     drops: [uv.lock, scripts, .github/workflows, .github/ci.map.yml, .github/ci.vars.example, .github/INSTALL.md, tests/unit/test_ci_contract.py]
-    common: {root: projects/python/infra, package: e_infra, skip: [ops/tui]}
+    common: {root: projects/python/common, package: e_infra, skip: [ops/tui]}
     materials: *materials
 
     ##### MANDATORY — the harness and the tree contract survive every selection #####
@@ -144,7 +154,7 @@ templates:
     package: e_graph
     brand: e-graph
     drops: [uv.lock, scripts/materialize.py, .github/workflows, .github/ci.map.yml, .github/ci.vars.example, .github/INSTALL.md, tests/unit/test_ci_contract.py]
-    common: {root: projects/python/infra, package: e_infra, skip: [ops/tui]}
+    common: {root: projects/python/common, package: e_infra, skip: [ops/tui]}
     materials: *materials
 
     mandatory:
@@ -160,9 +170,9 @@ templates:
         default: true
         paths: [Dockerfile, compose.yml, .dockerignore]
         prunes:
-          - {file: Makefile, pattern: '^up: infra ## docker compose up[^\n]*\n(?:\t[^\n]*\n)+'}
+          - {file: Makefile, pattern: '^up: common ## docker compose up[^\n]*\n(?:\t[^\n]*\n)+'}
           - {file: Makefile, pattern: '^down: ## docker compose down\n(?:\t[^\n]*\n)+'}
-          - {file: Makefile, pattern: '^build: infra ## docker image build[^\n]*\n(?:\t[^\n]*\n)+'}
+          - {file: Makefile, pattern: '^build: common ## docker image build[^\n]*\n(?:\t[^\n]*\n)+'}
           - {file: Makefile, pattern: '^logs: ## docker compose logs[^\n]*\n(?:\t[^\n]*\n)+'}
           - {file: Makefile, pattern: '^(PORT|COMPOSE) \?=[^\n]*\n'}
           - {file: Makefile, pattern: ' up down build logs'}
@@ -185,50 +195,17 @@ templates:
     verify: *verify
     finalize: *finalize
 
-  mcp:
-    source: projects/python/mcp
-    package: e_mcp
-    brand: e-mcp
-    drops: [uv.lock, scripts/materialize.py, .github/workflows, .github/ci.map.yml, .github/ci.vars.example, .github/INSTALL.md, tests/unit/test_ci_contract.py]
-    common: {root: projects/python/infra, package: e_infra, skip: [ops/tui]}
-    materials: *materials
-
-    mandatory:
-      - tests/unit/conftest.py
-      - tests/resources
-      - tests/unit/e_mcp/conftest.py
-
-    choices:
-      # ·· stack ··
-      - name: docker
-        group: stack
-        label: container image + compose service
-        default: true
-        paths: [Dockerfile, compose.yml, .dockerignore]
-        prunes:
-          - {file: Makefile, pattern: '^up: infra ## docker compose up[^\n]*\n(?:\t[^\n]*\n)+'}
-          - {file: Makefile, pattern: '^down: ## docker compose down\n(?:\t[^\n]*\n)+'}
-          - {file: Makefile, pattern: '^build: infra ## docker image build[^\n]*\n(?:\t[^\n]*\n)+'}
-          - {file: Makefile, pattern: '^logs: ## docker compose logs[^\n]*\n(?:\t[^\n]*\n)+'}
-          - {file: Makefile, pattern: '^(PORT|COMPOSE) \?=[^\n]*\n'}
-          - {file: Makefile, pattern: ' up down build logs'}
-          - {file: Makefile, pattern: ' up| down| build| logs'}
-
-    verify: *verify
-    finalize: *finalize
-
   tui:
     source: projects/python/tui
     package: e_tui
     brand: e-tui
     drops: [uv.lock, .github/workflows, .github/ci.map.yml, .github/ci.vars.example, .github/INSTALL.md, tests/unit/test_ci_contract.py]
-    common: {root: projects/python/infra, package: e_infra}
+    common: {root: projects/python/common, package: e_infra}
     materials: *materials
 
     mandatory:
       - tests/unit/conftest.py
       - tests/resources
-      - tests/unit/e_tui/conftest.py
 
     verify: *verify
     finalize: *finalize

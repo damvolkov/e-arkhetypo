@@ -22,44 +22,88 @@ build.
 | Module | Purpose |
 |---|---|
 | [`e_infra.infra.background`](reference/e_infra/infra/background.md) | the in-process task supervisor — jobs as tasks of one task group, retries, progress, cancel, clocks. |
+| [`e_infra.infra.errors`](reference/e_infra/infra/errors.md) | the one root of every error — each layer imports its exceptions from here, none defines its own. |
 | [`e_infra.infra.events`](reference/e_infra/infra/events.md) | events delivered in this process — subscribers by event type, none known to the publisher. |
-| [`e_infra.infra.errors`](reference/e_infra/infra/errors.md) | typed exception hierarchy — every domain exception inherits from CoreError; providers translate their library's errors into it. |
 | [`e_infra.infra.logger`](reference/e_infra/infra/logger.md) | structured JSON in prod, ordered plain text in dev/local. |
 | [`e_infra.infra.proxy`](reference/e_infra/infra/proxy.md) | import-safe lazy singletons — the object exists at module level, its load runs on first use. |
+| [`e_infra.infra.settings`](reference/e_infra/infra/settings.md) | the dynamic composer — every ``*Settings`` of ``infra/config``, merged into one nested ``Settings``. |
 | [`e_infra.infra.state`](reference/e_infra/infra/state.md) | the app resource graph — dynamic attribute access all the way down. |
 | [`e_infra.infra.struct`](reference/e_infra/infra/struct.md) | msgspec models validated however they are born — decoded at the edge or built in code. |
-| [`e_infra.infra.settings`](reference/e_infra/infra/settings.md) | The dynamic composer — every `*Settings` of `infra.config`, merged into one `Settings` |
 
-`infra.settings` discovers its scopes in `infra.config` on import — adding a scope is dropping a file there:
+#### infra.errors — the one root of every error
 
-| Scope | Purpose |
-|---|---|
-| `agent` | the agnostic agent's edge — per-provider key and base, tier endpoints, retries, timeout. |
-| `api` | the HTTP edge of this app — ALLOW_ORIGINS, ALLOW_METHODS. |
-| `app` | process-level knobs — APP_ENV, APP_HOST, APP_PORT. |
-| `base` | pydantic-settings — frozen, typed, layered config. |
-| `cache` | the caches a service takes — how many entries each keeps in memory, for how long (CACHE_*). |
-| `cli` | the command-line edge of this app — CLI_TOKEN, CLI_HISTORY. |
-| `crypto` | the configuration of the crypto engine (`ops/crypto`), loaded from CRYPTO__*. |
-| `darts` | the DARTS orchestrator — how much of a section runs at once, how semantic specs fuse (DARTS_*). |
-| `db` | the embedded sqlite store — DB_PATH. |
-| `doc` | the document processor — which engine reads which page, and how hard to push the deep one (DOC_*). |
-| `docling` | the document-conversion edge — where docling-serve lives and how it converts (DOCLING_*). |
-| `docs` | where the OpenAPI pages live, which aliases lead there, which renderers serve (DOCS_*). |
-| `embed` | the embedding edge — a text-embeddings-inference server and the model it serves (EMBED_*). |
-| `gliner` | the NER edge — a gliner service answering zero-shot entities (GLINER_*). |
-| `http` | the outbound HTTP edge — HTTP_BASE_URL, HTTP_TIMEOUT. |
-| `llm` | a chat model answering under a JSON schema — an OpenAI-compatible server (LLM_*). |
-| `md` | the anytomd Markdown converter — its PDF and vision capabilities and the ZIP fan-out (MD_*). |
-| `oauth` | the OAuth2 identity provider — name, client, secret and metadata URL. |
-| `otel` | the telemetry edge — where spans go, how, how fast, how many (OTEL_*). |
-| `ping` | how long one provider's health check may take — PING_TIMEOUT. |
-| `postgres` | the Postgres edge — POSTGRES_DSN, pool and statement limits (POSTGRES_*). |
-| `queue` | the durable job queue — a Postgres database of its own, apart from the service's data (QUEUE_*). |
-| `redis` | the redis edge — REDIS_URL. |
-| `rerank` | the reranking edge — a text-embeddings-inference server holding a cross-encoder (RERANK_*). |
-| `theme` | the house theme — background, corporate hue and ink. |
-| `ui` | the canvas's tunables — toast lifetime, run pace and grid spacing (UI_*). |
+Every layer imports its exceptions from `infra/errors`; none defines its own (`tests/unit/e_infra/infra/test_errors.py` walks
+the package and fails on any exception class defined elsewhere). Providers translate their library's exceptions into this
+tree at the border, so no layer above imports a library's own.
+
+```
+CoreError
+├─ ProviderError
+│  ├─ DriverError            a system outside the process failed
+│  │  ├─ DatabaseError · StoreError · QueueError · TelemetryError
+│  │  ├─ HttpError ─ HttpTimeoutError (also TimeoutError)
+│  │  └─ ModelError ─ TruncatedError
+│  ├─ AdapterError           a library inside the process failed
+│  │  └─ ParseError
+│  └─ CacheError · DocumentError      both DriverError and AdapterError
+├─ EngineError ─ DispatchError ─ ScheduleError (ValueError) · UnknownWorkError (LookupError)
+├─ ProcessorError ─ MDError (RuntimeError) ─ UnsupportedFormatError · InputTooLargeError · ZipBombError
+└─ OpsError ─ ComposeError · RegistryError · FileError · LogoError · CryptoError ─ TokenError
+```
+
+A capability met on both natures raises an error that is honestly both. The cache is theine in memory and Postgres over
+the wire; documents are docling-serve over HTTP and docling in process: `CacheError` and `DocumentError` inherit
+`DriverError` and `AdapterError` at once, so `except DriverError` and `except AdapterError` each catch the failure of the
+nature they guard. `tach` holds `infra.errors` as the floor module of the package (it imports nothing; `ops` raises
+from it).
+
+#### infra.config — the settings tree mirrors the module tree
+
+`infra.settings` discovers every `*Settings` of `infra.config` recursively on import and builds nested, lazy, frozen
+sections: the module path, the attribute chain and the module configured are one hierarchy (the OST parity,
+`test_taxonomy` is its gate). `st.providers.drivers.database.psqlpy.dsn` is read from
+`infra/config/providers/drivers/database/psqlpy.py` and configures `providers/drivers/database/psqlpy.py`;
+`st.app.env` is a scope that serves no provider, engine or processor, so it sits at the top. Adding a scope is dropping a
+file in the tree; each scope keeps its own sources (`env_prefix`, `env_file`, `toml_file`, `secrets_dir`), and
+`Settings.load(providers={"drivers": {"database": {"psqlpy": {"pool": 3}}}})` overrides one scope by its path.
+Env variable names are the scope's `env_prefix` plus the field, so a scope that already existed keeps its names
+(`POSTGRES_*`, `REDIS_*`, `QUEUE_*`); a new scope takes a prefix named after its provider (`ASYNCPG_*`). Fields always
+run connection, credentials, limits, behaviour, and a provider's constructor takes `settings: <X>Settings | None = None`,
+read lazily from the composer when absent.
+
+| Config module | Chain | Purpose |
+|---|---|---|
+| `infra/config/agent.py` | `st.agent` | the agnostic agent's edge — per-provider key and base, tier endpoints, retries, timeout. |
+| `infra/config/api.py` | `st.api` | the HTTP edge of this app — ALLOW_ORIGINS, ALLOW_METHODS. |
+| `infra/config/app.py` | `st.app` | process-level knobs — APP_ENV, APP_HOST, APP_PORT. |
+| `infra/config/cli.py` | `st.cli` | the command-line edge of this app — CLI_TOKEN, CLI_HISTORY. |
+| `infra/config/crypto.py` | `st.crypto` | the configuration of the crypto engine (`ops/crypto`), loaded from CRYPTO__*. |
+| `infra/config/darts.py` | `st.darts` | the DARTS orchestrator — how much of a section runs at once, how semantic specs fuse (DARTS_*). |
+| `infra/config/docs.py` | `st.docs` | where the OpenAPI pages live, which aliases lead there, which renderers serve (DOCS_*). |
+| `infra/config/engines/dispatch.py` | `st.engines.dispatch` | the dispatch engine — which durable queue backs the background, and its write pace. |
+| `infra/config/oauth.py` | `st.oauth` | the OAuth2 identity provider — name, client, secret and metadata URL. |
+| `infra/config/ping.py` | `st.ping` | how long one provider's health check may take — PING_TIMEOUT. |
+| `infra/config/processors/doc.py` | `st.processors.doc` | the document processor — which engine reads which page, and how hard to push (DOC_*). |
+| `infra/config/processors/md.py` | `st.processors.md` | the Markdown processor — input ceiling, ZIP fan-out and its zip-bomb guard (MD_*). |
+| `infra/config/providers/adapters/cache/theine.py` | `st.providers.adapters.cache.theine` | the in-memory cache — how many entries it keeps, for how long (CACHE_*). |
+| `infra/config/providers/adapters/markdown/anytomd.py` | `st.providers.adapters.markdown.anytomd` | the anytomd converter — its PDF reader and the vision model (MD_*). |
+| `infra/config/providers/adapters/pages/liteparse.py` | `st.providers.adapters.pages.liteparse` | liteparse's own Tesseract and page workers (DOC_*). |
+| `infra/config/providers/drivers/cache/postgres.py` | `st.providers.drivers.cache.postgres` | the durable cache in Postgres — how long a value lives. |
+| `infra/config/providers/drivers/database/asyncpg.py` | `st.providers.drivers.database.asyncpg` | the asyncpg pool — ASYNCPG_DSN, pool bounds and command limit. |
+| `infra/config/providers/drivers/database/psqlpy.py` | `st.providers.drivers.database.psqlpy` | the psqlpy pool — POSTGRES_DSN, pool size and statement limit. |
+| `infra/config/providers/drivers/documents/docling.py` | `st.providers.drivers.documents.docling` | the docling-serve edge — where it lives and how it converts. |
+| `infra/config/providers/drivers/embed/tei.py` | `st.providers.drivers.embed.tei` | the embedding edge — a text-embeddings-inference server and its model. |
+| `infra/config/providers/drivers/http/wreq.py` | `st.providers.drivers.http.wreq` | the outbound HTTP client — HTTP_BASE_URL and HTTP_TIMEOUT. |
+| `infra/config/providers/drivers/llm/openai.py` | `st.providers.drivers.llm.openai` | a chat model answering under a JSON schema — an OpenAI-compatible server. |
+| `infra/config/providers/drivers/ner/gliner.py` | `st.providers.drivers.ner.gliner` | the NER edge — a gliner service answering zero-shot entities. |
+| `infra/config/providers/drivers/queue/awa.py` | `st.providers.drivers.queue.awa` | the awa queue — a Postgres database of its own, pool, poll and drain. |
+| `infra/config/providers/drivers/queue/pgqueuer.py` | `st.providers.drivers.queue.pgqueuer` | PgQueuer's pace — poll, drain, call bound, heartbeat and restart. |
+| `infra/config/providers/drivers/rerank/tei.py` | `st.providers.drivers.rerank.tei` | the reranking edge — a text-embeddings-inference server and a cross-encoder. |
+| `infra/config/providers/drivers/store/redis.py` | `st.providers.drivers.store.redis` | the redis client — REDIS_URL, connection bound and socket timeout. |
+| `infra/config/providers/drivers/store/sqlite.py` | `st.providers.drivers.store.sqlite` | the embedded sqlite store — DB_PATH and the busy timeout. |
+| `infra/config/providers/drivers/telemetry/otel.py` | `st.providers.drivers.telemetry.otel` | the telemetry edge — where spans go, how, how fast, how many. |
+| `infra/config/theme.py` | `st.theme` | the house theme — background, corporate hue and ink. |
+| `infra/config/ui.py` | `st.ui` | the canvas's tunables — toast lifetime, run pace and grid spacing (UI_*). |
 
 ### ops — agnostic tools: categories only, the closed registry below
 
@@ -98,38 +142,81 @@ A port is the shape of the plug; it is never instantiated. Every provider port e
 | [`e_infra.ports.store`](reference/e_infra/ports/store.md) | a byte-keyed store — point reads, writes, deletes and a lazy key scan, the whole CRUD a consumer sees. |
 | [`e_infra.ports.telemetry`](reference/e_infra/ports/telemetry.md) | tracing — a span opened around a block, written until it ends, settled by how the block left. |
 
-### providers/drivers — I/O with systems outside the process
+### providers — a capability, a nature, an implementation
+
+A provider lives at `providers/<drivers|adapters>/<capability>/<name>.py`. **`<capability>` is exactly the module name of the
+port it meets** (`ports/embed.py` ↔ `providers/drivers/embed/tei.py`, one to one), and `tests/unit/test_taxonomy.py` checks
+it: the path is a port module and the provider has the port's members. **The file names what tells implementations apart**:
+the library when several reach one service (`database/psqlpy.py`, `database/asyncpg.py`), otherwise the service or brand
+(`embed/tei.py`, `llm/openai.py`). **Class names are unique in the package, `<Name><Nature>`**; a brand that repeats across
+capabilities takes the capability as a qualifier before it (`TeiEmbedDriver`, `TeiRerankDriver`, `CachePostgresDriver`).
+Every implementation worth keeping stays: the blueprint holds the alternatives and a project picks one at its composition
+root. SQLite is a driver (`Locality.FILESYSTEM`) and, as it meets `StorePort` (one kv table), it lives at
+`store/sqlite.py`; a SQL-flavoured sqlite driver would be `database/sqlite.py` meeting `DatabasePort`.
+
+The capabilities share their vocabulary with the self-hosted stack's categories (`stack/<category>/<service>/`): the stack
+groups what is deployed, the providers group contracts, and a new capability enters both at once.
+
+| Capability (port module) | Stack category |
+|---|---|
+| `database` | `rdb` |
+| `store`, `cache` | `cdb` |
+| `http` | — transport, composed by other drivers |
+| `queue` | `queue` |
+| `telemetry` | `watch` |
+| `documents`, `markdown`, `pages`, `extract` | `rag` |
+| `embed`, `rerank`, `llm`, `ner` | `llm` |
+
+#### Two Postgres drivers, both first-class
+
+`database/psqlpy.py` (`PsqlpyDriver`: a Rust tokio-postgres pool, pgvector bound natively) and `database/asyncpg.py`
+(`AsyncpgDriver`: asyncpg's pool, a `Vector` bound as pgvector's text form) meet the same `DatabasePort` with the same
+semantics — `$n` parameters, rows as dicts, `transaction()` pinning one connection, errors as `DatabaseError`; the pool is
+the driver's and a connection is taken per operation, never kept. The project picks one at its root. `AsyncpgDriver` also
+gives a library that owns its client what it needs, on the driver class and in no port: `pool`, `connection()` (a dedicated
+connection, closed on exit) and `guard()` (asyncpg's errors as `DatabaseError`). `PgqueuerDriver` **receives** an
+`AsyncpgDriver` by constructor and rides it — its schema on the pool, one dedicated connection for each queue manager and
+for the scheduler — and opens no pool of its own; the lifespan opens the database first and closes it last. The queue
+wants a database of its own (`app_background` beside the service's `app`): hand it an `AsyncpgDriver` built on
+`AsyncpgSettings(dsn=...)` for that database.
+
+#### providers/drivers — I/O with systems outside the process
 
 A driver talks to something that lives elsewhere (network, socket, another process, a file with the semantics of a
 service). Singleton in the lifespan: `__aenter__` opens the pool or client, `__aexit__` releases it, `health` never
-raises, third-party exceptions are translated into `infra.errors` at the border. A driver composes another provider
-only through its port, received by constructor (docling, TEI and the OpenAI-compatible driver ride an `HttpPort`).
+raises, third-party exceptions are translated into `infra.errors` at the border (`DriverError` and below). A driver composes
+another provider only through its port, received by constructor (docling, TEI and the OpenAI-compatible driver ride an
+`HttpPort`; the durable cache rides a `DatabasePort`) — with one stated exception: PgQueuer's library owns its
+asyncpg client, so its driver is handed the `AsyncpgDriver`, typed by a small protocol it declares itself.
 
 | Module | Purpose |
 |---|---|
-| [`e_infra.providers.drivers.awa`](reference/e_infra/providers/drivers/awa.md) | the durable queue — awa, a Rust Postgres job queue, behind `QueuePort`. |
-| [`e_infra.providers.drivers.docling`](reference/e_infra/providers/drivers/docling.md) | document conversion on docling-serve — any source in, the DoclingDocument and its renderings out. |
-| [`e_infra.providers.drivers.gliner`](reference/e_infra/providers/drivers/gliner.md) | zero-shot entities from a gliner service — `POST /ner/batch`, NDJSON streamed both ways. |
-| [`e_infra.providers.drivers.http`](reference/e_infra/providers/drivers/http.md) | the outbound client on wreq (Rust wreq bindings, browser-fidelity TLS). |
-| [`e_infra.providers.drivers.openai`](reference/e_infra/providers/drivers/openai.md) | a chat model over an OpenAI-compatible server (vLLM, OpenAI) — answers under a JSON schema. |
-| [`e_infra.providers.drivers.otel`](reference/e_infra/providers/drivers/otel.md) | TelemetryPort over the official OpenTelemetry SDK, exported by OTLP over HTTP or gRPC. |
-| [`e_infra.providers.drivers.pgqueuer`](reference/e_infra/providers/drivers/pgqueuer.md) | the default durable queue, PgQueuer on asyncpg, behind `QueuePort` and `SchedulePort`. |
-| [`e_infra.providers.drivers.postgres`](reference/e_infra/providers/drivers/postgres.md) | the SQL edge over psqlpy — a Rust (tokio-postgres) pool, pgvector bound natively. |
-| [`e_infra.providers.drivers.redis`](reference/e_infra/providers/drivers/redis.md) | a store over redis.asyncio (the official client, async driver) — bytes in, bytes out. |
-| [`e_infra.providers.drivers.sqlite`](reference/e_infra/providers/drivers/sqlite.md) | a store over aiosqlite (stdlib sqlite3 is sync-only on 3.14) — one kv table in one file. |
-| [`e_infra.providers.drivers.tei`](reference/e_infra/providers/drivers/tei.md) | embeddings and reranking on text-embeddings-inference — `POST /embed`, `POST /rerank`. |
+| [`e_infra.providers.drivers.cache.postgres`](reference/e_infra/providers/drivers/cache/postgres.md) | a durable cache in a Postgres database — it rides a `DatabasePort`, whichever driver. |
+| [`e_infra.providers.drivers.database.asyncpg`](reference/e_infra/providers/drivers/database/asyncpg.md) | the SQL edge over asyncpg — a pooled client, and the pool PgQueuer rides. |
+| [`e_infra.providers.drivers.database.psqlpy`](reference/e_infra/providers/drivers/database/psqlpy.md) | the SQL edge over psqlpy — a Rust (tokio-postgres) pool, pgvector bound natively. |
+| [`e_infra.providers.drivers.documents.docling`](reference/e_infra/providers/drivers/documents/docling.md) | document conversion on docling-serve — any source in, the DoclingDocument out. |
+| [`e_infra.providers.drivers.embed.tei`](reference/e_infra/providers/drivers/embed/tei.md) | embeddings on text-embeddings-inference — `POST /embed`, behind `EmbedPort`. |
+| [`e_infra.providers.drivers.http.wreq`](reference/e_infra/providers/drivers/http/wreq.md) | the outbound client on wreq (Rust wreq bindings, browser-fidelity TLS). |
+| [`e_infra.providers.drivers.llm.openai`](reference/e_infra/providers/drivers/llm/openai.md) | a chat model over an OpenAI-compatible server (vLLM, OpenAI) — JSON-schema answers. |
+| [`e_infra.providers.drivers.ner.gliner`](reference/e_infra/providers/drivers/ner/gliner.md) | zero-shot entities from a gliner service — `POST /ner/batch`, NDJSON streamed both ways. |
+| [`e_infra.providers.drivers.queue.awa`](reference/e_infra/providers/drivers/queue/awa.md) | the durable queue — awa, a Rust Postgres job queue, behind `QueuePort`. |
+| [`e_infra.providers.drivers.queue.pgqueuer`](reference/e_infra/providers/drivers/queue/pgqueuer.md) | the default durable queue, PgQueuer on asyncpg, behind `QueuePort` and `SchedulePort`. |
+| [`e_infra.providers.drivers.rerank.tei`](reference/e_infra/providers/drivers/rerank/tei.md) | reranking on text-embeddings-inference — `POST /rerank`, behind `RerankPort`. |
+| [`e_infra.providers.drivers.store.redis`](reference/e_infra/providers/drivers/store/redis.md) | a store over redis.asyncio (the official client, async driver) — bytes in, bytes out. |
+| [`e_infra.providers.drivers.store.sqlite`](reference/e_infra/providers/drivers/store/sqlite.md) | a store over aiosqlite (stdlib sqlite3 is sync-only on 3.14) — one kv table in one file. |
+| [`e_infra.providers.drivers.telemetry.otel`](reference/e_infra/providers/drivers/telemetry/otel.md) | TelemetryPort over the official OpenTelemetry SDK, exported by OTLP over HTTP or gRPC. |
 
-### providers/adapters — a foreign library inside the process, behind a contract
+#### providers/adapters — a foreign library inside the process, behind a contract
 
 An adapter wraps a library with no connection (`Locality.EMBEDDED`): `__aenter__` loads the model or resource,
-`__aexit__` frees it. The same lifecycle and the same border rules as a driver.
+`__aexit__` frees it. The same lifecycle and the same border rules as a driver (`AdapterError` and below).
 
 | Module | Purpose |
 |---|---|
-| [`e_infra.providers.adapters.anytomd`](reference/e_infra/providers/adapters/anytomd.md) | anytomd bound to Python — one engine for every format, PDF and image descriptions folded in. |
-| [`e_infra.providers.adapters.liteparse`](reference/e_infra/providers/adapters/liteparse.md) | a document's fast pass on liteparse (Rust, in-process) — the `PagesPort`. |
-| [`e_infra.providers.adapters.rtrafilatura`](reference/e_infra/providers/adapters/rtrafilatura.md) | a web page's main content as Markdown — the article without its menus and footers. |
-| [`e_infra.providers.adapters.theine`](reference/e_infra/providers/adapters/theine.md) | a cache in this process's memory — theine (Rust core, W-TinyLFU admission, per-key TTL). |
+| [`e_infra.providers.adapters.cache.theine`](reference/e_infra/providers/adapters/cache/theine.md) | a cache in this process's memory — theine (Rust core, W-TinyLFU, per-key TTL). |
+| [`e_infra.providers.adapters.extract.rtrafilatura`](reference/e_infra/providers/adapters/extract/rtrafilatura.md) | a web page's main content as Markdown — the article without its chrome. |
+| [`e_infra.providers.adapters.markdown.anytomd`](reference/e_infra/providers/adapters/markdown/anytomd.md) | anytomd bound to Python — one engine for every format, PDF and images folded in. |
+| [`e_infra.providers.adapters.pages.liteparse`](reference/e_infra/providers/adapters/pages/liteparse.md) | a document's fast pass on liteparse (Rust, in-process) — the `PagesPort`. |
 
 ### engines — execution against resources
 
@@ -153,6 +240,26 @@ concrete provider or an engine. Whatever library reads a page or detects a forma
 | [`e_infra.processors.md`](reference/e_infra/processors/md.md) | the MDProcessor — any file to Markdown, detected and rendered by the engine behind `MarkdownPort`. |
 | [`e_infra.processors.models`](reference/e_infra/processors/models.md) | what the processors hand out — a document read, or the Markdown a file becomes, both typed. |
 
+### Logging
+
+Every provider, engine and processor logs through `infra.logger`, as structured key/value events (never an f-string):
+`debug` for lifecycle and per-operation detail, `info` on open and close, `warning` for a degraded or fallback path
+(a health check that answers false, a durable layer left for memory, a manager restarted), `error` for the failure a
+border translates and re-raises. The unit tests assert the events where behaviour depends on them.
+
+### Testing without a service
+
+The default run (`make test`, `make cov`) needs no Postgres, no redis and no network service. Redis is
+[fakeredis](https://github.com/cunla/fakeredis-py) (`FakeServer`, switched off to take it down); every HTTP-based driver
+(wreq, docling, TEI, OpenAI-compatible, gliner) runs against a real localhost server
+([pytest-httpserver](https://pytest-httpserver.readthedocs.io), streaming over a werkzeug `Response` on a generator);
+telemetry reads spans from the SDK's in-memory exporter; sqlite is a temp file. psqlpy, asyncpg and awa have no fake, so
+the repo writes its own under `tests/support/`: a pool, connection and transaction that hold scripted rows, record the SQL
+and raise the library's own exception types, which the driver is patched to build. PgQueuer runs its real managers,
+retries and cron on its own in-memory backend (`InMemoryQueries`), with the driver's `background.job` book on the fake
+asyncpg pool. The real-service tests stay, marked `integration` (a Postgres at `POSTGRES_TEST_DSN`, skipped when none
+answers): `make integration`.
+
 ## Layers and dependencies
 
 Three vertical levels, two horizontal: resources (`providers`) -> execution (`engines`, `processors`) -> business
@@ -164,15 +271,20 @@ and processors over the ports.
 | Module in... | May import | Never imports |
 |---|---|---|
 | `infra` | stdlib, `ops` | ports, providers, engines, processors |
-| `ops` | stdlib | ports, providers, engines, processors |
+| `infra.errors` | stdlib | everything else — it is the floor |
+| `ops` | stdlib, `infra.errors` | the rest of `infra`, ports, providers, engines, processors |
 | `ports` | stdlib, `infra` | providers, engines, processors |
 | `providers/drivers`, `providers/adapters` | `ports`, `infra`, `ops`, its library | engines, processors, other providers |
 | `engines` | `ports`, `infra`, `ops` | providers, processors, other engines |
 | `processors` | `ports`, `infra`, `ops` | providers, engines |
 
-`tach.toml` enforces the table (`uv run tach check`) and `tests/unit/test_taxonomy.py` reads it again from the imports;
-the same test checks that every driver and adapter declares its `ProviderSpec` and the lifecycle, and that the folder
-agrees with `Locality` (`EMBEDDED` is an adapter, the rest are drivers).
+`tach.toml` spells the table edge by edge (`uv run tach check`): `engines`, `processors`, `providers.drivers` and
+`providers.adapters` each declare `ports`, `infra` and `ops` and no one of the others, `ports` declares `infra`, `infra`
+declares `ops`, `ops` declares the error tree; an import that is not an edge is reported with its file and line.
+`tests/unit/test_taxonomy.py` reads the table again from the imports and holds what one tach module cannot: a driver never
+imports another provider. The same test checks that every driver and adapter declares its `ProviderSpec` and the
+lifecycle, that the folder agrees with `Locality` (`EMBEDDED` is an adapter, the rest are drivers), that a provider sits at
+`providers/<nature>/<capability>/<name>.py` meeting that capability's port, and that the config tree mirrors the module tree.
 
 ## Opt-in modules
 
@@ -186,19 +298,19 @@ e-taxis itself materializes the whole tree (the stack machinery — `ops/compose
 | `ops/snap.py` | mcp, tui |
 | `ops/compose.py` | mcp |
 | `ports/provider.py`, `engines/health.py` | api, cli, graph, tui |
-| `ports/database.py`, `providers/drivers/postgres.py` | api, graph |
-| `ports/http.py`, `providers/drivers/http.py` | api, cli, graph, tui |
-| `ports/store.py`, `providers/drivers/redis.py`, `providers/drivers/sqlite.py` | api, cli, graph, tui |
-| `ports/queue.py`, `providers/drivers/awa.py`, `providers/drivers/pgqueuer.py`, `engines/dispatch.py` | none by default — the background's durable queues are opt-in: a service that runs one drops the exclusion, and the composition root names which class fills `QueuePort` |
-| `ports/telemetry.py`, `providers/drivers/otel.py` | none by default — tracing is opt-in |
-| `ports/documents.py`, `providers/drivers/docling.py` | api, cli, graph, tui (with `processors/doc`) |
-| `ports/pages.py`, `providers/adapters/liteparse.py` | api, cli, graph, tui (with `processors/doc`) |
-| `ports/markdown.py`, `providers/adapters/anytomd.py` | api, cli, graph, tui (with `processors/md`) |
-| `ports/cache.py`, `providers/adapters/theine.py`, `engines/cache.py` | none by default — the cache is opt-in; its durable layer is `CachePostgresDriver` in `providers/drivers/postgres.py` |
-| `ports/embed.py`, `ports/rerank.py`, `providers/drivers/tei.py` | none by default — model edges are opt-in |
-| `ports/llm.py`, `providers/drivers/openai.py` | none by default — model edges are opt-in |
-| `ports/ner.py`, `providers/drivers/gliner.py` | none by default — model edges are opt-in |
-| `ports/extract.py`, `providers/adapters/rtrafilatura.py` | none by default — web extraction is opt-in |
+| `ports/database.py`, `providers/drivers/database/psqlpy.py` | api, graph — `database/asyncpg.py` is the alternative a project may take instead (or beside, for PgQueuer) |
+| `ports/http.py`, `providers/drivers/http/wreq.py` | api, cli, graph, tui |
+| `ports/store.py`, `providers/drivers/store/redis.py`, `providers/drivers/store/sqlite.py` | api, cli, graph, tui |
+| `ports/queue.py`, `providers/drivers/queue/awa.py`, `providers/drivers/queue/pgqueuer.py` (with `database/asyncpg.py`), `engines/dispatch.py` | none by default — the background's durable queues are opt-in: a service that runs one drops the exclusion, and the composition root names which class fills `QueuePort` |
+| `ports/telemetry.py`, `providers/drivers/telemetry/otel.py` | none by default — tracing is opt-in |
+| `ports/documents.py`, `providers/drivers/documents/docling.py` | api, cli, graph, tui (with `processors/doc`) |
+| `ports/pages.py`, `providers/adapters/pages/liteparse.py` | api, cli, graph, tui (with `processors/doc`) |
+| `ports/markdown.py`, `providers/adapters/markdown/anytomd.py` | api, cli, graph, tui (with `processors/md`) |
+| `ports/cache.py`, `providers/adapters/cache/theine.py`, `engines/cache.py` | none by default — the cache is opt-in; its durable layer is `CachePostgresDriver` in `providers/drivers/cache/postgres.py`, over any `DatabasePort` |
+| `ports/embed.py`, `ports/rerank.py`, `providers/drivers/embed/tei.py`, `providers/drivers/rerank/tei.py` | none by default — model edges are opt-in |
+| `ports/llm.py`, `providers/drivers/llm/openai.py` | none by default — model edges are opt-in |
+| `ports/ner.py`, `providers/drivers/ner/gliner.py` | none by default — model edges are opt-in |
+| `ports/extract.py`, `providers/adapters/extract/rtrafilatura.py` | none by default — web extraction is opt-in |
 | `processors/*` | api, cli, graph, tui |
 
 ## ops — the closed registry of categories

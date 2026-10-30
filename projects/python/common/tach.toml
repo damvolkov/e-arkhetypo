@@ -4,55 +4,48 @@ exclude = ["tests", "docs", "common"]
 
 ##### RULES #####
 forbid_circular_dependencies = true
-exact = true
+### the table below is the import table of the taxonomy, spelled edge by edge: an import that is not an edge fails. `exact`
+### stays off because the table declares what a layer MAY import (every execution module may reach `ops`, none does yet);
+### the graph itself — no edge between engines, processors, drivers and adapters, none upward — is what the gate holds.
+exact = false
 root_module = "forbid"
-
-##### LAYERS #####
-# Ordered high → low: a layer may import lower layers, importing upward fails. engines, processors, drivers and adapters
-# share one layer: none of them imports another (the layer is horizontal), each reaches only ports, infra and ops.
-layers = ["execution", "ports", "infra", "ops", "base"]
 
 [rules]
 unused_ignore_directives = "error"
 
 ##### MODULES #####
+### engines, processors, drivers and adapters are the execution level: each stands on ports, infra and ops, and none
+### lists another — the horizontal ban is the absence of an edge.
 [[modules]]
 path = "e_infra.engines"
-layer = "execution"
-depends_on = []
+depends_on = ["e_infra.ports", "e_infra.infra", "e_infra.infra.errors", "e_infra.ops"]
 
 [[modules]]
 path = "e_infra.processors"
-layer = "execution"
-depends_on = []
+depends_on = ["e_infra.ports", "e_infra.infra", "e_infra.infra.errors", "e_infra.ops"]
 
 [[modules]]
 path = "e_infra.providers.drivers"
-layer = "execution"
-depends_on = []
+depends_on = ["e_infra.ports", "e_infra.infra", "e_infra.infra.errors", "e_infra.ops"]
 
 [[modules]]
 path = "e_infra.providers.adapters"
-layer = "execution"
-depends_on = []
+depends_on = ["e_infra.ports", "e_infra.infra", "e_infra.infra.errors", "e_infra.ops"]
 
+### ports are the bottleneck of the import graph: they see infra and nothing else.
 [[modules]]
 path = "e_infra.ports"
-layer = "ports"
-depends_on = []
+depends_on = ["e_infra.infra", "e_infra.infra.errors"]
 
 [[modules]]
 path = "e_infra.infra"
-layer = "infra"
-depends_on = []
+depends_on = ["e_infra.ops", "e_infra.infra.errors"]
 
-### the error tree is the floor of the package: every layer, `ops` included, raises from it and it imports nothing.
+### the error tree is the floor of the package: every module, `ops` included, raises from it and it imports nothing.
 [[modules]]
 path = "e_infra.infra.errors"
-layer = "base"
 depends_on = []
 
 [[modules]]
 path = "e_infra.ops"
-layer = "ops"
-depends_on = []
+depends_on = ["e_infra.infra.errors"]

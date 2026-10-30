@@ -1,7 +1,7 @@
 """e_infra/providers/adapters/pages/liteparse: the fast pass on the real filing — blocks, tables and the signals."""
 
 from pathlib import Path
-from typing import Final
+from typing import TYPE_CHECKING, Final
 
 import pytest
 
@@ -10,6 +10,9 @@ from e_infra.infra.config.providers.adapters.pages.liteparse import LiteparseSet
 from e_infra.infra.errors import ParseError
 from e_infra.ports.pages import FastPage, PagesPort
 from e_infra.providers.adapters.pages.liteparse import LiteparseAdapter
+
+if TYPE_CHECKING:
+    from unit.e_infra.conftest import Logs
 
 FILING: Final[Path] = Path(__file__).resolve().parents[5] / "resources" / "documents" / "filing.pdf"
 TEXT, WORKFORCE, STATEMENT, SCAN = 1, 2, 3, 4
@@ -50,3 +53,15 @@ async def test_liteparse_error_translated() -> None:
     async with LiteparseAdapter(LiteparseSettings()) as pages:
         with pytest.raises(ParseError):
             await pages.parse(b"not a pdf at all")
+
+
+async def test_liteparse_lifecycle_and_its_failures_are_logged(logs: Logs) -> None:
+    pages = LiteparseAdapter(LiteparseSettings())
+    assert not await pages.health()
+    async with pages:
+        with pytest.raises(ParseError):
+            await pages.parse(b"not a pdf at all")
+    assert logs.at("info") == ["liteparse opened", "liteparse closed"]
+    assert logs.at("error") == ["liteparse failed"]
+    assert logs.at("warning") == ["liteparse unhealthy"]
+    assert logs.at("debug") == ["liteparse parse"]

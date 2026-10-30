@@ -27,7 +27,6 @@ import anyio
 from croniter import croniter
 
 from e_infra.infra.background import (
-    THROTTLE,
     Background,
     BackgroundJob,
     BackgroundReport,
@@ -37,11 +36,14 @@ from e_infra.infra.background import (
 )
 from e_infra.infra.errors import QueueError, ScheduleError, UnknownWorkError
 from e_infra.infra.logger import logger
+from e_infra.infra.settings import settings as st
 from e_infra.ports.queue import QueuePort, SchedulePort
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable, Mapping
     from types import TracebackType
+
+    from e_infra.infra.config.engines.dispatch import DispatchSettings
 
     type Engine = QueuePort | Background
 
@@ -70,12 +72,15 @@ class DispatchEngine:
         memory: Background,
         slots: Mapping[str, int],
         *,
-        throttle: float = THROTTLE,
+        throttle: float | None = None,
+        settings: DispatchSettings | None = None,
     ) -> None:
+        ### the default is read on call, not at import: the settings singleton stays lazy.
+        conf = st.engines.dispatch if settings is None else settings
         self._durable = durable
         self._memory = memory
         self._slots = MappingProxyType(dict(slots))
-        self._throttle = throttle
+        self._throttle = conf.throttle.total_seconds() if throttle is None else throttle
         self._works: dict[str, tuple[str, BackgroundWork]] = {}
         self._schedules: dict[str, BackgroundSchedule] = {}
         self._stack = AsyncExitStack()

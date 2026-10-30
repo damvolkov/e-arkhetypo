@@ -14,6 +14,7 @@ from e_infra.providers.drivers.llm.openai import OpenaiBucket, OpenaiDriver
 
 if TYPE_CHECKING:
     from e_infra.ports.http import HttpPort
+    from unit.e_infra.conftest import Logs
     from unit.e_infra.providers.drivers.conftest import Stub
 
 SCHEMA = {"type": "object", "properties": {"n": {"type": "integer"}}}
@@ -91,3 +92,17 @@ async def test_openai_bucket_waits_for_its_own_token() -> None:
     start = time.monotonic()
     await bucket.take()
     assert time.monotonic() - start >= 0.05
+
+
+async def test_openai_lifecycle_the_bad_replies_and_an_unhealthy_server_are_logged(
+    stub: Stub, http: HttpPort, logs: Logs
+) -> None:
+    stub.json("POST", "/v1/chat/completions", completion("not json", "length"))
+    async with OpenaiDriver(http, settings(stub)) as llm:
+        with pytest.raises(TruncatedError):
+            await llm.structured("s", "p", SCHEMA)
+        assert not await llm.health()
+    assert logs.at("info", "openai") == ["openai opened", "openai closed"]
+    assert logs.at("error", "openai") == ["openai answer is not JSON"]
+    assert logs.at("warning", "openai") == ["openai unhealthy"]
+    assert logs.at("debug", "openai") == ["openai structured"]

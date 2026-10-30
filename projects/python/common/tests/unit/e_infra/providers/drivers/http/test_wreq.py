@@ -1,6 +1,8 @@
 """e_infra/providers/drivers/http/wreq: wreq lifecycle offline, JSON roundtrip, typed decode and the error border."""
 
+import asyncio
 from datetime import timedelta
+from typing import TYPE_CHECKING
 
 import msgspec
 import pytest
@@ -9,6 +11,9 @@ from e_infra.infra.config.providers.drivers.http.wreq import WreqSettings
 from e_infra.infra.errors import HttpError, HttpTimeoutError
 from e_infra.ports.http import HttpPort
 from e_infra.providers.drivers.http.wreq import WreqDriver
+
+if TYPE_CHECKING:
+    from unit.e_infra.conftest import Logs
 
 
 class Greeting(msgspec.Struct, frozen=True):
@@ -77,3 +82,39 @@ async def test_http_health() -> None:
     async with adapter:
         assert await adapter.health()
     assert not await adapter.health()
+
+
+async def test_http_lifecycle_is_logged(http_server: str, logs: Logs) -> None:
+    async with WreqDriver(WreqSettings(base_url=http_server)):
+        pass
+    assert logs.at("info") == ["wreq opened", "wreq closed"]
+
+
+async def test_http_a_refused_status_a_timeout_and_a_dead_server_are_logged_where_translated(
+    http_server: str, logs: Logs
+) -> None:
+    async with WreqDriver(WreqSettings(base_url=http_server)) as adapter:
+        with pytest.raises(HttpError):
+            await adapter.get("/boom")
+        with pytest.raises(HttpTimeoutError):
+            await adapter.get("/slow", within=timedelta(milliseconds=50))
+    async with WreqDriver(WreqSettings(base_url="http://127.0.0.1:9")) as dead:
+        with pytest.raises(HttpError):
+            await dead.get("/x")
+    assert logs.at("error") == ["wreq refused", "wreq timed out", "wreq failed"]
+    assert logs.at("debug") == ["wreq request"] * 3
+
+
+async def test_http_unhealthy_is_warned_and_an_unopened_call_is_not_translated(logs: Logs) -> None:
+    assert not await WreqDriver(WreqSettings()).health()
+    assert logs.at("warning") == ["wreq unhealthy"]
+
+
+async def test_http_a_cancelled_request_stays_a_cancellation_never_an_http_error(http_server: str) -> None:
+    """wreq's Rust future surfaces a cancel as a bare CancelledError: the border neither swallows nor translates it."""
+    async with WreqDriver(WreqSettings(base_url=http_server)) as adapter:
+        request = asyncio.ensure_future(adapter.get("/slow"))
+        await asyncio.sleep(0.1)
+        request.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await request

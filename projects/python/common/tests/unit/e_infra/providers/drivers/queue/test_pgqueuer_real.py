@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 
     from e_infra.infra.background import BackgroundHandler
     from e_infra.providers.drivers.queue.awa import AwaDriver
-    from unit.e_infra.providers.drivers.conftest import Flaky, Hang
+    from unit.e_infra.providers.drivers.queue.conftest import Flaky, Hang
 
 pytestmark = pytest.mark.integration
 

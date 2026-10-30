@@ -8,6 +8,7 @@ reads a job until it settles, `running` until a worker runs it, `outage` takes a
 helpers, imported by the tests (`pythonpath` holds tests/unit)."""
 
 import os
+import sys
 import uuid
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
@@ -166,50 +167,88 @@ class Warnings:
     info = error = debug
 
 
+class Logs:
+    """A logger that keeps everything it is told: level, event, fields — what a test asserts a driver logged."""
+
+    def __init__(self) -> None:
+        self.events: list[tuple[str, str, dict[str, object]]] = []
+
+    def debug(self, event: str, **fields: object) -> None:
+        self.events.append(("debug", event, fields))
+
+    def info(self, event: str, **fields: object) -> None:
+        self.events.append(("info", event, fields))
+
+    def warning(self, event: str, **fields: object) -> None:
+        self.events.append(("warning", event, fields))
+
+    def error(self, event: str, **fields: object) -> None:
+        self.events.append(("error", event, fields))
+
+    def at(self, level: str, prefix: str = "") -> list[str]:
+        """The events told at one level, in order — those of one provider when its name is the `prefix`."""
+        return [event for told, event, _ in self.events if told == level and event.startswith(prefix)]
+
+
+@pytest.fixture
+def logs(monkeypatch: pytest.MonkeyPatch) -> Logs:
+    """Every `logger` of the package replaced by one recorder, for the test's length."""
+    recorder = Logs()
+    _ = [
+        monkeypatch.setattr(module, "logger", recorder)
+        for name, module in tuple(sys.modules.items())
+        if name.startswith("e_infra.") and name != "e_infra.infra.logger" and hasattr(module, "logger")
+    ]
+    return recorder
+
+
 @pytest.fixture
 def works() -> Works:
     return Works()
 
 
+REACHED: Final[dict[str, str]] = {}
+
+
+async def reachable(name: str) -> str:
+    """The DSN of the test database `name` beside POSTGRES_TEST_DSN's, created when missing — or the test skips and says
+    why. Asked for only by what needs a server: the memory engine's tests never reach here."""
+    try:
+        REACHED.setdefault(name, await create(f"{DSN}_{name}"))
+    except PsqlError as error:
+        pytest.skip(f"no test Postgres at {DSN.rpartition('@')[2]}: {error}")
+    return REACHED[name]
+
+
 @pytest_asyncio.fixture(scope="session", loop_scope="session")
 async def queue_database(worker_id: str) -> str:
     """This worker's queue database, as in production a database of its own."""
-    try:
-        return await create(f"{DSN}_queue_{worker_id}")
-    except PsqlError as error:
-        pytest.skip(f"no test Postgres at {DSN.rpartition('@')[2]}: {error}")
+    return await reachable(f"queue_{worker_id}")
 
 
 @pytest_asyncio.fixture(scope="session", loop_scope="session")
 async def pgqueuer_database(worker_id: str) -> str:
     """This worker's PgQueuer database: its tables and the adapter's own never meet awa's."""
-    try:
-        return await create(f"{DSN}_pgqueuer_{worker_id}")
-    except PsqlError as error:
-        pytest.skip(f"no test Postgres at {DSN.rpartition('@')[2]}: {error}")
+    return await reachable(f"pgqueuer_{worker_id}")
+
+
+PACE: Final[dict[str, Any]] = {
+    "poll": timedelta(milliseconds=50),
+    "drain": timedelta(seconds=1),
+    "timeout": timedelta(seconds=5),
+}
 
 
 @pytest.fixture
 def queue_settings(queue_database: str) -> AwaSettings:
     """The awa queue at test pace: a short poll and drain, calls that give up within five seconds."""
-    return AwaSettings(
-        dsn=Secret(queue_database),
-        pool=8,
-        poll=timedelta(milliseconds=50),
-        drain=timedelta(seconds=1),
-        timeout=timedelta(seconds=5),
-    )
+    return AwaSettings(dsn=Secret(queue_database), pool=8, **PACE)
 
 
 @pytest.fixture
 def pgqueuer_settings() -> PgqueuerSettings:
     """PgQueuer at test pace: a short poll, drain and restart, calls that give up within five seconds."""
-    return PgqueuerSettings(
-        poll=timedelta(milliseconds=50),
-        drain=timedelta(seconds=1),
-        timeout=timedelta(seconds=5),
-        restart=timedelta(milliseconds=50),
-    )
+    return PgqueuerSettings(restart=timedelta(milliseconds=50), **PACE)
 
 
 @pytest.fixture
@@ -223,16 +262,22 @@ async def pgqueuer_db(pgqueuer_database: str) -> AsyncIterator[AsyncpgDriver]:
 
 @dataclass(frozen=True, slots=True)
 class Queues:
-    """The settings of both durable queues on this worker's databases: awa's, PgQueuer's, PgQueuer's database DSN."""
+    """Both durable queues at test pace, their databases reached only when asked: a test that runs the memory engine
+    holds a `Queues` and touches no server."""
 
-    awa: AwaSettings
+    worker: str
     pgqueuer: PgqueuerSettings
-    database: str
+
+    async def awa(self) -> AwaSettings:
+        return AwaSettings(dsn=Secret(await reachable(f"queue_{self.worker}")), pool=8, **PACE)
+
+    async def database(self) -> str:
+        return await reachable(f"pgqueuer_{self.worker}")
 
 
 @pytest.fixture
-def queues(queue_settings: AwaSettings, pgqueuer_settings: PgqueuerSettings, pgqueuer_database: str) -> Queues:
-    return Queues(queue_settings, pgqueuer_settings, pgqueuer_database)
+def queues(worker_id: str, pgqueuer_settings: PgqueuerSettings) -> Queues:
+    return Queues(worker_id, pgqueuer_settings)
 
 
 @pytest.fixture

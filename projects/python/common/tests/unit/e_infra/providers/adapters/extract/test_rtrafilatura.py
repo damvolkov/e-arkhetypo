@@ -1,6 +1,6 @@
 """e_infra/providers/adapters/extract/rtrafilatura: a page's main content as Markdown, its facts as front matter."""
 
-from typing import Final
+from typing import TYPE_CHECKING, Final
 
 import pytest
 from rtrafilatura.errors import ExtractionError
@@ -9,6 +9,9 @@ from e_infra.infra.errors import ParseError
 from e_infra.ports.extract import ExtractPort
 from e_infra.providers.adapters.extract import rtrafilatura
 from e_infra.providers.adapters.extract.rtrafilatura import RtrafilaturaAdapter
+
+if TYPE_CHECKING:
+    from unit.e_infra.conftest import Logs
 
 PAGE: Final = (
     b"<html><head><title>On Rivers</title></head><body><nav><a href='/'>Home</a></nav><article><h1>On Rivers</h1>"
@@ -46,3 +49,16 @@ async def test_rtrafilatura_error_translated(monkeypatch: pytest.MonkeyPatch) ->
         with pytest.raises(ParseError, match="tree too large"):
             await extractor.extract(PAGE)
         assert not await extractor.health()
+
+
+async def test_rtrafilatura_lifecycle_and_its_failures_are_logged(monkeypatch: pytest.MonkeyPatch, logs: Logs) -> None:
+    def broken(*_args: object, **_kwargs: object) -> None:
+        msg = "tree too large"
+        raise ExtractionError(msg)
+
+    monkeypatch.setattr(rtrafilatura.rtrafilatura, "extract", broken)
+    async with RtrafilaturaAdapter() as extractor:
+        assert not await extractor.health()
+    assert logs.at("info") == ["rtrafilatura opened", "rtrafilatura closed"]
+    assert logs.at("error") == ["rtrafilatura failed"]
+    assert logs.at("warning") == ["rtrafilatura unhealthy"]

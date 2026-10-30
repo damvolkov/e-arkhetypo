@@ -1,166 +1,93 @@
-"""tests/unit/e_infra/providers/drivers: the http and docling harnesses — real stdlib sockets on localhost, offline-safe —
-and the queue drivers (awa, PgQueuer) and the postgres driver on the test Postgres. `port` is either durable queue,
-unentered, for the contract both hold; `Flaky` and `Hang` are scripted handlers."""
+"""tests/unit/e_infra/providers/drivers: the localhost HTTP services (pytest-httpserver), `DOWN`, the asyncpg fake, and the test Postgres.
+
+`stub` is a live service answering by (method, path), `http_server` one that answers like a small JSON API,
+`docling_server` a docling-serve stand-in; none leaves the machine. `database` is this worker's own database beside
+POSTGRES_TEST_DSN's, `pg` a psqlpy driver over a fresh `adapters` schema holding one probe table — the real-service
+tests of the database and cache drivers run on them."""
 
 import json
-import threading
+import re
 import time
+from collections.abc import Iterable
 from dataclasses import dataclass, field
-from datetime import timedelta
-from functools import partial
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from typing import TYPE_CHECKING, ClassVar, Final
+from typing import TYPE_CHECKING, Final
 
-import anyio
+import asyncpg
 import pytest
 import pytest_asyncio
-from awa import AsyncClient
 from psqlpy.exceptions import Error as PsqlError
+from pytest_httpserver import HTTPServer, RequestHandler
+from werkzeug import Request, Response
 
 from e_infra.infra.config.base import Secret
 from e_infra.infra.config.providers.drivers.database.psqlpy import PsqlpySettings
 from e_infra.providers.drivers.database.psqlpy import PsqlpyDriver
 from e_infra.providers.drivers.http.wreq import WreqDriver
-from e_infra.providers.drivers.queue.awa import AwaDriver
-from e_infra.providers.drivers.queue.pgqueuer import PgqueuerDriver
-from unit.e_infra.conftest import DSN, admin, create
+from support.asyncpg import FakeAsyncpgServer
+from unit.e_infra.conftest import DSN, create
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncIterator, Awaitable, Callable, Iterator
+    from collections.abc import AsyncIterator, Callable, Iterator
 
-    from e_infra.infra.background import BackgroundHandler, BackgroundRun
-    from e_infra.infra.config.providers.drivers.queue.awa import AwaSettings
-    from e_infra.infra.config.providers.drivers.queue.pgqueuer import PgqueuerSettings
     from e_infra.ports.http import HttpPort
-    from e_infra.providers.drivers.database.asyncpg import AsyncpgDriver
+
+type Answer = tuple[int, bytes | Iterable[bytes]]
 
 
-class JsonHandler(BaseHTTPRequestHandler):
-    """Answers /ok with a JSON body, /slow late, echoes POST payloads, 500 on everything else."""
-
-    def do_GET(self) -> None:
-        match self.path:
-            case "/ok":
-                self._respond(200, b'{"hello": "world"}')
-            case "/slow":
-                time.sleep(1.0)
-                self._respond(200, b"{}")
-            case _:
-                self._respond(500, b'{"error": "boom"}')
-
-    def do_POST(self) -> None:
-        self._respond(200, self.rfile.read(int(self.headers["content-length"])))  # echo the payload
-
-    def _respond(self, status: int, body: bytes) -> None:
-        self.send_response(status)
-        self.send_header("content-type", "application/json")
-        self.send_header("content-length", str(len(body)))
-        self.end_headers()
-        self.wfile.write(body)
-
-    def log_message(self, format: str, *args: object) -> None:  # noqa: A002 — name imposed by http.server
-        """Quiet: http.server's per-request stderr noise stays out of the test output."""
+##### SERVER — one threaded localhost server per worker #####
+@pytest.fixture(scope="session")
+def make_httpserver() -> Iterator[HTTPServer]:
+    """pytest-httpserver's own server, threaded: a handler that sleeps (a slow route) holds no other request."""
+    server = HTTPServer(host="127.0.0.1", port=0, threaded=True)
+    server.start()
+    yield server
+    server.clear()
+    server.stop()
 
 
-@pytest.fixture
-def http_server() -> Iterator[str]:
-    """A live base_url served from a daemon thread, shut down with the test."""
-    with ThreadingHTTPServer(("127.0.0.1", 0), JsonHandler) as srv:
-        worker = threading.Thread(target=srv.serve_forever, kwargs={"poll_interval": 0.01}, daemon=True)
-        worker.start()
-        yield f"http://127.0.0.1:{srv.server_port}"
-        srv.shutdown()
-        worker.join()
-
-
-class DoclingHandler(BaseHTTPRequestHandler):
-    """A docling-serve stand-in: async tasks that start, then settle; the last request kept for inspection.
-
-    A source URL ending in `/fail` makes a failed task, `/slow` one that never settles, `/hang` a request
-    that is not answered in time, `/stall` one whose headers arrive at once and whose body does not."""
-
-    requests: ClassVar[list[dict[str, object]]] = []
-    polls: ClassVar[dict[str, int]] = {}
-    ready: ClassVar[bool] = True
-
-    def do_POST(self) -> None:
-        body = json.loads(self.rfile.read(int(self.headers["content-length"])))
-        DoclingHandler.requests.append(body)
-        source = body["sources"][0]
-        task = str(source.get("url", "inline")).rpartition("/")[2]
-        ### `/hang`: the server takes the request and never answers in time — the deadline must cut it.
-        _ = time.sleep(1.0) if task == "hang" else None
-        self._respond(200, {"task_id": task, "task_type": "convert", "task_status": "pending"}, stall=task == "stall")
-
-    def do_GET(self) -> None:
-        path, _, _ = self.path.partition("?")
-        match path.split("/"):
-            case ["", "ready"]:
-                self._respond(200 if DoclingHandler.ready else 503, {"status": "ok"})
-            case ["", "v1", "status", "poll", task]:
-                DoclingHandler.polls[task] = DoclingHandler.polls.get(task, 0) + 1
-                settled = {"fail": "failure", "slow": "started"}.get(task, "success")
-                state = "started" if DoclingHandler.polls[task] == 1 else settled
-                self._respond(
-                    200, {"task_id": task, "task_status": state, "error_message": "bad pdf" if task == "fail" else None}
-                )
-            case ["", "v1", "result", task]:
-                document = {"filename": f"{task}.pdf", "md_content": "# Title", "json_content": {"tables": []}}
-                self._respond(200, {"document": document, "status": "success", "errors": [], "processing_time": 1.5})
-            case _:
-                self._respond(404, {"detail": "not found"})
-
-    def _respond(self, status: int, payload: object, *, stall: bool = False) -> None:
-        body = json.dumps(payload).encode()
-        self.send_response(status)
-        self.send_header("content-type", "application/json")
-        self.send_header("content-length", str(len(body)))
-        self.end_headers()
-        ### `stall`: headers out at once, the body only after the deadline — the cut lands on the body read.
-        _ = (self.wfile.flush(), time.sleep(1.0)) if stall else None
-        self.wfile.write(body)
-
-    def log_message(self, format: str, *args: object) -> None:  # noqa: A002 — name imposed by http.server
-        """Quiet."""
-
-
-@dataclass(frozen=True, slots=True)
-class DoclingStub:
-    """The stand-in as a test sees it: where it listens, and its handler's recorded state."""
-
-    url: str
-    handler: type[DoclingHandler]
-
-    @property
-    def sent(self) -> dict[str, object]:
-        """The last request body the server took."""
-        return self.handler.requests[-1]
-
-
-@pytest.fixture
-def docling_server() -> Iterator[DoclingStub]:
-    """A live docling-serve stand-in on localhost; its recorded requests and polls reset per test."""
-    DoclingHandler.requests.clear()
-    DoclingHandler.polls.clear()
-    DoclingHandler.ready = True
-    with ThreadingHTTPServer(("127.0.0.1", 0), DoclingHandler) as srv:
-        worker = threading.Thread(target=srv.serve_forever, kwargs={"poll_interval": 0.01}, daemon=True)
-        worker.start()
-        yield DoclingStub(url=f"http://127.0.0.1:{srv.server_port}", handler=DoclingHandler)
-        srv.shutdown()
+def respond(status: int, payload: bytes | Iterable[bytes], *, kind: str = "application/json") -> Response:
+    """A bytes payload as one response, an iterable of bytes streamed — headers out first, frame by frame."""
+    return Response(payload, status=status, content_type=kind)
 
 
 ##### STUB — a service answering by route #####
+class StubRoutes:
+    """The routes a stub knows; clearing them makes it answer nothing, as a server that went away."""
+
+    def __init__(self, server: HTTPServer) -> None:
+        self._server = server
+
+    def clear(self) -> None:
+        self._server.clear_all_handlers()
+
+
 @dataclass(slots=True)
 class Stub:
     """A live service on localhost, answering by (method, path); every request it took is kept, body decoded."""
 
-    url: str = ""
-    routes: dict[tuple[str, str], Callable[[bytes], tuple[int, bytes]]] = field(default_factory=dict)
+    server: HTTPServer
     sent: list[tuple[str, str, dict[str, str], bytes]] = field(default_factory=list)
+    known: dict[tuple[str, str | re.Pattern[str]], RequestHandler] = field(default_factory=dict)
 
-    def on(self, method: str, path: str, answer: Callable[[bytes], tuple[int, bytes]]) -> None:
-        self.routes[(method, path)] = answer
+    @property
+    def url(self) -> str:
+        return self.server.url_for("").rstrip("/")
+
+    @property
+    def routes(self) -> StubRoutes:
+        return StubRoutes(self.server)
+
+    def on(self, method: str, path: str | re.Pattern[str], answer: Callable[[bytes], Answer]) -> None:
+        def serve(request: Request) -> Response:
+            body = request.get_data()
+            self.sent.append((request.method, request.path, {k.lower(): v for k, v in request.headers.items()}, body))
+            status, payload = answer(body)
+            return respond(status, payload)
+
+        ### a route taught again is replaced, not stacked: the server answers with the first handler that matches.
+        _ = (old := self.known.pop((method, path), None)) and self.server.handlers.remove(old)
+        self.known[method, path] = self.server.expect_request(path, method=method)
+        self.known[method, path].respond_with_handler(serve)
 
     def json(self, method: str, path: str, payload: object, status: int = 200) -> None:
         self.on(method, path, lambda _body: (status, json.dumps(payload).encode()))
@@ -169,51 +96,96 @@ class Stub:
         return [body for _method, where, _headers, body in self.sent if where == path]
 
 
-class StubHandler(BaseHTTPRequestHandler):
-    """Routes to the owning `Stub`; a chunked request body (a streamed one) is decoded."""
-
-    stub: Stub
-
-    def _body(self) -> bytes:
-        match self.headers.get("transfer-encoding"):
-            case "chunked":
-                return b"".join(iter(self._chunk, b""))
-            case _:
-                return self.rfile.read(int(self.headers.get("content-length") or 0))
-
-    def _chunk(self) -> bytes:
-        size = int(self.rfile.readline().strip() or b"0", 16)
-        data = self.rfile.read(size)
-        self.rfile.readline()
-        return data
-
-    def _serve(self) -> None:
-        body = self._body()
-        self.stub.sent.append((self.command, self.path, {k.lower(): v for k, v in self.headers.items()}, body))
-        status, payload = self.stub.routes.get((self.command, self.path), lambda _body: (404, b"{}"))(body)
-        self.send_response(status)
-        self.send_header("content-length", str(len(payload)))
-        self.end_headers()
-        self.wfile.write(payload)
-
-    do_GET = do_POST = _serve  # noqa: N815 — names imposed by http.server
-
-    def log_message(self, format: str, *args: object) -> None:  # noqa: A002 — name imposed by http.server
-        """Quiet."""
+@pytest.fixture
+def stub(httpserver: HTTPServer) -> Stub:
+    """A live service on localhost, no routes yet: tests teach it what to answer."""
+    return Stub(httpserver)
 
 
 @pytest.fixture
-def stub() -> Iterator[Stub]:
-    """A live service on localhost, no routes yet: tests teach it what to answer."""
-    served = Stub()
-    handler = type("Handler", (StubHandler,), {"stub": served})
-    with ThreadingHTTPServer(("127.0.0.1", 0), handler) as srv:
-        served.url = f"http://127.0.0.1:{srv.server_port}"
-        worker = threading.Thread(target=srv.serve_forever, kwargs={"poll_interval": 0.01}, daemon=True)
-        worker.start()
-        yield served
-        srv.shutdown()
-        worker.join()
+def http_server(stub: Stub) -> str:
+    """A small JSON API: /ok answers, /slow answers late, a POST is echoed, anything else is a 500."""
+
+    def slow(_body: bytes) -> Answer:
+        time.sleep(1.0)
+        return 200, b"{}"
+
+    stub.json("GET", "/ok", {"hello": "world"})
+    stub.on("GET", "/slow", slow)
+    stub.on("POST", re.compile(".*"), lambda body: (200, body))
+    stub.json("GET", "/boom", {"error": "boom"}, status=500)
+    return stub.url
+
+
+##### DOCLING — a docling-serve stand-in #####
+@dataclass(slots=True)
+class DoclingStub:
+    """docling-serve as a test sees it: where it listens, the requests it took, the polls each task got.
+
+    A source URL ending in `/fail` makes a failed task, `/slow` one that never settles, `/hang` a request that is not
+    answered in time, `/stall` one whose headers arrive at once and whose body does not."""
+
+    server: HTTPServer
+    requests: list[dict[str, object]] = field(default_factory=list)
+    polls: dict[str, int] = field(default_factory=dict)
+    ready: bool = True
+
+    @property
+    def url(self) -> str:
+        return self.server.url_for("").rstrip("/")
+
+    @property
+    def handler(self) -> DoclingStub:
+        """Its recorded state — `polls`, `ready` — where a test reads and flips it."""
+        return self
+
+    @property
+    def sent(self) -> dict[str, object]:
+        """The last request body the server took."""
+        return self.requests[-1]
+
+    def post(self, request: Request) -> Response:
+        body = json.loads(request.get_data())
+        self.requests.append(body)
+        source = body["sources"][0]
+        task = str(source.get("url", "inline")).rpartition("/")[2]
+        ### `/hang`: the server takes the request and never answers in time — the deadline must cut it.
+        _ = time.sleep(1.0) if task == "hang" else None
+        answer = json.dumps({"task_id": task, "task_type": "convert", "task_status": "pending"}).encode()
+        return respond(200, self._late(answer) if task == "stall" else answer)
+
+    @staticmethod
+    def _late(answer: bytes) -> Iterator[bytes]:
+        """Headers out at once, the body only after the deadline — the cut lands on the body read."""
+        yield b""
+        time.sleep(1.0)
+        yield answer
+
+    def get(self, request: Request) -> Response:
+        match request.path.split("/"):
+            case ["", "ready"]:
+                return respond(200 if self.ready else 503, b'{"status": "ok"}')
+            case ["", "v1", "status", "poll", task]:
+                self.polls[task] = self.polls.get(task, 0) + 1
+                settled = {"fail": "failure", "slow": "started"}.get(task, "success")
+                state = "started" if self.polls[task] == 1 else settled
+                status = {"task_id": task, "task_status": state, "error_message": "bad pdf" if task == "fail" else None}
+                return respond(200, json.dumps(status).encode())
+            case ["", "v1", "result", task]:
+                document = {"filename": f"{task}.pdf", "md_content": "# Title", "json_content": {"tables": []}}
+                result = {"document": document, "status": "success", "errors": [], "processing_time": 1.5}
+                return respond(200, json.dumps(result).encode())
+            case _:
+                return respond(404, b'{"detail": "not found"}')
+
+
+@pytest.fixture
+def docling_server(httpserver: HTTPServer) -> DoclingStub:
+    """A live docling-serve stand-in on localhost; its recorded requests and polls start empty in every test."""
+    docling = DoclingStub(httpserver)
+    httpserver.expect_request(re.compile(".*"), method="POST").respond_with_handler(docling.post)
+    httpserver.expect_request(re.compile(".*"), method="GET").respond_with_handler(docling.get)
+    return docling
 
 
 ##### HTTP #####
@@ -228,111 +200,14 @@ async def http() -> AsyncIterator[HttpPort]:
         yield driver
 
 
-##### QUEUE #####
+##### ASYNCPG — a pool that holds no database #####
 @pytest.fixture
-async def awa(queue_settings: AwaSettings) -> AsyncIterator[AwaDriver]:
-    async with AwaDriver(queue_settings) as adapter:
-        yield adapter
-
-
-@pytest.fixture
-async def refuse(queue_database: str) -> AsyncIterator[Callable[[], Awaitable[None]]]:
-    """Make the queue's database refuse every new connection — those already open stay — as a server out of slots
-    does; it accepts them again once the test is over."""
-    name = queue_database.rpartition("/")[2]
-
-    async def allow(flag: bool) -> None:
-        ### ALTER DATABASE takes no parameters; the name is this worker's queue database.
-        await admin(queue_database, (f'ALTER DATABASE "{name}" ALLOW_CONNECTIONS {str(flag).lower()}', []))
-
-    try:
-        yield partial(allow, False)
-    finally:
-        await allow(True)
-
-
-async def reported(run: BackgroundRun) -> None:
-    await run.report({"done": True})
-
-
-@pytest.fixture
-def handler() -> BackgroundHandler:
-    """A job's handler that reports once and returns."""
-    return reported
-
-
-@pytest.fixture
-def stuck(monkeypatch: pytest.MonkeyPatch) -> None:
-    """An awa shutdown that never returns — after it has really stopped the runtime and closed the pool, so a test
-    that lets the client go leaks no connection."""
-    shutdown, close = AsyncClient.shutdown, AsyncClient.close
-
-    async def never(client: AsyncClient, timeout_ms: int = 2000) -> None:
-        await shutdown(client, timeout_ms)
-        await close(client)
-        await anyio.sleep_forever()
-
-    monkeypatch.setattr(AsyncClient, "shutdown", never)
-
-
-##### ENGINES — the same contract on awa and on PgQueuer, each on a database of its own #####
-@pytest.fixture(params=["awa", "pgqueuer"])
-async def port(
-    request: pytest.FixtureRequest,
-    queue_settings: AwaSettings,
-    pgqueuer_settings: PgqueuerSettings,
-    pgqueuer_db: AsyncpgDriver,
-) -> AwaDriver | PgqueuerDriver:
-    """The durable engine under test, not yet connected (PgQueuer's asyncpg driver is open beneath it)."""
-    return AwaDriver(queue_settings) if request.param == "awa" else PgqueuerDriver(pgqueuer_db, pgqueuer_settings)
-
-
-@pytest.fixture
-def engine(pgqueuer_db: AsyncpgDriver, pgqueuer_settings: PgqueuerSettings) -> PgqueuerDriver:
-    """A PgQueuer engine on this worker's database, short timeouts, not yet connected."""
-    return PgqueuerDriver(pgqueuer_db, pgqueuer_settings.model_copy(update={"timeout": timedelta(seconds=1)}))
-
-
-@dataclass(slots=True)
-class Flaky:
-    """A handler that fails its first `fails` attempts, then reports and returns."""
-
-    fails: int
-    seen: int = 0
-
-    async def __call__(self, run: BackgroundRun) -> None:
-        self.seen += 1
-        _ = self.seen <= self.fails and self._fail()
-        await run.report({"attempt": self.seen})
-
-    def _fail(self) -> None:
-        msg = f"attempt {self.seen} failed"
-        raise RuntimeError(msg)
-
-
-@dataclass(slots=True)
-class Hang:
-    """A handler that reports, then waits forever; `cancelled` once its wait was interrupted."""
-
-    cancelled: bool = False
-
-    async def __call__(self, run: BackgroundRun) -> None:
-        await run.report({"hanging": True})
-        try:
-            await anyio.sleep_forever()
-        except anyio.get_cancelled_exc_class():
-            self.cancelled = True
-            raise
-
-
-@pytest.fixture
-def hang() -> Hang:
-    return Hang()
-
-
-@pytest.fixture
-def flaky() -> Callable[[int], Flaky]:
-    return Flaky
+def asyncpg_server(monkeypatch: pytest.MonkeyPatch) -> FakeAsyncpgServer:
+    """The fake server `asyncpg.create_pool` and `asyncpg.connect` answer from, for the test's length."""
+    server = FakeAsyncpgServer()
+    monkeypatch.setattr(asyncpg, "create_pool", server.create_pool)
+    monkeypatch.setattr(asyncpg, "connect", server.connect)
+    return server
 
 
 ##### POSTGRES #####

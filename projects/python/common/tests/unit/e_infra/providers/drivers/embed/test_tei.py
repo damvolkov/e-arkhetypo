@@ -14,6 +14,7 @@ from e_infra.providers.drivers.embed.tei import TeiEmbedDriver
 
 if TYPE_CHECKING:
     from e_infra.ports.http import HttpPort
+    from unit.e_infra.conftest import Logs
     from unit.e_infra.providers.drivers.conftest import Stub
 
 
@@ -60,3 +61,10 @@ async def test_embed_health(stub: Stub, http: HttpPort) -> None:
         assert await embed.health()
         stub.on("GET", "/health", lambda _body: (503, b""))
         assert not await embed.health()
+
+
+async def test_embed_lifecycle_and_an_unhealthy_server_are_logged(stub: Stub, http: HttpPort, logs: Logs) -> None:
+    async with TeiEmbedDriver(http, TeiEmbedSettings(url=stub.url)) as embed:
+        assert not await embed.health()
+    assert logs.at("info", "tei") == ["tei embed opened", "tei embed closed"]
+    assert logs.at("warning", "tei") == ["tei embed unhealthy"]

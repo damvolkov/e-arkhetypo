@@ -10,6 +10,7 @@ from e_infra.providers.drivers.rerank.tei import TeiRerankDriver
 
 if TYPE_CHECKING:
     from e_infra.ports.http import HttpPort
+    from unit.e_infra.conftest import Logs
     from unit.e_infra.providers.drivers.conftest import Stub
 
 
@@ -31,3 +32,15 @@ async def test_rerank_health(stub: Stub, http: HttpPort) -> None:
     stub.routes.clear()
     async with TeiRerankDriver(http, TeiRerankSettings(url=stub.url)) as rerank:
         assert not await rerank.health()
+
+
+async def test_rerank_lifecycle_requests_and_an_unhealthy_server_are_logged(
+    stub: Stub, http: HttpPort, logs: Logs
+) -> None:
+    stub.on("POST", "/rerank", lambda _body: (200, msgspec.json.encode([{"index": 0, "score": 0.5}])))
+    async with TeiRerankDriver(http, TeiRerankSettings(url=stub.url)) as rerank:
+        await rerank.rerank("q", ["a"])
+        assert not await rerank.health()
+    assert logs.at("info", "tei") == ["tei rerank opened", "tei rerank closed"]
+    assert logs.at("debug", "tei") == ["tei rerank"]
+    assert logs.at("warning", "tei") == ["tei rerank unhealthy"]

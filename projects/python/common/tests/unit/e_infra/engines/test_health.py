@@ -3,12 +3,15 @@
 import asyncio
 import time
 from datetime import timedelta
-from typing import Final
+from typing import TYPE_CHECKING, Final
 
 import pytest
 
 from e_infra.engines.health import HealthEngine, ProviderHealth
 from unit.e_infra.engines.conftest import StubProvider
+
+if TYPE_CHECKING:
+    from unit.e_infra.conftest import Logs
 
 LIMIT: Final[timedelta] = timedelta(seconds=1)
 REQUIRED: Final[frozenset[str]] = frozenset({"store"})
@@ -70,3 +73,11 @@ async def test_survey_failures(provider: StubProvider, reason: str, latency: flo
         latency=verdict.latency if latency is None else latency,
         reason=reason,
     )
+
+
+async def test_survey_logs_the_survey_and_warns_for_each_provider_that_is_down(logs: Logs) -> None:
+    engine = HealthEngine({"store": StubProvider(up=False), "http": StubProvider()}, REQUIRED, LIMIT)
+    await engine.survey()
+    assert logs.at("debug") == ["health survey"]
+    assert logs.at("warning") == ["provider down"]
+    assert [fields["provider"] for level, _, fields in logs.events if level == "warning"] == ["store"]

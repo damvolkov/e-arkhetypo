@@ -23,6 +23,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from e_infra.ports.http import HttpPort
+    from unit.e_infra.conftest import Logs
 
 
 def settings(url: str, **values: Any) -> DoclingSettings:
@@ -165,3 +166,24 @@ async def test_a_request_past_the_deadline_times_out_never_cancels(docling_serve
     async with DoclingDriver(http, settings(docling_server.url, deadline=timedelta(milliseconds=300))) as adapter:
         with pytest.raises(TimeoutError, match="timed out after"):
             await adapter.convert("https://example.org/hang")
+
+
+async def test_lifecycle_and_the_failures_are_logged(docling_server: Any, http: HttpPort, logs: Logs) -> None:
+    async with DoclingDriver(http, settings(docling_server.url)) as adapter:
+        with pytest.raises(DocumentError):
+            await adapter.convert("https://example.org/fail")
+        docling_server.handler.ready = False
+        assert not await adapter.health()
+    assert logs.at("info", "docling") == ["docling opened", "docling closed"]
+    assert logs.at("error", "docling") == ["docling task failed"]
+    assert logs.at("warning", "docling") == ["docling unhealthy"]
+    assert "docling submitted" in logs.at("debug")
+
+
+async def test_a_request_past_the_deadline_is_logged_where_it_is_translated(
+    docling_server: Any, http: HttpPort, logs: Logs
+) -> None:
+    async with DoclingDriver(http, settings(docling_server.url, deadline=timedelta(milliseconds=300))) as adapter:
+        with pytest.raises(HttpTimeoutError):
+            await adapter.convert("https://example.org/hang")
+    assert logs.at("error", "docling") == ["docling timed out"]

@@ -7,7 +7,7 @@ the not-connected guard) is graded without the real engine or a vision model."""
 import io
 import zipfile
 from types import SimpleNamespace
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pytest
 
@@ -17,6 +17,9 @@ from e_infra.infra.errors import ParseError
 from e_infra.ports.markdown import MarkdownPort, MdConversion
 from e_infra.providers.adapters.markdown import anytomd
 from e_infra.providers.adapters.markdown.anytomd import AnytomdAdapter
+
+if TYPE_CHECKING:
+    from unit.e_infra.conftest import Logs
 
 PDF_KW: dict[str, Any] = {}
 DESC_KW: dict[str, Any] = {}
@@ -154,3 +157,22 @@ async def test_detect_names_an_archive_as_what_it_is(entries: dict[str, bytes], 
     with zipfile.ZipFile(buf, "w") as archive:
         _ = [archive.writestr(name, raw) for name, raw in entries.items()]
     assert AnytomdAdapter(AnytomdSettings()).detect("bundle.zip", buf.getvalue()) == expected
+
+
+async def test_the_engines_failure_and_the_lifecycle_are_logged(
+    engine: None, monkeypatch: pytest.MonkeyPatch, logs: Logs
+) -> None:
+    async def broken(*_args: Any, **_kwargs: Any) -> None:
+        msg = "malformed"
+        raise anytomd.ConvertError(msg)
+
+    monkeypatch.setattr(anytomd, "convert_bytes_async", broken)
+    a = adapter(image_describe=False)
+    async with a:
+        with pytest.raises(ParseError):
+            await a.convert(b"x", extension="html")
+        assert not await a.health()
+    assert logs.at("info") == ["anytomd opened", "anytomd closed"]
+    assert logs.at("error") == ["anytomd failed"] * 2
+    assert logs.at("warning") == ["anytomd unhealthy"]
+    assert logs.at("debug") == ["anytomd convert"] * 2

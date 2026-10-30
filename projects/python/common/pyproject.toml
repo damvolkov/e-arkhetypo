@@ -84,8 +84,10 @@ test = [
     "pytest-xdist[psutil]>=3.8",
     "pytest-randomly>=5.0",
     "pytest-timeout>=2.4",
-    "fakeredis>=2.38.0",
-    ### the queue tests create, and take down, their Postgres databases: an admin connection outside any transaction.
+    ### service fakes: redis in memory, and a real localhost server for every HTTP-based driver (streaming included).
+    "fakeredis>=2.40.0",
+    "pytest-httpserver>=1.2.0",
+    ### the integration tests create, and take down, their Postgres databases: an admin connection outside any transaction.
     "psqlpy>=0.12",
 ]
 docs = [

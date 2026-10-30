@@ -7,7 +7,7 @@ port that fails marks one file and lets the run continue; the concurrency bound 
 import io
 import zipfile
 from pathlib import Path
-from typing import Any, ClassVar, Self
+from typing import TYPE_CHECKING, Any, ClassVar, Self
 
 import anyio
 import pytest
@@ -19,6 +19,9 @@ from e_infra.ports.markdown import MdConversion
 from e_infra.ports.provider import Isolation, Locality, ProviderSpec, Workload
 from e_infra.processors.md import MDProcessor
 from e_infra.providers.adapters.markdown.anytomd import AnytomdAdapter
+
+if TYPE_CHECKING:
+    from unit.e_infra.conftest import Logs
 
 DETECTOR = AnytomdAdapter(AnytomdSettings())
 
@@ -163,3 +166,13 @@ async def test_a_zip_with_too_many_entries_is_refused() -> None:
 async def test_a_zip_that_unpacks_too_big_is_refused() -> None:
     with pytest.raises(ZipBombError, match="over limit"):
         await processor(zip_max_bytes=100).convert(zipped({"a.txt": b"x" * 1000}), name="z.zip")
+
+
+async def test_every_refusal_is_logged_as_an_error_and_a_conversion_as_debug(logs: Logs) -> None:
+    with pytest.raises(InputTooLargeError):
+        await processor(max_input_bytes=4).convert(b"123456789", name="big.txt")
+    with pytest.raises(UnsupportedFormatError):
+        await processor().convert(b"\xff\xfe\x00\x01blob", name="mystery")
+    await processor().convert(b"a,b\n", name="t.csv")
+    assert logs.at("error") == ["md input too large", "md format unsupported"]
+    assert logs.at("debug") == ["md convert"] * 3

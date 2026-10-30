@@ -7,10 +7,11 @@ import pytest
 from e_infra.engines.dispatch import DispatchEngine
 from e_infra.infra.background import Background, BackgroundState
 from e_infra.infra.config.base import Secret
+from e_infra.infra.config.engines.dispatch import DispatchSettings
 from e_infra.infra.config.providers.drivers.queue.awa import AwaSettings
 from e_infra.providers.drivers.queue.awa import AwaDriver
 from unit.e_infra.conftest import Warnings, Works, outage, settled, until
-from unit.e_infra.engines.conftest import build
+from unit.e_infra.engines.conftest import FakeQueue, build
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -86,7 +87,12 @@ async def test_dispatch_memory_alone(queue: str, works: Works, warnings: Warning
     assert warnings.events == ["background in memory: jobs will not survive a restart"]
 
 
-async def test_dispatch_throttled(queue: str) -> None:
+@pytest.mark.parametrize(
+    "pace",
+    [{"throttle": 60}, {"settings": DispatchSettings(throttle=timedelta(seconds=60))}],
+    ids=["argument", "settings"],
+)
+async def test_dispatch_throttled(queue: str, pace: dict[str, Any]) -> None:
     """Within the throttle only the first snapshot is written; the last one always is, once the work ends."""
     seen: list[Mapping[str, Any] | None] = []
 
@@ -94,7 +100,7 @@ async def test_dispatch_throttled(queue: str) -> None:
         _ = [await report({"n": n}) for n in range(5)]
         seen.append((await dispatch.job(job.id) or job).progress)
 
-    dispatch = DispatchEngine(None, Background(), {queue: 1}, throttle=60)
+    dispatch = DispatchEngine(None, Background(), {queue: 1}, **pace)
     dispatch.register("chatty", chatty, queue=queue)
     async with dispatch:
         job = await dispatch.submit("chatty")
@@ -148,6 +154,67 @@ async def test_dispatch_schedule_failed(queue: str, works: Works, warnings: Warn
 
 
 ##### FALLBACK — the durable queue absent, unreachable or failing #####
+async def test_dispatch_a_durable_queue_takes_the_work(queue: str, works: Works) -> None:
+    durable = FakeQueue()
+    async with build(durable, queue, works) as dispatch:
+        job = await dispatch.submit("ok")
+        assert (dispatch.engine, job.id, durable.slots) == ("fake-queue", "1", {queue: 2})
+        assert (await dispatch.job(job.id) or job).id == "1"
+        assert [j.id for j in await dispatch.jobs()] == ["1"]
+        assert (await dispatch.cancel(job.id)) == job
+        assert await dispatch.health()
+    assert set(durable.handlers) == {"ok", "boom", "flaky", "hang"}
+
+
+async def test_dispatch_an_unreachable_durable_queue_runs_the_work_in_memory_and_warns(
+    queue: str, works: Works, warnings: Warnings
+) -> None:
+    async with build(FakeQueue(unreachable=True), queue, works) as dispatch:
+        job = await dispatch.submit("ok")
+        assert (dispatch.engine, job.id.isdecimal()) == ("memory", False)
+        assert (await settled(dispatch, job.id)).state is BackgroundState.COMPLETED
+        assert not await dispatch.health()
+    assert warnings.events == ["background queue unreachable, in memory: jobs will not survive a restart"]
+
+
+async def test_dispatch_a_durable_queue_that_goes_down_falls_back_per_call_with_a_warning(
+    queue: str, works: Works, warnings: Warnings
+) -> None:
+    durable = FakeQueue()
+    async with build(durable, queue, works) as dispatch:
+        before = await dispatch.submit("ok")
+        durable.down = True
+        fallen = await dispatch.submit("ok")
+        done = await settled(dispatch, fallen.id)
+        listed = [job.id for job in await dispatch.jobs()]
+        lost = (await dispatch.job(before.id), await dispatch.cancel(before.id))
+        assert not await dispatch.health()
+        durable.down = False
+        back = await dispatch.submit("ok")
+    assert (fallen.id.isdecimal(), done.state, listed, lost) == (
+        False,
+        BackgroundState.COMPLETED,
+        [fallen.id],
+        (None, None),
+    )
+    assert back.id == "2"
+    assert warnings.events == [
+        "background enqueue fell back to memory",
+        "background queue unreadable",
+        "background queue unreadable",
+        "background queue unreadable",
+    ]
+
+
+async def test_dispatch_a_durable_queue_that_keeps_a_clock_gets_the_schedules(queue: str, works: Works) -> None:
+    durable = FakeQueue()
+    dispatch = build(durable, queue, works)
+    dispatch.schedule("tick", "* * * * *", "ok", source="clock")
+    async with dispatch:
+        cron, fire = durable.clock["tick"]
+        await fire()
+    job = next(iter(durable.jobs_held.values()))
+    assert (cron, job.kind, dict(job.args)) == ("* * * * *", "ok", {"source": "clock"})
 
 
 @pytest.mark.integration

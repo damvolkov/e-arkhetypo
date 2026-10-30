@@ -1,54 +1,81 @@
-"""e_infra/providers/drivers/store/redis: the KV contract against a fake server — SCAN streamed, never KEYS."""
+"""tests/unit/e_infra/providers/drivers/store/redis: the KV contract on fakeredis — SCAN streamed, never KEYS."""
 
-import fakeredis.aioredis
+from typing import TYPE_CHECKING
+
 import pytest
 
-from e_infra.infra.config.base import Secret
 from e_infra.infra.config.providers.drivers.store.redis import RedisSettings
 from e_infra.infra.errors import StoreError
 from e_infra.ports.store import StorePort
-from e_infra.providers.drivers.store import redis as redis_module
 from e_infra.providers.drivers.store.redis import RedisDriver
+from support.kv import KV_CALLS
+
+if TYPE_CHECKING:
+    from typing import Any
+
+    import fakeredis
+
+    from unit.e_infra.conftest import Logs
+
+pytestmark = pytest.mark.usefixtures("redis_calls")
 
 
-async def test_redis_offline_contract() -> None:
-    adapter = RedisDriver(RedisSettings(url=Secret("redis://localhost:1/0")))  # never connected on purpose
-    assert adapter.spec.name == "redis"
+async def test_redis_meets_the_store_port(driver: RedisDriver) -> None:
+    assert isinstance(driver, StorePort)
+    assert driver.spec.name == "redis"
+
+
+async def test_redis_open_asks_for_its_client_with_the_settings_and_close_is_idempotent(
+    driver: RedisDriver, redis_calls: list[tuple[str, dict[str, Any]]], logs: Logs
+) -> None:
+    async with driver:
+        pass
+    await driver.__aexit__(None, None, None)
+    assert redis_calls == [
+        ("redis://:hunter2@fake:6379/1", {"max_connections": 3, "socket_timeout": 2.0, "socket_connect_timeout": 2.0})
+    ]
+    assert logs.at("info") == ["redis opened", "redis closed"]
+    assert "hunter2" not in repr(logs.events)
+
+
+async def test_redis_default_settings_come_from_the_composer(redis_calls: list[tuple[str, dict[str, Any]]]) -> None:
+    async with RedisDriver():
+        assert redis_calls[0][1]["max_connections"] == RedisSettings().pool
+
+
+async def test_redis_kv_cycle(driver: RedisDriver) -> None:
+    async with driver:
+        await driver.set("user:1", b"one")
+        await driver.set("user:2", b"two")
+        await driver.set("other:1", b"x")
+        assert (await driver.get("user:1"), await driver.get("missing")) == (b"one", None)
+        assert sorted([key async for key in driver.keys("user:")]) == ["user:1", "user:2"]
+        await driver.delete("user:1")
+        assert await driver.get("user:1") is None
+
+
+async def test_redis_unopened_calls_are_store_errors(driver: RedisDriver) -> None:
     with pytest.raises(StoreError, match="not open"):
-        await adapter.get("anything")
+        await driver.get("anything")
+    assert not await driver.health()
 
 
-async def test_redis_connected_contract(monkeypatch: pytest.MonkeyPatch) -> None:
-    """fakeredis answers from_url: the full KV cycle without a server, exactly as the lifespan would open it."""
-    monkeypatch.setattr(redis_module.redis, "from_url", fakeredis.aioredis.FakeRedis.from_url)
-    adapter = RedisDriver(RedisSettings(url=Secret("redis://fake:6379/0")))
-    async with adapter:
-        assert isinstance(adapter, StorePort)
-        await adapter.set("user:1", b"one")
-        assert await adapter.get("user:1") == b"one"
-        assert await adapter.get("missing") is None
-
-        await adapter.set("user:2", b"two")
-        assert sorted([key async for key in adapter.keys("user:")]) == ["user:1", "user:2"]
-
-        await adapter.delete("user:1")
-        assert await adapter.get("user:1") is None
-    await adapter.__aexit__(None, None, None)  # idempotent, as with every provider
+async def test_redis_health_true_then_false_and_warned_when_the_server_goes(
+    driver: RedisDriver, redis_server: fakeredis.FakeServer, logs: Logs
+) -> None:
+    async with driver:
+        assert await driver.health()
+        redis_server.connected = False
+        assert not await driver.health()
+    assert logs.at("warning") == ["redis unhealthy"]
 
 
-async def test_redis_health(monkeypatch: pytest.MonkeyPatch) -> None:
-    """The protocol's own PING on the pool; before opening, nothing answers."""
-    monkeypatch.setattr(redis_module.redis, "from_url", fakeredis.aioredis.FakeRedis.from_url)
-    adapter = RedisDriver(RedisSettings(url=Secret("redis://fake:6379/0")))
-    assert not await adapter.health()
-    async with adapter:
-        assert await adapter.health()
-
-
-async def test_redis_health_down() -> None:
-    """A server nothing listens for: the pool opens lazily, so only the health finds it gone — and a read raises
-    the tree's `StoreError`, never redis's."""
-    async with RedisDriver(RedisSettings(url=Secret("redis://127.0.0.1:9/0"))) as adapter:
-        assert not await adapter.health()
+@pytest.mark.parametrize("call", KV_CALLS)
+async def test_redis_errors_are_translated_and_logged(
+    driver: RedisDriver, redis_server: fakeredis.FakeServer, logs: Logs, call: str
+) -> None:
+    async with driver:
+        redis_server.connected = False
         with pytest.raises(StoreError):
-            await adapter.get("k")
+            await KV_CALLS[call](driver)
+    assert logs.at("error") == ["redis failed"]

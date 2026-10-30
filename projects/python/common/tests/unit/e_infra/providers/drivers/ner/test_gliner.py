@@ -11,8 +11,9 @@ from e_infra.ports.ner import NerEntity, NerPort
 from e_infra.providers.drivers.ner.gliner import GlinerDriver
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncIterator
+    from collections.abc import AsyncIterator, Iterator
 
+    from unit.e_infra.conftest import Logs
     from unit.e_infra.providers.drivers.conftest import Stub
 
 PERSON: Final[dict[str, Any]] = {"start": 0, "end": 3, "text": "Ada", "label": "person", "score": 0.9}
@@ -107,3 +108,30 @@ async def test_gliner_lines_cut_across_frames_and_skip_trailers() -> None:
 
 async def test_gliner_exit_unopen_is_quiet() -> None:
     await GlinerDriver(GlinerSettings()).__aexit__(None, None, None)
+
+
+async def test_gliner_lifecycle_and_every_failure_are_logged(stub: Stub, logs: Logs) -> None:
+    stub.on("POST", "/ner/batch", lambda _body: (503, b"{}"))
+    async with GlinerDriver(GlinerSettings(url=stub.url)) as ner:
+        with pytest.raises(HttpError):
+            await ner.entities(["a"], labels=["x"], threshold=0.1)
+        assert not await ner.health()
+    stub.on("POST", "/ner/batch", lambda _body: (200, b""))
+    async with GlinerDriver(GlinerSettings(url=stub.url)) as ner:
+        with pytest.raises(ModelError):
+            await ner.entities(["a"], labels=["x"], threshold=0.1)
+    assert logs.at("info") == ["gliner opened", "gliner closed"] * 2
+    assert logs.at("error") == ["gliner failed", "gliner failed", "gliner left texts unanswered"]
+    assert logs.at("warning") == ["gliner unhealthy"]
+
+
+async def test_gliner_a_streamed_answer_in_frames_is_read_as_it_arrives(stub: Stub) -> None:
+    """The service answers a line at a time, headers first; the driver reads the frames, not a finished body."""
+
+    def answer(_body: bytes) -> tuple[int, Iterator[bytes]]:
+        return 200, iter([lines({"id": "1", "entities": []}), lines({"id": "0", "entities": [PERSON]})])
+
+    stub.on("POST", "/ner/batch", answer)
+    async with GlinerDriver(GlinerSettings(url=stub.url)) as ner:
+        found = await ner.entities(["Ada", "none"], labels=["person"], threshold=0.5)
+    assert [len(entities) for entities in found] == [1, 0]

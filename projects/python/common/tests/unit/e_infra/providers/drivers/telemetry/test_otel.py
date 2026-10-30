@@ -1,6 +1,7 @@
 """e_infra/providers/drivers/telemetry/otel: private provider, the span handle, every exporter road, sampling, settings."""
 
 from datetime import timedelta
+from typing import TYPE_CHECKING
 
 import pytest
 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter as GrpcExporter
@@ -16,6 +17,9 @@ from e_infra.infra.config.providers.drivers.telemetry.otel import OtelProtocol, 
 from e_infra.infra.errors import TelemetryError
 from e_infra.ports.telemetry import SpanKind, SpanPort, SpanStatus, TelemetryPort
 from e_infra.providers.drivers.telemetry.otel import KINDS, STATUSES, OtelDriver, OtelSpan, export_grpc, export_http
+
+if TYPE_CHECKING:
+    from unit.e_infra.conftest import Logs
 
 
 @pytest.fixture
@@ -187,3 +191,18 @@ async def test_otel_health(exporter: InMemorySpanExporter, monkeypatch: pytest.M
         assert await adapter.health()
         monkeypatch.setattr(TracerProvider, "force_flush", lambda *_: False)
         assert not await adapter.health()
+
+
+async def test_otel_lifecycle_and_an_unhealthy_provider_are_logged(
+    exporter: InMemorySpanExporter, monkeypatch: pytest.MonkeyPatch, logs: Logs
+) -> None:
+    adapter = OtelDriver(OtelSettings(service="svc"), exporter)
+    assert not await adapter.health()
+    async with adapter:
+        monkeypatch.setattr(TracerProvider, "force_flush", lambda *_: False)
+        assert not await adapter.health()
+        with adapter.span("work", {}):
+            pass
+    assert logs.at("info") == ["otel opened", "otel closed"]
+    assert logs.at("warning") == ["otel unhealthy", "otel unhealthy"]
+    assert logs.at("debug") == ["otel span"]

@@ -3,17 +3,21 @@
 Values of type T under a namespace in the database's `cache` table, shared by every process of the service. The
 database is the lifespan's to open and close, not this cache's."""
 
+from contextlib import contextmanager
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, ClassVar, Final, Self
 
 import msgspec
 
+from e_infra.infra.errors import CacheError, DatabaseError
+from e_infra.infra.logger import logger
+from e_infra.infra.settings import settings as st
 from e_infra.ports.provider import Isolation, Locality, ProviderSpec, Workload
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping, Sequence
-    from datetime import timedelta
+    from collections.abc import Generator, Mapping, Sequence
 
+    from e_infra.infra.config.providers.drivers.cache.postgres import CachePostgresSettings
     from e_infra.ports.database import DatabasePort
 
 CACHE_SCHEMA: Final[str] = (
@@ -32,50 +36,71 @@ CACHE_PUT: Final[str] = (
 ##### DRIVER #####
 class CachePostgresDriver[T]:
     """Values of type `kind` under `namespace` in the database's `cache` table — durable, shared by every process —,
-    each kept `ttl` (None: until replaced). A value is msgpack; a row that no longer decodes (the type changed) is a
+    each kept CACHE_TTL (unset: until replaced). A value is msgpack; a row that no longer decodes (the type changed) is a
     miss, and a read skips what expired. The table is logged: what it keeps is often a paid answer."""
 
     spec: ClassVar[ProviderSpec] = ProviderSpec("cache-postgres", Locality.REMOTE, Workload.IO_BOUND, Isolation.LOOP)
 
-    __slots__ = ("_db", "_decoder", "_encoder", "_namespace", "_ttl")
+    __slots__ = ("_conf", "_db", "_decoder", "_encoder", "_namespace")
 
-    def __init__(self, db: DatabasePort, namespace: str, kind: type[T], ttl: timedelta | None = None) -> None:
+    def __init__(
+        self, db: DatabasePort, namespace: str, kind: type[T], settings: CachePostgresSettings | None = None
+    ) -> None:
+        ### the default is read on call, not at import: the settings singleton stays lazy.
+        self._conf = st.providers.drivers.cache.postgres if settings is None else settings
         self._db = db
         self._namespace = namespace
-        self._ttl = ttl
         self._encoder = msgspec.msgpack.Encoder()
         self._decoder = msgspec.msgpack.Decoder(kind)
 
     ##### PRIVATE #####
 
+    @staticmethod
+    @contextmanager
+    def _common_guard() -> Generator[None]:
+        """The database's own `DatabaseError`, as the cache's `CacheError`."""
+        try:
+            yield
+        except DatabaseError as error:
+            logger.error("cache postgres failed", error=str(error))
+            raise CacheError(str(error)) from error
+
     def _common_decoded(self, value: bytes) -> T | None:
         try:
             return self._decoder.decode(value)
-        except msgspec.DecodeError:
+        except msgspec.DecodeError as error:
+            logger.warning("cache postgres row skipped", namespace=self._namespace, error=str(error))
             return None
 
     def _common_expires(self) -> datetime | None:
-        return datetime.now(UTC) + self._ttl if self._ttl else None
+        return datetime.now(UTC) + self._conf.ttl if self._conf.ttl else None
 
     ############################################################
 
     ##### PUBLIC #####
 
     async def __aenter__(self) -> Self:
-        await self._db.execute(CACHE_SCHEMA)
+        with self._common_guard():
+            await self._db.execute(CACHE_SCHEMA)
+        logger.info("cache postgres opened", namespace=self._namespace)
         return self
 
     async def __aexit__(self, *exc: object) -> None:
         """The database is the lifespan's to close, not this cache's."""
+        logger.info("cache postgres closed", namespace=self._namespace)
 
     async def health(self) -> bool:
-        return await self._db.health()
+        up = await self._db.health()
+        _ = up or logger.warning("cache postgres unhealthy", namespace=self._namespace)
+        return up
 
     async def get(self, key: str) -> T | None:
         return (await self.many([key])).get(key)
 
     async def many(self, keys: Sequence[str]) -> dict[str, T]:
-        rows = await self._db.fetch(CACHE_GET, [self._namespace, list(keys)]) if keys else []
+        logger.debug("cache postgres many", namespace=self._namespace, keys=len(keys))
+        with self._common_guard():
+            rows = await self._db.fetch(CACHE_GET, [self._namespace, list(keys)]) if keys else []
         return {row["key"]: value for row in rows if (value := self._common_decoded(row["value"])) is not None}
 
     async def put(self, key: str, value: T) -> None:
@@ -84,4 +109,6 @@ class CachePostgresDriver[T]:
     async def put_many(self, items: Mapping[str, T]) -> None:
         expires = self._common_expires()
         rows = [[self._namespace, key, self._encoder.encode(value), expires] for key, value in items.items()]
-        _ = rows and await self._db.many(CACHE_PUT, rows)
+        logger.debug("cache postgres put many", namespace=self._namespace, keys=len(rows))
+        with self._common_guard():
+            _ = rows and await self._db.many(CACHE_PUT, rows)

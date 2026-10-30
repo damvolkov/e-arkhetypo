@@ -19,8 +19,9 @@ from typing import TYPE_CHECKING, Any, ClassVar, Final, Self
 
 import anyio
 
-from e_infra.infra.config.docling import DoclingImages
+from e_infra.infra.config.providers.drivers.documents.docling import DoclingImages
 from e_infra.infra.errors import DocumentError, HttpTimeoutError, ProviderError
+from e_infra.infra.logger import logger
 from e_infra.infra.settings import settings as st
 from e_infra.ports.documents import DocumentConversion
 from e_infra.ports.provider import Isolation, Locality, ProviderSpec, Workload
@@ -28,7 +29,7 @@ from e_infra.ports.provider import Isolation, Locality, ProviderSpec, Workload
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
-    from e_infra.infra.config.docling import DoclingSettings
+    from e_infra.infra.config.providers.drivers.documents.docling import DoclingSettings
     from e_infra.ports.http import HttpPort
 
 DONE: Final[frozenset[str]] = frozenset({"success", "partial_success"})
@@ -52,7 +53,7 @@ class DoclingDriver:
 
     def __init__(self, http: HttpPort, settings: DoclingSettings | None = None) -> None:
         ### the default is read on call, not at import: the settings singleton stays lazy.
-        self._conf = st.docling if settings is None else settings
+        self._conf = st.providers.drivers.documents.docling if settings is None else settings
         self._http = http
 
     ##### PRIVATE METHODS #####
@@ -78,30 +79,30 @@ class DoclingDriver:
     def _convert_options(self, overrides: Mapping[str, object] | None) -> dict[str, Any]:
         """The configured conversion in docling-serve's names, the call's overrides on top."""
         conf = self._conf
-        timeout = conf.docling_page_timeout
+        timeout = conf.page_timeout
         configured = {
-            "to_formats": [str(form) for form in conf.docling_formats],
-            "image_export_mode": str(conf.docling_images),
-            "include_images": conf.docling_images is not DoclingImages.PLACEHOLDER,
-            "images_scale": conf.docling_images_scale,
-            "table_mode": str(conf.docling_tables),
-            "do_ocr": conf.docling_ocr,
-            "force_ocr": conf.docling_force_ocr,
-            "ocr_engine": conf.docling_ocr_engine,
-            "pdf_backend": str(conf.docling_backend),
-            "do_formula_enrichment": conf.docling_formulas,
-            "do_picture_classification": conf.docling_pictures,
-            "do_chart_extraction": conf.docling_charts,
-            "do_code_enrichment": conf.docling_code,
+            "to_formats": [str(form) for form in conf.formats],
+            "image_export_mode": str(conf.images),
+            "include_images": conf.images is not DoclingImages.PLACEHOLDER,
+            "images_scale": conf.images_scale,
+            "table_mode": str(conf.tables),
+            "do_ocr": conf.ocr,
+            "force_ocr": conf.force_ocr,
+            "ocr_engine": conf.ocr_engine,
+            "pdf_backend": str(conf.backend),
+            "do_formula_enrichment": conf.formulas,
+            "do_picture_classification": conf.pictures,
+            "do_chart_extraction": conf.charts,
+            "do_code_enrichment": conf.code,
             "document_timeout": timeout.total_seconds() if timeout is not None else None,
-            **({"ocr_lang": list(conf.docling_ocr_lang)} if conf.docling_ocr_lang else {}),
+            **({"ocr_lang": list(conf.ocr_lang)} if conf.ocr_lang else {}),
         }
         return configured | dict(overrides or {})
 
     async def _convert_wait(self, task: str, deadline: float) -> None:
         """Poll the task until it settles, DOCLING_POLL apart (also sent as `wait`, for servers that hold the poll),
         never past the deadline."""
-        interval = self._conf.docling_poll.total_seconds()
+        interval = self._conf.poll.total_seconds()
         ### a real loop: polling is iteration over time, and recursion here would grow the stack once per poll.
         while True:
             status = await self._common_call("GET", f"/v1/status/poll/{task}?wait={interval}", deadline)
@@ -110,6 +111,7 @@ class DoclingDriver:
                     return
                 case state if state in FAILED:
                     msg = f"docling task {task} {state}: {status.get('error_message') or 'no reason given'}"
+                    logger.error("docling task failed", task=task, state=state, reason=status.get("error_message"))
                     raise DocumentError(msg)
                 case _:
                     await anyio.sleep(min(interval, self._common_remaining(deadline)))
@@ -133,8 +135,8 @@ class DoclingDriver:
 
         The bound travels as the request's own timeout, never as a cancellation: a Rust future cancelled
         mid-flight surfaces as a bare CancelledError, which would cancel the caller's whole task group."""
-        url = f"{self._conf.docling_url.rstrip('/')}{path}"
-        limit = self._conf.docling_timeout.total_seconds()
+        url = f"{self._conf.url.rstrip('/')}{path}"
+        limit = self._conf.timeout.total_seconds()
         within = timedelta(seconds=min(limit, self._common_remaining(deadline)) if deadline is not None else limit)
         try:
             return await (
@@ -144,6 +146,7 @@ class DoclingDriver:
             )
         except HttpTimeoutError as error:
             msg = f"docling {method} {path} timed out after {within.total_seconds():.1f}s"
+            logger.error("docling timed out", method=method, path=path, seconds=within.total_seconds())
             raise HttpTimeoutError(msg) from error
 
     @staticmethod
@@ -162,10 +165,12 @@ class DoclingDriver:
 
     async def __aenter__(self) -> Self:
         """Nothing to open: the HTTP pool is the lifespan's, opened before this driver."""
+        logger.info("docling opened", url=self._conf.url)
         return self
 
     async def __aexit__(self, *exc: object) -> None:
         """Nothing to release."""
+        logger.info("docling closed")
 
     async def convert(
         self, source: str | bytes | Path, *, filename: str = "", options: Mapping[str, object] | None = None
@@ -176,8 +181,9 @@ class DoclingDriver:
             "options": self._convert_options(options),
             "target": {"kind": "inbody"},
         }
-        deadline = anyio.current_time() + self._conf.docling_deadline.total_seconds()
+        deadline = anyio.current_time() + self._conf.deadline.total_seconds()
         task = (await self._common_call("POST", "/v1/convert/source/async", deadline, request))["task_id"]
+        logger.debug("docling submitted", task=task, filename=filename)
         await self._convert_wait(task, deadline)
         return self._convert_result(await self._common_call("GET", f"/v1/result/{task}", deadline))
 
@@ -185,6 +191,7 @@ class DoclingDriver:
         """docling-serve's readiness route."""
         try:
             await self._common_call("GET", "/ready")
-        except ProviderError:
+        except ProviderError as error:
+            logger.warning("docling unhealthy", error=str(error))
             return False
         return True

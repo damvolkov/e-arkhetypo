@@ -12,13 +12,14 @@ import anyio
 from tokenizers import Tokenizer
 
 from e_infra.infra.errors import ModelError, ProviderError
+from e_infra.infra.logger import logger
 from e_infra.infra.settings import settings as st
 from e_infra.ports.provider import Isolation, Locality, ProviderSpec, Workload
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from e_infra.infra.config.embed import EmbedSettings
+    from e_infra.infra.config.providers.drivers.embed.tei import TeiEmbedSettings
     from e_infra.ports.http import HttpPort
 
 
@@ -32,9 +33,9 @@ class TeiEmbedDriver:
 
     __slots__ = ("_conf", "_http", "_tokenizer")
 
-    def __init__(self, http: HttpPort, settings: EmbedSettings | None = None) -> None:
+    def __init__(self, http: HttpPort, settings: TeiEmbedSettings | None = None) -> None:
         ### the default is read on call, not at import: the settings singleton stays lazy.
-        self._conf = st.embed if settings is None else settings
+        self._conf = st.providers.drivers.embed.tei if settings is None else settings
         self._http = http
         self._tokenizer: Tokenizer | None = None
 
@@ -42,6 +43,7 @@ class TeiEmbedDriver:
 
     async def _embed_post(self, inputs: list[str]) -> list[list[float]]:
         payload = {"inputs": inputs, "normalize": True, "truncate": True}
+        logger.debug("tei embed", texts=len(inputs))
         return await self._http.post(
             f"{self._conf.url.rstrip('/')}/embed", payload, as_=list[list[float]], within=self._conf.timeout
         )
@@ -61,16 +63,19 @@ class TeiEmbedDriver:
     async def __aenter__(self) -> Self:
         ### the Hub lookup and the JSON parse block: a thread, not the loop.
         self._tokenizer = await anyio.to_thread.run_sync(Tokenizer.from_pretrained, self._conf.model)
+        logger.info("tei embed opened", model=self._conf.model, url=self._conf.url)
         return self
 
     async def __aexit__(self, *exc: object) -> None:
         self._tokenizer = None
+        logger.info("tei embed closed")
 
     async def health(self) -> bool:
         """TEI's own health route: 200 once the model answers."""
         try:
             await self._http.raw(f"{self._conf.url.rstrip('/')}/health", within=self._conf.timeout)
-        except ProviderError:
+        except ProviderError as error:
+            logger.warning("tei embed unhealthy", error=str(error))
             return False
         return self._tokenizer is not None
 

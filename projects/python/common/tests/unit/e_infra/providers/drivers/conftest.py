@@ -18,7 +18,7 @@ from awa import AsyncClient
 from psqlpy.exceptions import Error as PsqlError
 
 from e_infra.infra.config.base import Secret
-from e_infra.infra.config.postgres import PostgresSettings
+from e_infra.infra.config.providers.drivers.database.psqlpy import PsqlpySettings
 from e_infra.providers.drivers.database.psqlpy import PsqlpyDriver
 from e_infra.providers.drivers.http.wreq import WreqDriver
 from e_infra.providers.drivers.queue.awa import AwaDriver
@@ -29,8 +29,10 @@ if TYPE_CHECKING:
     from collections.abc import AsyncIterator, Awaitable, Callable, Iterator
 
     from e_infra.infra.background import BackgroundHandler, BackgroundRun
-    from e_infra.infra.config.queue import QueueSettings
+    from e_infra.infra.config.providers.drivers.queue.awa import AwaSettings
+    from e_infra.infra.config.providers.drivers.queue.pgqueuer import PgqueuerSettings
     from e_infra.ports.http import HttpPort
+    from e_infra.providers.drivers.database.asyncpg import AsyncpgDriver
 
 
 class JsonHandler(BaseHTTPRequestHandler):
@@ -228,7 +230,7 @@ async def http() -> AsyncIterator[HttpPort]:
 
 ##### QUEUE #####
 @pytest.fixture
-async def awa(queue_settings: QueueSettings) -> AsyncIterator[AwaDriver]:
+async def awa(queue_settings: AwaSettings) -> AsyncIterator[AwaDriver]:
     async with AwaDriver(queue_settings) as adapter:
         yield adapter
 
@@ -275,21 +277,20 @@ def stuck(monkeypatch: pytest.MonkeyPatch) -> None:
 
 ##### ENGINES — the same contract on awa and on PgQueuer, each on a database of its own #####
 @pytest.fixture(params=["awa", "pgqueuer"])
-def port(request: pytest.FixtureRequest, queue_settings: QueueSettings) -> AwaDriver | PgqueuerDriver:
-    """The durable engine under test, not yet connected."""
-    match request.param:
-        case "awa":
-            return AwaDriver(queue_settings)
-        case _:
-            dsn = Secret(request.getfixturevalue("pgqueuer_database"))
-            return PgqueuerDriver(queue_settings.model_copy(update={"dsn": dsn}))
+async def port(
+    request: pytest.FixtureRequest,
+    queue_settings: AwaSettings,
+    pgqueuer_settings: PgqueuerSettings,
+    pgqueuer_db: AsyncpgDriver,
+) -> AwaDriver | PgqueuerDriver:
+    """The durable engine under test, not yet connected (PgQueuer's asyncpg driver is open beneath it)."""
+    return AwaDriver(queue_settings) if request.param == "awa" else PgqueuerDriver(pgqueuer_db, pgqueuer_settings)
 
 
 @pytest.fixture
-def engine(queue_settings: QueueSettings, pgqueuer_database: str) -> PgqueuerDriver:
+def engine(pgqueuer_db: AsyncpgDriver, pgqueuer_settings: PgqueuerSettings) -> PgqueuerDriver:
     """A PgQueuer engine on this worker's database, short timeouts, not yet connected."""
-    update = {"dsn": Secret(pgqueuer_database), "timeout": timedelta(seconds=1), "drain": timedelta(seconds=1)}
-    return PgqueuerDriver(queue_settings.model_copy(update=update))
+    return PgqueuerDriver(pgqueuer_db, pgqueuer_settings.model_copy(update={"timeout": timedelta(seconds=1)}))
 
 
 @dataclass(slots=True)
@@ -345,12 +346,12 @@ async def database(worker_id: str) -> str:
 
 
 @pytest.fixture
-def pg_settings(database: str) -> PostgresSettings:
-    return PostgresSettings(dsn=Secret(database), pool=2)
+def pg_settings(database: str) -> PsqlpySettings:
+    return PsqlpySettings(dsn=Secret(database), pool=2)
 
 
 @pytest.fixture
-async def pg(pg_settings: PostgresSettings) -> AsyncIterator[PsqlpyDriver]:
+async def pg(pg_settings: PsqlpySettings) -> AsyncIterator[PsqlpyDriver]:
     """A connected adapter over a fresh `adapters` schema holding one probe table, dropped after the test."""
     async with PsqlpyDriver(pg_settings) as adapter:
         await adapter.execute("CREATE EXTENSION IF NOT EXISTS vector")

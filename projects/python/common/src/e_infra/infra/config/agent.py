@@ -20,6 +20,7 @@ from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, Final, Literal
 
 from pydantic import AliasChoices, BaseModel, ConfigDict, Field, create_model
+from pydantic_settings import SettingsConfigDict
 
 from e_infra.infra.config.base import BaseSettings, Secret
 
@@ -104,11 +105,13 @@ class TierSettings(BaseModel):
 class AgentBase(BaseSettings):
     """The agent's own knobs; `AgentSettings` adds every provider's key and base on top."""
 
-    agent_high: TierSettings | None = None
-    agent_medium: TierSettings | None = None
-    agent_low: TierSettings | None = None
-    agent_retries: int = Field(default=2, ge=0)
-    agent_timeout: timedelta = timedelta(seconds=60)
+    model_config = SettingsConfigDict(env_prefix="AGENT_")
+
+    timeout: timedelta = timedelta(seconds=60)
+    retries: int = Field(default=2, ge=0)
+    high: TierSettings | None = None
+    medium: TierSettings | None = None
+    low: TierSettings | None = None
 
 
 def provider_fields(table: Mapping[str, tuple[EnvNames, EnvNames]]) -> dict[str, Any]:

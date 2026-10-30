@@ -7,7 +7,7 @@ import msgspec
 import pytest
 
 from e_infra.infra.config.base import Secret
-from e_infra.infra.config.llm import LlmSettings
+from e_infra.infra.config.providers.drivers.llm.openai import OpenaiSettings
 from e_infra.infra.errors import HttpError, ModelError, TruncatedError
 from e_infra.ports.llm import LlmPort
 from e_infra.providers.drivers.llm.openai import OpenaiBucket, OpenaiDriver
@@ -23,8 +23,8 @@ def completion(content: str | None, finish: str = "stop") -> dict[str, object]:
     return {"choices": [{"message": {"content": content}, "finish_reason": finish}]}
 
 
-def settings(stub: Stub, **values: object) -> LlmSettings:
-    return LlmSettings(url=f"{stub.url}/v1", key=Secret("k"), **values)  # ty: ignore[invalid-argument-type]
+def settings(stub: Stub, **values: object) -> OpenaiSettings:
+    return OpenaiSettings(url=f"{stub.url}/v1", key=Secret("k"), **values)  # ty: ignore[invalid-argument-type]
 
 
 async def test_openai_structured_answer_under_the_schema(stub: Stub, http: HttpPort) -> None:
@@ -42,7 +42,7 @@ async def test_openai_structured_answer_under_the_schema(stub: Stub, http: HttpP
 
 async def test_openai_no_key_no_bearer(stub: Stub, http: HttpPort) -> None:
     stub.json("POST", "/v1/chat/completions", completion("{}"))
-    async with OpenaiDriver(http, LlmSettings(url=f"{stub.url}/v1")) as llm:
+    async with OpenaiDriver(http, OpenaiSettings(url=f"{stub.url}/v1")) as llm:
         await llm.structured("s", "p", SCHEMA)
     assert "authorization" not in stub.sent[0][2]
 

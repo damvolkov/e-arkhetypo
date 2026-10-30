@@ -5,13 +5,14 @@ from datetime import timedelta
 import anyio
 import pytest
 
+from e_infra.infra.config.providers.adapters.cache.theine import TheineSettings
 from e_infra.infra.errors import CacheError
 from e_infra.ports.cache import CachePort
 from e_infra.providers.adapters.cache.theine import TheineAdapter
 
 
 async def test_theine_roundtrip() -> None:
-    async with TheineAdapter[dict[str, int]](size=10) as cache:
+    async with TheineAdapter[dict[str, int]](TheineSettings(size=10)) as cache:
         assert isinstance(cache, CachePort)
         await cache.put("a", {"n": 1})
         await cache.put_many({"b": {"n": 2}, "c": {"n": 3}})
@@ -21,7 +22,7 @@ async def test_theine_roundtrip() -> None:
 
 
 async def test_theine_ttl() -> None:
-    async with TheineAdapter[int](size=10, ttl=timedelta(milliseconds=50)) as cache:
+    async with TheineAdapter[int](TheineSettings(size=10, ttl=timedelta(milliseconds=50))) as cache:
         await cache.put("a", 1)
         assert await cache.get("a") == 1
         await anyio.sleep(0.15)
@@ -29,7 +30,7 @@ async def test_theine_ttl() -> None:
 
 
 async def test_theine_lifecycle() -> None:
-    cache = TheineAdapter[int](size=10)
+    cache = TheineAdapter[int](TheineSettings(size=10))
     assert not await cache.health()
     with pytest.raises(CacheError, match="not open"):
         await cache.get("a")

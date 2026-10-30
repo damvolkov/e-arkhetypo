@@ -7,6 +7,7 @@ Any surface that wants color reads it from here; a literal hex outside this file
 import re
 
 from pydantic import field_validator
+from pydantic_settings import SettingsConfigDict
 
 from e_infra.infra.config.base import BaseSettings
 
@@ -21,11 +22,13 @@ _HEX_RE: re.Pattern[str] = re.compile(r"#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})")
 class ThemeSettings(BaseSettings):
     """The only three colors a tui may use. Validated as #rgb or #rrggbb on load, never at runtime."""
 
-    theme_background: str = BACKGROUND
-    theme_corporate: str = CORPORATE
-    theme_ink: str = INK
+    model_config = SettingsConfigDict(env_prefix="THEME_")
 
-    @field_validator("theme_background", "theme_corporate", "theme_ink")
+    background: str = BACKGROUND
+    corporate: str = CORPORATE
+    ink: str = INK
+
+    @field_validator("background", "corporate", "ink")
     @classmethod
     def _hex_only(cls, value: str) -> str:
         """Lowercased hex or a hard failure at load."""

@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 from e_infra.engines.cache import CacheEngine
+from e_infra.infra.config.providers.adapters.cache.theine import TheineSettings
 from e_infra.infra.errors import DatabaseError
 from e_infra.providers.adapters.cache.theine import TheineAdapter
 from unit.e_infra.conftest import Warnings
@@ -17,7 +18,7 @@ class Durable(TheineAdapter[int]):
     """A durable layer stand-in: the in-memory adapter, switchable to down, counting its reads."""
 
     def __init__(self) -> None:
-        super().__init__(size=100)
+        super().__init__(TheineSettings(size=100))
         self.down = False
         self.reads: list[Sequence[str]] = []
 
@@ -40,7 +41,7 @@ class Durable(TheineAdapter[int]):
 
 @pytest.fixture
 async def layers() -> AsyncIterator[tuple[TheineAdapter[int], Durable]]:
-    async with TheineAdapter[int](size=100) as fast, Durable() as durable:
+    async with TheineAdapter[int](TheineSettings(size=100)) as fast, Durable() as durable:
         yield fast, durable
 
 

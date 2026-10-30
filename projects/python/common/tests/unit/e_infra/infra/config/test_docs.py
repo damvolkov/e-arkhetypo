@@ -13,8 +13,8 @@ if TYPE_CHECKING:
 
 def test_docs_defaults_swagger_at_docs_aliased_by_schema() -> None:
     docs = DocsSettings()
-    assert (docs.docs_path, docs.docs_aliases) == ("/docs", ["/schema"])
-    assert docs.docs_renderers[0] is DocsRenderer.SWAGGER
+    assert (docs.path, docs.aliases) == ("/docs", ["/schema"])
+    assert docs.renderers[0] is DocsRenderer.SWAGGER
 
 
 def test_docs_reads_env_and_normalizes_trailing_slashes(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -22,7 +22,7 @@ def test_docs_reads_env_and_normalizes_trailing_slashes(monkeypatch: pytest.Monk
     monkeypatch.setenv("DOCS_ALIASES", '["/schema/", "/swagger"]')
     monkeypatch.setenv("DOCS_RENDERERS", '["redoc"]')
     docs = DocsSettings()
-    assert (docs.docs_path, docs.docs_aliases, docs.docs_renderers) == (
+    assert (docs.path, docs.aliases, docs.renderers) == (
         "/api/docs",
         ["/schema", "/swagger"],
         [DocsRenderer.REDOC],
@@ -32,11 +32,11 @@ def test_docs_reads_env_and_normalizes_trailing_slashes(monkeypatch: pytest.Monk
 @pytest.mark.parametrize(
     "fields",
     [
-        {"docs_path": "docs"},
-        {"docs_aliases": ["schema"]},
-        {"docs_aliases": ["/docs"]},
-        {"docs_renderers": []},
-        {"docs_renderers": ["openapi-ui"]},
+        {"path": "docs"},
+        {"aliases": ["schema"]},
+        {"aliases": ["/docs"]},
+        {"renderers": []},
+        {"renderers": ["openapi-ui"]},
     ],
     ids=["relative-root", "relative-alias", "alias-is-root", "no-renderer", "unknown-renderer"],
 )

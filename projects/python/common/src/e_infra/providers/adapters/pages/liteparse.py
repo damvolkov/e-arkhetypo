@@ -11,8 +11,9 @@ from typing import TYPE_CHECKING, ClassVar, Final, Self
 from liteparse import LiteParse
 from liteparse import ParseError as LiteparseError
 
-from e_infra.infra.config.doc import DocSignal
+from e_infra.infra.config.processors.doc import DocSignal
 from e_infra.infra.errors import ParseError
+from e_infra.infra.logger import logger
 from e_infra.infra.settings import settings as st
 from e_infra.ports.pages import FastPage, PageBlock
 from e_infra.ports.provider import Isolation, Locality, ProviderSpec, Workload
@@ -22,7 +23,7 @@ if TYPE_CHECKING:
 
     from liteparse import ParsedPage
 
-    from e_infra.infra.config.doc import DocSettings
+    from e_infra.infra.config.providers.adapters.pages.liteparse import LiteparseSettings
 
 TABLE: Final[str] = "table"
 SCANNED: Final[frozenset[str]] = frozenset({"scanned", "vector-text", "garbled"})
@@ -38,9 +39,9 @@ class LiteparseAdapter:
 
     __slots__ = ("_conf", "_parser")
 
-    def __init__(self, settings: DocSettings | None = None) -> None:
+    def __init__(self, settings: LiteparseSettings | None = None) -> None:
         ### the default is read on call, not at import: the settings singleton stays lazy.
-        self._conf = st.doc if settings is None else settings
+        self._conf = st.providers.adapters.pages.liteparse if settings is None else settings
         self._parser: LiteParse | None = None
 
     ##### PRIVATE #####
@@ -52,6 +53,7 @@ class LiteparseAdapter:
         try:
             yield
         except LiteparseError as error:
+            logger.error("liteparse failed", error=str(error))
             raise ParseError(str(error)) from error
 
     def _common_parser(self) -> LiteParse:
@@ -65,10 +67,10 @@ class LiteparseAdapter:
     def _enter_parser(self) -> LiteParse:
         conf = self._conf
         return LiteParse(
-            ocr_enabled=conf.doc_ocr,
-            tessdata_path=str(conf.doc_tessdata) if conf.doc_tessdata is not None else None,
-            ocr_language=conf.doc_ocr_language,
-            num_workers=conf.doc_workers or None,
+            ocr_enabled=conf.ocr,
+            tessdata_path=str(conf.tessdata) if conf.tessdata is not None else None,
+            ocr_language=conf.ocr_language,
+            num_workers=conf.workers or None,
             extract_blocks=True,
             include_complexity=True,
             output_format="markdown",
@@ -115,15 +117,20 @@ class LiteparseAdapter:
 
     async def __aenter__(self) -> Self:
         self._parser = self._enter_parser()
+        logger.info("liteparse opened", ocr=self._conf.ocr, workers=self._conf.workers)
         return self
 
     async def __aexit__(self, *exc: object) -> None:
         self._parser = None
+        logger.info("liteparse closed")
 
     async def health(self) -> bool:
-        return self._parser is not None
+        opened = self._parser is not None
+        _ = opened or logger.warning("liteparse unhealthy", reason="not open")
+        return opened
 
     async def parse(self, data: bytes) -> tuple[FastPage, ...]:
+        logger.debug("liteparse parse", size=len(data))
         with self._common_guard():
             read = await self._common_parser().aparse(data)
         pages = (read.get_page(number) for number in range(1, read.num_pages + 1))

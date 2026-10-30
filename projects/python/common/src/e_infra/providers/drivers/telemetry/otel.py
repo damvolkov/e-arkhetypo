@@ -23,8 +23,9 @@ from opentelemetry.sdk.trace.export import BatchSpanProcessor, SimpleSpanProcess
 from opentelemetry.sdk.trace.sampling import ParentBased, TraceIdRatioBased
 from opentelemetry.trace import Status, StatusCode
 
-from e_infra.infra.config.otel import OtelProtocol
+from e_infra.infra.config.providers.drivers.telemetry.otel import OtelProtocol
 from e_infra.infra.errors import TelemetryError
+from e_infra.infra.logger import logger
 from e_infra.infra.settings import settings as st
 from e_infra.ports.provider import Isolation, Locality, ProviderSpec, Workload
 from e_infra.ports.telemetry import SpanKind, SpanStatus
@@ -34,7 +35,7 @@ if TYPE_CHECKING:
 
     from opentelemetry.trace import Tracer
 
-    from e_infra.infra.config.otel import OtelSettings
+    from e_infra.infra.config.providers.drivers.telemetry.otel import OtelSettings
     from e_infra.ports.telemetry import AttributeValue
 
 TRACES_PATH: Final[str] = "/v1/traces"
@@ -121,7 +122,7 @@ class OtelDriver:
 
     def __init__(self, settings: OtelSettings | None = None, exporter: SpanExporter | None = None) -> None:
         ### the default is read on call, not at import: the settings singleton stays lazy.
-        self._settings = st.otel if settings is None else settings
+        self._settings = st.providers.drivers.telemetry.otel if settings is None else settings
         self._exporter = exporter
         self._provider: TracerProvider | None = None
         self._tracer: Tracer | None = None
@@ -131,19 +132,19 @@ class OtelDriver:
     def _enter_exporter(self) -> SpanExporter:
         """The OTLP exporter for the configured transport, headers and deadline."""
         resolved = self._settings
-        headers = {key: secret.get_secret_value() for key, secret in resolved.otel_headers.items()}
-        exporter = EXPORTERS[resolved.otel_protocol]
-        return exporter(resolved.otel_endpoint.rstrip("/"), headers, resolved.otel_timeout.total_seconds())
+        headers = {key: secret.get_secret_value() for key, secret in resolved.headers.items()}
+        exporter = EXPORTERS[resolved.protocol]
+        return exporter(resolved.endpoint.rstrip("/"), headers, resolved.timeout.total_seconds())
 
     def _enter_processor(self) -> SpanProcessor | None:
-        match (self._exporter, self._settings.otel_endpoint):
+        match (self._exporter, self._settings.endpoint):
             case (None, ""):
                 return None
             case (None, _):
                 return BatchSpanProcessor(
                     self._enter_exporter(),
-                    schedule_delay_millis=self._settings.otel_flush.total_seconds() * MS_PER_SECOND,
-                    export_timeout_millis=self._settings.otel_timeout.total_seconds() * MS_PER_SECOND,
+                    schedule_delay_millis=self._settings.flush.total_seconds() * MS_PER_SECOND,
+                    export_timeout_millis=self._settings.timeout.total_seconds() * MS_PER_SECOND,
                 )
             case (SpanExporter() as exporter, _):
                 return SimpleSpanProcessor(exporter)
@@ -163,8 +164,8 @@ class OtelDriver:
     async def __aenter__(self) -> Self:
         resolved = self._settings
         ### the service name is the settings' own field: an attribute of the same key never overrides it.
-        resource = Resource.create({**resolved.otel_attributes, "service.name": resolved.otel_service})
-        provider = TracerProvider(resource=resource, sampler=ParentBased(TraceIdRatioBased(resolved.otel_sample)))
+        resource = Resource.create({**resolved.attributes, "service.name": resolved.service})
+        provider = TracerProvider(resource=resource, sampler=ParentBased(TraceIdRatioBased(resolved.sample)))
         match self._enter_processor():
             case None:
                 pass
@@ -172,6 +173,7 @@ class OtelDriver:
                 provider.add_span_processor(processor)
         self._provider = provider
         self._tracer = provider.get_tracer("e-stack")
+        logger.info("otel opened", service=resolved.service, endpoint=resolved.endpoint, sample=resolved.sample)
         return self
 
     async def __aexit__(self, *exc: object) -> None:
@@ -183,16 +185,20 @@ class OtelDriver:
                 self._provider = None
                 ### shutdown flushes the batch over the network: blocking I/O, so it leaves the loop.
                 await asyncio.to_thread(provider.shutdown)
+                logger.info("otel closed")
 
     async def health(self) -> bool:
         """The provider is open and flushes what it holds to its exporter within OTEL_TIMEOUT (none set: nothing to
         flush, it answers at once)."""
-        timeout = int(self._settings.otel_timeout.total_seconds() * MS_PER_SECOND)
+        timeout = int(self._settings.timeout.total_seconds() * MS_PER_SECOND)
         match self._provider:
             case None:
+                logger.warning("otel unhealthy", reason="not open")
                 return False
             case provider:
-                return await asyncio.to_thread(provider.force_flush, timeout)
+                flushed = await asyncio.to_thread(provider.force_flush, timeout)
+                _ = flushed or logger.warning("otel unhealthy", reason="flush timed out")
+                return flushed
 
     @contextmanager
     def span(
@@ -200,6 +206,7 @@ class OtelDriver:
     ) -> Generator[OtelSpan]:
         """A current span around the block: a raise is recorded and settles ERROR, a clean exit settles OK."""
         tracer = self._common_open()
+        logger.debug("otel span", name=name, kind=str(kind))
         with tracer.start_as_current_span(name, kind=KINDS[kind], attributes=attributes) as raw:
             span = OtelSpan(raw)
             yield span

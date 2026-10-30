@@ -5,9 +5,9 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from e_infra.infra.config.db import DbSettings
-from e_infra.infra.config.http import HttpSettings
-from e_infra.infra.config.redis import RedisSettings
+from e_infra.infra.config.providers.drivers.http.wreq import WreqSettings
+from e_infra.infra.config.providers.drivers.store.redis import RedisSettings
+from e_infra.infra.config.providers.drivers.store.sqlite import SqliteSettings
 from e_infra.ports.http import HttpPort
 from e_infra.ports.provider import Isolation, Locality, Provider, ProviderSpec, Workload
 from e_infra.ports.store import StorePort
@@ -32,7 +32,7 @@ def test_axes_are_string_enums(axis: type[Locality | Workload | Isolation]) -> N
 
 
 async def test_sqlite_satisfies_store(tmp_path: Path) -> None:
-    driver = SqliteDriver(DbSettings(db_path=tmp_path / "kv.db"))
+    driver = SqliteDriver(SqliteSettings(path=tmp_path / "kv.db"))
     assert (isinstance(driver, StorePort), isinstance(driver, Provider)) == (True, True)
 
 
@@ -41,7 +41,7 @@ async def test_redis_satisfies_store() -> None:
 
 
 async def test_http_satisfies_client() -> None:
-    assert isinstance(WreqDriver(HttpSettings()), HttpPort)
+    assert isinstance(WreqDriver(WreqSettings()), HttpPort)
 
 
 async def test_a_class_without_lifecycle_is_no_provider() -> None:

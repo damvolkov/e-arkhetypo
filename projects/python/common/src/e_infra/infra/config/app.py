@@ -2,6 +2,8 @@
 
 from enum import StrEnum
 
+from pydantic_settings import SettingsConfigDict
+
 from e_infra.infra.config.base import BaseSettings
 
 
@@ -17,6 +19,8 @@ class AppSettings(BaseSettings):
 
     The env is validated on decode: a typo (`deV`) fails the load, it never reaches runtime."""
 
-    app_env: Env = Env.DEV
-    app_host: str = "127.0.0.1"
-    app_port: int = 8000
+    model_config = SettingsConfigDict(env_prefix="APP_")
+
+    env: Env = Env.DEV
+    host: str = "127.0.0.1"
+    port: int = 8000

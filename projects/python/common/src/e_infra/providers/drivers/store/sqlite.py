@@ -7,6 +7,7 @@ import aiosqlite
 import anyio
 
 from e_infra.infra.errors import ProviderError, StoreError
+from e_infra.infra.logger import logger
 from e_infra.infra.settings import settings as st
 from e_infra.ports.provider import Isolation, Locality, ProviderSpec, Workload
 
@@ -14,7 +15,7 @@ if TYPE_CHECKING:
     from collections.abc import AsyncIterator, Generator
     from pathlib import Path
 
-    from e_infra.infra.config.db import DbSettings
+    from e_infra.infra.config.providers.drivers.store.sqlite import SqliteSettings
 
 KV_SCHEMA: Final[str] = "CREATE TABLE IF NOT EXISTS kv (key TEXT PRIMARY KEY, value BLOB NOT NULL)"
 
@@ -25,9 +26,9 @@ class SqliteDriver:
 
     spec: ClassVar[ProviderSpec] = ProviderSpec("sqlite", Locality.FILESYSTEM, Workload.IO_BOUND, Isolation.THREAD)
 
-    def __init__(self, settings: DbSettings | None = None) -> None:
+    def __init__(self, settings: SqliteSettings | None = None) -> None:
         ### the default is read on call, not at import: the settings singleton stays lazy.
-        self._path = (st.db if settings is None else settings).db_path
+        self._conf = st.providers.drivers.store.sqlite if settings is None else settings
         self._db: aiosqlite.Connection | None = None
 
     ##### PRIVATE METHODS #####
@@ -39,6 +40,7 @@ class SqliteDriver:
         try:
             yield
         except aiosqlite.Error as error:
+            logger.error("sqlite failed", error=str(error))
             raise StoreError(str(error)) from error
 
     def _common_open(self) -> aiosqlite.Connection:
@@ -60,11 +62,12 @@ class SqliteDriver:
 
     async def __aenter__(self) -> Self:
         ### mkdir is blocking filesystem work inside a coroutine: off-thread or it freezes every task.
-        await anyio.to_thread.run_sync(self._enter_mkdir, self._path)
+        await anyio.to_thread.run_sync(self._enter_mkdir, self._conf.path)
         with self._common_guard():
-            self._db = await aiosqlite.connect(self._path)
+            self._db = await aiosqlite.connect(self._conf.path, timeout=self._conf.timeout.total_seconds())
             await self._db.executescript(KV_SCHEMA)
             await self._db.commit()
+        logger.info("sqlite opened", path=str(self._conf.path))
         return self
 
     async def __aexit__(self, *exc: object) -> None:
@@ -74,6 +77,7 @@ class SqliteDriver:
             case db:
                 await db.close()
                 self._db = None
+                logger.info("sqlite closed")
 
     async def health(self) -> bool:
         """One trivial statement on the open file."""
@@ -81,28 +85,33 @@ class SqliteDriver:
             with self._common_guard():
                 async with self._common_open().execute("SELECT 1") as cursor:
                     await cursor.fetchone()
-        except ProviderError:
+        except ProviderError as error:
+            logger.warning("sqlite unhealthy", error=str(error))
             return False
         return True
 
     async def get(self, key: str) -> bytes | None:
+        logger.debug("sqlite get", key=key)
         with self._common_guard():
             async with self._common_open().execute("SELECT value FROM kv WHERE key = ?", (key,)) as cursor:
                 row = await cursor.fetchone()
         return None if row is None else row[0]
 
     async def set(self, key: str, value: bytes) -> None:
+        logger.debug("sqlite set", key=key, size=len(value))
         with self._common_guard():
             await self._common_open().execute("INSERT OR REPLACE INTO kv (key, value) VALUES (?, ?)", (key, value))
             await self._common_open().commit()
 
     async def delete(self, key: str) -> None:
+        logger.debug("sqlite delete", key=key)
         with self._common_guard():
             await self._common_open().execute("DELETE FROM kv WHERE key = ?", (key,))
             await self._common_open().commit()
 
     async def keys(self, prefix: str = "") -> AsyncIterator[str]:
         """Keys starting with `prefix`, streamed row by row in key order — no fetchall, no materialization."""
+        logger.debug("sqlite keys", prefix=prefix)
         with self._common_guard():
             async with self._common_open().execute(
                 "SELECT key FROM kv WHERE key LIKE ? ORDER BY key",

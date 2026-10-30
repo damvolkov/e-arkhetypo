@@ -13,6 +13,7 @@ import msgspec
 import wreq
 
 from e_infra.infra.errors import HttpError, HttpTimeoutError, ProviderError
+from e_infra.infra.logger import logger
 from e_infra.infra.settings import settings as st
 from e_infra.ports.provider import Isolation, Locality, ProviderSpec, Workload
 
@@ -20,7 +21,7 @@ if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable, Generator, Mapping
     from datetime import timedelta
 
-    from e_infra.infra.config.http import HttpSettings
+    from e_infra.infra.config.providers.drivers.http.wreq import WreqSettings
 
 TIMED_OUT: Final = "TimedOut"
 WIRE: Final = (
@@ -40,13 +41,13 @@ WIRE: Final = (
 class WreqDriver:
     """One wreq client per process: base_url and timeout come from HttpSettings, responses leave as data."""
 
-    spec: ClassVar[ProviderSpec] = ProviderSpec("http", Locality.REMOTE, Workload.IO_BOUND, Isolation.LOOP, pooled=True)
+    spec: ClassVar[ProviderSpec] = ProviderSpec("wreq", Locality.REMOTE, Workload.IO_BOUND, Isolation.LOOP, pooled=True)
 
-    def __init__(self, settings: HttpSettings | None = None) -> None:
+    def __init__(self, settings: WreqSettings | None = None) -> None:
         ### the default is read on call, not at import: the settings singleton stays lazy.
-        conf = st.http if settings is None else settings
-        self._base_url = conf.http_base_url
-        self._timeout = conf.http_timeout
+        conf = st.providers.drivers.http.wreq if settings is None else settings
+        self._base_url = conf.base_url
+        self._timeout = conf.timeout
         self._client: wreq.Client | None = None
 
     ##### PRIVATE METHODS #####
@@ -70,14 +71,17 @@ class WreqDriver:
         try:
             yield
         except wreq.TimeoutError as error:
+            logger.error("wreq timed out", error=str(error))
             raise HttpTimeoutError(str(error)) from error
         except wreq.BodyError as error:
+            logger.error("wreq body failed", error=str(error))
             match TIMED_OUT in str(error):
                 case True:
                     raise HttpTimeoutError(str(error)) from error
                 case False:
                     raise HttpError(str(error)) from error
         except WIRE as error:
+            logger.error("wreq failed", error=str(error))
             raise HttpError(str(error)) from error
 
     @staticmethod
@@ -101,6 +105,7 @@ class WreqDriver:
     ) -> R:
         """One request, its answer read; any 2xx, else `HttpError` with the status."""
         client, url = self._common_open(), self._common_url(path)
+        logger.debug("wreq request", method="POST" if post else "GET", url=url)
         options: dict[str, Any] = {
             key: value for key, value in {"timeout": within, "headers": headers and dict(headers)}.items() if value
         }
@@ -112,6 +117,7 @@ class WreqDriver:
                 case False:
                     status = response.status.as_int()
                     msg = f"{url} answered {status}"
+                    logger.error("wreq refused", url=url, status=status)
                     raise HttpError(msg, status)
         return body
 
@@ -121,6 +127,7 @@ class WreqDriver:
 
     async def __aenter__(self) -> Self:
         self._client = wreq.Client(timeout=self._timeout)
+        logger.info("wreq opened", base_url=self._base_url)
         return self
 
     async def __aexit__(self, *exc: object) -> None:
@@ -131,12 +138,14 @@ class WreqDriver:
                 ### sync in wreq: drops the Rust pool; our contract stays async.
                 client.close()
                 self._client = None
+                logger.info("wreq closed")
 
     async def health(self) -> bool:
         """The client is open: its base is anyone's service, never a dependency to probe."""
         try:
             self._common_open()
-        except ProviderError:
+        except ProviderError as error:
+            logger.warning("wreq unhealthy", error=str(error))
             return False
         return True
 

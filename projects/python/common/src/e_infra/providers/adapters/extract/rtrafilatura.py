@@ -1,4 +1,4 @@
-"""providers/adapters/extract/rtrafilatura: a web page's main content as Markdown — the article without its menus and footers.
+"""providers/adapters/extract/rtrafilatura: a web page's main content as Markdown — the article without its chrome.
 
 Through rtrafilatura (the EDamLabs binding of trafilatura-rs; WCXB 2026: F1 0.903 on held-out pages). The page's own
 facts ride first as YAML front matter (title, author, date, url, site): the layout reads it as the document's metadata.
@@ -14,6 +14,7 @@ import rtrafilatura
 from rtrafilatura.errors import ExtractionError
 
 from e_infra.infra.errors import ParseError, ProviderError
+from e_infra.infra.logger import logger
 from e_infra.ports.provider import Isolation, Locality, ProviderSpec, Workload
 
 if TYPE_CHECKING:
@@ -45,6 +46,7 @@ class RtrafilaturaAdapter:
         try:
             yield
         except ExtractionError as error:
+            logger.error("rtrafilatura failed", error=str(error))
             raise ParseError(str(error)) from error
 
     @staticmethod
@@ -66,20 +68,24 @@ class RtrafilaturaAdapter:
 
     async def __aenter__(self) -> Self:
         """Nothing to open: the extractor is a library."""
+        logger.info("rtrafilatura opened", lanes=LANES)
         return self
 
     async def __aexit__(self, *exc: object) -> None:
         """Nothing to release."""
+        logger.info("rtrafilatura closed")
 
     async def health(self) -> bool:
         """The extractor reads a one-paragraph page in its lanes."""
         try:
             await self.extract(b"<html><body><p>ping</p></body></html>")
-        except ProviderError:
+        except ProviderError as error:
+            logger.warning("rtrafilatura unhealthy", error=str(error))
             return False
         return True
 
     async def extract(self, html: bytes, *, url: str = "") -> str | None:
         """The page's main content as Markdown, its facts as front matter; None when it holds none."""
+        logger.debug("rtrafilatura extract", size=len(html), url=url)
         with self._common_guard():
             return await anyio.to_thread.run_sync(self._extract_sync, html, url, limiter=self._limiter)

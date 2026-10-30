@@ -189,7 +189,7 @@ asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 markers = [
     "slow: slow tests (deselect with -m 'not slow')",
-    "db: needs the test Postgres at POSTGRES_TEST_DSN (default the stack's ParadeDB :45011) — skipped when unreachable",
+    "integration: needs a real service — the test Postgres at POSTGRES_TEST_DSN (default the stack's ParadeDB :45011), skipped when unreachable — and stays out of the default run: `make integration`",
 ]
 
 ##### COVERAGE #####

@@ -10,6 +10,7 @@ helpers, imported by the tests (`pythonpath` holds tests/unit)."""
 import os
 import uuid
 from contextlib import asynccontextmanager
+from dataclasses import dataclass
 from datetime import timedelta
 from itertools import count
 from typing import TYPE_CHECKING, Any, Final, Protocol
@@ -22,10 +23,13 @@ from psqlpy.exceptions import Error as PsqlError
 
 from e_infra.infra.background import SETTLED, BackgroundState
 from e_infra.infra.config.base import Secret
-from e_infra.infra.config.queue import QueueSettings
+from e_infra.infra.config.providers.drivers.database.asyncpg import AsyncpgSettings
+from e_infra.infra.config.providers.drivers.queue.awa import AwaSettings
+from e_infra.infra.config.providers.drivers.queue.pgqueuer import PgqueuerSettings
+from e_infra.providers.drivers.database.asyncpg import AsyncpgDriver
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncGenerator, Callable, Mapping
+    from collections.abc import AsyncGenerator, AsyncIterator, Callable, Mapping
 
     from e_infra.infra.background import BackgroundJob, BackgroundReporter
 
@@ -148,7 +152,7 @@ class Works:
 
 
 class Warnings:
-    """A logger that keeps the events it is warned of."""
+    """A logger that keeps the events it is warned of; every other level is said, not kept."""
 
     def __init__(self) -> None:
         self.events: list[str] = []
@@ -156,8 +160,10 @@ class Warnings:
     def warning(self, event: str, **_: object) -> None:
         self.events.append(event)
 
-    def info(self, event: str, **_: object) -> None:
+    def debug(self, event: str, **_: object) -> None:
         """Said, not kept: only warnings are asserted."""
+
+    info = error = debug
 
 
 @pytest.fixture
@@ -184,15 +190,49 @@ async def pgqueuer_database(worker_id: str) -> str:
 
 
 @pytest.fixture
-def queue_settings(queue_database: str) -> QueueSettings:
-    """The queue at test pace: a short poll and drain, calls that give up within five seconds."""
-    return QueueSettings(
+def queue_settings(queue_database: str) -> AwaSettings:
+    """The awa queue at test pace: a short poll and drain, calls that give up within five seconds."""
+    return AwaSettings(
         dsn=Secret(queue_database),
         pool=8,
         poll=timedelta(milliseconds=50),
         drain=timedelta(seconds=1),
         timeout=timedelta(seconds=5),
     )
+
+
+@pytest.fixture
+def pgqueuer_settings() -> PgqueuerSettings:
+    """PgQueuer at test pace: a short poll, drain and restart, calls that give up within five seconds."""
+    return PgqueuerSettings(
+        poll=timedelta(milliseconds=50),
+        drain=timedelta(seconds=1),
+        timeout=timedelta(seconds=5),
+        restart=timedelta(milliseconds=50),
+    )
+
+
+@pytest.fixture
+async def pgqueuer_db(pgqueuer_database: str) -> AsyncIterator[AsyncpgDriver]:
+    """The asyncpg driver PgQueuer rides, open on this worker's database."""
+    async with AsyncpgDriver(
+        AsyncpgSettings(dsn=Secret(pgqueuer_database), pool=4, timeout=timedelta(seconds=5))
+    ) as db:
+        yield db
+
+
+@dataclass(frozen=True, slots=True)
+class Queues:
+    """The settings of both durable queues on this worker's databases: awa's, PgQueuer's, PgQueuer's database DSN."""
+
+    awa: AwaSettings
+    pgqueuer: PgqueuerSettings
+    database: str
+
+
+@pytest.fixture
+def queues(queue_settings: AwaSettings, pgqueuer_settings: PgqueuerSettings, pgqueuer_database: str) -> Queues:
+    return Queues(queue_settings, pgqueuer_settings, pgqueuer_database)
 
 
 @pytest.fixture

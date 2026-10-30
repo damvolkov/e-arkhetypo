@@ -16,6 +16,7 @@ from psqlpy.exceptions import Error as PsqlError
 from psqlpy.extra_types import PgVector
 
 from e_infra.infra.errors import DatabaseError, ProviderError
+from e_infra.infra.logger import logger
 from e_infra.infra.settings import settings as st
 from e_infra.ports.database import Row, Vector
 from e_infra.ports.provider import Isolation, Locality, ProviderSpec, Workload
@@ -24,7 +25,7 @@ if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, Generator, Sequence
     from contextlib import AbstractAsyncContextManager
 
-    from e_infra.infra.config.postgres import PostgresSettings
+    from e_infra.infra.config.providers.drivers.database.psqlpy import PsqlpySettings
     from e_infra.ports.database import QueryPort
 
 ### psqlpy refuses a pool of one connection.
@@ -44,9 +45,9 @@ class PsqlpyDriver:
 
     __slots__ = ("_conf", "_pool")
 
-    def __init__(self, settings: PostgresSettings | None = None) -> None:
+    def __init__(self, settings: PsqlpySettings | None = None) -> None:
         ### the default is read on call, not at import: the settings singleton stays lazy.
-        self._conf = st.postgres if settings is None else settings
+        self._conf = st.providers.drivers.database.psqlpy if settings is None else settings
         self._pool: ConnectionPool | None = None
 
     ##### PRIVATE #####
@@ -58,6 +59,7 @@ class PsqlpyDriver:
         try:
             yield
         except PsqlError as error:
+            logger.error("psqlpy failed", error=str(error))
             raise DatabaseError(str(error)) from error
 
     @staticmethod
@@ -72,6 +74,7 @@ class PsqlpyDriver:
                 case []:
                     ### CREATE DATABASE takes no parameters: the name is quoted as an identifier, quotes doubled.
                     await connection.execute(f'CREATE DATABASE "{name.replace('"', '""')}"')
+                    logger.info("psqlpy database created", database=name)
                     return True
                 case _:
                     return False
@@ -106,6 +109,7 @@ class PsqlpyDriver:
             max_db_pool_size=max(self._conf.pool, FLOOR),
             connect_timeout_sec=int(self._conf.timeout.total_seconds()),
         )
+        logger.info("psqlpy opened", pool=max(self._conf.pool, FLOOR))
         return self
 
     async def __aexit__(self, *exc: object) -> None:
@@ -115,12 +119,14 @@ class PsqlpyDriver:
             case pool:
                 pool.close()
                 self._pool = None
+                logger.info("psqlpy closed")
 
     async def health(self) -> bool:
         """One trivial query on a pooled connection."""
         try:
             await self.fetch("SELECT 1")
-        except ProviderError:
+        except ProviderError as error:
+            logger.warning("psqlpy unhealthy", error=str(error))
             return False
         return True
 
@@ -138,16 +144,19 @@ class PsqlpyDriver:
                 return await self._provision_create(connection, name)
         except PsqlError as error:
             msg = f"database {name!r} unreachable: {error}"
+            logger.error("psqlpy provision failed", database=name, error=str(error))
             raise DatabaseError(msg) from error
         finally:
             admin.close()
 
     async def execute(self, query: str, params: Sequence[object] = ()) -> None:
+        logger.debug("psqlpy execute", params=len(params))
         with PsqlpyDriver._common_guard():
             async with self._common_pool().acquire() as connection:
                 await connection.execute(query, PsqlpyDriver._common_params(params))
 
     async def fetch(self, query: str, params: Sequence[object] = ()) -> list[Row]:
+        logger.debug("psqlpy fetch", params=len(params))
         with PsqlpyDriver._common_guard():
             async with self._common_pool().acquire() as connection:
                 return (await connection.fetch(query, PsqlpyDriver._common_params(params))).result()
@@ -156,6 +165,7 @@ class PsqlpyDriver:
         return next(iter(await self.fetch(query, params)), None)
 
     async def many(self, query: str, params: Sequence[Sequence[object]]) -> None:
+        logger.debug("psqlpy many", sets=len(params))
         with PsqlpyDriver._common_guard():
             async with self._common_pool().acquire() as connection:
                 await connection.execute_many(query, [PsqlpyDriver._common_params(each) for each in params])
@@ -165,6 +175,7 @@ class PsqlpyDriver:
 
     @asynccontextmanager
     async def _transaction_scope(self) -> AsyncGenerator[QueryPort]:
+        logger.debug("psqlpy transaction")
         with PsqlpyDriver._common_guard():
             async with self._common_pool().acquire() as connection, connection.transaction() as transaction:
                 yield PsqlpyTransaction(connection, transaction)

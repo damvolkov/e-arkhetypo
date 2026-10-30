@@ -6,6 +6,8 @@ unentered, with one queue of the test's own (two slots) and every write of a sna
 what the engine warns, in place of its logger. `StubProvider` answers its health after `delay` seconds."""
 
 import asyncio
+from contextlib import AsyncExitStack
+from datetime import timedelta
 from typing import TYPE_CHECKING, ClassVar, Self
 
 import pytest
@@ -13,13 +15,15 @@ import pytest
 from e_infra.engines.dispatch import DispatchEngine
 from e_infra.infra.background import Background
 from e_infra.infra.config.base import Secret
+from e_infra.infra.config.providers.drivers.database.asyncpg import AsyncpgSettings
 from e_infra.ports.provider import Isolation, Locality, ProviderSpec, Workload
+from e_infra.providers.drivers.database.asyncpg import AsyncpgDriver
 from e_infra.providers.drivers.queue.awa import AwaDriver
 from e_infra.providers.drivers.queue.pgqueuer import PgqueuerDriver
-from unit.e_infra.conftest import Warnings, Works
+from unit.e_infra.conftest import Queues, Warnings, Works
 
 if TYPE_CHECKING:
-    from e_infra.infra.config.queue import QueueSettings
+    from collections.abc import AsyncIterator
 
 
 ##### HEALTH #####
@@ -54,15 +58,15 @@ def warnings(monkeypatch: pytest.MonkeyPatch) -> Warnings:
     return recorder
 
 
-def engine(request: pytest.FixtureRequest, name: str) -> AwaDriver | PgqueuerDriver:
-    """The durable queue `name` on this worker's database of its own, not yet entered."""
-    settings: QueueSettings = request.getfixturevalue("queue_settings")
+async def engine(name: str, stack: AsyncExitStack, queues: Queues) -> AwaDriver | PgqueuerDriver:
+    """The durable queue `name` on this worker's database of its own, not yet entered; PgQueuer's asyncpg driver is
+    entered on `stack`, as the lifespan would before it."""
     match name:
         case "awa":
-            return AwaDriver(settings)
+            return AwaDriver(queues.awa)
         case _:
-            dsn = Secret(request.getfixturevalue("pgqueuer_database"))
-            return PgqueuerDriver(settings.model_copy(update={"dsn": dsn}))
+            db = AsyncpgDriver(AsyncpgSettings(dsn=Secret(queues.database), pool=4, timeout=timedelta(seconds=5)))
+            return PgqueuerDriver(await stack.enter_async_context(db), queues.pgqueuer)
 
 
 def build(durable: AwaDriver | PgqueuerDriver | None, queue: str, works: Works) -> DispatchEngine:
@@ -75,18 +79,28 @@ def build(durable: AwaDriver | PgqueuerDriver | None, queue: str, works: Works) 
     return dispatch
 
 
-@pytest.fixture(params=[pytest.param("awa", marks=pytest.mark.db), pytest.param("pgqueuer", marks=pytest.mark.db)])
-def durable(request: pytest.FixtureRequest) -> AwaDriver | PgqueuerDriver:
-    return engine(request, request.param)
+@pytest.fixture(
+    params=[pytest.param("awa", marks=pytest.mark.integration), pytest.param("pgqueuer", marks=pytest.mark.integration)]
+)
+async def durable(request: pytest.FixtureRequest, queues: Queues) -> AsyncIterator[AwaDriver | PgqueuerDriver]:
+    async with AsyncExitStack() as stack:
+        yield await engine(request.param, stack, queues)
 
 
 @pytest.fixture(
-    params=["memory", pytest.param("awa", marks=pytest.mark.db), pytest.param("pgqueuer", marks=pytest.mark.db)]
+    params=[
+        "memory",
+        pytest.param("awa", marks=pytest.mark.integration),
+        pytest.param("pgqueuer", marks=pytest.mark.integration),
+    ]
 )
-def background(request: pytest.FixtureRequest, queue: str, works: Works) -> DispatchEngine:
+async def background(
+    request: pytest.FixtureRequest, queue: str, works: Works, queues: Queues
+) -> AsyncIterator[DispatchEngine]:
     """The engine, not yet entered: its task group lives and dies in the test's own task."""
-    match request.param:
-        case "memory":
-            return build(None, queue, works)
-        case name:
-            return build(engine(request, name), queue, works)
+    async with AsyncExitStack() as stack:
+        match request.param:
+            case "memory":
+                yield build(None, queue, works)
+            case name:
+                yield build(await engine(name, stack, queues), queue, works)

@@ -1,4 +1,4 @@
-"""providers/drivers/llm/openai: a chat model over an OpenAI-compatible server (vLLM, OpenAI) — answers under a JSON schema.
+"""providers/drivers/llm/openai: a chat model over an OpenAI-compatible server (vLLM, OpenAI) — JSON-schema answers.
 
 `response_format` with a strict `json_schema` makes the server decode under the schema (vLLM: guided decoding), so the
 answer parses and conforms by construction; a reply that still does not parse is a `ModelError`, never a guess; one cut at
@@ -13,13 +13,14 @@ from typing import TYPE_CHECKING, Any, ClassVar, Self
 import msgspec
 
 from e_infra.infra.errors import ModelError, ProviderError, TruncatedError
+from e_infra.infra.logger import logger
 from e_infra.infra.settings import settings as st
 from e_infra.ports.provider import Isolation, Locality, ProviderSpec, Workload
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
-    from e_infra.infra.config.llm import LlmSettings
+    from e_infra.infra.config.providers.drivers.llm.openai import OpenaiSettings
     from e_infra.ports.http import HttpPort
 
 
@@ -69,9 +70,9 @@ class OpenaiDriver:
 
     __slots__ = ("_bucket", "_conf", "_gate", "_http")
 
-    def __init__(self, http: HttpPort, settings: LlmSettings | None = None) -> None:
+    def __init__(self, http: HttpPort, settings: OpenaiSettings | None = None) -> None:
         ### the default is read on call, not at import: the settings singleton stays lazy.
-        self._conf = st.llm if settings is None else settings
+        self._conf = st.providers.drivers.llm.openai if settings is None else settings
         self._http = http
         self._gate = asyncio.Semaphore(self._conf.concurrency)
         self._bucket = OpenaiBucket(self._conf.rpm)
@@ -103,6 +104,7 @@ class OpenaiDriver:
             completion = msgspec.convert(body, OpenaiCompletion)
         except msgspec.ValidationError as error:
             msg = "the server answered without a chat-completion envelope"
+            logger.error("openai answered outside the contract", error=str(error))
             raise ModelError(msg) from error
         match completion.choices:
             case [OpenaiChoice(message=OpenaiMessage(content=str() as content), finish_reason=reason), *_]:
@@ -111,9 +113,11 @@ class OpenaiDriver:
                 except msgspec.DecodeError as error:
                     ### `length` means max_tokens cut the answer: the tail shows where, the head what was asked.
                     msg = f"the answer is not JSON (finish {reason}, {len(content)} chars): …{content[-160:]!r}"
+                    logger.error("openai answer is not JSON", finish=reason, chars=len(content))
                     raise (TruncatedError if reason == "length" else ModelError)(msg) from error
             case _:
                 msg = "the server answered with no content"
+                logger.error("openai answered no content")
                 raise ModelError(msg)
 
     ############################################################
@@ -127,10 +131,12 @@ class OpenaiDriver:
 
     async def __aenter__(self) -> Self:
         """Nothing to open: the HTTP pool is the lifespan's."""
+        logger.info("openai opened", url=self._conf.url, model=self._conf.model)
         return self
 
     async def __aexit__(self, *exc: object) -> None:
         """Nothing to release."""
+        logger.info("openai closed")
 
     async def health(self) -> bool:
         """The served models, as any OpenAI-compatible server lists them (`/models`): the key and the server at once."""
@@ -138,13 +144,15 @@ class OpenaiDriver:
             await self._http.get(
                 f"{self._conf.url.rstrip('/')}/models", within=self._conf.timeout, headers=self._common_headers()
             )
-        except ProviderError:
+        except ProviderError as error:
+            logger.warning("openai unhealthy", error=str(error))
             return False
         return True
 
     async def structured(self, system: str, prompt: str, schema: Mapping[str, Any]) -> Any:
         """The model's answer to `prompt` under `system`, decoded from JSON constrained by `schema`."""
         url = f"{self._conf.url.rstrip('/')}/chat/completions"
+        logger.debug("openai structured", model=self._conf.model, prompt_chars=len(prompt))
         ### the rate wait comes first: a call sleeping on the bucket must not hold a concurrency slot.
         await self._bucket.take()
         async with self._gate:

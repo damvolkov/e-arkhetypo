@@ -12,14 +12,15 @@ from typing import Any, ClassVar, Self
 import anyio
 import pytest
 
-from e_infra.infra.config.md import MDSettings
+from e_infra.infra.config.processors.md import MDSettings
+from e_infra.infra.config.providers.adapters.markdown.anytomd import AnytomdSettings
 from e_infra.infra.errors import InputTooLargeError, UnsupportedFormatError, ZipBombError
 from e_infra.ports.markdown import MdConversion
 from e_infra.ports.provider import Isolation, Locality, ProviderSpec, Workload
 from e_infra.processors.md import MDProcessor
 from e_infra.providers.adapters.markdown.anytomd import AnytomdAdapter
 
-DETECTOR = AnytomdAdapter(MDSettings())
+DETECTOR = AnytomdAdapter(AnytomdSettings())
 
 
 class FakePort:
@@ -109,7 +110,7 @@ async def test_an_unsupported_file_is_refused_before_the_engine() -> None:
 
 async def test_an_oversized_file_is_refused() -> None:
     with pytest.raises(InputTooLargeError, match="over MD_MAX_INPUT_BYTES"):
-        await processor(md_max_input_bytes=4).convert(b"123456789", name="big.txt")
+        await processor(max_input_bytes=4).convert(b"123456789", name="big.txt")
 
 
 async def test_a_failing_engine_marks_the_file_not_the_run() -> None:
@@ -149,16 +150,16 @@ async def test_a_nested_zip_uploads_member_paths() -> None:
 async def test_members_are_bounded_by_concurrency() -> None:
     port = FakePort(delay=0.02)
     bundle = zipped({f"m{i}.txt": b"x" for i in range(5)})
-    await processor(port, md_concurrency=2).convert(bundle, name="z.zip")
+    await processor(port, concurrency=2).convert(bundle, name="z.zip")
     assert len(port.calls) == 5
     assert port.peak <= 2
 
 
 async def test_a_zip_with_too_many_entries_is_refused() -> None:
     with pytest.raises(ZipBombError, match="over limit"):
-        await processor(md_zip_max_entries=1).convert(zipped({"a.txt": b"x", "b.txt": b"y"}), name="z.zip")
+        await processor(zip_max_entries=1).convert(zipped({"a.txt": b"x", "b.txt": b"y"}), name="z.zip")
 
 
 async def test_a_zip_that_unpacks_too_big_is_refused() -> None:
     with pytest.raises(ZipBombError, match="over limit"):
-        await processor(md_zip_max_bytes=100).convert(zipped({"a.txt": b"x" * 1000}), name="z.zip")
+        await processor(zip_max_bytes=100).convert(zipped({"a.txt": b"x" * 1000}), name="z.zip")

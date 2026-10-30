@@ -12,13 +12,13 @@ GRAY    := \033[0;90m
 
 SHELL := bash
 
-TESTARGS  ?= -m "not slow"   ## wall-clock benchmarks leave the gate; run them with make test TESTARGS="-m slow"
+TESTARGS  ?= -m "not slow and not integration"   ## wall-clock benchmarks and real-service tests leave the gate: make test TESTARGS="-m slow", make integration
 .DEFAULT_GOAL := help
 MAKEFLAGS += --no-print-directory
 export PYTHONPATH := $(CURDIR)/src
 
 ##### TARGETS #####
-.PHONY: help install sync lock lint type arch validate harden hooks test cov docs docs-build check ci release ci-vars clean
+.PHONY: help install sync lock lint type arch validate harden hooks test integration cov docs docs-build check ci release ci-vars clean
 
 help:
 	@printf "$(BOLD)$(CYAN)$(PROJECT)$(RESET) $(GRAY)· uv · ruff · ty · tach · pytest · zensical — the python infra blueprint of every e-stack system$(RESET)\n\n"
@@ -59,6 +59,9 @@ hooks: ## run all prek hooks on every file (ruff, ty, tach, zizmor, gitleaks)
 # — tests —
 test: ## run tests, benchmarks out by default [TESTARGS='-k expr']
 	@uv run pytest tests $(TESTARGS) -n auto -q
+
+integration: ## the tests that need a real service (Postgres at POSTGRES_TEST_DSN); skipped when none answers
+	@uv run pytest tests -m integration -q
 
 cov: ## run tests with coverage gate (fail under 90%), benchmarks out like the CI matrix
 	@uv run pytest tests $(TESTARGS) --cov --cov-report=term-missing

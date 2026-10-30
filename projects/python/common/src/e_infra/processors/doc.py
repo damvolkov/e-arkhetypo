@@ -26,7 +26,7 @@ from typing import TYPE_CHECKING, Any, Final
 import anyio
 import polars as pl
 
-from e_infra.infra.config.doc import DocMode, DocSignal
+from e_infra.infra.config.processors.doc import DocMode, DocSignal
 from e_infra.infra.logger import logger
 from e_infra.infra.settings import settings as st
 from e_infra.ports.documents import DocumentConversion
@@ -36,7 +36,7 @@ if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
     from pathlib import Path
 
-    from e_infra.infra.config.doc import DocSettings
+    from e_infra.infra.config.processors.doc import DocSettings
     from e_infra.ports.documents import DocumentPort
     from e_infra.ports.pages import FastPage, PagesPort
 
@@ -77,7 +77,7 @@ class DocProcessor:
 
     def __init__(self, port: DocumentPort, pages: PagesPort, settings: DocSettings | None = None) -> None:
         ### the default is read on call, not at import: the settings singleton stays lazy.
-        self._conf = st.doc if settings is None else settings
+        self._conf = st.processors.doc if settings is None else settings
         self._port = port
         self._pages = pages
 
@@ -85,8 +85,8 @@ class DocProcessor:
 
     def _process_route(self, signals: Mapping[int, tuple[DocSignal, ...]]) -> list[int]:
         """The pages docling reads, ascending: none, all, or those whose signals DOC_ROUTE names."""
-        route = set(self._conf.doc_route)
-        match self._conf.doc_mode:
+        route = set(self._conf.route)
+        match self._conf.mode:
             case DocMode.LITE:
                 return []
             case DocMode.DEEP:
@@ -97,10 +97,10 @@ class DocProcessor:
     def _process_spans(self, pages: Sequence[int]) -> list[Span]:
         """Routed pages as page ranges: gaps up to DOC_GAP merged, lanes filled, then capped at DOC_SPAN pages."""
         starts = [pages[0]] if pages else []
-        starts += [after for before, after in pairwise(pages) if after - before - 1 > self._conf.doc_gap]
-        ends = [before for before, after in pairwise(pages) if after - before - 1 > self._conf.doc_gap]
+        starts += [after for before, after in pairwise(pages) if after - before - 1 > self._conf.gap]
+        ends = [before for before, after in pairwise(pages) if after - before - 1 > self._conf.gap]
         runs = self._spans_lanes(list(zip(starts, [*ends, pages[-1]] if pages else [], strict=True)))
-        cap = self._conf.doc_span
+        cap = self._conf.span
         return [(start, min(start + cap - 1, last)) for first, last in runs for start in range(first, last + 1, cap)]
 
     def _spans_lanes(self, runs: list[Span]) -> list[Span]:
@@ -108,7 +108,7 @@ class DocProcessor:
         pages — below that, a second request costs more than the parallelism returns."""
         longest = max(runs, key=lambda run: run[1] - run[0], default=None)
         match longest:
-            case (first, last) if len(runs) < self._conf.doc_concurrency and last - first + 1 >= 2 * LANE:
+            case (first, last) if len(runs) < self._conf.concurrency and last - first + 1 >= 2 * LANE:
                 middle = first + (last - first + 1) // 2
                 split = [run for run in runs if run != longest] + [(first, middle - 1), (middle, last)]
                 return self._spans_lanes(sorted(split))
@@ -123,7 +123,7 @@ class DocProcessor:
             "page_range": list(span),
             "md_page_break_placeholder": BREAK,
             "do_ocr": DocSignal.SCANNED in seen,
-            "table_mode": str(self._conf.doc_tables),
+            "table_mode": str(self._conf.tables),
             **({} if pictures else {"image_export_mode": "placeholder", "include_images": False}),
         }
 
@@ -131,7 +131,7 @@ class DocProcessor:
         self, raw: bytes, name: str, spans: Sequence[Span], signals: Mapping[int, tuple[DocSignal, ...]]
     ) -> dict[Span, DocumentConversion | str]:
         """Every span through docling, DOC_CONCURRENCY at a time; a span that fails yields its reason, never raises."""
-        gate = anyio.Semaphore(self._conf.doc_concurrency)
+        gate = anyio.Semaphore(self._conf.concurrency)
         outcomes: dict[Span, DocumentConversion | str] = {}
 
         async def convert(span: Span) -> None:
@@ -307,6 +307,7 @@ class DocProcessor:
         """Read a document: liteparse on every page, docling on the pages its signals route, one Document out."""
         raw = source if isinstance(source, bytes) else await anyio.Path(source).read_bytes()
         name = name or (getattr(source, "name", "") or "document.pdf")
+        logger.debug("doc process", name=name, size=len(raw), mode=str(self._conf.mode))
         pages = {page.number: page for page in await self._pages.parse(raw)}
         numbers = list(pages)
         signals = {number: page.signals for number, page in pages.items()}

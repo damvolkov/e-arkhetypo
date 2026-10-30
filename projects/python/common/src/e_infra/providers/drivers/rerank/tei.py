@@ -6,13 +6,14 @@ request. It speaks through an `HttpPort` received by constructor, absolute URLs.
 from typing import TYPE_CHECKING, ClassVar, Self
 
 from e_infra.infra.errors import ProviderError
+from e_infra.infra.logger import logger
 from e_infra.infra.settings import settings as st
 from e_infra.ports.provider import Isolation, Locality, ProviderSpec, Workload
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from e_infra.infra.config.rerank import RerankSettings
+    from e_infra.infra.config.providers.drivers.rerank.tei import TeiRerankSettings
     from e_infra.ports.http import HttpPort
 
 
@@ -24,14 +25,15 @@ class TeiRerankDriver:
 
     __slots__ = ("_conf", "_http")
 
-    def __init__(self, http: HttpPort, settings: RerankSettings | None = None) -> None:
-        self._conf = st.rerank if settings is None else settings
+    def __init__(self, http: HttpPort, settings: TeiRerankSettings | None = None) -> None:
+        self._conf = st.providers.drivers.rerank.tei if settings is None else settings
         self._http = http
 
     ##### PRIVATE #####
 
     async def _rerank_post(self, question: str, texts: Sequence[str]) -> list[dict[str, float]]:
         payload = {"query": question, "texts": list(texts), "truncate": True}
+        logger.debug("tei rerank", texts=len(texts))
         return await self._http.post(
             f"{self._conf.url.rstrip('/')}/rerank", payload, as_=list[dict[str, float]], within=self._conf.timeout
         )
@@ -42,16 +44,19 @@ class TeiRerankDriver:
 
     async def __aenter__(self) -> Self:
         """Nothing to open: the HTTP pool is the lifespan's."""
+        logger.info("tei rerank opened", url=self._conf.url)
         return self
 
     async def __aexit__(self, *exc: object) -> None:
         """Nothing to release."""
+        logger.info("tei rerank closed")
 
     async def health(self) -> bool:
         """TEI's own health route: 200 once the model answers."""
         try:
             await self._http.raw(f"{self._conf.url.rstrip('/')}/health", within=self._conf.timeout)
-        except ProviderError:
+        except ProviderError as error:
+            logger.warning("tei rerank unhealthy", error=str(error))
             return False
         return True
 

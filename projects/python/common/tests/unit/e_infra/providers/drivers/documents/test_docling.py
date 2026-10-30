@@ -7,7 +7,13 @@ from typing import TYPE_CHECKING, Any
 import pytest
 import wreq
 
-from e_infra.infra.config.docling import DoclingBackend, DoclingFormat, DoclingImages, DoclingSettings, DoclingTables
+from e_infra.infra.config.providers.drivers.documents.docling import (
+    DoclingBackend,
+    DoclingFormat,
+    DoclingImages,
+    DoclingSettings,
+    DoclingTables,
+)
 from e_infra.infra.errors import DocumentError, HttpError, HttpTimeoutError
 from e_infra.ports.documents import DocumentConversion, DocumentPort
 from e_infra.providers.drivers.documents.docling import DoclingDriver
@@ -20,7 +26,7 @@ if TYPE_CHECKING:
 
 
 def settings(url: str, **values: Any) -> DoclingSettings:
-    return DoclingSettings(docling_url=url, docling_poll=timedelta(milliseconds=5), **values)
+    return DoclingSettings(url=url, poll=timedelta(milliseconds=5), **values)
 
 
 async def test_port_shape(http: HttpPort) -> None:
@@ -61,14 +67,14 @@ async def test_bytes_and_paths_sent_inline(docling_server: Any, tmp_path: Path, 
 async def test_options_follow_settings_then_the_call(docling_server: Any, http: HttpPort) -> None:
     conf = settings(
         docling_server.url,
-        docling_formats=(DoclingFormat.JSON, DoclingFormat.TEXT),
-        docling_images=DoclingImages.PLACEHOLDER,
-        docling_tables=DoclingTables.FAST,
-        docling_backend=DoclingBackend.PYPDFIUM2,
-        docling_force_ocr=True,
-        docling_ocr_lang=("en", "es"),
-        docling_formulas=True,
-        docling_page_timeout=timedelta(minutes=2),
+        formats=(DoclingFormat.JSON, DoclingFormat.TEXT),
+        images=DoclingImages.PLACEHOLDER,
+        tables=DoclingTables.FAST,
+        backend=DoclingBackend.PYPDFIUM2,
+        force_ocr=True,
+        ocr_lang=("en", "es"),
+        formulas=True,
+        page_timeout=timedelta(minutes=2),
     )
     async with DoclingDriver(http, conf) as adapter:
         await adapter.convert("https://example.org/a", options={"table_mode": "accurate", "page_range": [1, 3]})
@@ -104,9 +110,7 @@ async def test_a_failed_task_raises_with_its_reason(docling_server: Any, http: H
 
 async def test_a_task_past_the_deadline_is_abandoned(docling_server: Any, http: HttpPort) -> None:
     ### a task that never settles: the deadline, not the server, ends the wait — whatever the load on the machine.
-    async with DoclingDriver(
-        http, settings(docling_server.url, docling_deadline=timedelta(milliseconds=300))
-    ) as adapter:
+    async with DoclingDriver(http, settings(docling_server.url, deadline=timedelta(milliseconds=300))) as adapter:
         with pytest.raises(TimeoutError):
             await adapter.convert("https://example.org/slow")
     assert docling_server.sent["sources"] == [{"kind": "http", "url": "https://example.org/slow"}]
@@ -114,9 +118,7 @@ async def test_a_task_past_the_deadline_is_abandoned(docling_server: Any, http: 
 
 async def test_a_body_past_the_deadline_times_out(docling_server: Any, http: HttpPort) -> None:
     ### headers in time, body too late: the cut lands on the body read and still surfaces as a TimeoutError.
-    async with DoclingDriver(
-        http, settings(docling_server.url, docling_deadline=timedelta(milliseconds=300))
-    ) as adapter:
+    async with DoclingDriver(http, settings(docling_server.url, deadline=timedelta(milliseconds=300))) as adapter:
         with pytest.raises(HttpTimeoutError, match="timed out after"):
             await adapter.convert("https://example.org/stall")
 
@@ -160,8 +162,6 @@ async def test_an_unknown_source_kind_is_refused(docling_server: Any, http: Http
 
 async def test_a_request_past_the_deadline_times_out_never_cancels(docling_server: Any, http: HttpPort) -> None:
     ### the bound is the request's own timeout: a TimeoutError, never a CancelledError leaking into the caller's group.
-    async with DoclingDriver(
-        http, settings(docling_server.url, docling_deadline=timedelta(milliseconds=300))
-    ) as adapter:
+    async with DoclingDriver(http, settings(docling_server.url, deadline=timedelta(milliseconds=300))) as adapter:
         with pytest.raises(TimeoutError, match="timed out after"):
             await adapter.convert("https://example.org/hang")

@@ -12,7 +12,7 @@ from opentelemetry.trace import SpanKind as SdkKind
 from opentelemetry.trace import StatusCode
 
 from e_infra.infra.config.base import Secret
-from e_infra.infra.config.otel import OtelProtocol, OtelSettings
+from e_infra.infra.config.providers.drivers.telemetry.otel import OtelProtocol, OtelSettings
 from e_infra.infra.errors import TelemetryError
 from e_infra.ports.telemetry import SpanKind, SpanPort, SpanStatus, TelemetryPort
 from e_infra.providers.drivers.telemetry.otel import KINDS, STATUSES, OtelDriver, OtelSpan, export_grpc, export_http
@@ -38,7 +38,7 @@ def test_every_kind_and_status_maps_to_the_sdk() -> None:
 
 ##### SPAN #####
 async def test_span_ids_are_w3c_hex(exporter: InMemorySpanExporter) -> None:
-    async with OtelDriver(OtelSettings(otel_service="svc"), exporter) as adapter:
+    async with OtelDriver(OtelSettings(service="svc"), exporter) as adapter:
         with adapter.span("work", {"k": "v"}) as span:
             ids = (span.trace_id, span.span_id)
     assert (len(ids[0]), len(ids[1])) == (32, 16)
@@ -116,10 +116,10 @@ async def test_processor_roads(protocol: OtelProtocol) -> None:
     assert OtelDriver(OtelSettings())._enter_processor() is None
     assert isinstance(OtelDriver(OtelSettings(), InMemorySpanExporter())._enter_processor(), SimpleSpanProcessor)
     settings = OtelSettings(
-        otel_endpoint="http://127.0.0.1:4318/",
-        otel_protocol=protocol,
-        otel_headers={"authorization": Secret("Bearer x")},
-        otel_flush=timedelta(milliseconds=200),
+        endpoint="http://127.0.0.1:4318/",
+        protocol=protocol,
+        headers={"authorization": Secret("Bearer x")},
+        flush=timedelta(milliseconds=200),
     )
     batched = OtelDriver(settings)._enter_processor()
     assert isinstance(batched, BatchSpanProcessor)
@@ -128,12 +128,12 @@ async def test_processor_roads(protocol: OtelProtocol) -> None:
 
 async def test_endpoint_road_connects_and_closes() -> None:
     """A collector that never answers: no span is opened, so shutdown has nothing to flush."""
-    async with OtelDriver(OtelSettings(otel_endpoint="http://127.0.0.1:9")) as adapter:
+    async with OtelDriver(OtelSettings(endpoint="http://127.0.0.1:9")) as adapter:
         assert adapter.spec.name == "otel"
 
 
 async def test_zero_sample_keeps_nothing(exporter: InMemorySpanExporter) -> None:
-    async with OtelDriver(OtelSettings(otel_sample=0.0), exporter) as adapter:
+    async with OtelDriver(OtelSettings(sample=0.0), exporter) as adapter:
         with adapter.span("dropped", {}) as span:
             assert len(span.trace_id) == 32
     assert exporter.get_finished_spans() == ()
@@ -150,9 +150,7 @@ async def test_closed_driver_refuses_spans() -> None:
 
 ##### RESOURCE #####
 async def test_resource_carries_the_configured_attributes(exporter: InMemorySpanExporter) -> None:
-    settings = OtelSettings(
-        otel_service="svc", otel_attributes={"openinference.project.name": "proj", "service.name": "x"}
-    )
+    settings = OtelSettings(service="svc", attributes={"openinference.project.name": "proj", "service.name": "x"})
     async with OtelDriver(settings, exporter) as adapter:
         with adapter.span("work", {}):
             pass
@@ -167,17 +165,17 @@ def test_settings_read_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("OTEL_HEADERS", '{"api_key": "s3cret"}')
     monkeypatch.setenv("OTEL_FLUSH", "PT1S")
     settings = OtelSettings()
-    assert settings.otel_attributes == {"openinference.project.name": "e-graph"}
-    assert settings.otel_protocol is OtelProtocol.GRPC
-    assert settings.otel_headers["api_key"].get_secret_value() == "s3cret"
+    assert settings.attributes == {"openinference.project.name": "e-graph"}
+    assert settings.protocol is OtelProtocol.GRPC
+    assert settings.headers["api_key"].get_secret_value() == "s3cret"
     assert "s3cret" not in repr(settings)
-    assert settings.otel_flush == timedelta(seconds=1)
+    assert settings.flush == timedelta(seconds=1)
 
 
 @pytest.mark.parametrize("sample", [-0.1, 1.5])
 def test_sample_is_a_share(sample: float) -> None:
     with pytest.raises(ValueError, match="sample"):
-        OtelSettings(otel_sample=sample)
+        OtelSettings(sample=sample)
 
 
 ##### HEALTH #####

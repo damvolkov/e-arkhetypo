@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING, Final
 
 import msgspec
 
+from e_infra.infra.logger import logger
 from e_infra.infra.settings import settings as st
 
 if TYPE_CHECKING:
@@ -64,6 +65,7 @@ class HealthEngine:
         else:
             reason = "" if up else "unhealthy"
         latency = round((time.perf_counter() - start) * MS, 2)
+        _ = reason and logger.warning("provider down", provider=name, reason=reason, latency=latency)
         return ProviderHealth(name=name, required=name in self._required, ok=not reason, latency=latency, reason=reason)
 
     def _survey_failed(self, name: str, error: BaseException) -> ProviderHealth:
@@ -77,6 +79,7 @@ class HealthEngine:
 
     async def survey(self) -> tuple[ProviderHealth, ...]:
         """Every provider checked at once, in mapping order: the whole takes the slowest, never the sum."""
+        logger.debug("health survey", providers=len(self._providers))
         answers = await asyncio.gather(
             *(self._survey_one(name, provider) for name, provider in self._providers.items()),
             return_exceptions=True,

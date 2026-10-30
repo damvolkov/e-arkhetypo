@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from e_infra.infra.config.db import DbSettings
+from e_infra.infra.config.providers.drivers.store.sqlite import SqliteSettings
 from e_infra.infra.errors import StoreError
 from e_infra.ports.store import StorePort
 from e_infra.providers.drivers.store.sqlite import SqliteDriver
@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 
 
 async def test_sqlite_crud_cycle(tmp_path: Path) -> None:
-    adapter = SqliteDriver(DbSettings(db_path=tmp_path / "kv.db"))
+    adapter = SqliteDriver(SqliteSettings(path=tmp_path / "kv.db"))
     async with adapter:
         await adapter.set("user:1", b"one")
         assert await adapter.get("user:1") == b"one"
@@ -31,21 +31,21 @@ async def test_sqlite_crud_cycle(tmp_path: Path) -> None:
 
 async def test_sqlite_creates_absent_parents(tmp_path: Path) -> None:
     """connect() builds the whole parent chain — off the loop, before the file opens."""
-    adapter = SqliteDriver(DbSettings(db_path=tmp_path / "deep" / "nested" / "kv.db"))
+    adapter = SqliteDriver(SqliteSettings(path=tmp_path / "deep" / "nested" / "kv.db"))
     async with adapter:
         await adapter.set("k", b"v")
         assert await adapter.get("k") == b"v"
 
 
 async def test_sqlite_close_survives_double(tmp_path: Path) -> None:
-    adapter = SqliteDriver(DbSettings(db_path=tmp_path / "kv.db"))
+    adapter = SqliteDriver(SqliteSettings(path=tmp_path / "kv.db"))
     await adapter.__aenter__()
     await adapter.__aexit__(None, None, None)
     await adapter.__aexit__(None, None, None)  # closing a closed store is a no-op, not an error
 
 
 async def test_sqlite_closed_adapter_refuses(tmp_path: Path) -> None:
-    adapter = SqliteDriver(DbSettings(db_path=tmp_path / "kv.db"))
+    adapter = SqliteDriver(SqliteSettings(path=tmp_path / "kv.db"))
     async with adapter:
         pass
     with pytest.raises(StoreError, match="not open"):
@@ -54,7 +54,7 @@ async def test_sqlite_closed_adapter_refuses(tmp_path: Path) -> None:
 
 async def test_sqlite_health(tmp_path: Path) -> None:
     """One trivial statement on the open file; closed, nothing answers."""
-    adapter = SqliteDriver(DbSettings(db_path=tmp_path / "kv.db"))
+    adapter = SqliteDriver(SqliteSettings(path=tmp_path / "kv.db"))
     async with adapter:
         assert isinstance(adapter, StorePort)
         assert await adapter.health()
@@ -63,7 +63,7 @@ async def test_sqlite_health(tmp_path: Path) -> None:
 
 async def test_sqlite_error_translated(tmp_path: Path) -> None:
     """aiosqlite's own error never leaves the driver."""
-    async with SqliteDriver(DbSettings(db_path=tmp_path / "kv.db")) as adapter:
+    async with SqliteDriver(SqliteSettings(path=tmp_path / "kv.db")) as adapter:
         await adapter._common_open().execute("DROP TABLE kv")
         with pytest.raises(StoreError):
             await adapter.get("k")

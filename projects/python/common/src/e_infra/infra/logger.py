@@ -155,7 +155,7 @@ class ELogger:
         ### the surface is structlog's own untyped edge."""
         match cls._configured:
             case False:
-                cls.setup(env=st.app.app_env)
+                cls.setup(env=st.app.env)
             case _:
                 pass
         return structlog.get_logger().bind()

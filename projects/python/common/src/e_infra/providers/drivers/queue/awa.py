@@ -28,6 +28,7 @@ from awa import DatabaseError as AwaDatabaseError
 
 from e_infra.infra.background import BackgroundJob, BackgroundState
 from e_infra.infra.errors import ProviderError, QueueError
+from e_infra.infra.logger import logger
 from e_infra.infra.settings import settings as st
 from e_infra.ports.provider import Isolation, Locality, ProviderSpec, Workload
 
@@ -35,7 +36,7 @@ if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable, Mapping
 
     from e_infra.infra.background import BackgroundHandler
-    from e_infra.infra.config.queue import QueueSettings
+    from e_infra.infra.config.providers.drivers.queue.awa import AwaSettings
 
 SCHEMA: Final[tuple[str, ...]] = (
     "CREATE SCHEMA IF NOT EXISTS background",
@@ -72,9 +73,9 @@ class AwaDriver:
 
     __slots__ = ("_client", "_conf")
 
-    def __init__(self, settings: QueueSettings | None = None) -> None:
+    def __init__(self, settings: AwaSettings | None = None) -> None:
         ### the default is read on call, not at import: the settings singleton stays lazy.
-        self._conf = st.queue if settings is None else settings
+        self._conf = st.providers.drivers.queue.awa if settings is None else settings
         self._client: AsyncClient | None = None
 
     ##### PRIVATE #####
@@ -140,9 +141,11 @@ class AwaDriver:
             with anyio.fail_after(self._conf.timeout.total_seconds() if bounded else None):
                 return await call(self._common_client())
         except AwaDatabaseError as error:
+            logger.error("awa database failed", error=str(error))
             raise QueueError(str(error)) from error
         except TimeoutError as error:
             msg = f"awa call timed out after {self._conf.timeout}"
+            logger.error("awa call timed out", timeout=str(self._conf.timeout))
             raise QueueError(msg) from error
 
     async def _common_found(
@@ -194,18 +197,21 @@ class AwaDriver:
         try:
             self._client = self._client or await self._enter_client()
         except (AwaDatabaseError, TimeoutError) as error:
+            logger.error("awa open failed", error=str(error) or "timed out")
             raise QueueError(str(error) or "awa open timed out") from error
         ### the schema is one-time work — awa's first migrate takes seconds on a fresh database: it is never cut short.
         await self._common_call(lambda client: client.migrate(), bounded=False)
         _ = [await self._common_execute(statement, bounded=False) for statement in SCHEMA]
         await self._common_call(self._enter_fill)
+        logger.info("awa opened", pool=self._conf.pool)
         return self
 
     async def health(self) -> bool:
         """One trivial query on the queue's database, within QUEUE_TIMEOUT."""
         try:
             await self._common_fetch("SELECT 1")
-        except ProviderError:
+        except ProviderError as error:
+            logger.warning("awa unhealthy", error=str(error))
             return False
         return True
 
@@ -222,7 +228,10 @@ class AwaDriver:
                         await client.close()
                 except TimeoutError as error:
                     msg = f"awa close timed out after {limit}"
+                    logger.error("awa close timed out", limit=str(limit))
                     raise QueueError(msg) from error
+                else:
+                    logger.info("awa closed")
                 finally:
                     self._client = None
 
@@ -231,6 +240,7 @@ class AwaDriver:
 
     async def start(self, slots: Mapping[str, int]) -> None:
         poll = int(self._conf.poll.total_seconds() * 1000)
+        logger.debug("awa start", queues=len(slots))
         await self._common_call(lambda client: client.start(list(slots.items()), poll_interval_ms=poll))
 
     async def enqueue(self, kind: str, args: Mapping[str, Any], *, queue: str, attempts: int) -> BackgroundJob:

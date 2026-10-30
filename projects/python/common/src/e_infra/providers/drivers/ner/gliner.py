@@ -19,6 +19,7 @@ import msgspec
 import wreq
 
 from e_infra.infra.errors import HttpError, ModelError, ProviderError
+from e_infra.infra.logger import logger
 from e_infra.infra.settings import settings as st
 from e_infra.ports.ner import NerEntity
 from e_infra.ports.provider import Isolation, Locality, ProviderSpec, Workload
@@ -26,7 +27,7 @@ from e_infra.ports.provider import Isolation, Locality, ProviderSpec, Workload
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator, Generator, Iterator, Sequence
 
-    from e_infra.infra.config.gliner import GlinerSettings
+    from e_infra.infra.config.providers.drivers.ner.gliner import GlinerSettings
 
 NEWLINE: Final[bytes] = b"\n"
 NDJSON: Final[str] = "application/x-ndjson"
@@ -72,7 +73,7 @@ class GlinerDriver:
 
     def __init__(self, settings: GlinerSettings | None = None) -> None:
         ### the default is read on call, not at import: the settings singleton stays lazy.
-        conf = st.gliner if settings is None else settings
+        conf = st.providers.drivers.ner.gliner if settings is None else settings
         self._url = conf.url.rstrip("/")
         self._timeout = conf.timeout
         self._batch = conf.batch
@@ -88,6 +89,7 @@ class GlinerDriver:
         try:
             yield
         except WIRE as error:
+            logger.error("gliner failed", error=str(error))
             raise HttpError(str(error)) from error
 
     def _common_open(self) -> wreq.Client:
@@ -130,12 +132,14 @@ class GlinerDriver:
                 return found
             case _:
                 msg = f"gliner answered {len(found)} of {count} texts; refused: {'; '.join(refused) or 'none'}"
+                logger.error("gliner left texts unanswered", answered=len(found), count=count, refused=len(refused))
                 raise ModelError(msg)
 
     async def _entities_batch(
         self, texts: Sequence[str], labels: Sequence[str], threshold: float
     ) -> list[tuple[NerEntity, ...]]:
         """One request: the texts' entities, in order."""
+        logger.debug("gliner batch", texts=len(texts), labels=len(labels))
         with self._common_guard():
             response = await self._common_open().post(
                 f"{self._url}/ner/batch",
@@ -163,6 +167,7 @@ class GlinerDriver:
 
     async def __aenter__(self) -> Self:
         self._client = wreq.Client(read_timeout=self._timeout)
+        logger.info("gliner opened", url=self._url)
         return self
 
     async def __aexit__(self, *exc: object) -> None:
@@ -172,6 +177,7 @@ class GlinerDriver:
             case client:
                 client.close()
                 self._client = None
+                logger.info("gliner closed")
 
     async def health(self) -> bool:
         """The service's readiness route: 200 once the model is loaded, 503 before."""
@@ -179,7 +185,8 @@ class GlinerDriver:
             with self._common_guard():
                 response = await self._common_open().get(f"{self._url}/ready")
                 response.raise_for_status()
-        except ProviderError:
+        except ProviderError as error:
+            logger.warning("gliner unhealthy", error=str(error))
             return False
         return True
 
@@ -191,6 +198,7 @@ class GlinerDriver:
             body = await response.bytes()
         card = msgspec.json.decode(body, type=GlinerCard)
         self._annotator = f"gliner:{card.model}@{card.version}"
+        logger.debug("gliner refreshed", annotator=self._annotator)
         return self._annotator
 
     async def entities(

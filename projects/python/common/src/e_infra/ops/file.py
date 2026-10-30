@@ -1,7 +1,8 @@
 """ops/file: agnostic discovery over an installed package — modules, classes, functions.
 
-The sweep is single-level and import-based: files of the package directory, subpackages excluded;
-discovery means importing, so a module that fails on import fails the sweep. Symbols are *own* only:
+The sweep is single-level and import-based: files of the package directory, subpackages excluded — unless
+``recursive``, which walks every folder below it too (a namespace tree, no ``__init__`` needed) and names a module by
+its dotted path under the package; discovery means importing, so a module that fails on import fails the sweep. Symbols are *own* only:
 re-exported names never count. A leading underscore is private at file level too: ``_helpers.py`` is
 imported never and seen never. ``discover`` dispatches on the target's type: a ``Kind`` sweeps a
 category, a base class selects its subclasses (never itself), a module reads that module alone, a
@@ -13,6 +14,7 @@ import importlib
 import inspect
 import pkgutil
 from enum import StrEnum, auto
+from pathlib import Path
 from types import ModuleType
 from typing import TYPE_CHECKING, Any
 
@@ -36,20 +38,36 @@ class Kind(StrEnum):
 class FileFinder:
     """Walk a package once; ``discover`` answers whatever ``target`` asks and nothing else."""
 
-    __slots__ = ("_package", "_skip")
+    __slots__ = ("_package", "_recursive", "_skip")
 
-    def __init__(self, package: str, *, skip: frozenset[str] = frozenset()) -> None:
+    def __init__(self, package: str, *, skip: frozenset[str] = frozenset(), recursive: bool = False) -> None:
         self._package = package
         self._skip = skip
+        self._recursive = recursive
 
     ##### PRIVATE #####
+
+    def _names(self, package: ModuleType) -> list[str]:
+        """The module names to sweep: the directory's own files, or every file below it as a dotted path."""
+        match self._recursive:
+            case True:
+                return sorted(
+                    {
+                        ".".join(path.relative_to(root).with_suffix("").parts)
+                        for root in map(Path, package.__path__)
+                        for path in root.rglob("*.py")
+                        if not any(part.startswith("_") for part in path.relative_to(root).parts)
+                    }
+                )
+            case False:
+                return [info.name for info in pkgutil.iter_modules(package.__path__) if not info.ispkg]
 
     def _modules(self) -> dict[str, ModuleType]:
         package = importlib.import_module(self._package)
         return {
-            info.name: importlib.import_module(f"{self._package}.{info.name}")
-            for info in pkgutil.iter_modules(package.__path__)
-            if not info.ispkg and not info.name.startswith("_") and info.name not in self._skip
+            name: importlib.import_module(f"{self._package}.{name}")
+            for name in self._names(package)
+            if not name.startswith("_") and name not in self._skip
         }
 
     @staticmethod

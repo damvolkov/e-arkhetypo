@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Any, Final
 import msgspec
 import pytest
 
-from e_infra.infra.config.gliner import GlinerSettings
+from e_infra.infra.config.providers.drivers.ner.gliner import GlinerSettings
 from e_infra.infra.errors import HttpError, ModelError
 from e_infra.ports.ner import NerEntity, NerPort
 from e_infra.providers.drivers.ner.gliner import GlinerDriver

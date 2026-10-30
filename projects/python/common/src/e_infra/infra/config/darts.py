@@ -3,6 +3,7 @@
 from datetime import timedelta
 
 from pydantic import Field
+from pydantic_settings import SettingsConfigDict
 
 from e_infra.infra.config.base import BaseSettings
 
@@ -14,8 +15,10 @@ class DartsSettings(BaseSettings):
     calls; DARTS_TIMEOUT — a spec's deadline when its own `timeout` is unset (a fused call takes the longest of
     its specs')."""
 
-    darts_concurrency: int = Field(default=8, ge=1)
-    darts_calls: int = Field(default=4, ge=1)
-    darts_fusion_specs: int = Field(default=8, ge=1)
-    darts_fusion_tokens: int = Field(default=8000, ge=256)
-    darts_timeout: timedelta = timedelta(seconds=120)
+    model_config = SettingsConfigDict(env_prefix="DARTS_")
+
+    concurrency: int = Field(default=8, ge=1)
+    calls: int = Field(default=4, ge=1)
+    fusion_specs: int = Field(default=8, ge=1)
+    fusion_tokens: int = Field(default=8000, ge=256)
+    timeout: timedelta = timedelta(seconds=120)

@@ -52,6 +52,7 @@ class CacheEngine[T]:
     async def many(self, keys: Sequence[str]) -> dict[str, T]:
         fast = await self._fast.many(keys)
         missed = [key for key in keys if key not in fast]
+        logger.debug("cache read", namespace=self._namespace, keys=len(keys), fast=len(fast), missed=len(missed))
         durable = await self._many_durable(missed) if missed else {}
         _ = durable and await self._fast.put_many(durable)
         return {**fast, **durable}

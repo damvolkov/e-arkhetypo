@@ -21,7 +21,7 @@ from e_infra.processors.models import MarkdownFile
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from e_infra.infra.config.md import MDSettings
+    from e_infra.infra.config.processors.md import MDSettings
     from e_infra.ports.markdown import MarkdownPort
 
 
@@ -32,7 +32,7 @@ class MDProcessor:
 
     def __init__(self, markdown: MarkdownPort, settings: MDSettings | None = None) -> None:
         ### the default is read on call, not at import: the settings singleton stays lazy.
-        self._conf = st.md if settings is None else settings
+        self._conf = st.processors.md if settings is None else settings
         self._md = markdown
 
     ##### PRIVATE — rendering #####
@@ -76,15 +76,16 @@ class MDProcessor:
             members = [info for info in archive.infolist() if not info.is_dir()]
             if len(members) > entries or sum(info.file_size for info in members) > total:
                 msg = f"archive of {len(members)} entries, {sum(info.file_size for info in members)} bytes, over limit"
+                logger.error("md archive over limit", entries=len(members), limit=entries)
                 raise ZipBombError(msg)
             return [(info.filename, archive.read(info)) for info in members]
 
     async def _fan_out(self, data: bytes) -> list[MarkdownFile]:
         """Unpack a ZIP and re-enter every member through `convert` — nested archives recurse — bounded and in order."""
         members = await anyio.to_thread.run_sync(
-            self._read_zip, data, self._conf.md_zip_max_entries, self._conf.md_zip_max_bytes
+            self._read_zip, data, self._conf.zip_max_entries, self._conf.zip_max_bytes
         )
-        gate = anyio.Semaphore(self._conf.md_concurrency)
+        gate = anyio.Semaphore(self._conf.concurrency)
         rendered: list[list[MarkdownFile]] = [[] for _ in members]
 
         async def convert_one(index: int, path: str, raw: bytes) -> None:
@@ -107,12 +108,15 @@ class MDProcessor:
         """Render one file — any supported format, or a ZIP of them — to a list of typed Markdown files."""
         raw = source if isinstance(source, bytes) else await anyio.Path(source).read_bytes()
         label = name or getattr(source, "name", "") or "document"
-        if len(raw) > self._conf.md_max_input_bytes:
+        logger.debug("md convert", name=label, size=len(raw))
+        if len(raw) > self._conf.max_input_bytes:
             msg = f"{label!r} is {len(raw)} bytes, over MD_MAX_INPUT_BYTES"
+            logger.error("md input too large", name=label, size=len(raw))
             raise InputTooLargeError(msg)
         match self._md.detect(label, raw):
             case None:
                 msg = f"{label!r} is not a format the processor converts"
+                logger.error("md format unsupported", name=label)
                 raise UnsupportedFormatError(msg)
             case "zip":
                 files = await self._fan_out(raw)

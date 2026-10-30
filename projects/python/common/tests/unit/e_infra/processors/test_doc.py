@@ -14,8 +14,8 @@ import msgspec
 import polars as pl
 import pytest
 
-from e_infra.infra.config.doc import DocMode, DocSettings, DocSignal
-from e_infra.infra.config.docling import DoclingTables
+from e_infra.infra.config.processors.doc import DocMode, DocSettings, DocSignal
+from e_infra.infra.config.providers.drivers.documents.docling import DoclingTables
 from e_infra.ports.documents import DocumentConversion
 from e_infra.ports.provider import Isolation, Locality, ProviderSpec, Workload
 from e_infra.processors.doc import BREAK, DocProcessor
@@ -67,7 +67,7 @@ class FakePort:
 
 def processor(port: FakePort | None = None, **conf: Any) -> DocProcessor:
     settings = DocSettings(**conf)
-    return DocProcessor(port or FakePort(), opened(settings), settings)
+    return DocProcessor(port or FakePort(), opened(), settings)
 
 
 ##### SIGNALS AND ROUTING #####
@@ -83,7 +83,7 @@ def processor(port: FakePort | None = None, **conf: Any) -> DocProcessor:
 )
 def test_route_follows_mode_and_signals(mode: DocMode, route: tuple[DocSignal, ...], expected: list[int]) -> None:
     signals = {1: (), 2: (), 3: (DocSignal.TABLE, DocSignal.GRAPHICS), 4: (DocSignal.SCANNED,)}
-    assert processor(doc_mode=mode, doc_route=route)._process_route(signals) == expected
+    assert processor(mode=mode, route=route)._process_route(signals) == expected
 
 
 @pytest.mark.parametrize(
@@ -91,15 +91,15 @@ def test_route_follows_mode_and_signals(mode: DocMode, route: tuple[DocSignal, .
     [
         ([], {}, []),
         ([5], {}, [(5, 5)]),
-        ([3, 5, 9], {"doc_gap": 1}, [(3, 5), (9, 9)]),
-        ([3, 5, 9], {"doc_gap": 0}, [(3, 3), (5, 5), (9, 9)]),
-        ([3, 5, 9], {"doc_gap": 3, "doc_concurrency": 1}, [(3, 9)]),
-        ([3, 5, 9], {"doc_gap": 3}, [(3, 5), (6, 9)]),
+        ([3, 5, 9], {"gap": 1}, [(3, 5), (9, 9)]),
+        ([3, 5, 9], {"gap": 0}, [(3, 3), (5, 5), (9, 9)]),
+        ([3, 5, 9], {"gap": 3, "concurrency": 1}, [(3, 9)]),
+        ([3, 5, 9], {"gap": 3}, [(3, 5), (6, 9)]),
         ### a two-page run stays one request: halving it costs more than the second lane returns.
-        ([3, 4], {"doc_concurrency": 4}, [(3, 4)]),
+        ([3, 4], {"concurrency": 4}, [(3, 4)]),
         ### one long run, two lanes: cut in balanced halves so both server workers take one.
-        (list(range(10, 30)), {"doc_concurrency": 2}, [(10, 19), (20, 29)]),
-        (list(range(10, 30)), {"doc_concurrency": 1, "doc_span": 8}, [(10, 17), (18, 25), (26, 29)]),
+        (list(range(10, 30)), {"concurrency": 2}, [(10, 19), (20, 29)]),
+        (list(range(10, 30)), {"concurrency": 1, "span": 8}, [(10, 17), (18, 25), (26, 29)]),
     ],
 )
 def test_spans_merge_gaps_and_balance_lanes(
@@ -120,7 +120,7 @@ def test_spans_merge_gaps_and_balance_lanes(
 def test_a_span_asks_only_what_its_pages_need(
     signals: dict[int, tuple[DocSignal, ...]], ocr: bool, pictures: bool
 ) -> None:
-    options = processor(doc_tables=DoclingTables.FAST)._process_options((3, 4), signals)
+    options = processor(tables=DoclingTables.FAST)._process_options((3, 4), signals)
     assert (options["page_range"], options["do_ocr"], options["table_mode"]) == ([3, 4], ocr, "fast")
     assert options["md_page_break_placeholder"] == BREAK
     assert ("image_export_mode" not in options) is pictures
@@ -178,7 +178,7 @@ async def test_markdown_is_each_pages_own() -> None:
 
 async def test_lite_mode_never_calls_docling_and_reads_tables_itself() -> None:
     port = FakePort()
-    document = await processor(port, doc_mode=DocMode.LITE).process(FILING.read_bytes(), name="raw.pdf")
+    document = await processor(port, mode=DocMode.LITE).process(FILING.read_bytes(), name="raw.pdf")
     assert port.calls == []
     assert (document.name, document.deep) == ("raw.pdf", ())
     assert {table.backend for table in document.tables} == {Backend.LITEPARSE}
@@ -187,7 +187,7 @@ async def test_lite_mode_never_calls_docling_and_reads_tables_itself() -> None:
 
 async def test_a_failed_span_falls_back_to_liteparse_with_its_reason() -> None:
     port = FakePort(fail=frozenset({SCAN}))
-    document = await processor(port, doc_span=1).process(FILING)
+    document = await processor(port, span=1).process(FILING)
     pages = {page.number: page for page in document.pages}
     assert (pages[STATEMENT].backend, pages[SCAN].backend) == (Backend.DOCLING, Backend.LITEPARSE)
     assert pages[SCAN].fallback == "RuntimeError: pages 4-4 refused"
@@ -196,7 +196,7 @@ async def test_a_failed_span_falls_back_to_liteparse_with_its_reason() -> None:
 
 async def test_deep_requests_stay_within_the_concurrency_bound() -> None:
     port = FakePort(delay=0.05)
-    await processor(port, doc_mode=DocMode.DEEP, doc_gap=0, doc_concurrency=2, doc_span=1).process(FILING)
+    await processor(port, mode=DocMode.DEEP, gap=0, concurrency=2, span=1).process(FILING)
     assert (len(port.calls), port.peak) == (4, 2)
 
 

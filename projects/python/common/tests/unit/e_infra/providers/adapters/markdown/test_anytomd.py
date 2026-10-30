@@ -12,7 +12,7 @@ from typing import Any
 import pytest
 
 from e_infra.infra.config.base import Secret
-from e_infra.infra.config.md import MDSettings
+from e_infra.infra.config.providers.adapters.markdown.anytomd import AnytomdSettings
 from e_infra.infra.errors import ParseError
 from e_infra.ports.markdown import MarkdownPort, MdConversion
 from e_infra.providers.adapters.markdown import anytomd
@@ -62,18 +62,18 @@ def engine(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def adapter(**conf: Any) -> AnytomdAdapter:
-    return AnytomdAdapter(MDSettings(**conf))
+    return AnytomdAdapter(AnytomdSettings(**conf))
 
 
 async def test_a_pdf_goes_through_the_converter(engine: None) -> None:
-    a = adapter(md_pdf_ocr=True, md_pdf_language="spa", md_pdf_workers=4, md_image_describe=False)
+    a = adapter(pdf_ocr=True, pdf_language="spa", pdf_workers=4, image_describe=False)
     async with a:
         assert await a.convert(b"%PDF", extension="pdf") == MdConversion(markdown="# PDF", warnings=("page 1: bad",))
     assert (PDF_KW["ocr"], PDF_KW["language"], PDF_KW["workers"]) == (True, "spa", 4)
 
 
 async def test_another_format_goes_through_convert_bytes_with_limits(engine: None) -> None:
-    async with adapter(md_strict=True, md_extract_comments=True, md_image_describe=False) as a:
+    async with adapter(strict=True, extract_comments=True, image_describe=False) as a:
         out = await a.convert(b"<h1>Hi</h1>", extension="html")
     data, extension, kwargs = convert.calls or (b"", "", {})
     assert (out.markdown, out.warnings) == ("# A", ("skipped a chart",))
@@ -87,18 +87,18 @@ async def test_another_format_goes_through_convert_bytes_with_limits(engine: Non
 
 
 async def test_the_vision_describer_is_wired_from_settings(engine: None) -> None:
-    async with adapter(md_vision_api_key=Secret("k")) as a:
+    async with adapter(vision_api_key=Secret("k")) as a:
         await a.convert(b"png-bytes", extension="png")
     assert (DESC_KW["model"], DESC_KW["api_key"], DESC_KW["prompt"]) == (
         "qwen3.8-flash",
         "k",
-        MDSettings().md_vision_prompt,
+        AnytomdSettings().vision_prompt,
     )
     assert (convert.calls or (None, None, {}))[2]["async_image_describer"] is not None
 
 
 async def test_without_a_vision_key_images_stay_undescribed(engine: None) -> None:
-    async with adapter(md_image_describe=True, md_vision_api_key=None) as a:
+    async with adapter(image_describe=True, vision_api_key=None) as a:
         await a.convert(b"<p>x</p>", extension="html")
     assert (convert.calls or (None, None, {"async_image_describer": "unset"}))[2]["async_image_describer"] is None
 
@@ -112,7 +112,7 @@ async def test_a_pdf_needs_the_lifespan_to_open_the_converter(engine: None) -> N
 
 async def test_health(engine: None) -> None:
     """The engine renders a line of text and the PDF converter is open; closed, nothing answers."""
-    a = adapter(md_image_describe=False)
+    a = adapter(image_describe=False)
     async with a:
         assert isinstance(a, MarkdownPort)
         assert await a.health()
@@ -129,7 +129,7 @@ async def test_the_engines_failure_is_a_parse_error(engine: None, monkeypatch: p
         raise anytomd.ConvertError(msg)
 
     monkeypatch.setattr(anytomd, "convert_bytes_async", broken)
-    async with adapter(md_image_describe=False) as a:
+    async with adapter(image_describe=False) as a:
         with pytest.raises(ParseError, match="malformed"):
             await a.convert(b"x", extension="html")
 
@@ -141,7 +141,7 @@ async def test_the_engines_failure_is_a_parse_error(engine: None, monkeypatch: p
 )
 async def test_detect_names_the_format(name: str, data: bytes, expected: str | None) -> None:
     """The real engine's detection, no lifecycle needed: a format, or None outside the spectrum."""
-    assert AnytomdAdapter(MDSettings()).detect(name, data) == expected
+    assert AnytomdAdapter(AnytomdSettings()).detect(name, data) == expected
 
 
 @pytest.mark.parametrize(
@@ -153,4 +153,4 @@ async def test_detect_names_an_archive_as_what_it_is(entries: dict[str, bytes], 
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w") as archive:
         _ = [archive.writestr(name, raw) for name, raw in entries.items()]
-    assert AnytomdAdapter(MDSettings()).detect("bundle.zip", buf.getvalue()) == expected
+    assert AnytomdAdapter(AnytomdSettings()).detect("bundle.zip", buf.getvalue()) == expected

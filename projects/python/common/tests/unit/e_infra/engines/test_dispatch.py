@@ -7,9 +7,8 @@ import pytest
 from e_infra.engines.dispatch import DispatchEngine
 from e_infra.infra.background import Background, BackgroundState
 from e_infra.infra.config.base import Secret
-from e_infra.infra.config.queue import QueueSettings
+from e_infra.infra.config.providers.drivers.queue.awa import AwaSettings
 from e_infra.providers.drivers.queue.awa import AwaDriver
-from e_infra.providers.drivers.queue.pgqueuer import PgqueuerDriver
 from unit.e_infra.conftest import Warnings, Works, outage, settled, until
 from unit.e_infra.engines.conftest import build
 
@@ -17,6 +16,7 @@ if TYPE_CHECKING:
     from collections.abc import Mapping
 
     from e_infra.infra.background import BackgroundReporter
+    from e_infra.providers.drivers.queue.pgqueuer import PgqueuerDriver
 
 
 ##### CONTRACT — the same on every queue #####
@@ -150,18 +150,16 @@ async def test_dispatch_schedule_failed(queue: str, works: Works, warnings: Warn
 ##### FALLBACK — the durable queue absent, unreachable or failing #####
 
 
-@pytest.mark.db
-async def test_dispatch_durable(queue_settings: QueueSettings, queue: str, works: Works) -> None:
+@pytest.mark.integration
+async def test_dispatch_durable(queue_settings: AwaSettings, queue: str, works: Works) -> None:
     async with build(AwaDriver(queue_settings), queue, works) as dispatch:
         job = await dispatch.submit("ok")
         assert (dispatch.engine, job.id.isdecimal()) == ("awa", True)
         assert (await settled(dispatch, job.id)).state is BackgroundState.COMPLETED
 
 
-@pytest.mark.db
-async def test_dispatch_unreachable(
-    queue_settings: QueueSettings, queue: str, works: Works, warnings: Warnings
-) -> None:
+@pytest.mark.integration
+async def test_dispatch_unreachable(queue_settings: AwaSettings, queue: str, works: Works, warnings: Warnings) -> None:
     missing = queue_settings.model_copy(update={"dsn": Secret(f"{queue_settings.dsn.get_secret_value()}_missing")})
     async with build(AwaDriver(missing), queue, works) as dispatch:
         job = await dispatch.submit("ok")
@@ -170,8 +168,8 @@ async def test_dispatch_unreachable(
     assert warnings.events == ["background queue unreachable, in memory: jobs will not survive a restart"]
 
 
-@pytest.mark.db
-async def test_dispatch_outage(queue_settings: QueueSettings, queue: str, works: Works, warnings: Warnings) -> None:
+@pytest.mark.integration
+async def test_dispatch_outage(queue_settings: AwaSettings, queue: str, works: Works, warnings: Warnings) -> None:
     """The durable database down after entry: new work runs in memory, its jobs stay readable, the durable ones read
     as unknown — every fall a warning; once it is back, work goes durable again."""
     async with build(AwaDriver(queue_settings), queue, works) as dispatch:
@@ -210,6 +208,6 @@ async def test_dispatch_health_durable(durable: AwaDriver | PgqueuerDriver, queu
 @pytest.mark.parametrize("unreachable", [False, True], ids=["absent", "unreachable"])
 async def test_dispatch_health_memory(queue: str, works: Works, unreachable: bool) -> None:
     """No durable queue, or one unreachable on entry: memory runs the work, and health says jobs are not durable."""
-    dead = QueueSettings(dsn=Secret("postgresql://u:p@127.0.0.1:1/x"), timeout=timedelta(seconds=1))
-    async with build(PgqueuerDriver(dead) if unreachable else None, queue, works) as dispatch:
+    dead = AwaSettings(dsn=Secret("postgresql://u:p@127.0.0.1:1/x"), timeout=timedelta(seconds=1))
+    async with build(AwaDriver(dead) if unreachable else None, queue, works) as dispatch:
         assert not await dispatch.health()

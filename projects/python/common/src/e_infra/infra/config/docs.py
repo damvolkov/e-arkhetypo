@@ -4,6 +4,7 @@ from enum import StrEnum
 from typing import Self
 
 from pydantic import Field, field_validator, model_validator
+from pydantic_settings import SettingsConfigDict
 
 from e_infra.infra.config.base import BaseSettings
 
@@ -26,14 +27,16 @@ class DocsSettings(BaseSettings):
     `DOCS_ALIASES='["/schema", "/api/docs"]'`. Validated on load: absolute paths, no alias repeating
     the root, at least one renderer."""
 
-    docs_path: str = "/docs"
-    docs_aliases: list[str] = Field(default_factory=lambda: ["/schema"])
-    docs_renderers: list[DocsRenderer] = Field(
+    model_config = SettingsConfigDict(env_prefix="DOCS_")
+
+    path: str = "/docs"
+    aliases: list[str] = Field(default_factory=lambda: ["/schema"])
+    renderers: list[DocsRenderer] = Field(
         default_factory=lambda: [DocsRenderer.SWAGGER, DocsRenderer.REDOC, DocsRenderer.ELEMENTS, DocsRenderer.RAPIDOC],
         min_length=1,
     )
 
-    @field_validator("docs_path")
+    @field_validator("path")
     @classmethod
     def _absolute_root(cls, value: str) -> str:
         match value.startswith("/"):
@@ -44,7 +47,7 @@ class DocsSettings(BaseSettings):
                 msg = f"docs path must be absolute: {value!r}"
                 raise ValueError(msg)
 
-    @field_validator("docs_aliases")
+    @field_validator("aliases")
     @classmethod
     def _absolute_aliases(cls, value: list[str]) -> list[str]:
         match [alias for alias in value if not alias.startswith("/")]:
@@ -56,9 +59,9 @@ class DocsSettings(BaseSettings):
 
     @model_validator(mode="after")
     def _aliases_elsewhere(self) -> Self:
-        match self.docs_path in self.docs_aliases:
+        match self.path in self.aliases:
             case True:
-                msg = f"an alias cannot be the docs root itself: {self.docs_path!r}"
+                msg = f"an alias cannot be the docs root itself: {self.path!r}"
                 raise ValueError(msg)
             case False:
                 return self

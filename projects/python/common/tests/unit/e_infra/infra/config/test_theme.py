@@ -8,18 +8,18 @@ from e_infra.infra.config.theme import CORPORATE, ThemeSettings
 
 def test_theme_defaults_hold_the_house_trio() -> None:
     theme = ThemeSettings()
-    assert theme.theme_background == "#000000"
-    assert theme.theme_corporate == CORPORATE
-    assert theme.theme_ink.startswith("#")
+    assert theme.background == "#000000"
+    assert theme.corporate == CORPORATE
+    assert theme.ink.startswith("#")
 
 
 @pytest.mark.parametrize("value", ["#0A77BD", "#abc", "#123456"])
 def test_theme_accepts_hex_and_lowercases(value: str) -> None:
-    theme = ThemeSettings(theme_corporate=value)
-    assert theme.theme_corporate == value.lower()
+    theme = ThemeSettings(corporate=value)
+    assert theme.corporate == value.lower()
 
 
 @pytest.mark.parametrize("value", ["blue", "0277bd", "#12", "#gggggg", "#1234567", ""])
 def test_theme_rejects_non_hex_at_load(value: str) -> None:
     with pytest.raises(ValidationError):
-        ThemeSettings(theme_corporate=value)
+        ThemeSettings(corporate=value)

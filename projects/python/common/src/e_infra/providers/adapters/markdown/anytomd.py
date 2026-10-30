@@ -1,4 +1,4 @@
-"""providers/adapters/markdown/anytomd: anytomd bound to Python — one engine for every format, PDF and image descriptions folded in.
+"""providers/adapters/markdown/anytomd: anytomd bound to Python — one engine for every format, PDF and images folded in.
 
 `convert_bytes` renders office, markup, tables, notebooks, code and text; a PDF goes through the bundled
 liteparse `PdfConverter`; an image is annotated by the configured OpenAI-compatible vision model. Format
@@ -19,6 +19,7 @@ from anytomd import (
 )
 
 from e_infra.infra.errors import ParseError, ProviderError
+from e_infra.infra.logger import logger
 from e_infra.infra.settings import settings as st
 from e_infra.ports.markdown import MdConversion
 from e_infra.ports.provider import Isolation, Locality, ProviderSpec, Workload
@@ -26,7 +27,7 @@ from e_infra.ports.provider import Isolation, Locality, ProviderSpec, Workload
 if TYPE_CHECKING:
     from collections.abc import Generator
 
-    from e_infra.infra.config.md import MDSettings
+    from e_infra.infra.config.providers.adapters.markdown.anytomd import AnytomdSettings
 
 
 ##### ADAPTER #####
@@ -37,9 +38,9 @@ class AnytomdAdapter:
 
     __slots__ = ("_conf", "_describer", "_pdf")
 
-    def __init__(self, settings: MDSettings | None = None) -> None:
+    def __init__(self, settings: AnytomdSettings | None = None) -> None:
         ### the default is read on call, not at import: the settings singleton stays lazy.
-        self._conf = st.md if settings is None else settings
+        self._conf = st.providers.adapters.markdown.anytomd if settings is None else settings
         self._pdf: PdfConverter | None = None
         self._describer: AsyncOpenAIDescriber | None = None
 
@@ -52,6 +53,7 @@ class AnytomdAdapter:
         try:
             yield
         except ConvertError as error:
+            logger.error("anytomd failed", error=str(error))
             raise ParseError(str(error)) from error
 
     def _common_pdf(self) -> PdfConverter:
@@ -64,12 +66,12 @@ class AnytomdAdapter:
 
     def _common_vision(self) -> AsyncOpenAIDescriber:
         conf = self._conf
-        key = conf.md_vision_api_key
+        key = conf.vision_api_key
         return AsyncOpenAIDescriber(
-            model=conf.md_vision_model,
-            api_base=conf.md_vision_base_url,
+            model=conf.vision_model,
+            api_base=conf.vision_base_url,
             api_key=key.get_secret_value() if key is not None else None,
-            prompt=conf.md_vision_prompt,
+            prompt=conf.vision_prompt,
         )
 
     async def _convert_pdf(self, data: bytes) -> MdConversion:
@@ -81,9 +83,9 @@ class AnytomdAdapter:
             data,
             extension,
             async_image_describer=self._describer,
-            extract_comments=self._conf.md_extract_comments,
-            strict=self._conf.md_strict,
-            max_input_bytes=self._conf.md_max_input_bytes,
+            extract_comments=self._conf.extract_comments,
+            strict=self._conf.strict,
+            max_input_bytes=self._conf.max_input_bytes,
         )
         return MdConversion(markdown=result.markdown, warnings=tuple(w.message for w in result.warnings))
 
@@ -93,14 +95,11 @@ class AnytomdAdapter:
 
     async def __aenter__(self) -> Self:
         conf = self._conf
-        self._pdf = PdfConverter(
-            ocr=conf.md_pdf_ocr, language=conf.md_pdf_language, workers=conf.md_pdf_workers or None
-        )
+        self._pdf = PdfConverter(ocr=conf.pdf_ocr, language=conf.pdf_language, workers=conf.pdf_workers or None)
         ### vision is best-effort: without a key there is nothing to describe with, so images keep their
         ### bare `![]` reference rather than bricking startup.
-        self._describer = (
-            self._common_vision() if conf.md_image_describe and conf.md_vision_api_key is not None else None
-        )
+        self._describer = self._common_vision() if conf.image_describe and conf.vision_api_key is not None else None
+        logger.info("anytomd opened", vision=self._describer is not None, pdf_ocr=conf.pdf_ocr)
         return self
 
     async def __aexit__(self, *exc: object) -> None:
@@ -112,13 +111,15 @@ class AnytomdAdapter:
                 await aclose()
         self._pdf = None
         self._describer = None
+        logger.info("anytomd closed")
 
     async def health(self) -> bool:
         """The engine renders a line of text, and the PDF converter is open."""
         try:
             self._common_pdf()
             await self.convert(b"ping", extension="txt")
-        except ProviderError:
+        except ProviderError as error:
+            logger.warning("anytomd unhealthy", error=str(error))
             return False
         return True
 
@@ -134,6 +135,7 @@ class AnytomdAdapter:
 
     async def convert(self, data: bytes, *, extension: str) -> MdConversion:
         """Render bytes of a named format: a PDF through the bundled liteparse, everything else through anytomd."""
+        logger.debug("anytomd convert", extension=extension, size=len(data))
         with self._common_guard():
             conversion = await (self._convert_pdf(data) if extension == "pdf" else self._convert_text(data, extension))
         ### returned after the block: a context manager may swallow an exit, so the type checker wants it bound.

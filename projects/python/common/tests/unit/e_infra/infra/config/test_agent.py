@@ -35,7 +35,7 @@ def test_everything_defaults_to_none_and_the_knobs_to_sane_values() -> None:
     assert all(
         getattr(agent, field) is None for field in AgentSettings.model_fields if field.endswith(("_key", "_base"))
     )
-    assert (agent.agent_medium, agent.agent_retries, agent.agent_timeout) == (None, 2, timedelta(seconds=60))
+    assert (agent.medium, agent.retries, agent.timeout) == (None, 2, timedelta(seconds=60))
 
 
 def test_standard_names_feed_the_fields(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -54,7 +54,7 @@ def test_standard_names_feed_the_fields(monkeypatch: pytest.MonkeyPatch) -> None
 
 def test_tiers_read_as_json(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("AGENT_HIGH", '{"provider": "anthropic", "model": "claude-sonnet-4-5"}')
-    tier = AgentSettings().agent_high
+    tier = AgentSettings().high
     assert (tier.provider, tier.model, tier.api_base, tier.api_key, tier.options) == (
         "anthropic",
         "claude-sonnet-4-5",
@@ -70,7 +70,7 @@ def test_tiers_read_field_by_field(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("AGENT_LOW__API_BASE", "http://localhost:45100/v1")
     monkeypatch.setenv("AGENT_LOW__API_KEY", "k-tier")
     monkeypatch.setenv("AGENT_LOW__OPTIONS", '{"region": "eu"}')
-    tier = AgentSettings().agent_low
+    tier = AgentSettings().low
     assert (tier.provider, tier.model, tier.api_base, tier.options) == (
         "vllm",
         "qwen3.6-27b",
@@ -92,13 +92,13 @@ def test_tiers_read_field_by_field(monkeypatch: pytest.MonkeyPatch) -> None:
 )
 def test_tier_declared_wrong_fails_at_load(declared: dict[str, object]) -> None:
     with pytest.raises(ValidationError):
-        AgentSettings(agent_medium=declared)
+        AgentSettings(medium=declared)
 
 
 def test_retries_never_negative() -> None:
     with pytest.raises(ValidationError):
-        AgentSettings(agent_retries=-1)
+        AgentSettings(retries=-1)
 
 
 def test_composite_exposes_the_agent_scope() -> None:
-    assert st.agent.agent_retries >= 0
+    assert st.agent.retries >= 0

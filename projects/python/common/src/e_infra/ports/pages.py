@@ -4,7 +4,7 @@ from typing import Protocol, runtime_checkable
 
 import msgspec
 
-from e_infra.infra.config.doc import DocSignal
+from e_infra.infra.config.processors.doc import DocSignal
 from e_infra.ports.provider import Provider
 
 

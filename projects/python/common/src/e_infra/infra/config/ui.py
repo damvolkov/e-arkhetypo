@@ -2,6 +2,8 @@
 
 from datetime import timedelta
 
+from pydantic_settings import SettingsConfigDict
+
 from e_infra.infra.config.base import BaseSettings
 
 
@@ -10,7 +12,9 @@ class UiSettings(BaseSettings):
     human can follow it); UI_LANE_GAP / UI_RANK_GAP — canvas pixels between parallel lanes and sequential
     ranks. Timedeltas: plain seconds in a config file or kwargs, `PT2.5S` in env."""
 
-    ui_toast: timedelta = timedelta(seconds=2.5)
-    ui_pace: timedelta = timedelta(seconds=0.35)
-    ui_lane_gap: int = 240
-    ui_rank_gap: int = 140
+    model_config = SettingsConfigDict(env_prefix="UI_")
+
+    toast: timedelta = timedelta(seconds=2.5)
+    pace: timedelta = timedelta(seconds=0.35)
+    lane_gap: int = 240
+    rank_gap: int = 140

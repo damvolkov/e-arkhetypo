@@ -2,7 +2,7 @@
 
 Generic **e-stack** terminal-UI template: three orthogonal, declarative systems over Textual — a
 config-driven **layout**, a graph-based **flow** engine, and a table-driven **interact**ive-object set —
-with shared infra materialized from `projects/python/infra`.
+with shared infra materialized from `projects/python/common`.
 
 * **Layout** — *frames are architecture, slots are content*. A layout is a tree of boxes (relative
   measures, base figures, static/dynamic kind) declared in code or a YAML/TOML/JSON file and compiled

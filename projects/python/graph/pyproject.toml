@@ -7,7 +7,7 @@ build-backend = "hatchling.build"
 [project]
 name = "e-graph"
 dynamic = ["version"]
-description = "e-stack graph template: LangGraph runtime, rustworkx topology, React Flow canvas over Litestar + Granian, shared infra materialized from projects/python/infra"
+description = "e-stack graph template: LangGraph runtime, rustworkx topology, React Flow canvas over Litestar + Granian, shared infra materialized from projects/python/common"
 readme = "README.md"
 requires-python = ">=3.14"
 license = "MIT"
@@ -109,7 +109,7 @@ dev = [
     { include-group = "test" },
     { include-group = "docs" },
     "prek>=0.4",
-    ### structural rewrite of projects/python/infra at materialization time (scripts/materialize.py); parses real 3.14 syntax.
+    ### structural rewrite of projects/python/common at materialization time (scripts/materialize.py); parses real 3.14 syntax.
     "libcst>=1.9",
 ]
 
@@ -230,7 +230,7 @@ markers = [
 
 ##### COVERAGE #####
 [tool.coverage.run]
-### infra/, ops/ and adapters/ are materialized and tested at their source (projects/python/infra); the gate covers the service.
+### infra/, ops/ and adapters/ are materialized and tested at their source (projects/python/common); the gate covers the service.
 source_pkgs = ["e_graph"]
 ### runners a test writes to its tmp dir load under `e_graph.runners.*`: fixtures, never the product.
 omit = ["*/pytest-of-*/*"]

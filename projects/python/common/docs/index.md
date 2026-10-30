@@ -6,9 +6,9 @@ The python infra blueprint of the e-stack template systems: **uv · ruff · ty �
 
 Every module a system materializes lives once here — this is the infra blueprint the e-taxis wizard reads
 when it exports a new project, offering the user the parts that are optional. Services do **not** depend on
-this package at runtime: `make infra` in any system copies the sections of `src/e_infra/` into its own `src/`
+this package at runtime: `make common` in any system copies the sections of `src/e_infra/` into its own `src/`
 (byte-identical except import paths), so each system ships self-contained and this stays the single source
-of truth. `make infra-check` fails the moment a copy drifts.
+of truth. `make common-check` fails the moment a copy drifts.
 
 ## Modules
 
@@ -152,4 +152,4 @@ make docs         # serve docs at :8000
 ```
 
 Editing rule: `src/e_infra/` and the shared root files change here; systems re-materialize.
-`make infra-check` in any system fails when its copies drift.
+`make common-check` in any system fails when its copies drift.

@@ -6,7 +6,7 @@ templates:
     brand: e-api
     drops: [uv.lock, scripts/materialize.py, .github/workflows, .github/ci.map.yml, .github/ci.vars.example, .github/INSTALL.md, tests/unit/test_ci_contract.py]
     common:
-      root: projects/python/infra
+      root: projects/python/common
       package: e_infra
       skip: [ops/tui]
       ##### DETACH — how the system lets go of a common unit it wires; without rules a wired unit stays locked #####
@@ -28,11 +28,11 @@ templates:
             - {file: tests/unit/e_api/api/test_lifespan.py, pattern: '^    assert (isinstance\(edges\.http, HttpPort\)|edges\.http\.name == "http")\n'}
             - {file: pyproject.toml, pattern: '^    ##### http #####\n    "wreq>=[^"]*",\n'}
     materials: &materials
-      - {src: projects/python/infra/prek.toml, dst: prek.toml}
-      - {src: projects/python/infra/.gitattributes, dst: .gitattributes}
-      - {src: projects/python/infra/.python-version, dst: .python-version}
-      - {src: projects/python/infra/.github/dependabot.yml, dst: .github/dependabot.yml}
-      - {src: projects/python/infra/.github/CODEOWNERS, dst: .github/CODEOWNERS}
+      - {src: projects/python/common/prek.toml, dst: prek.toml}
+      - {src: projects/python/common/.gitattributes, dst: .gitattributes}
+      - {src: projects/python/common/.python-version, dst: .python-version}
+      - {src: projects/python/common/.github/dependabot.yml, dst: .github/dependabot.yml}
+      - {src: projects/python/common/.github/CODEOWNERS, dst: .github/CODEOWNERS}
 
     ##### MANDATORY — tests that survive every selection; no choice may delete them #####
     mandatory:
@@ -101,18 +101,18 @@ templates:
     ##### FINALIZE — engine plumbing, never a user choice (strips the template's own machinery) #####
     finalize: &finalize
       - {file: Makefile, pattern: '^# — infra —\n[\s\S]*?(?=^# — gates —)'}
-      - {file: Makefile, pattern: '^INFRA_SRC \?= .*\n'}
-      - {file: Makefile, pattern: '^INFRA_ROOT \?= .*\n'}
-      - {file: Makefile, pattern: ' infra-check'}
+      - {file: Makefile, pattern: '^COMMON_SRC \?= .*\n'}
+      - {file: Makefile, pattern: '^COMMON_ROOT \?= .*\n'}
+      - {file: Makefile, pattern: ' common-check'}
       - {file: Makefile, pattern: ' infra\b(?!/)'}
       - {file: .gitignore, pattern: '^# (generated|materialized).*\n'}
       - {file: .gitignore, pattern: '^src/(infra|ops|adapters)/\n'}
       - {file: .gitignore, pattern: '^(prek\.toml|\.(gitattributes|python-version))\n'}
       - {file: .gitignore, pattern: '^\.github/(dependabot\.yml|CODEOWNERS)\n'}
-      - {file: pyproject.toml, pattern: ', shared infra materialized from projects/python/infra'}
+      - {file: pyproject.toml, pattern: ', shared infra materialized from projects/python/common'}
       - {file: pyproject.toml, pattern: '^    ### structural rewrite.*materialization time.*\n    "libcst>=[^"]*",\n'}
-      - {file: Makefile, pattern: ' — infra/ops/adapters materialized from \$\(INFRA_SRC\)'}
-      - {file: README.md, pattern: '^.*\b(GENERATED|make infra)\b.*\n'}
+      - {file: Makefile, pattern: ' — infra/ops/adapters materialized from \$\(COMMON_SRC\)'}
+      - {file: README.md, pattern: '^.*\b(GENERATED|make common)\b.*\n'}
       ### a detached project owns its infra set: `clean` must not delete source the generator no longer restores.
       - {file: Makefile, pattern: ' src/infra src/ops src/adapters src/processors prek\.toml \.gitattributes \.python-version'}
       - {file: Makefile, pattern: ' \+ materialized infra'}
@@ -124,7 +124,7 @@ templates:
     package: e_cli
     brand: e-cli
     drops: [uv.lock, scripts, .github/workflows, .github/ci.map.yml, .github/ci.vars.example, .github/INSTALL.md, tests/unit/test_ci_contract.py]
-    common: {root: projects/python/infra, package: e_infra, skip: [ops/tui]}
+    common: {root: projects/python/common, package: e_infra, skip: [ops/tui]}
     materials: *materials
 
     ##### MANDATORY — the harness and the tree contract survive every selection #####
@@ -144,7 +144,7 @@ templates:
     package: e_graph
     brand: e-graph
     drops: [uv.lock, scripts/materialize.py, .github/workflows, .github/ci.map.yml, .github/ci.vars.example, .github/INSTALL.md, tests/unit/test_ci_contract.py]
-    common: {root: projects/python/infra, package: e_infra, skip: [ops/tui]}
+    common: {root: projects/python/common, package: e_infra, skip: [ops/tui]}
     materials: *materials
 
     mandatory:
@@ -190,7 +190,7 @@ templates:
     package: e_mcp
     brand: e-mcp
     drops: [uv.lock, scripts/materialize.py, .github/workflows, .github/ci.map.yml, .github/ci.vars.example, .github/INSTALL.md, tests/unit/test_ci_contract.py]
-    common: {root: projects/python/infra, package: e_infra, skip: [ops/tui]}
+    common: {root: projects/python/common, package: e_infra, skip: [ops/tui]}
     materials: *materials
 
     mandatory:
@@ -222,7 +222,7 @@ templates:
     package: e_tui
     brand: e-tui
     drops: [uv.lock, .github/workflows, .github/ci.map.yml, .github/ci.vars.example, .github/INSTALL.md, tests/unit/test_ci_contract.py]
-    common: {root: projects/python/infra, package: e_infra}
+    common: {root: projects/python/common, package: e_infra}
     materials: *materials
 
     mandatory:

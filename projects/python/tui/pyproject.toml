@@ -7,7 +7,7 @@ build-backend = "hatchling.build"
 [project]
 name = "e-tui"
 dynamic = ["version"]
-description = "e-stack tui template: config-driven responsive layout mini-framework over Textual, fillable static/dynamic frames, snapshot gallery, shared infra materialized from projects/python/infra"
+description = "e-stack tui template: config-driven responsive layout mini-framework over Textual, fillable static/dynamic frames, snapshot gallery, shared infra materialized from projects/python/common"
 readme = "README.md"
 requires-python = ">=3.14"
 license = "MIT"
@@ -84,7 +84,7 @@ dev = [
     { include-group = "lint" },
     { include-group = "test" },
     "prek>=0.4",
-    ### structural rewrite of projects/python/infra at materialization time (scripts/materialize.py); parses real 3.14 syntax.
+    ### structural rewrite of projects/python/common at materialization time (scripts/materialize.py); parses real 3.14 syntax.
     "libcst>=1.9",
 ]
 
@@ -189,7 +189,7 @@ markers = ["slow: slow tests (deselect with -m 'not slow')"]
 
 ##### COVERAGE #####
 [tool.coverage.run]
-### infra/, ops/ and adapters/ are materialized and tested at their source (projects/python/infra); the gate covers the tool.
+### infra/, ops/ and adapters/ are materialized and tested at their source (projects/python/common); the gate covers the tool.
 source_pkgs = ["e_tui"]
 branch = true
 parallel = true

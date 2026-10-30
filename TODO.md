@@ -24,7 +24,7 @@
   page: `system db modules confirm report`) en orden de montaje, camina y emite un `AppBlueprint` (JSON vía
   `eserde`) al terminar. `make run` / `etui` lo abre interactivo (radios `api/cli/tui` + barra). Copiable tal
   cual como host real; `e_tui.pages`/`demo`/`__main__` en capa `examples`, nunca al revés.
-- `projects/python/infra` — `infra/config/theme.py` (3 colores) y `ops/snap.py` (GallerySnap);
+- `projects/python/common` — `infra/config/theme.py` (3 colores) y `ops/snap.py` (GallerySnap);
   cli/api/tui los excluyen al materializar. Snapshots SVG aceptados visualmente.
 - Textual 8.2.8 · syrupy≥6.1 por override · PTS 1.1.0.
 
@@ -36,7 +36,7 @@
    `Group.INFRA`→`Group.STACK`. Pendiente fino: re-pinned del action `qwen-code` (flota en main), y página de
    `--drop` por dependencia de units al estilo `requires` del graph.
 2. **`infra/` completada** (2026-10-16): mapa `features.yml` + jobs atómicos + setup por feature +
-   ensamblado determinista en management + `make infra-check` + contract test generado. Pendiente: usarlo en
+   ensamblado determinista en management + `make common-check` + contract test generado. Pendiente: usarlo en
    repos reales (e-taxis/e-voice migran de workflow propio a `ci.defaults.yml` cuando toque).
 
 3. **Kinds que faltan** cuando la app lo pida: slider, list multi-selección, progress, `CompositeSpec`
@@ -47,5 +47,5 @@
 
 - Capas tach: app ▸ templates ▸ flow ▸ interact  layout ▸ … ▸ models. `flow` no ve Textual;
   `interact` no ve `flow`; se tocan solo en `Spec/Commit/ObjectPort`.
-- Dispatch, no `if`. Tests espejan `src/`. Cov 100 %. La infra común solo se edita en `projects/python/infra`.
-- Comprobar: `make check` en `projects/python/tui` (y `infra`/`cli`/`api` si se toca `projects/python/infra`).
+- Dispatch, no `if`. Tests espejan `src/`. Cov 100 %. La infra común solo se edita en `projects/python/common`.
+- Comprobar: `make check` en `projects/python/tui` (y `infra`/`cli`/`api` si se toca `projects/python/common`).

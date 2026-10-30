@@ -1,9 +1,9 @@
-"""scripts/materialize: the hardened sed — copy `projects/python/infra` sections into `src/` with a structural rewrite.
+"""scripts/materialize: the hardened sed — copy `projects/python/common` sections into `src/` with a structural rewrite.
 
 libcst parses each source file as real 3.14 syntax (PEP 695 included, verified against the whole
 `e_infra` tree) and rewrites *only* the import nodes `e_infra.{infra,ops,adapters,processors} → {infra,ops,adapters,processors}`;
-every result is re-parsed with `ast.parse` and scanned for leftovers before it is written. `make infra`
-materializes into `src/`; `make infra-check` materializes into a throwaway tree under `/tmp` and diffs,
+every result is re-parsed with `ast.parse` and scanned for leftovers before it is written. `make common`
+materializes into `src/`; `make common-check` materializes into a throwaway tree under `/tmp` and diffs,
 so both modes run the exact same generation path and the drift-check cannot lie about a second one.
 """
 
@@ -22,7 +22,7 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
 API_ROOT: Path = Path(__file__).resolve().parents[1]
-INFRA_SRC: Path = API_ROOT.parent / "infra" / "src" / "e_infra"
+COMMON_SRC: Path = API_ROOT.parent / "common" / "src" / "e_infra"
 SECTIONS: tuple[str, ...] = ("adapters", "infra", "ops", "processors")
 ### the TUI header belongs to the boilerplate wizard, not to a running service: same topology as the old sed.
 ### the compose tool belongs to stack management (e-taxis materializes the whole ops area), not to a running service.
@@ -123,8 +123,8 @@ def _sources(section: str) -> list[Path]:
     """Every .py of one section, in stable order, minus the excluded files."""
     return [
         path
-        for path in sorted((INFRA_SRC / section).rglob("*.py"))
-        if "__pycache__" not in path.parts and str(path.relative_to(INFRA_SRC)) not in EXCLUDES
+        for path in sorted((COMMON_SRC / section).rglob("*.py"))
+        if "__pycache__" not in path.parts and str(path.relative_to(COMMON_SRC)) not in EXCLUDES
     ]
 
 
@@ -134,7 +134,7 @@ def materialize(dest_root: Path) -> None:
         shutil.rmtree(dest_root / "src" / section, ignore_errors=True)
     for section in SECTIONS:
         for path in _sources(section):
-            rel = path.relative_to(INFRA_SRC)
+            rel = path.relative_to(COMMON_SRC)
             target = dest_root / "src" / rel
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_text(rewrite_source(path.read_text(), str(rel)))
@@ -154,7 +154,7 @@ def check(dest_root: Path) -> int:
     tmp = Path(tempfile.mkdtemp(prefix="e-api-materialize-"))
     try:
         materialize(tmp)
-        expected = {path.relative_to(INFRA_SRC) for section in SECTIONS for path in _sources(section)}
+        expected = {path.relative_to(COMMON_SRC) for section in SECTIONS for path in _sources(section)}
         actual = _materialized(dest_root)
         issues = [
             *(f"{rel}: missing" for rel in sorted(expected - actual)),
@@ -170,7 +170,7 @@ def check(dest_root: Path) -> int:
                 print("✓ materialized infra/ops/adapters in sync")
                 return 0
             case _:
-                print("✗ drift from projects/python/infra (run make infra):")
+                print("✗ drift from projects/python/common (run make common):")
                 print("\n".join(f"  {issue}" for issue in issues))
                 return 1
     finally:
@@ -188,7 +188,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             return check(API_ROOT)
         case _:
             materialize(API_ROOT)
-            print("✓ materialized adapters/, infra/, ops/ from projects/python/infra")
+            print("✓ materialized adapters/, infra/, ops/ from projects/python/common")
             return 0
 
 

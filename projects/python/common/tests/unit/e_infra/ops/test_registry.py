@@ -10,7 +10,7 @@ from e_infra.ops.registry import CodeRegistry, Kind, RegistryError
 if TYPE_CHECKING:
     from pathlib import Path
 
-ENGINE_PATH = "projects/python/infra/src/e_infra"
+ENGINE_PATH = "projects/python/common/src/e_infra"
 
 
 @pytest.fixture(scope="session")

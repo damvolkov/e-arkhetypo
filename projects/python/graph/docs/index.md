@@ -16,7 +16,7 @@ make up         # docker compose up
 ## Layout
 
 The service lives in `src/e_graph/`, layered by [tach](https://tach.dev). `src/infra/`, `src/ops/` and
-`src/adapters/` are **materialized** from the infra blueprint by `make infra` — edit them there, never here:
+`src/adapters/` are **materialized** from the infra blueprint by `make common` — edit them there, never here:
 
 | Module | Layer | Purpose |
 |---|---|---|

@@ -7,7 +7,7 @@ build-backend = "hatchling.build"
 [project]
 name = "e-mcp"
 dynamic = ["version"]
-description = "e-stack MCP template: an in-process MCPServer over Streamable HTTP, granian factory, bearer guard — shared infra materialized from projects/python/infra"
+description = "e-stack MCP template: an in-process MCPServer over Streamable HTTP, granian factory, bearer guard — shared infra materialized from projects/python/common"
 readme = "README.md"
 requires-python = ">=3.14"
 license = "MIT"
@@ -70,7 +70,7 @@ dev = [
     { include-group = "lint" },
     { include-group = "test" },
     "prek>=0.4",
-    ### structural rewrite of projects/python/infra at materialization time (scripts/materialize.py); parses real 3.14 syntax.
+    ### structural rewrite of projects/python/common at materialization time (scripts/materialize.py); parses real 3.14 syntax.
     "libcst>=1.9",
 ]
 
@@ -144,7 +144,7 @@ python-version = "3.14"
 
 [tool.ty.src]
 include = ["src", "tests"]
-### the materialized infra is type-checked at its source (e-arkhetypo projects/python/infra); its copies are not edited here.
+### the materialized infra is type-checked at its source (e-arkhetypo projects/python/common); its copies are not edited here.
 exclude = ["src/infra", "src/adapters", "src/ops"]
 
 [tool.ty.terminal]
@@ -167,7 +167,7 @@ markers = [
 
 ##### COVERAGE #####
 [tool.coverage.run]
-### infra/, ops/ and adapters/ are materialized and tested at their source (projects/python/infra); the gate covers the service.
+### infra/, ops/ and adapters/ are materialized and tested at their source (projects/python/common); the gate covers the service.
 source_pkgs = ["e_mcp"]
 branch = true
 parallel = true

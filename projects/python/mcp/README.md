@@ -29,7 +29,7 @@ src/e_mcp/main.py         # composition root: granian's factory, explicit tool r
 src/e_mcp/__main__.py     # python -m e_mcp — granian on loopback
 ```
 
-`src/infra`, `src/ops`, `src/adapters` are materialized from `../infra` (`make infra`); edit them only at source.
+`src/infra`, `src/ops`, `src/adapters` are materialized from `../common` (`make common`); edit them only at source.
 
 ## Run
 

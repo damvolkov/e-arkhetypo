@@ -9,7 +9,7 @@ thing skipped. Consumers import the lazy singleton: ``from e_infra.infra.setting
 ``st.crypto.alg`` (env, secrets and config files are read on that first access, never at import)."""
 
 import re
-from typing import Any
+from typing import Any, cast
 
 from pydantic import BaseModel, ConfigDict, create_model
 
@@ -51,7 +51,10 @@ def _build(model: type[BaseModel], overrides: dict[str, Any]) -> Any:
         model(**overrides)
         if issubclass(model, BaseSettings)
         else model(
-            **{name: _build(field.annotation, overrides.get(name, {})) for name, field in model.model_fields.items()}
+            **{
+                name: _build(cast("type[BaseModel]", field.annotation), overrides.get(name, {}))
+                for name, field in model.model_fields.items()
+            }
         )
     )
 

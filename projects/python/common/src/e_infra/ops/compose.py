@@ -143,7 +143,7 @@ class StackCompose:
     ) -> tuple[dict[str, Any], dict[str, dict[str, Any]]]:
         services: dict[str, Any] = {}
         resources: dict[str, dict[str, Any]] = {section: {} for section in RESOURCES}
-        wanted: frozenset[str] | None = frozenset(chosen) if chosen else None
+        wanted: frozenset[str] | None = frozenset(chosen) or None
         for frag in documents:
             match frag:
                 case {"include": _}:

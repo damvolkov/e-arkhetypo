@@ -20,7 +20,7 @@ from ports.telemetry import SpanKind, SpanPort, SpanStatus
 from providers.drivers.telemetry.otel import OtelDriver
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Iterator, Mapping
+    from collections.abc import Callable, Generator, Mapping
 
 
 class RecordingSpan:
@@ -56,7 +56,7 @@ class RecordingTelemetry:
         self.spans: list[RecordingSpan] = []
 
     @contextmanager
-    def span(self, name: str, attributes: Mapping[str, Any], kind: SpanKind = SpanKind.INTERNAL) -> Iterator[SpanPort]:
+    def span(self, name: str, attributes: Mapping[str, Any], kind: SpanKind = SpanKind.INTERNAL) -> Generator[SpanPort]:
         self.opened.append((name, dict(attributes), kind))
         self.spans.append(span := RecordingSpan())
         yield span

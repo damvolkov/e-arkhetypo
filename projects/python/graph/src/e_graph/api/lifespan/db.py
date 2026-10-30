@@ -7,7 +7,7 @@ new database is one more row. Each is created on its server's maintenance databa
 in order. One that cannot be reached or created is a warning, never a crash here: the background falls back to
 memory, a provider on a missing database fails loudly where it connects. Nothing is written to the graph."""
 
-from collections.abc import AsyncIterator, Mapping
+from collections.abc import AsyncGenerator, Mapping
 from contextlib import asynccontextmanager
 
 from litestar import Litestar
@@ -36,7 +36,7 @@ async def provision(concern: str, settings: PsqlpySettings) -> bool:
 
 
 @asynccontextmanager
-async def lifespan(_app: Litestar) -> AsyncIterator[None]:
+async def lifespan(_app: Litestar) -> AsyncGenerator[None]:
     """Provision each database, then hand over: the providers open on databases that exist."""
     created = [concern for concern, settings in databases().items() if await provision(concern, settings)]
     logger.info("databases ready", created=created, step="START")

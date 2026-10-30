@@ -19,6 +19,7 @@ import msgspec
 from litestar import WebSocket, get, post, websocket
 from litestar.di import NamedDependency, Provide
 from litestar.handlers import HTTPRouteHandler, WebsocketRouteHandler
+from litestar.params import JSONBody
 from litestar.status_codes import WS_1007_INVALID_FRAME_PAYLOAD_DATA
 
 from e_graph.api.deps import DepKey, correlation_id, graph, graphs, system
@@ -48,7 +49,7 @@ async def topology(graph: NamedDependency[InstrumentGraph]) -> Topology:
 
 
 async def batch(
-    data: RunRequest,
+    data: JSONBody[RunRequest],
     system: NamedDependency[State],
     graph: NamedDependency[InstrumentGraph],
     correlation_id: NamedDependency[str],

@@ -15,7 +15,7 @@ from e_graph.logic.models import AgentCall, Breach, Readout, Report, Signal, Sim
 from e_graph.models.section import Section
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncIterator
+    from collections.abc import AsyncGenerator
     from pathlib import Path
 
     from pytest_mock import MockerFixture
@@ -112,7 +112,7 @@ def test_evaluate_exit_codes_come_from_the_readout(
     signals = () if not kind else (Signal(kind=kind, where="extract/EXT-x", observed=kind),)
 
     @asynccontextmanager
-    async def fake_system() -> AsyncIterator[Any]:
+    async def fake_system() -> AsyncGenerator[Any]:
         yield SimpleNamespace(logic=SimpleNamespace(orchestrator=None, agent=None))
 
     class FakeOps:

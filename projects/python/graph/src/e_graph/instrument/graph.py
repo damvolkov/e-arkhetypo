@@ -195,10 +195,11 @@ class InstrumentGraph(StateGraph[Channels, None, Channels, Channels]):
 
     def _sequence_one(self, node: NodeFunc | tuple[str, NodeFunc]) -> str:
         match node:
-            case (str() as name, func):
-                return self._add_one(name, cast("NodeFunc", func), {})
-            case func:
-                return self._add_one(func, None, {})
+            case tuple():
+                name, func = node
+                return self._add_one(name, func, {})
+            case _:
+                return self._add_one(node, None, {})
 
     def _common_instrumented(self) -> dict[str, InstrumentNode]:
         """The instrumented nodes in declaration order — LangGraph's internal handler nodes never count."""

@@ -13,7 +13,7 @@ body and reads the answer frame by frame."""
 
 from contextlib import contextmanager
 from itertools import batched, chain
-from typing import TYPE_CHECKING, ClassVar, Final, Self
+from typing import TYPE_CHECKING, ClassVar, Final, Self, cast
 
 import msgspec
 import wreq
@@ -112,8 +112,8 @@ class GlinerDriver:
         """The streamed body cut into lines, the whole ones of each frame together; HTTP trailers are skipped."""
         rest = b""
         ### an async stream is consumed by a loop: each frame's whole lines go out, the partial one waits;
-        ### wreq's stub declares `__aiter__` as a coroutine, which the checker refuses.
-        async for frame in stream:  # ty: ignore[not-iterable]
+        ### wreq's stub declares `__aiter__` as a coroutine; the stream is named for what it yields at runtime.
+        async for frame in cast("AsyncIterator[bytes | memoryview]", stream):
             match frame:
                 case memoryview() | bytes():
                     *lines, rest = (rest + bytes(frame)).split(NEWLINE)

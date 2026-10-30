@@ -49,7 +49,7 @@ from infra.logger import logger
 from infra.settings import settings as st
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator, Mapping, Sequence
+    from collections.abc import Generator, Iterator, Mapping, Sequence
     from pathlib import Path
 
     from e_graph.instrument.state import RunState
@@ -273,7 +273,7 @@ class OrchestratorCore:
 
     @staticmethod
     @contextmanager
-    def _common_deadline(seconds: float, what: str) -> Iterator[None]:
+    def _common_deadline(seconds: float, what: str) -> Generator[None]:
         """A deadline that says, when it passes, whose it was and how long it gave."""
         try:
             with anyio.fail_after(seconds):

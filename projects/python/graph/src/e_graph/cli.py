@@ -16,7 +16,7 @@ rehearses through `SectionLab`, the same object the API's `/api/specs` routes se
 
 import io
 import sys
-from collections.abc import AsyncIterator
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from enum import StrEnum, auto
 from importlib.metadata import version
@@ -222,7 +222,7 @@ class LiveStream(io.TextIOBase):
 
 
 @asynccontextmanager
-async def system() -> AsyncIterator[State]:
+async def system() -> AsyncGenerator[State]:
     """The system a rehearsal runs on, branch for branch as the app's lifespans mount it: docling, the hybrid processor,
     the agent. Their logs go to stderr: stdout is the command's answer, JSON included."""
     ### typeshed's TextIO is io.TextIOBase by alias: it checks nothing, while beartype demands the full

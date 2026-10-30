@@ -32,7 +32,7 @@ import dataclasses
 import hashlib
 import inspect
 import time
-from collections.abc import Iterator, Mapping, Sequence
+from collections.abc import Generator, Mapping, Sequence
 from contextlib import contextmanager
 from contextvars import ContextVar
 from functools import cache, partial, singledispatch
@@ -381,7 +381,7 @@ class AgnosticAgent:
 
     @staticmethod
     @contextmanager
-    def meter() -> Iterator[UsageMeter]:
+    def meter() -> Generator[UsageMeter]:
         """Add up the usage of every agent call made inside the block, in this task and the ones it awaits."""
         meter = UsageMeter()
         token = METER.set(meter)

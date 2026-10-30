@@ -1,7 +1,7 @@
-"""processors/md: the MDProcessor — any file to Markdown, detected and rendered by the anytomd engine.
+"""processors/md: the MDProcessor — any file to Markdown, detected and rendered by the engine behind `MarkdownPort`.
 
-Detection, every format's conversion, PDF reading and image description live behind one port (`MdConvertPort`,
-anytomd's binding); this processor only guards the size, unpacks a ZIP and re-enters each member in parallel,
+Detection, every format's conversion, PDF reading and image description live behind one port (`MarkdownPort`);
+this processor only guards the size, unpacks a ZIP and re-enters each member in parallel,
 and records an engine's failure per file so one bad member never sinks a batch. It holds no state: `convert`
 is a pure function of bytes that returns a typed list of rendered files."""
 
@@ -12,7 +12,6 @@ from pathlib import PurePath
 from typing import TYPE_CHECKING
 
 import anyio
-from anytomd import detect_format, detect_zip_format
 
 from infra.logger import logger
 from infra.settings import settings as st
@@ -21,8 +20,8 @@ from processors.models import MarkdownFile
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from adapters.ports import MdConvertPort
     from infra.config.md import MDSettings
+    from ports.markdown import MarkdownPort
 
 
 ##### ERRORS #####
@@ -47,23 +46,10 @@ class MDProcessor:
 
     __slots__ = ("_conf", "_md")
 
-    def __init__(self, anytomd: MdConvertPort, settings: MDSettings | None = None) -> None:
+    def __init__(self, markdown: MarkdownPort, settings: MDSettings | None = None) -> None:
         ### the default is read on call, not at import: the settings singleton stays lazy.
         self._conf = st.md if settings is None else settings
-        self._md = anytomd
-
-    ##### PRIVATE — detection #####
-
-    @staticmethod
-    def _detect(data: bytes, name: str) -> str | None:
-        """The engine names the format from bytes and name; a ZIP becomes its office format, or stays a bundle."""
-        match detect_format(name, data):
-            case None:
-                return None
-            case "zip":
-                return detect_zip_format(data) or "zip"
-            case fmt:
-                return fmt
+        self._md = markdown
 
     ##### PRIVATE — rendering #####
 
@@ -140,7 +126,7 @@ class MDProcessor:
         if len(raw) > self._conf.md_max_input_bytes:
             msg = f"{label!r} is {len(raw)} bytes, over MD_MAX_INPUT_BYTES"
             raise InputTooLargeError(msg)
-        match self._detect(raw, label):
+        match self._md.detect(label, raw):
             case None:
                 msg = f"{label!r} is not a format the processor converts"
                 raise UnsupportedFormatError(msg)

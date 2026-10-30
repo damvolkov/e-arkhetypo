@@ -1,10 +1,11 @@
 """tests/unit/e_cli: the harness — a real `ecli` per test on its own sqlite file, and an in-memory StorePort."""
 
-from typing import TYPE_CHECKING, ClassVar
+from typing import TYPE_CHECKING, ClassVar, Self
 
 import pytest
 
 from e_cli.cli import build
+from ports.provider import Isolation, Locality, ProviderSpec, Workload
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator, Callable
@@ -14,10 +15,20 @@ if TYPE_CHECKING:
 class MemoryStore:
     """StorePort over a dict: the services and the journal are tested against the port, not against sqlite."""
 
-    name: ClassVar[str] = "memory"
+    spec: ClassVar[ProviderSpec] = ProviderSpec("memory", Locality.EMBEDDED, Workload.IO_BOUND, Isolation.LOOP)
 
     def __init__(self) -> None:
         self.data: dict[str, bytes] = {}
+        self.healthy = True
+
+    async def __aenter__(self) -> Self:
+        return self
+
+    async def __aexit__(self, *exc: object) -> None:
+        return None
+
+    async def health(self) -> bool:
+        return self.healthy
 
     async def get(self, key: str) -> bytes | None:
         return self.data.get(key)

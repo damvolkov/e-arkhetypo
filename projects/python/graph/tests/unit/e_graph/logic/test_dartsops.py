@@ -26,8 +26,8 @@ if TYPE_CHECKING:
 
     from support.darts import DartsHarness
 
-from adapters.otel import OtelAdapter
 from infra.config.otel import OtelSettings
+from providers.drivers.otel import OtelDriver
 from support.crafter import SpecCrafter
 from support.darts import DartsHarness
 
@@ -37,7 +37,7 @@ HOLDS: dict[str, Any] = {"type": "object", "properties": {"holds": {"type": "boo
 
 @pytest.fixture
 async def darts(resources: Resources, tmp_path: Path, exporter: InMemorySpanExporter) -> AsyncIterator[DartsHarness]:
-    async with OtelAdapter(OtelSettings(), exporter) as telemetry:
+    async with OtelDriver(OtelSettings(), exporter) as telemetry:
         yield DartsHarness(SpecCrafter(resources, tmp_path, seed=7), telemetry)
 
 
@@ -63,7 +63,8 @@ def ops_of(harness: DartsHarness) -> DartsOps:
 def tree_of(harness: DartsHarness, agent: Any) -> State:
     root = State(
         infra=InfraState(
-            adapters=None,  # ty: ignore[invalid-argument-type]
+            providers=None,  # ty: ignore[invalid-argument-type]
+            engines=None,  # ty: ignore[invalid-argument-type]
             processors=None,  # ty: ignore[invalid-argument-type]
             graphs=MappingProxyType({}),
         ),

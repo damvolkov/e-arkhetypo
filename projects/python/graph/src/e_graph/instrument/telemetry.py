@@ -20,9 +20,9 @@ from typing import TYPE_CHECKING, Final, Protocol, runtime_checkable
 
 import msgspec
 
-from adapters.ports import AttributeValue, SpanKind, SpanPort, SpanStatus
 from e_graph.instrument.models import NodeOutput, RunEnd, RunStatus
 from e_graph.logic.models import SpecOutcome, SpecStatus
+from ports.telemetry import AttributeValue, SpanKind, SpanPort, SpanStatus
 
 if TYPE_CHECKING:
     from collections.abc import Iterator

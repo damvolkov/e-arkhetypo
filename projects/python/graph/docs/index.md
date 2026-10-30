@@ -6,7 +6,7 @@ Served by Litestar + Granian + msgspec on uv · ruff · ty · tach · prek · py
 ## Quickstart
 
 ```bash
-make install    # materialize infra/ops/adapters + shared files, uv sync, git hooks
+make install    # materialize the shared sections + shared files, uv sync, git hooks
 make check      # lint + types + architecture + drift + tests
 make serve      # build the canvas + start the server: api + canvas at :8000
 make docs       # serve this site at http://localhost:8001
@@ -15,8 +15,9 @@ make up         # docker compose up
 
 ## Layout
 
-The service lives in `src/e_graph/`, layered by [tach](https://tach.dev). `src/infra/`, `src/ops/` and
-`src/adapters/` are **materialized** from the infra blueprint by `make common` — edit them there, never here:
+The service lives in `src/e_graph/`, layered by [tach](https://tach.dev). `src/engines/`, `src/infra/`, `src/ops/`,
+`src/ports/`, `src/processors/` and `src/providers/` are **materialized** from the infra blueprint by `make common` — edit
+them there, never here:
 
 | Module | Layer | Purpose |
 |---|---|---|
@@ -54,9 +55,12 @@ The service lives in `src/e_graph/`, layered by [tach](https://tach.dev). `src/i
 | [`e_graph.models.section`](reference/e_graph/models/section.md) | models | The closed DARTS taxonomy, in fixed order |
 | [`e_graph.models.pipeline`](reference/e_graph/models/pipeline.md) | models | How the list names a pipeline |
 | [`e_graph.models.ui`](reference/e_graph/models/ui.md) | models | The canvas tunables as the UI reads them |
-| [`processors.doc`](reference/processors/doc.md) | processors | DocProcessor: liteparse on every page, docling-serve on the pages that hold tables, figures or scans — one engine-neutral `Document` (materialized) |
-| [`adapters.docling`](reference/adapters/docling.md) | adapters | DocumentPort over docling-serve: conversions as server tasks, options from `DOCLING_*` (materialized) |
-| [`adapters.otel`](reference/adapters/otel.md) | adapters | TelemetryPort over the OpenTelemetry SDK, OTLP/HTTP export — common to every system (materialized) |
+| [`processors.doc`](reference/processors/doc.md) | execution | DocProcessor: liteparse on every page, docling-serve on the pages that hold tables, figures or scans — one engine-neutral `Document` (materialized) |
+| [`providers.drivers.docling`](reference/providers/drivers/docling.md) | execution | DocumentPort over docling-serve, riding the HttpPort: conversions as server tasks, options from `DOCLING_*` (materialized) |
+| [`providers.adapters.liteparse`](reference/providers/adapters/liteparse.md) | execution | PagesPort over liteparse, in-process: the DocProcessor's fast pass, every page and its signals (materialized) |
+| [`providers.drivers.otel`](reference/providers/drivers/otel.md) | execution | TelemetryPort over the OpenTelemetry SDK, OTLP/HTTP export — common to every system (materialized) |
+| [`engines.health`](reference/engines/health.md) | execution | HealthEngine: every provider surveyed at once — the startup log and `GET /ready` (materialized) |
+| [`ports.provider`](reference/ports/provider.md) | ports | Provider: the lifecycle, `health()` and `ProviderSpec` every provider declares (materialized) |
 | [`ops.wrappers`](reference/ops/wrappers.md) | ops | LatencyWrapper and the agnostic measuring wrappers (materialized) |
 | [`infra.settings`](reference/infra/settings.md) | infra | Composed settings: one BaseSettings reader over the per-scope structs of `infra.config` (materialized) |
 | [`infra.logger`](reference/infra/logger.md) | infra | Structured logging: JSON in prod, ordered plain text in dev (materialized) |
@@ -72,7 +76,7 @@ are in [DARTS](darts.md). `e-graph darts check` is the static check; `e-graph da
 ## Run state
 
 Every node receives one `RunState`: `state.id`, the app's singletons under the system's own branches —
-`state.infra` (`adapters`, `processors`, `graphs`), `state.logic` (`agent`, `orchestrator`), `state.instrument`
+`state.infra` (`providers`, `engines`, `processors`, `graphs`), `state.logic` (`agent`, `orchestrator`), `state.instrument`
 (`telemetry`, `contexts`) — and `state.context`, the run's own ephemeral zone, stored as `context.<id>`. The
 instrument releases the context when the run closes — END or failure — unless `run(state, retain=True)`;
 the run span keeps a snapshot (`run.context`), so nothing is lost to telemetry.

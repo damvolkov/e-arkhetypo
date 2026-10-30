@@ -57,6 +57,8 @@ dependencies = [
     ##### stores #####
     "redis>=6.2",
     "aiosqlite>=0.20",
+    ##### background — the in-process supervisor and the dispatch engine schedule cron jobs #####
+    "croniter>=6.0",
     ### the db lifespan provisions the databases the settings name: CREATE DATABASE, outside any transaction.
     "psqlpy>=0.12",
     "beartype>=0.22.9",
@@ -135,7 +137,7 @@ bump = true
 fallback-version = "0.0.0"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/e_graph", "src/infra", "src/ops", "src/adapters", "src/processors"]
+packages = ["src/e_graph", "src/engines", "src/infra", "src/ops", "src/ports", "src/processors", "src/providers"]
 ### the canvas is part of the package: its built bundle ships (gitignored, so declared), its sources never do.
 artifacts = ["src/e_graph/ui/dist/**"]
 exclude = ["src/e_graph/ui/*", "!src/e_graph/ui/dist"]
@@ -173,7 +175,7 @@ ignore = ["E501", "ISC001", "PLR0913"]
 "src/e_graph/runners/**" = ["TC001", "TC002", "TC003", "ARG001"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["e_graph", "infra", "ops", "adapters"]
+known-first-party = ["e_graph", "engines", "infra", "ops", "ports", "processors", "providers"]
 
 [tool.ruff.lint.flake8-type-checking]
 ### pydantic and msgspec resolve these classes' annotations at runtime: their imports must stay real.
@@ -230,7 +232,7 @@ markers = [
 
 ##### COVERAGE #####
 [tool.coverage.run]
-### infra/, ops/ and adapters/ are materialized and tested at their source (projects/python/common); the gate covers the service.
+### engines/, infra/, ops/, ports/, processors/ and providers/ are materialized and tested at their source (projects/python/common); the gate covers the service.
 source_pkgs = ["e_graph"]
 ### runners a test writes to its tmp dir load under `e_graph.runners.*`: fixtures, never the product.
 omit = ["*/pytest-of-*/*"]

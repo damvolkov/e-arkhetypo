@@ -1,19 +1,26 @@
-"""tests/unit: the lifespan contract — infra loaded once, edges opened as typed ports, state sealed last."""
+"""tests/unit: the lifespan contract — infra loaded once, providers opened as typed ports, state sealed last."""
 
 import inspect
 
 import pytest
 from litestar.testing import TestClient
 
-from adapters.ports import DocumentPort, HttpPort, StorePort, TelemetryPort
-from e_graph.api.lifespan import adapters, graphs, instrument, logic, sealed, services
+from e_graph.api.lifespan import graphs, instrument, logic, providers, sealed, services
 from e_graph.api.lifespan.infra import SharedState
 from e_graph.api.lifespan.infra import lifespan as infra_lifespan
 from e_graph.instrument.graph import InstrumentGraph
-from e_graph.instrument.state import AdaptersState
+from e_graph.instrument.state import EnginesState, ProvidersState
 from e_graph.main import create_app
+from engines.health import HealthEngine
+from infra.errors import StoreError
 from infra.logger import logger
 from infra.settings import settings as st
+from ports.documents import DocumentPort
+from ports.http import HttpPort
+from ports.pages import PagesPort
+from ports.provider import Provider
+from ports.store import StorePort
+from ports.telemetry import TelemetryPort
 from processors.doc import DocProcessor
 
 
@@ -22,7 +29,7 @@ def test_lifespans_are_declared_not_built() -> None:
         callable(cm)
         for cm in (
             infra_lifespan,
-            adapters.lifespan,
+            providers.lifespan,
             services.lifespan,
             instrument.lifespan,
             logic.lifespan,
@@ -47,21 +54,32 @@ def test_singleton_load_is_idempotent(client) -> None:
     assert st.app is st.app
 
 
-def test_adapters_section_is_typed_and_ported(client) -> None:
-    edges = client.app.state.system.infra.adapters
-    assert isinstance(edges, AdaptersState)
-    assert isinstance(edges.store, StorePort)
-    assert isinstance(edges.redis, StorePort)
-    assert isinstance(edges.http, HttpPort)
-    assert isinstance(edges.docling, DocumentPort)
-    assert isinstance(edges.telemetry, TelemetryPort)
-    assert edges.telemetry.name == "otel"
-    ### the instrument's tracer is handed the very adapter the exit stack owns — one provider, one lifecycle.
-    assert client.app.state.system.instrument.telemetry.provider is edges.telemetry
-    assert edges.store.name == "sqlite"
-    assert edges.redis.name == "redis"
-    assert edges.http.name == "http"
-    assert edges.docling.name == "docling"
+def test_providers_section_is_typed_and_ported(client) -> None:
+    held = client.app.state.system.infra.providers
+    assert isinstance(held, ProvidersState)
+    assert all(isinstance(provider, Provider) for provider in held.named.values())
+    assert isinstance(held.store, StorePort)
+    assert isinstance(held.redis, StorePort)
+    assert isinstance(held.http, HttpPort)
+    assert isinstance(held.docling, DocumentPort)
+    assert isinstance(held.pages, PagesPort)
+    assert isinstance(held.telemetry, TelemetryPort)
+    ### the instrument's tracer is handed the very driver the exit stack owns — one provider, one lifecycle.
+    assert client.app.state.system.instrument.telemetry.provider is held.telemetry
+    assert {role: provider.spec.name for role, provider in held.named.items()} == {
+        "store": "sqlite",
+        "telemetry": "otel",
+        "redis": "redis",
+        "http": "http",
+        "docling": "docling-serve",
+        "pages": "liteparse",
+    }
+
+
+def test_engines_section_holds_the_health_engine(client) -> None:
+    engines = client.app.state.system.infra.engines
+    assert isinstance(engines, EnginesState)
+    assert isinstance(engines.health, HealthEngine)
 
 
 def test_state_opens_sealed(client) -> None:
@@ -83,17 +101,17 @@ def test_graphs_section_holds_built_singletons(client) -> None:
     assert client.app.state.system.infra.graphs["doc"] is graph
 
 
-async def test_adapters_close_when_the_lifespan_exits() -> None:
+async def test_providers_close_when_the_lifespan_exits() -> None:
     with TestClient(create_app()) as client:
-        store = client.app.state.system.infra.adapters.store
+        store = client.app.state.system.infra.providers.store
         assert client.get("/health").status_code == 200
         ### alive inside the cycle
         await store.get("anything")
-    with pytest.raises(RuntimeError, match="not connected"):
+    with pytest.raises(StoreError, match="not open"):
         ### the stack closed it on shutdown
         await store.get("anything")
 
 
-def test_the_app_mounts_the_document_processor_over_the_docling_edge(client) -> None:
+def test_the_app_mounts_the_document_processor_over_the_docling_driver(client) -> None:
     infra = client.app.state.system.infra
     assert isinstance(infra.processors.doc, DocProcessor)

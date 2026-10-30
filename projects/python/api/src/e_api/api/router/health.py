@@ -1,7 +1,8 @@
 """api.router.health: liveness and readiness, plus the oauth chain exercised by a real (tiny) consumer.
 
-`/health` touches nothing — it answers even while a backend is down; `/ready` pings every edge at once
-(`api/lifespan/adapters`): 200 when every required one answers, 503 otherwise, each edge's verdict in the body."""
+`/health` touches nothing — it answers even while a backend is down; `/ready` surveys every provider at once
+(`engines.health`, built by `api/lifespan/engines`): 200 when every required one answers, 503 otherwise, each provider's
+verdict in the body."""
 
 from typing import Final
 
@@ -11,9 +12,8 @@ from litestar.di import NamedDependency, Provide
 from litestar.handlers import HTTPRouteHandler
 from litestar.status_codes import HTTP_200_OK, HTTP_503_SERVICE_UNAVAILABLE
 
-from adapters.base import AdapterPing
 from e_api.api.deps import DepKey, graph, oauth, registered_providers
-from infra.settings import settings as st
+from engines.health import ProviderHealth
 from infra.state import State
 
 
@@ -22,11 +22,11 @@ async def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
-async def ready(graph: NamedDependency[State]) -> Response[list[AdapterPing]]:
-    """Readiness probe — every edge pinged, the required ones decide."""
-    pings: tuple[AdapterPing, ...] = await graph.adapters.ping(st.ping.timeout)
-    answered = all(ping.ok for ping in pings if ping.required)
-    return Response(list(pings), status_code=HTTP_200_OK if answered else HTTP_503_SERVICE_UNAVAILABLE)
+async def ready(graph: NamedDependency[State]) -> Response[list[ProviderHealth]]:
+    """Readiness probe — every provider surveyed, the required ones decide."""
+    verdicts: tuple[ProviderHealth, ...] = await graph.engines.health.survey()
+    answered = all(verdict.ok for verdict in verdicts if verdict.required)
+    return Response(list(verdicts), status_code=HTTP_200_OK if answered else HTTP_503_SERVICE_UNAVAILABLE)
 
 
 async def providers(oauth: NamedDependency[OAuth]) -> dict[str, list[str]]:

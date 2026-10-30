@@ -13,8 +13,10 @@ root_module = "forbid"
 # the framework · `app`: the host application and its entrypoint (drives everything) · `templates`: the concrete
 # layout derivations · `flow`: the graph engine (page, graph, pages, state, walk) — domain, no widgets ·
 # `interact`: the interactive objects (toggle/choice/input/confirm/report) — widgets, no graph · `layout`: the
-# mini-framework (spec, render, frame, shape) · then the shared core, the ops helpers and data.
-layers = ["examples", "app", "templates", "flow", "interact", "layout", "processors", "adapters", "infra", "ops", "models"]
+# mini-framework (spec, render, frame, shape) · `execution`: the materialized engines, processors, drivers and adapters
+# — one horizontal layer, none imports another, each reaches only ports, infra and ops · then the contracts, the
+# shared core, the ops helpers and data.
+layers = ["examples", "app", "templates", "flow", "interact", "layout", "execution", "ports", "infra", "ops", "models"]
 
 [rules]
 unused_ignore_directives = "error"
@@ -66,13 +68,28 @@ layer = "models"
 depends_on = []
 
 [[modules]]
-path = "processors"
-layer = "processors"
+path = "engines"
+layer = "execution"
 depends_on = []
 
 [[modules]]
-path = "adapters"
-layer = "adapters"
+path = "processors"
+layer = "execution"
+depends_on = []
+
+[[modules]]
+path = "providers.drivers"
+layer = "execution"
+depends_on = []
+
+[[modules]]
+path = "providers.adapters"
+layer = "execution"
+depends_on = []
+
+[[modules]]
+path = "ports"
+layer = "ports"
 depends_on = []
 
 [[modules]]

@@ -11,21 +11,27 @@ templates:
       skip: [ops/tui]
       ##### DETACH — how the system lets go of a common unit it wires; without rules a wired unit stays locked #####
       detach:
-        - unit: adapters/redis
+        - unit: providers/drivers/redis
           prunes:
-            - {file: src/e_api/api/lifespan/adapters.py, pattern: '^from adapters\.redis import RedisAdapter\n'}
-            - {file: src/e_api/api/lifespan/adapters.py, pattern: '^    redis: StorePort\n'}
-            - {file: src/e_api/api/lifespan/adapters.py, pattern: '^        redis=RedisAdapter\(\),\n'}
-            - {file: tests/unit/e_api/api/test_lifespan.py, pattern: '^    assert (isinstance\(edges\.redis, StorePort\)|edges\.redis\.name == "redis")\n'}
+            - {file: src/e_api/api/lifespan/providers.py, pattern: '^from providers\.drivers\.redis import RedisDriver\n'}
+            - {file: src/e_api/api/lifespan/providers.py, pattern: '^    redis: StorePort\n'}
+            - {file: src/e_api/api/lifespan/providers.py, pattern: '^        redis = await enter\(RedisDriver\(\)\)\n'}
+            - {file: src/e_api/api/lifespan/providers.py, pattern: ', redis=redis'}
+            - {file: tests/unit/e_api/api/test_lifespan.py, pattern: '^    assert (isinstance\(section\.redis, StorePort\)|section\.redis\.spec\.name == "redis")\n'}
+            - {file: tests/unit/e_api/api/router/test_health.py, pattern: '^from providers\.drivers\.redis import RedisDriver\n'}
+            - {file: tests/unit/e_api/api/router/test_health.py, pattern: '\(RedisDriver, "redis", 200\), '}
+            - {file: tests/unit/e_api/api/router/test_health.py, pattern: '"optional-down", '}
+            - {file: tests/unit/e_api/api/router/test_health.py, pattern: ' \| RedisDriver'}
             - {file: pyproject.toml, pattern: '^    "(fake)?redis>=[^"]*",\n'}
-        - unit: adapters/http
+        - unit: providers/drivers/http
           prunes:
-            - {file: src/e_api/api/lifespan/adapters.py, pattern: '^from adapters\.http import HttpAdapter\n'}
-            - {file: src/e_api/api/lifespan/adapters.py, pattern: '^from adapters\.ports import HttpPort, StorePort$', to: 'from adapters.ports import StorePort'}
-            - {file: src/e_api/api/lifespan/adapters.py, pattern: '^    http: HttpPort\n'}
-            - {file: src/e_api/api/lifespan/adapters.py, pattern: '^        http=HttpAdapter\(\),\n'}
-            - {file: tests/unit/e_api/api/test_lifespan.py, pattern: '^from adapters\.ports import HttpPort, StorePort$', to: 'from adapters.ports import StorePort'}
-            - {file: tests/unit/e_api/api/test_lifespan.py, pattern: '^    assert (isinstance\(edges\.http, HttpPort\)|edges\.http\.name == "http")\n'}
+            - {file: src/e_api/api/lifespan/providers.py, pattern: '^from providers\.drivers\.http import HttpDriver\n'}
+            - {file: src/e_api/api/lifespan/providers.py, pattern: '^from ports\.http import HttpPort\n'}
+            - {file: src/e_api/api/lifespan/providers.py, pattern: '^    http: HttpPort\n'}
+            - {file: src/e_api/api/lifespan/providers.py, pattern: '^        http = await enter\(HttpDriver\(\)\)\n'}
+            - {file: src/e_api/api/lifespan/providers.py, pattern: ', http=http'}
+            - {file: tests/unit/e_api/api/test_lifespan.py, pattern: '^from ports\.http import HttpPort\n'}
+            - {file: tests/unit/e_api/api/test_lifespan.py, pattern: '^    assert (isinstance\(section\.http, HttpPort\)|section\.http\.spec\.name == "http")\n'}
             - {file: pyproject.toml, pattern: '^    ##### http #####\n    "wreq>=[^"]*",\n'}
     materials: &materials
       - {src: projects/python/common/prek.toml, dst: prek.toml}
@@ -100,22 +106,22 @@ templates:
 
     ##### FINALIZE — engine plumbing, never a user choice (strips the template's own machinery) #####
     finalize: &finalize
-      - {file: Makefile, pattern: '^# — infra —\n[\s\S]*?(?=^# — gates —)'}
+      - {file: Makefile, pattern: '^# — common —\n[\s\S]*?(?=^# — gates —)'}
       - {file: Makefile, pattern: '^COMMON_SRC \?= .*\n'}
       - {file: Makefile, pattern: '^COMMON_ROOT \?= .*\n'}
       - {file: Makefile, pattern: ' common-check'}
-      - {file: Makefile, pattern: ' infra\b(?!/)'}
+      - {file: Makefile, pattern: ' common\b(?![/-])'}
       - {file: .gitignore, pattern: '^# (generated|materialized).*\n'}
-      - {file: .gitignore, pattern: '^src/(infra|ops|adapters)/\n'}
+      - {file: .gitignore, pattern: '^src/(infra|ops|ports|providers|engines)/\n'}
       - {file: .gitignore, pattern: '^(prek\.toml|\.(gitattributes|python-version))\n'}
       - {file: .gitignore, pattern: '^\.github/(dependabot\.yml|CODEOWNERS)\n'}
       - {file: pyproject.toml, pattern: ', shared infra materialized from projects/python/common'}
       - {file: pyproject.toml, pattern: '^    ### structural rewrite.*materialization time.*\n    "libcst>=[^"]*",\n'}
-      - {file: Makefile, pattern: ' — infra/ops/adapters materialized from \$\(COMMON_SRC\)'}
+      - {file: Makefile, pattern: ' — infra/ops/ports/providers/engines/processors materialized from \$\(COMMON_SRC\)'}
       - {file: README.md, pattern: '^.*\b(GENERATED|make common)\b.*\n'}
       ### a detached project owns its infra set: `clean` must not delete source the generator no longer restores.
-      - {file: Makefile, pattern: ' src/infra src/ops src/adapters src/processors prek\.toml \.gitattributes \.python-version'}
-      - {file: Makefile, pattern: ' \+ materialized infra'}
+      - {file: Makefile, pattern: ' src/infra src/ops src/ports src/providers src/engines src/processors prek\.toml \.gitattributes \.python-version'}
+      - {file: Makefile, pattern: ' \+ materialized common'}
       ### an e- service runs as one word: its compose service, container and host name drop the brand's hyphen (egnosis).
       - {file: compose.yml, pattern: '^(  |    container_name: |    hostname: )e-([a-z0-9]+)(:?)$', to: '\1e\2\3'}
 

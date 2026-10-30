@@ -20,7 +20,7 @@ def test_links_chain_over_the_live_system(client) -> None:
     """The root reads Litestar's reserved state, rebuilt as AppState over the same dict, as Litestar injects it."""
     root = system(AppState(client.app.state))
     assert root is client.app.state.system
-    assert store(root) is root.infra.adapters.store
+    assert store(root) is root.infra.providers.store
     assert graphs(root) is root.infra.graphs
     assert graph("doc", root.infra.graphs) is root.infra.graphs["doc"]
     assert section("extract", root.infra.graphs["filing"]) == "extract"

@@ -38,9 +38,10 @@ src/e_tui/
     system.py db.py modules.py confirm.py report.py
 ```
 
-Layers (`tach`, high → low): `examples · app · templates · flow · interact · layout · adapters · infra · ops ·
-models`. `examples` (the fake app: `demo` + `pages/`) sits above the framework and is what a host copies — it
-is never imported by the layers below it. `flow` imports no Textual; `interact` imports no `flow`. They meet
+Layers (`tach`, high → low): `examples · app · templates · flow · interact · layout · execution · ports · infra ·
+ops · models`, where `execution` holds the materialized engines, processors and providers (drivers and adapters).
+`examples` (the fake app: `demo` + `pages/`) sits above the framework and is what a host copies — it is never
+imported by the layers below it. `flow` imports no Textual; `interact` imports no `flow`. They meet
 only on `ObjectPort` and `Commit`.
 
 ##### GEOMETRY LANGUAGE #####
@@ -97,7 +98,7 @@ conditional route, one condition, and a `result` view that emits the accumulated
 ##### USAGE #####
 
 ```bash
-make install    # materializes infra/ops/adapters, syncs deps, git hooks
+make install    # materializes infra/ops/ports/providers/engines/processors, syncs deps, git hooks
 make run        # the reference wizard over the standard architecture (etui)
 make check      # lint + type + arch + validate + drift + tests
 make cov        # ... with the 100 % gate

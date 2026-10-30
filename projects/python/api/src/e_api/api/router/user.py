@@ -15,7 +15,6 @@ from litestar.exceptions import NotFoundException
 from litestar.handlers import HTTPRouteHandler
 from litestar.params import FromPath
 
-from adapters.ports import StorePort
 from e_api.api.deps import (
     USER_KEY,
     DepKey,
@@ -30,6 +29,7 @@ from e_api.api.security import SECURITY, auth_guard
 from e_api.models.user import User, UserCreate, UserRecord, UserUpdate
 from infra.logger import logger
 from infra.state import State
+from ports.store import StorePort
 
 
 ##### HANDLERS #####

@@ -19,6 +19,8 @@ from support.docling import GoldenPort
 if TYPE_CHECKING:
     from pytest_resources import Resources
 
+    from providers.adapters.liteparse import LiteparseAdapter
+
 
 LABELS: dict[str, str] = {
     "revenue": r"total net sales|net operating revenues|total revenues",
@@ -46,12 +48,12 @@ def corpus(resources: Resources) -> list[dict[str, Any]]:
 
 
 @pytest.fixture(scope="module")
-async def read(corpus: list[dict[str, Any]]) -> dict[str, tuple[Document, GoldenPort]]:
+async def read(corpus: list[dict[str, Any]], pages: LiteparseAdapter) -> dict[str, tuple[Document, GoldenPort]]:
     """Every corpus document read by the hybrid, once; each with the port that saw its docling spans."""
     reads = {}
     for entry in corpus:
         port = GoldenPort()
-        reads[entry["path"].stem] = (await DocProcessor(port, DocSettings()).process(entry["path"]), port)
+        reads[entry["path"].stem] = (await DocProcessor(port, pages, DocSettings()).process(entry["path"]), port)
     return reads
 
 
@@ -139,9 +141,9 @@ def test_markdown_keeps_pictures_as_markers_never_as_bytes(read: dict[str, tuple
     assert any("<!-- image -->" in page.markdown for page in pages)
 
 
-async def test_lite_mode_reads_a_filing_without_docling(corpus: list[dict[str, Any]]) -> None:
+async def test_lite_mode_reads_a_filing_without_docling(corpus: list[dict[str, Any]], pages: LiteparseAdapter) -> None:
     port = GoldenPort()
     path = next(entry["path"] for entry in corpus if entry["path"].stem == "aapl-10k-2025")
-    document = await DocProcessor(port, DocSettings(doc_mode=DocMode.LITE)).process(path)
+    document = await DocProcessor(port, pages, DocSettings(doc_mode=DocMode.LITE)).process(path)
     assert (port.calls, document.deep) == ([], ())
     assert any("416,161" in line for line in rows(document))

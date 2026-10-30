@@ -22,7 +22,7 @@ export PYTHONPATH := $(CURDIR)/src
 .PHONY: help install sync lock common common-check lint type arch validate harden hooks test cov check ci run release ci-vars clean
 
 help:
-	@printf "$(BOLD)$(CYAN)$(PROJECT)$(RESET) $(GRAY)· uv · cyclopts · ruff · ty · tach · pytest — infra/ops/adapters materialized from $(COMMON_SRC)$(RESET)\n\n"
+	@printf "$(BOLD)$(CYAN)$(PROJECT)$(RESET) $(GRAY)· uv · cyclopts · ruff · ty · tach · pytest — infra/ops/ports/providers/engines/processors materialized from $(COMMON_SRC)$(RESET)\n\n"
 	@awk 'BEGIN{FS=":.*##"} /^[a-z][a-zA-Z0-9_-]*:.*##/{printf "  $(GREEN)%-12s$(RESET) $(GRAY)%s$(RESET)\n",$$1,$$2}' $(MAKEFILE_LIST)
 
 # — env —
@@ -40,7 +40,7 @@ lock: common ## refresh uv lockfile (against the current materialized common)
 # — common —
 COMMON_ROOT ?= ../common
 
-common: ## materialize shared infra/ + ops/ + adapters/ from projects/python/common (source of truth) via a structural rewrite, and the shared root files into the project root
+common: ## materialize shared infra/ ops/ ports/ providers/ engines/ processors/ from projects/python/common (source of truth) via a structural rewrite, and the shared root files into the project root
 	@uv run python scripts/materialize.py
 	@cp $(COMMON_ROOT)/prek.toml prek.toml
 	@cp $(COMMON_ROOT)/.gitattributes .gitattributes
@@ -48,7 +48,7 @@ common: ## materialize shared infra/ + ops/ + adapters/ from projects/python/com
 	@cp $(COMMON_ROOT)/.github/dependabot.yml .github/dependabot.yml
 	@cp $(COMMON_ROOT)/.github/CODEOWNERS .github/CODEOWNERS
 
-common-check: ## fail if the materialized common/ops/adapters or the shared root files drifted from projects/python/common
+common-check: ## fail if the materialized sections or the shared root files drifted from projects/python/common
 	@uv run python scripts/materialize.py --check
 	@diff $(COMMON_ROOT)/prek.toml prek.toml \
 	 && diff $(COMMON_ROOT)/.gitattributes .gitattributes \
@@ -59,8 +59,8 @@ common-check: ## fail if the materialized common/ops/adapters or the shared root
 
 # — gates —
 lint: ## ruff check + format
-	@uv run ruff check --fix $(PACKAGE) src/infra src/ops src/adapters src/processors scripts tests
-	@uv run ruff format $(PACKAGE) src/infra src/ops src/adapters src/processors scripts tests
+	@uv run ruff check --fix $(PACKAGE) src/infra src/ops src/ports src/providers src/engines src/processors scripts tests
+	@uv run ruff format $(PACKAGE) src/infra src/ops src/ports src/providers src/engines src/processors scripts tests
 
 type: ## ty type check
 	@uv run ty check
@@ -104,7 +104,7 @@ run: ## run the cli, `ecli` [args: forwarded, e.g. make run project list]
 
 clean: ## remove caches + build artifacts + materialized common
 	@find . -type d \( -name __pycache__ -o -name .pytest_cache -o -name .ruff_cache \) -exec rm -rf {} + 2>/dev/null || true
-	@rm -rf dist build *.egg-info .coverage .coverage.* .ty_cache src/infra src/ops src/adapters src/processors prek.toml .gitattributes .python-version
+	@rm -rf dist build *.egg-info .coverage .coverage.* .ty_cache src/infra src/ops src/ports src/providers src/engines src/processors prek.toml .gitattributes .python-version
 	@printf "$(GREEN)✓ clean$(RESET)\n"
 
 %:

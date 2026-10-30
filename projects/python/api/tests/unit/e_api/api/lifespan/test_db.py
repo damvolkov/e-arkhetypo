@@ -5,14 +5,14 @@ from typing import ClassVar
 import pytest
 from litestar import Litestar
 
-from adapters.postgres import PostgresError
 from e_api.api.lifespan import db
 from infra.config.base import Secret
 from infra.config.postgres import PostgresSettings
+from infra.errors import DatabaseError
 
 
-class FakeAdapter:
-    """A postgres adapter whose `provision` logs the DSN it was built over: created unless the name ends in `down`,
+class FakeDriver:
+    """A postgres driver whose `provision` logs the DSN it was built over: created unless the name ends in `down`,
     refused when it does."""
 
     log: ClassVar[list[str]] = []
@@ -25,24 +25,24 @@ class FakeAdapter:
         match self.dsn.endswith("down"):
             case True:
                 msg = "unreachable"
-                raise PostgresError(msg)
+                raise DatabaseError(msg)
             case False:
                 return True
 
 
 @pytest.fixture
-def fake(monkeypatch: pytest.MonkeyPatch) -> type[FakeAdapter]:
-    FakeAdapter.log = []
-    monkeypatch.setattr(db, "PostgresAdapter", FakeAdapter)
-    return FakeAdapter
+def fake(monkeypatch: pytest.MonkeyPatch) -> type[FakeDriver]:
+    FakeDriver.log = []
+    monkeypatch.setattr(db, "PostgresDriver", FakeDriver)
+    return FakeDriver
 
 
-async def test_db_provisions_every_row(fake: type[FakeAdapter]) -> None:
+async def test_db_provisions_every_row(fake: type[FakeDriver]) -> None:
     async with db.lifespan(Litestar()):
         assert fake.log == [settings.dsn.get_secret_value() for settings in db.databases().values()]
 
 
-async def test_db_failure_warns(fake: type[FakeAdapter]) -> None:
+async def test_db_failure_warns(fake: type[FakeDriver]) -> None:
     """A database that cannot be provisioned reads as not created; startup goes on."""
     assert await db.provision("background", PostgresSettings(dsn=Secret("postgresql://h:1/down"))) is False
     assert await db.provision("background", PostgresSettings(dsn=Secret("postgresql://h:1/up"))) is True

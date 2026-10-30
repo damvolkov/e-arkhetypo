@@ -2,7 +2,7 @@
 
 Each database is a row: its concern, and the settings whose DSN names it — the background queue (QUEUE_DSN, default
 `app_background` on the local ParadeDB); a service that keeps its data in Postgres adds `"app": st.postgres`, and any
-new database is one more row. Each is created on its server's maintenance database by the postgres adapter, the rows
+new database is one more row. Each is created on its server's maintenance database by the postgres driver, the rows
 in order. One that cannot be reached or created is a warning, never a crash here: the background falls back to
 memory, an edge on a missing database fails loudly where it connects. Nothing is written to the graph."""
 
@@ -11,10 +11,11 @@ from contextlib import asynccontextmanager
 
 from litestar import Litestar
 
-from adapters.postgres import PostgresAdapter, PostgresError
 from infra.config.postgres import PostgresSettings
+from infra.errors import DatabaseError
 from infra.logger import logger
 from infra.settings import settings as st
+from providers.drivers.postgres import PostgresDriver
 
 
 ##### ROWS #####
@@ -26,8 +27,8 @@ def databases() -> Mapping[str, PostgresSettings]:
 async def provision(concern: str, settings: PostgresSettings) -> bool:
     """Whether the concern's database was created now; a failure is warned of and reads as not created."""
     try:
-        return await PostgresAdapter(settings).provision()
-    except PostgresError as error:
+        return await PostgresDriver(settings).provision()
+    except DatabaseError as error:
         logger.warning("database not provisioned", concern=concern, error=str(error), step="START")
         return False
 

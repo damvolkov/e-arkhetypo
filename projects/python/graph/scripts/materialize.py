@@ -1,7 +1,7 @@
 """scripts/materialize: the hardened sed — copy `projects/python/common` sections into `src/` with a structural rewrite.
 
 libcst parses each source file as real 3.14 syntax (PEP 695 included, verified against the whole
-`e_infra` tree) and rewrites *only* the import nodes `e_infra.{infra,ops,adapters,processors} → {infra,ops,adapters,processors}`;
+`e_infra` tree) and rewrites *only* the import nodes `e_infra.<section> → <section>` for the six sections;
 every result is re-parsed with `ast.parse` and scanned for leftovers before it is written. `make common`
 materializes into `src/`; `make common-check` materializes into a throwaway tree under `/tmp` and diffs,
 so both modes run the exact same generation path and the drift-check cannot lie about a second one.
@@ -23,14 +23,25 @@ if TYPE_CHECKING:
 
 API_ROOT: Path = Path(__file__).resolve().parents[1]
 COMMON_SRC: Path = API_ROOT.parent / "common" / "src" / "e_infra"
-SECTIONS: tuple[str, ...] = ("adapters", "infra", "ops", "processors")
+SECTIONS: tuple[str, ...] = ("engines", "infra", "ops", "ports", "processors", "providers")
 ### the TUI header belongs to the boilerplate wizard, not to a running service: same topology as the old sed.
 ### the compose tool belongs to stack management (e-taxis materializes the whole ops area), not to a running service.
-### the durable background engines ride in only for a service that runs them: add pgqueuer[asyncpg] and awa-pg, drop
-### the exclusions (adapters/queue picks one by QUEUE_ENGINE); postgres rides in always — the db lifespan provisions
-### every database the settings name.
+### the durable queue drivers ride in only for a service that runs them: add pgqueuer[asyncpg] and awa-pg, drop their
+### exclusions and pick one in the composition root; the in-process supervisor (infra/background) and the dispatch
+### engine over it ride in always. postgres rides in always — the db lifespan provisions every database the settings name.
+### the embedding server, the in-process cache and the page extractor ride in only for a service that uses them: add
+### tokenizers, theine or rtrafilatura and drop the exclusion.
 EXCLUDES: frozenset[str] = frozenset(
-    {"ops/tui.py", "ops/snap.py", "ops/compose.py", "adapters/awa.py", "adapters/pgqueuer.py", "adapters/queue.py"}
+    {
+        "ops/tui.py",
+        "ops/snap.py",
+        "ops/compose.py",
+        "providers/drivers/awa.py",
+        "providers/drivers/pgqueuer.py",
+        "providers/drivers/tei.py",
+        "providers/adapters/theine.py",
+        "providers/adapters/rtrafilatura.py",
+    }
 )
 
 
@@ -129,7 +140,7 @@ def _sources(section: str) -> list[Path]:
 
 
 def materialize(dest_root: Path) -> None:
-    """Write the three rewritten sections under `dest_root/src`, replacing any previous copy."""
+    """Write the rewritten sections under `dest_root/src`, replacing any previous copy."""
     for section in SECTIONS:
         shutil.rmtree(dest_root / "src" / section, ignore_errors=True)
     for section in SECTIONS:
@@ -167,7 +178,7 @@ def check(dest_root: Path) -> int:
         ]
         match issues:
             case []:
-                print("✓ materialized infra/ops/adapters in sync")
+                print("✓ materialized sections in sync")
                 return 0
             case _:
                 print("✗ drift from projects/python/common (run make common):")
@@ -188,7 +199,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             return check(API_ROOT)
         case _:
             materialize(API_ROOT)
-            print("✓ materialized adapters/, infra/, ops/ from projects/python/common")
+            print(f"✓ materialized {', '.join(f'{section}/' for section in SECTIONS)} from projects/python/common")
             return 0
 
 

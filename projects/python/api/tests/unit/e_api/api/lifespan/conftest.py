@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Final
 
 import pytest
 
-from e_api.api.lifespan import adapters
+from e_api.api.lifespan import engines
 from infra.proxy import LazyProxy
 from infra.state import State
 
@@ -41,15 +41,15 @@ class LogRecorder:
 
 @pytest.fixture
 def logs(monkeypatch: pytest.MonkeyPatch) -> list[tuple[str, str, dict[str, object]]]:
-    """The adapters lifespan's events as they are logged — level, name, fields."""
+    """The engines lifespan's events as they are logged — level, name, fields."""
     recorder = LogRecorder()
-    monkeypatch.setattr(adapters, "logger", recorder)
+    monkeypatch.setattr(engines, "logger", recorder)
     return recorder.events
 
 
 def leaves(node: object, chain: tuple[str, ...]) -> Iterator[tuple[str, str]]:
     """Every leaf under a node — `State` and typed sections walked alike — with the chain that places it: its own name
-    one level under a stratum, its section's path deeper (`logic.agent`, `infra.adapters`), and its class's module."""
+    one level under a stratum, its section's path deeper (`logic.agent`, `infra.providers`), and its class's module."""
     match node:
         case State():
             for name, child in node.items():

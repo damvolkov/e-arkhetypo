@@ -8,14 +8,14 @@ revertible is a property of writing through the port."""
 import time
 from collections.abc import AsyncIterator
 from datetime import UTC, datetime
-from types import TracebackType
 from typing import ClassVar, Self
 
 import msgspec
 
-from adapters.ports import StorePort
 from e_cli.models.error import JournalError
 from e_cli.models.journal import Journal
+from ports.provider import Isolation, Locality, ProviderSpec, Workload
+from ports.store import StorePort
 
 ##### DEFAULTS #####
 PREFIX: str = "journal:"
@@ -25,7 +25,7 @@ PREFIX: str = "journal:"
 class StoreJournal:
     """Satisfies StorePort; reads pass through, writes are recorded, the run commits on a clean `__aexit__`."""
 
-    name: ClassVar[str] = "journal"
+    spec: ClassVar[ProviderSpec] = ProviderSpec("journal", Locality.EMBEDDED, Workload.IO_BOUND, Isolation.LOOP)
 
     __slots__ = ("_command", "_depth", "_inner", "_writes")
 
@@ -67,15 +67,17 @@ class StoreJournal:
     async def __aenter__(self) -> Self:
         return self
 
-    async def __aexit__(
-        self, exc_type: type[BaseException] | None, exc: BaseException | None, tb: TracebackType | None
-    ) -> None:
+    async def __aexit__(self, *exc: object) -> None:
         ### a failed run changed the store partially at most: filing it would make undo restore a half-state.
-        match (exc_type, bool(self._writes)):
+        match (next(iter(exc), None), bool(self._writes)):
             case (None, True):
                 await self._commit_file()
             case _:
                 pass
+
+    async def health(self) -> bool:
+        """The journal holds no resource of its own: it is as healthy as the store it decorates."""
+        return await self._inner.health()
 
     async def get(self, key: str) -> bytes | None:
         return await self._inner.get(key)

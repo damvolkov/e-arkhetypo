@@ -14,7 +14,6 @@ from typing import TYPE_CHECKING, Any, Final
 import eserde
 import pytest
 
-from adapters.otel import OtelAdapter
 from e_graph.instrument.contexts import InstrumentContexts
 from e_graph.instrument.models import RunStatus
 from e_graph.instrument.state import InfraState, InstrumentState, ProcessorsState, RunState
@@ -25,10 +24,12 @@ from e_graph.pipelines.filing.graph import FilingGraph
 from infra.config.otel import OtelSettings
 from infra.state import State
 from processors.doc import DocProcessor
+from providers.drivers.otel import OtelDriver
 from support.docling import GoldenPort
 
 if TYPE_CHECKING:
     from e_graph.logic.agent import AgnosticAgent
+    from providers.adapters.liteparse import LiteparseAdapter
 
 pytestmark = [pytest.mark.vcr, pytest.mark.integration]
 
@@ -44,12 +45,15 @@ INCOME: Final[tuple[str, ...]] = (
 )
 
 
-async def read(agent: AgnosticAgent, file: str) -> tuple[RunStatus, dict[str, Any], dict[str, Any]]:
+async def read(
+    agent: AgnosticAgent, pages: LiteparseAdapter, file: str
+) -> tuple[RunStatus, dict[str, Any], dict[str, Any]]:
     """One filing through the whole pipeline: the verdict, the record, the audits."""
-    async with OtelAdapter(OtelSettings()) as telemetry:
+    async with OtelDriver(OtelSettings()) as telemetry:
         infra = InfraState(
-            adapters=None,  # ty: ignore[invalid-argument-type]
-            processors=ProcessorsState(doc=DocProcessor(GoldenPort())),
+            providers=None,  # ty: ignore[invalid-argument-type]
+            engines=None,  # ty: ignore[invalid-argument-type]
+            processors=ProcessorsState(doc=DocProcessor(GoldenPort(), pages)),
             graphs=MappingProxyType({}),
         )
         system = State(
@@ -72,8 +76,8 @@ def truth(file: str) -> dict[str, Any]:
 
 ### recording waits on the model; the replay takes milliseconds.
 @pytest.mark.timeout(600)
-async def test_apple_reads_whole_and_exact(agent: AgnosticAgent) -> None:
-    status, record, audits = await read(agent, "aapl-10k-2025.pdf")
+async def test_apple_reads_whole_and_exact(agent: AgnosticAgent, pages: LiteparseAdapter) -> None:
+    status, record, audits = await read(agent, pages, "aapl-10k-2025.pdf")
     expected = truth("aapl-10k-2025.pdf")
     assert status is RunStatus.SUCCEEDED
     assert (record["company"], record["period_end"], record["shares_outstanding"]) == (
@@ -90,8 +94,8 @@ async def test_apple_reads_whole_and_exact(agent: AgnosticAgent) -> None:
 
 
 @pytest.mark.timeout(600)
-async def test_coca_cola_reads_its_income_statement_exact(agent: AgnosticAgent) -> None:
-    status, record, audits = await read(agent, "ko-10k-2025.pdf")
+async def test_coca_cola_reads_its_income_statement_exact(agent: AgnosticAgent, pages: LiteparseAdapter) -> None:
+    status, record, audits = await read(agent, pages, "ko-10k-2025.pdf")
     expected = truth("ko-10k-2025.pdf")
     assert status is RunStatus.SUCCEEDED
     assert (record["company"], record["period_end"]) == (expected["company"], expected["period_end"])

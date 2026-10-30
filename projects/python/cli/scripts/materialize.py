@@ -1,7 +1,8 @@
 """scripts/materialize: the hardened sed — copy `projects/python/common` sections into `src/` with a structural rewrite.
 
 libcst parses each source file as real 3.14 syntax (PEP 695 included, verified against the whole
-`e_infra` tree) and rewrites *only* the import nodes `e_infra.{infra,ops,adapters,processors} → {infra,ops,adapters,processors}`;
+`e_infra` tree) and rewrites *only* the import nodes `e_infra.<section> → <section>` for the six sections
+(`infra`, `ops`, `ports`, `providers` — drivers and adapters nested —, `engines`, `processors`);
 every result is re-parsed with `ast.parse` and scanned for leftovers before it is written. `make common`
 materializes into `src/`; `make common-check` materializes into a throwaway tree under `/tmp` and diffs,
 so both modes run the exact same generation path and the drift-check cannot lie about a second one.
@@ -23,20 +24,19 @@ if TYPE_CHECKING:
 
 ROOT: Path = Path(__file__).resolve().parents[1]
 COMMON_SRC: Path = ROOT.parent / "common" / "src" / "e_infra"
-SECTIONS: tuple[str, ...] = ("adapters", "infra", "ops", "processors")
+SECTIONS: tuple[str, ...] = ("infra", "ops", "ports", "providers", "engines", "processors")
 ### the TUI header belongs to the boilerplate wizard, not to a running service: same topology as the old sed.
 ### the compose tool belongs to stack management (e-taxis materializes the whole ops area), not to a running service.
-### postgres and the durable background engines ride in only for a service that runs them: add psqlpy /
-### pgqueuer[asyncpg] and awa-pg, drop the exclusions (adapters/queue picks one by QUEUE_ENGINE).
+### postgres and the durable queue drivers ride in only for a service that runs them: add psqlpy /
+### pgqueuer[asyncpg] and awa-pg, drop the exclusions (the composition root hands one to DispatchEngine).
 EXCLUDES: frozenset[str] = frozenset(
     {
         "ops/tui.py",
         "ops/snap.py",
         "ops/compose.py",
-        "adapters/awa.py",
-        "adapters/pgqueuer.py",
-        "adapters/queue.py",
-        "adapters/postgres.py",
+        "providers/drivers/awa.py",
+        "providers/drivers/pgqueuer.py",
+        "providers/drivers/postgres.py",
     }
 )
 
@@ -136,7 +136,7 @@ def _sources(section: str) -> list[Path]:
 
 
 def materialize(dest_root: Path) -> None:
-    """Write the three rewritten sections under `dest_root/src`, replacing any previous copy."""
+    """Write the rewritten sections under `dest_root/src`, replacing any previous copy."""
     for section in SECTIONS:
         shutil.rmtree(dest_root / "src" / section, ignore_errors=True)
     for section in SECTIONS:
@@ -174,7 +174,7 @@ def check(dest_root: Path) -> int:
         ]
         match issues:
             case []:
-                print("✓ materialized infra/ops/adapters in sync")
+                print("✓ materialized infra/ops/ports/providers/engines/processors in sync")
                 return 0
             case _:
                 print("✗ drift from projects/python/common (run make common):")
@@ -195,7 +195,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             return check(ROOT)
         case _:
             materialize(ROOT)
-            print("✓ materialized adapters/, infra/, ops/ from projects/python/common")
+            print("✓ materialized infra/, ops/, ports/, providers/, engines/, processors/ from projects/python/common")
             return 0
 
 

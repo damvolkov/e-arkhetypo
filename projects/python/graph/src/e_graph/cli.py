@@ -33,7 +33,6 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.tree import Tree
 
-from adapters.docling import DoclingAdapter
 from e_graph.instrument.contexts import InstrumentContexts
 from e_graph.instrument.state import InfraState, InstrumentState, ProcessorsState
 from e_graph.instrument.telemetry import InstrumentTelemetry
@@ -53,6 +52,9 @@ from infra.logger import ELogger
 from infra.settings import settings as st
 from infra.state import State
 from processors.doc import DocProcessor
+from providers.adapters.liteparse import LiteparseAdapter
+from providers.drivers.docling import DoclingDriver
+from providers.drivers.http import HttpDriver
 
 CONSOLE: Final[Console] = Console(soft_wrap=True)
 EXIT: Final[dict[bool, int]] = {True: 0, False: 1}
@@ -227,11 +229,17 @@ async def system() -> AsyncIterator[State]:
     ### protocol member by member — this class is built for the latter and cannot name it to the former.
     ELogger.setup(env=st.app.app_env, stream=LiveStream())  # ty: ignore[invalid-argument-type]
     graphs = await PipelineRegistry().build()
-    async with DoclingAdapter() as docling, AgnosticAgent() as agent:
+    async with (
+        HttpDriver() as http,
+        DoclingDriver(http) as docling,
+        LiteparseAdapter() as pages,
+        AgnosticAgent() as agent,
+    ):
         root = State(
             infra=InfraState(
-                adapters=None,  # ty: ignore[invalid-argument-type] — no runner reaches an adapter but through a processor
-                processors=ProcessorsState(doc=DocProcessor(docling)),
+                providers=None,  # ty: ignore[invalid-argument-type] — no runner reaches a provider but through a processor
+                engines=None,  # ty: ignore[invalid-argument-type] — no runner surveys health
+                processors=ProcessorsState(doc=DocProcessor(docling, pages)),
                 graphs=MappingProxyType(dict(graphs)),
             ),
             logic=LogicState(agent=agent, orchestrator=OrchestratorCore()),

@@ -34,7 +34,7 @@ def pytest_configure() -> None:
 @pytest.fixture
 def client() -> Iterator[TestClient]:
     with TestClient(create_app()) as test_client:
-        store = test_client.app.state.system.adapters.store
+        store = test_client.app.state.system.providers.store
 
         async def wipe() -> None:
             ### one shared file per process: every test starts from empty; keys() streams, so drain it async.

@@ -17,10 +17,9 @@ import pytest
 from litestar.testing import TestClient
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 
-from adapters.otel import OtelAdapter
 from e_graph.instrument.contexts import InstrumentContexts
 from e_graph.instrument.graph import InstrumentGraph
-from e_graph.instrument.state import AdaptersState, InfraState, InstrumentState, ProcessorsState, RunState
+from e_graph.instrument.state import InfraState, InstrumentState, ProcessorsState, ProvidersState, RunState
 from e_graph.instrument.telemetry import InstrumentTelemetry
 from e_graph.logic.agent import AgnosticAgent
 from e_graph.logic.orchestrator.core import OrchestratorCore
@@ -29,10 +28,13 @@ from e_graph.main import create_app
 from infra.config.otel import OtelSettings
 from infra.state import State
 from processors.doc import DocProcessor
+from providers.drivers.otel import OtelDriver
 from support.docling import GoldenPort
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator, Callable, Iterator
+
+    from providers.adapters.liteparse import LiteparseAdapter
 
 
 def pytest_configure() -> None:
@@ -52,22 +54,23 @@ def client() -> Iterator[TestClient]:
 
 @pytest.fixture
 def exporter() -> InMemorySpanExporter:
-    """The spans the telemetry edge finished, readable in memory."""
+    """The spans the telemetry provider finished, readable in memory."""
     return InMemorySpanExporter()
 
 
 @pytest.fixture
-async def system(exporter: InMemorySpanExporter) -> AsyncIterator[State]:
-    """A sealed system graph shaped like the app's: `infra` with a live telemetry edge, `logic`, and `instrument` with an
-    open contexts store.
+async def system(exporter: InMemorySpanExporter, pages: LiteparseAdapter) -> AsyncIterator[State]:
+    """A sealed system graph shaped like the app's: `infra` with a live telemetry provider, `logic`, and `instrument`
+    with an open contexts store.
 
-    The edges no instrument test touches stay absent; the agent is real but never called here; documents
-    read through the golden conversions (`support.docling.GoldenPort`)."""
+    The providers and engines no instrument test touches stay absent; the agent is real but never called here;
+    documents read through the golden conversions (`support.docling.GoldenPort`) and the real fast pass."""
     port = GoldenPort()
-    async with OtelAdapter(OtelSettings(), exporter) as telemetry, AgnosticAgent() as agent:
+    async with OtelDriver(OtelSettings(), exporter) as telemetry, AgnosticAgent() as agent:
         infra = InfraState(
-            adapters=AdaptersState(store=None, telemetry=telemetry, redis=None, http=None, docling=port),  # ty: ignore[invalid-argument-type]
-            processors=ProcessorsState(doc=DocProcessor(port)),
+            providers=ProvidersState(store=None, telemetry=telemetry, redis=None, http=None, docling=port, pages=pages),  # ty: ignore[invalid-argument-type]
+            engines=None,  # ty: ignore[invalid-argument-type]
+            processors=ProcessorsState(doc=DocProcessor(port, pages)),
             graphs=MappingProxyType({"probe": InstrumentGraph(name="probe")}),
         )
         graph = State(

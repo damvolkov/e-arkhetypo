@@ -13,7 +13,6 @@ from typing import TYPE_CHECKING, Any, Final
 import eserde
 import pytest
 
-from adapters.otel import OtelAdapter
 from e_graph.instrument.contexts import InstrumentContexts
 from e_graph.instrument.models import RunStatus
 from e_graph.instrument.state import InfraState, InstrumentState, ProcessorsState, RunState
@@ -24,10 +23,12 @@ from e_graph.pipelines.note.graph import NoteGraph
 from infra.config.otel import OtelSettings
 from infra.state import State
 from processors.doc import DocProcessor
+from providers.drivers.otel import OtelDriver
 from support.docling import GoldenPort
 
 if TYPE_CHECKING:
     from e_graph.logic.agent import AgnosticAgent
+    from providers.adapters.liteparse import LiteparseAdapter
 
 pytestmark = [pytest.mark.vcr, pytest.mark.integration]
 
@@ -46,12 +47,13 @@ CASES: Final[dict[str, dict[str, Any]]] = {
 }
 
 
-async def read(agent: AgnosticAgent, note: str) -> tuple[RunStatus, dict[str, Any]]:
+async def read(agent: AgnosticAgent, pages: LiteparseAdapter, note: str) -> tuple[RunStatus, dict[str, Any]]:
     """The whole pipeline over one note: the verdict and the record."""
-    async with OtelAdapter(OtelSettings()) as telemetry:
+    async with OtelDriver(OtelSettings()) as telemetry:
         infra = InfraState(
-            adapters=None,  # ty: ignore[invalid-argument-type]
-            processors=ProcessorsState(doc=DocProcessor(GoldenPort())),
+            providers=None,  # ty: ignore[invalid-argument-type]
+            engines=None,  # ty: ignore[invalid-argument-type]
+            processors=ProcessorsState(doc=DocProcessor(GoldenPort(), pages)),
             graphs=MappingProxyType({}),
         )
         system = State(
@@ -73,9 +75,11 @@ def truth(note: str) -> dict[str, Any]:
 
 @pytest.mark.parametrize("note", list(CASES))
 @pytest.mark.timeout(900)
-async def test_a_424b2_reads_into_its_term_sheet_held_to_the_truth(agent: AgnosticAgent, note: str) -> None:
+async def test_a_424b2_reads_into_its_term_sheet_held_to_the_truth(
+    agent: AgnosticAgent, pages: LiteparseAdapter, note: str
+) -> None:
     expected = truth(note)
-    status, record = await read(agent, note)
+    status, record = await read(agent, pages, note)
     assert status is RunStatus.SUCCEEDED, "the note's run did not reach report"
     assert (record["isin"], record["cusip"]) == (expected["isin"], expected["cusip"])
     assert (record["issuer"], record["guarantor"]) == (CASES[note]["issuer"], CASES[note]["guarantor"])

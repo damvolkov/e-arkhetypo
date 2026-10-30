@@ -1,7 +1,7 @@
 """scripts/materialize: the hardened sed — copy `projects/python/common` sections into `src/` with a structural rewrite.
 
 libcst parses each source file as real 3.14 syntax (PEP 695 included, verified against the whole
-`e_infra` tree) and rewrites *only* the import nodes `e_infra.{infra,ops,adapters,processors} → {infra,ops,adapters,processors}`;
+`e_infra` tree) and rewrites *only* the import nodes `e_infra.{infra,ops,ports,providers,engines,processors} → {infra,ops,ports,providers,engines,processors}`;
 every result is re-parsed with `ast.parse` and scanned for leftovers before it is written. `make common`
 materializes into `src/`; `make common-check` materializes into a throwaway tree under `/tmp` and diffs,
 so both modes run the exact same generation path and the drift-check cannot lie about a second one.
@@ -23,13 +23,36 @@ if TYPE_CHECKING:
 
 ROOT: Path = Path(__file__).resolve().parents[1]
 COMMON_SRC: Path = ROOT.parent / "common" / "src" / "e_infra"
-SECTIONS: tuple[str, ...] = ("adapters", "infra", "ops", "processors")
-### the TUI header belongs to the boilerplate wizard, not to a running service: same topology as the old sed.
+SECTIONS: tuple[str, ...] = ("infra", "ops", "ports", "providers", "engines", "processors")
+### the opt-in table of projects/python/common/docs/index.md, read for a TUI: what it does not take stays at the source.
 ### the compose tool belongs to stack management (e-taxis materializes the whole ops area), not to a running service.
-### postgres and the durable background engines ride in only for a service that runs them: add psqlpy /
-### pgqueuer[asyncpg] and awa-pg, drop the exclusions (adapters/queue picks one by QUEUE_ENGINE).
+### postgres and the durable queues ride in only for a service that runs them: add psqlpy / pgqueuer[asyncpg] / awa-pg,
+### drop the exclusions, and name the class that fills QueuePort at the composition root.
+### tracing, the cache and the model and web edges are opt-in everywhere: each brings its library with it.
 EXCLUDES: frozenset[str] = frozenset(
-    {"ops/compose.py", "adapters/awa.py", "adapters/pgqueuer.py", "adapters/queue.py", "adapters/postgres.py"}
+    {
+        "ops/compose.py",
+        "ports/database.py",
+        "providers/drivers/postgres.py",
+        "ports/queue.py",
+        "providers/drivers/awa.py",
+        "providers/drivers/pgqueuer.py",
+        "engines/dispatch.py",
+        "ports/telemetry.py",
+        "providers/drivers/otel.py",
+        "ports/cache.py",
+        "providers/adapters/theine.py",
+        "engines/cache.py",
+        "ports/embed.py",
+        "ports/rerank.py",
+        "providers/drivers/tei.py",
+        "ports/llm.py",
+        "providers/drivers/openai.py",
+        "ports/ner.py",
+        "providers/drivers/gliner.py",
+        "ports/extract.py",
+        "providers/adapters/rtrafilatura.py",
+    }
 )
 
 
@@ -128,7 +151,7 @@ def _sources(section: str) -> list[Path]:
 
 
 def materialize(dest_root: Path) -> None:
-    """Write the three rewritten sections under `dest_root/src`, replacing any previous copy."""
+    """Write the rewritten sections under `dest_root/src`, replacing any previous copy."""
     for section in SECTIONS:
         shutil.rmtree(dest_root / "src" / section, ignore_errors=True)
     for section in SECTIONS:
@@ -166,7 +189,7 @@ def check(dest_root: Path) -> int:
         ]
         match issues:
             case []:
-                print("✓ materialized infra/ops/adapters in sync")
+                print("✓ materialized infra/ops/ports/providers/engines/processors in sync")
                 return 0
             case _:
                 print("✗ drift from projects/python/common (run make common):")
@@ -187,7 +210,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             return check(ROOT)
         case _:
             materialize(ROOT)
-            print("✓ materialized adapters/, infra/, ops/ from projects/python/common")
+            print("✓ materialized infra/, ops/, ports/, providers/, engines/, processors/ from projects/python/common")
             return 0
 
 

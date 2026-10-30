@@ -35,8 +35,8 @@ from infra.state import State
 from support.crafter import plug
 
 if TYPE_CHECKING:
-    from adapters.otel import OtelAdapter
     from e_graph.logic.models import SectionRun
+    from providers.drivers.otel import OtelDriver
     from support.crafter import SpecCrafter
 
 SECTION: Final[Section] = Section.EXTRACT
@@ -80,7 +80,7 @@ class ScriptedAgent:
 class DartsHarness:
     """One pipeline (`doc`) under a crafter's root: write specs and runners, run a section, read the result."""
 
-    def __init__(self, crafter: SpecCrafter, telemetry: OtelAdapter, agent: Any = None, **conf: Any) -> None:
+    def __init__(self, crafter: SpecCrafter, telemetry: OtelDriver, agent: Any = None, **conf: Any) -> None:
         self.crafter, self.agent = crafter, ScriptedAgent() if agent is None else agent
         self._telemetry = InstrumentTelemetry(telemetry)
         self.orchestrator = self.configure(**conf)
@@ -142,7 +142,8 @@ class DartsHarness:
     def state(self, pipeline: str = "doc") -> RunState:
         """A fresh run state over a system whose infra holds the scripted agent and this orchestrator."""
         infra = InfraState(
-            adapters=None,  # ty: ignore[invalid-argument-type]
+            providers=None,  # ty: ignore[invalid-argument-type]
+            engines=None,  # ty: ignore[invalid-argument-type]
             processors=None,  # ty: ignore[invalid-argument-type]
             graphs=MappingProxyType({}),
         )

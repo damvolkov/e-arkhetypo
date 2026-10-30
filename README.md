@@ -35,7 +35,6 @@ zizmor`, git-tag releases, all publishing gates inert by default.
 - `projects/python/api` — **e-api**: Litestar + Granian API service template, msgspec end to end.
 - `projects/python/graph` — **e-graph**: LangGraph runtime, rustworkx topology, React Flow canvas over
   Litestar + Granian (api + canvas).
-- `projects/python/mcp` — **e-mcp**: in-process `MCPServer` over Streamable HTTP, granian factory, bearer gate
   on loopback.
 - `projects/python/cli` — **e-cli**: cyclopts on uv, lazy declarative commands, typed injection, undo journal.
 - `projects/python/tui` — **e-tui**: config-driven responsive layout mini-framework over Textual, fillable

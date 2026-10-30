@@ -1,5 +1,5 @@
 ##### CONFIG #####
-PROJECTS ?= projects/python/common projects/python/api projects/python/graph projects/python/mcp projects/python/cli projects/python/tui
+PROJECTS ?= projects/python/common projects/python/api projects/python/graph projects/python/cli projects/python/tui
 ARGS      = $(filter-out $@,$(MAKECMDGOALS))
 TAXIS    ?= ../e-taxis
 

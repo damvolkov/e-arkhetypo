@@ -68,9 +68,9 @@ templates:
         default: true
         paths: [Dockerfile, compose.yml, .dockerignore]
         prunes:
-          - {file: Makefile, pattern: '^up: infra ## docker compose up[^\n]*\n(?:\t[^\n]*\n)+'}
+          - {file: Makefile, pattern: '^up: common ## docker compose up[^\n]*\n(?:\t[^\n]*\n)+'}
           - {file: Makefile, pattern: '^down: ## docker compose down\n(?:\t[^\n]*\n)+'}
-          - {file: Makefile, pattern: '^build: infra ## docker image build[^\n]*\n(?:\t[^\n]*\n)+'}
+          - {file: Makefile, pattern: '^build: common ## docker image build[^\n]*\n(?:\t[^\n]*\n)+'}
           - {file: Makefile, pattern: '^logs: ## docker compose logs[^\n]*\n(?:\t[^\n]*\n)+'}
           - {file: Makefile, pattern: '^(PORT|COMPOSE) \?=[^\n]*\n'}
           - {file: Makefile, pattern: ' up down build logs'}
@@ -160,9 +160,9 @@ templates:
         default: true
         paths: [Dockerfile, compose.yml, .dockerignore]
         prunes:
-          - {file: Makefile, pattern: '^up: infra ## docker compose up[^\n]*\n(?:\t[^\n]*\n)+'}
+          - {file: Makefile, pattern: '^up: common ## docker compose up[^\n]*\n(?:\t[^\n]*\n)+'}
           - {file: Makefile, pattern: '^down: ## docker compose down\n(?:\t[^\n]*\n)+'}
-          - {file: Makefile, pattern: '^build: infra ## docker image build[^\n]*\n(?:\t[^\n]*\n)+'}
+          - {file: Makefile, pattern: '^build: common ## docker image build[^\n]*\n(?:\t[^\n]*\n)+'}
           - {file: Makefile, pattern: '^logs: ## docker compose logs[^\n]*\n(?:\t[^\n]*\n)+'}
           - {file: Makefile, pattern: '^(PORT|COMPOSE) \?=[^\n]*\n'}
           - {file: Makefile, pattern: ' up down build logs'}
@@ -181,38 +181,6 @@ templates:
           - {file: Makefile, pattern: ' scripts tests', to: ' tests'}
           - {file: pyproject.toml, pattern: '^docs = \[[\s\S]*?^\]\n'}
           - {file: pyproject.toml, pattern: '^    \{ include-group = "docs" \},\n'}
-
-    verify: *verify
-    finalize: *finalize
-
-  mcp:
-    source: projects/python/mcp
-    package: e_mcp
-    brand: e-mcp
-    drops: [uv.lock, scripts/materialize.py, .github/workflows, .github/ci.map.yml, .github/ci.vars.example, .github/INSTALL.md, tests/unit/test_ci_contract.py]
-    common: {root: projects/python/common, package: e_infra, skip: [ops/tui]}
-    materials: *materials
-
-    mandatory:
-      - tests/unit/conftest.py
-      - tests/resources
-      - tests/unit/e_mcp/conftest.py
-
-    choices:
-      # ·· stack ··
-      - name: docker
-        group: stack
-        label: container image + compose service
-        default: true
-        paths: [Dockerfile, compose.yml, .dockerignore]
-        prunes:
-          - {file: Makefile, pattern: '^up: infra ## docker compose up[^\n]*\n(?:\t[^\n]*\n)+'}
-          - {file: Makefile, pattern: '^down: ## docker compose down\n(?:\t[^\n]*\n)+'}
-          - {file: Makefile, pattern: '^build: infra ## docker image build[^\n]*\n(?:\t[^\n]*\n)+'}
-          - {file: Makefile, pattern: '^logs: ## docker compose logs[^\n]*\n(?:\t[^\n]*\n)+'}
-          - {file: Makefile, pattern: '^(PORT|COMPOSE) \?=[^\n]*\n'}
-          - {file: Makefile, pattern: ' up down build logs'}
-          - {file: Makefile, pattern: ' up| down| build| logs'}
 
     verify: *verify
     finalize: *finalize

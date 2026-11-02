@@ -8,17 +8,10 @@ touches — `stack`, `systems`, `infra`. Lines under `[Unreleased]` are written 
 
 ### stack
 
+- floating tags resolved to current digests (`stack/resolve-2026-11-02`)
 - The LLM slot's default is `llm/vllm` (Gemma 4 26B-A4B AWQ), `llm/strata` its alternative — the final fight on one
-  4090 and the same 20.6 GiB, measured 2026-10-28: 175 vs 57-86 tok/s decode, ~10k vs 4.1k prefill, 760 vs 59 tok/s
-  at 8 concurrent, prefix reuse 34x vs 2x; strata speaks no logprobs (jev). `llm/vllm` defaults to 0.86 · 131072
-  (desktop on the iGPU, TEI beside it: 212k KV tokens, embed+rerank stress 0 failures; 0.87 OOMs at start).
 - `llm/llama` and `llm/ikllama` born, parked: llama.cpp and ik_llama.cpp with the MoE experts in RAM over one shared
-  `llama-models` volume, ports 8082 / 8083, no slot alias. Kept for the day a CPU path nears vLLM — today Gemma 4 does
-  31 tok/s at 8 GiB of card, Qwen3.8-Flash-Next UD-IQ4_XS 11-16 tok/s with ~350-790 tok/s prefill.
 - `llm/reranker` born: `ghcr.io/huggingface/text-embeddings-inference:89-1.9` (GPU) serving
-  `Alibaba-NLP/gte-multilingual-reranker-base` on `:80` (`POST /rerank`), a cross-encoder beside `llm/embed`; chosen over
-  bge-reranker-v2-m3 on e-gnosis's sandbox (same pointer, twice as fast, the only one separating off-topic questions);
-  floating tags resolved with it in the ledger (`feat/stack-reranker`)
 - floating tags resolved to current digests with `llm/gliner` in the ledger (`feat/gliner-ping`)
 - `llm/gliner` born: `ghcr.io/damvolkov/gliner:latest` (GLiNER NER, Rust/ONNX, CPU) on `:5800`, model registry in the named volume `gliner-models` mounted `:ro` and filled by hand (export or copy, see its README); no compose healthcheck — distroless, no shell, readiness is `GET /ready`
 - floating tags resolved to current digests (`stack/resolve-2026-10-20`)
@@ -45,10 +38,6 @@ touches — `stack`, `systems`, `infra`. Lines under `[Unreleased]` are written 
 ### infra
 
 - **CI stops re-proving on main**: quality, test, coverage, ui, ecosystem, repo-gates and snapshots run on pull
-  requests only — a push to main re-ran what its PR had just proved (710 of ~1,935 Actions minutes in a month on
-  e-gnosis). docs builds on pull requests, and on push only where it deploys (public Pages). test skips its work on a
-  docs-only change (docs/, *.md, zensical.toml), read off the merge commit's first parent inside the job — no extra
-  job, so no extra billed minute on every PR.
 - repo-gates and ecosystem jobs materialize with `make infra` + `infra-check` (the `core`/`common` targets are gone from every Makefile), pin the ecosystem Python from `projects/python/infra/.python-version`, and `snap-refresh` follows; `qwen.repo.md` and `infra/README.md` name the blueprint by its new path. Assembled `.github/workflows/{ci,snap-refresh}.yml` updated in lockstep with their `infra/jobs/` sources.
 - ten action pins that named no commit fixed — `attest-build-provenance`, `setup-node`, the four `docker/*` actions, `pnpm/action-setup` (two phantoms of v6.1.0), `maturin-action`, `taiki-e/install-action`: each kept its version and got the commit its tag resolves to (every phantom shared the real SHA's first 8 characters); every pin in `infra/` and the committed `.github` now resolves (`gh api repos/<action>/commits/<sha>`)
 - `renovate.json` and `renovate.repo.json` pass `renovate-config-validator --strict`: the managers `uv` and `docker` and `matchCategories: runtime` never existed (now `pep621`, `docker-compose`, `matchDepTypes: project.dependencies`), `regex` is `custom.regex`, `fileMatch` is `managerFilePatterns`, the action-pin datasource is `github-tags`; `requires-python` is never bumped; the project template adopts the policy proven on EDamLabs — lock file maintenance, Python tooling, actions and the agent CLI merge themselves (platform automerge), runtime patch releases too

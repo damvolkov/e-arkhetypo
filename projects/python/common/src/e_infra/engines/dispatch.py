@@ -314,7 +314,8 @@ class DispatchEngine:
         """The durable queue answers; in memory it does not (its jobs would not survive a restart)."""
         match self._durable:
             case None:
-                return False
+                msg = "in memory: jobs will not survive a restart"
+                raise QueueError(msg)
             case durable:
                 return await durable.health()
 

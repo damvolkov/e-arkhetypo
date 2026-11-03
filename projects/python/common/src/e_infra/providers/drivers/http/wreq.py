@@ -155,7 +155,7 @@ class WreqDriver:
             self._common_open()
         except ProviderError as error:
             logger.warning("wreq unhealthy", error=str(error))
-            return False
+            raise
         return True
 
     @overload

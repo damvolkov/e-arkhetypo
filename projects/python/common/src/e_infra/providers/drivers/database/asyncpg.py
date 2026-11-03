@@ -261,7 +261,7 @@ class AsyncpgDriver:
             await self.fetch("SELECT 1")
         except ProviderError as error:
             logger.warning("asyncpg unhealthy", error=str(error))
-            return False
+            raise
         return True
 
     async def provision(self) -> bool:

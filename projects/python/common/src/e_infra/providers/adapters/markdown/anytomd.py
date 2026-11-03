@@ -120,7 +120,7 @@ class AnytomdAdapter:
             await self.convert(b"ping", extension="txt")
         except ProviderError as error:
             logger.warning("anytomd unhealthy", error=str(error))
-            return False
+            raise
         return True
 
     def detect(self, name: str, data: bytes) -> str | None:

@@ -50,7 +50,8 @@ class ProviderSpec:
 ##### PORT #####
 @runtime_checkable
 class Provider(Protocol):
-    """A singleton the lifespan opens with `async with` and closes in reverse order; `health` never raises."""
+    """A singleton the lifespan opens with `async with` and closes in reverse order. `health` answers True when the
+    provider serves, and raises its own error — the reason it is down, what the readiness route shows — when not."""
 
     spec: ClassVar[ProviderSpec]
 

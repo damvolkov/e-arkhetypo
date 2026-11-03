@@ -9,7 +9,7 @@ areas:
 - ports
 - processors
 - providers
-inputs_hash: "89ae20357502c8a49825462925f34d71fc48543475e9b2a1e05e6a202aef3d1b"
+inputs_hash: "3943023d8add463cd0a125df69af0d11554b36ccd20c5aad9978afa3afb14127"
 units:
 - key: engines/auth
   area: engines
@@ -277,7 +277,8 @@ units:
   name: config/base
   files:
   - src/infra/config/base.py
-  tests: []
+  tests:
+  - tests/unit/infra/config/test_base.py
   deps: []
   dependents:
   - infra/config/agent
@@ -292,6 +293,7 @@ units:
   - infra/config/ping
   - infra/config/processors/doc
   - infra/config/processors/md
+  - infra/config/providers/adapters/language/lingua
   - infra/config/providers/adapters/markdown/anytomd
   - infra/config/providers/adapters/pages/liteparse
   - infra/config/providers/drivers/database/psqlpy
@@ -444,6 +446,21 @@ units:
   - infra/config/base
   dependents:
   - processors/md
+  closure:
+  - infra/config/base
+  level: 1
+  locked: false
+  detachable: false
+- key: infra/config/providers/adapters/language/lingua
+  area: infra
+  name: config/providers/adapters/language/lingua
+  files:
+  - src/infra/config/providers/adapters/language/lingua.py
+  tests: []
+  deps:
+  - infra/config/base
+  dependents:
+  - providers/adapters/language/lingua
   closure:
   - infra/config/base
   level: 1
@@ -615,6 +632,7 @@ units:
   - providers/adapters/extract/rtrafilatura
   - providers/adapters/markdown/anytomd
   - providers/adapters/pages/liteparse
+  - providers/drivers/auth/postgres
   - providers/drivers/database/psqlpy
   - providers/drivers/documents/docling
   - providers/drivers/http/wreq
@@ -673,8 +691,10 @@ units:
   - processors/doc
   - processors/md
   - providers/adapters/extract/rtrafilatura
+  - providers/adapters/language/lingua
   - providers/adapters/markdown/anytomd
   - providers/adapters/pages/liteparse
+  - providers/adapters/watch/watchfiles
   - providers/drivers/auth/postgres
   - providers/drivers/database/psqlpy
   - providers/drivers/documents/docling
@@ -899,6 +919,7 @@ units:
   - infra/logger
   - processors/doc
   - processors/md
+  - providers/adapters/language/lingua
   - providers/adapters/markdown/anytomd
   - providers/adapters/pages/liteparse
   - providers/drivers/database/psqlpy
@@ -1110,6 +1131,20 @@ units:
   level: 1
   locked: true
   detachable: false
+- key: ports/language
+  area: ports
+  name: language
+  files:
+  - src/ports/language.py
+  tests: []
+  deps:
+  - ports/provider
+  dependents: []
+  closure:
+  - ports/provider
+  level: 1
+  locked: false
+  detachable: false
 - key: ports/markdown
   area: ports
   name: markdown
@@ -1161,13 +1196,17 @@ units:
   - ports/documents
   - ports/extract
   - ports/http
+  - ports/language
   - ports/markdown
   - ports/pages
   - ports/store
+  - ports/watch
   - providers/adapters/extract/rtrafilatura
+  - providers/adapters/language/lingua
   - providers/adapters/markdown/anytomd
   - providers/adapters/pages/liteparse
   - providers/adapters/telemetry/null
+  - providers/adapters/watch/watchfiles
   - providers/drivers/auth/postgres
   - providers/drivers/database/psqlpy
   - providers/drivers/documents/docling
@@ -1191,6 +1230,21 @@ units:
   - ports/provider
   level: 1
   locked: true
+  detachable: false
+- key: ports/watch
+  area: ports
+  name: watch
+  files:
+  - src/ports/watch.py
+  tests: []
+  deps:
+  - ports/provider
+  dependents:
+  - providers/adapters/watch/watchfiles
+  closure:
+  - ports/provider
+  level: 1
+  locked: false
   detachable: false
 - key: processors/doc
   area: processors
@@ -1302,6 +1356,32 @@ units:
   level: 4
   locked: false
   detachable: false
+- key: providers/adapters/language/lingua
+  area: providers
+  name: adapters/language/lingua
+  files:
+  - src/providers/adapters/language/lingua.py
+  tests:
+  - tests/unit/providers/adapters/language/test_lingua.py
+  deps:
+  - infra/config/providers/adapters/language/lingua
+  - infra/logger
+  - infra/settings
+  - ports/provider
+  dependents: []
+  closure:
+  - infra/config/app
+  - infra/config/base
+  - infra/config/providers/adapters/language/lingua
+  - infra/errors
+  - infra/logger
+  - infra/proxy
+  - infra/settings
+  - ops/file
+  - ports/provider
+  level: 4
+  locked: false
+  detachable: false
 - key: providers/adapters/markdown/anytomd
   area: providers
   name: adapters/markdown/anytomd
@@ -1378,6 +1458,31 @@ units:
   level: 1
   locked: false
   detachable: false
+- key: providers/adapters/watch/watchfiles
+  area: providers
+  name: adapters/watch/watchfiles
+  files:
+  - src/providers/adapters/watch/watchfiles.py
+  tests:
+  - tests/unit/providers/adapters/watch/test_watchfiles.py
+  deps:
+  - infra/logger
+  - ports/provider
+  - ports/watch
+  dependents: []
+  closure:
+  - infra/config/app
+  - infra/config/base
+  - infra/errors
+  - infra/logger
+  - infra/proxy
+  - infra/settings
+  - ops/file
+  - ports/provider
+  - ports/watch
+  level: 4
+  locked: false
+  detachable: false
 - key: providers/drivers/auth/postgres
   area: providers
   name: drivers/auth/postgres
@@ -1387,6 +1492,7 @@ units:
   - tests/unit/providers/drivers/auth/test_postgres.py
   deps:
   - infra/auth/models
+  - infra/errors
   - infra/logger
   - ports/database
   - ports/provider

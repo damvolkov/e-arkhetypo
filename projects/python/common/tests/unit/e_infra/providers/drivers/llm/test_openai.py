@@ -8,7 +8,7 @@ import pytest
 
 from e_infra.infra.config.base import Secret
 from e_infra.infra.config.providers.drivers.llm.openai import OpenaiSettings
-from e_infra.infra.errors import HttpError, ModelError, TruncatedError
+from e_infra.infra.errors import HttpError, ModelError, ProviderError, TruncatedError
 from e_infra.ports.llm import LlmPort
 from e_infra.providers.drivers.llm.openai import OpenaiBucket, OpenaiDriver
 
@@ -81,7 +81,8 @@ async def test_openai_health_lists_the_models(stub: Stub, http: HttpPort) -> Non
     async with OpenaiDriver(http, settings(stub)) as llm:
         assert await llm.health()
         stub.routes.clear()
-        assert not await llm.health()
+        with pytest.raises(ProviderError):
+            await llm.health()
     assert stub.sent[0][2]["authorization"] == "Bearer k"
 
 
@@ -101,7 +102,8 @@ async def test_openai_lifecycle_the_bad_replies_and_an_unhealthy_server_are_logg
     async with OpenaiDriver(http, settings(stub)) as llm:
         with pytest.raises(TruncatedError):
             await llm.structured("s", "p", SCHEMA)
-        assert not await llm.health()
+        with pytest.raises(ProviderError):
+            await llm.health()
     assert logs.at("info", "openai") == ["openai opened", "openai closed"]
     assert logs.at("error", "openai") == ["openai answer is not JSON"]
     assert logs.at("warning", "openai") == ["openai unhealthy"]

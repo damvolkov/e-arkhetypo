@@ -10,7 +10,7 @@ from psqlpy.extra_types import PgVector
 
 from e_infra.infra.config.base import Secret
 from e_infra.infra.config.providers.drivers.database.psqlpy import PsqlpySettings
-from e_infra.infra.errors import DatabaseError
+from e_infra.infra.errors import DatabaseError, ProviderError
 from e_infra.ports.database import DatabasePort, Vector
 from e_infra.providers.drivers.database.psqlpy import FOUND, PsqlpyDriver, PsqlpyStatements
 
@@ -67,12 +67,14 @@ async def test_psqlpy_health_false_and_warned_when_the_query_fails(
 ) -> None:
     psqlpy.failures["SELECT 1"] = broken
     async with driver:
-        assert not await driver.health()
+        with pytest.raises(ProviderError):
+            await driver.health()
     assert "psqlpy unhealthy" in logs.at("warning")
 
 
 async def test_psqlpy_health_false_when_never_opened(driver: PsqlpyDriver, logs: Logs) -> None:
-    assert not await driver.health()
+    with pytest.raises(ProviderError):
+        await driver.health()
     assert logs.at("warning") == ["psqlpy unhealthy"]
 
 

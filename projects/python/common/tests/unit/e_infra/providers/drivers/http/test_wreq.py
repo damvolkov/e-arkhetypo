@@ -8,7 +8,7 @@ import msgspec
 import pytest
 
 from e_infra.infra.config.providers.drivers.http.wreq import WreqSettings
-from e_infra.infra.errors import HttpError, HttpTimeoutError
+from e_infra.infra.errors import HttpError, HttpTimeoutError, ProviderError
 from e_infra.ports.http import HttpPort
 from e_infra.providers.drivers.http.wreq import WreqDriver
 
@@ -84,7 +84,8 @@ async def test_http_health() -> None:
     adapter = WreqDriver(WreqSettings(base_url="http://127.0.0.1:9"))
     async with adapter:
         assert await adapter.health()
-    assert not await adapter.health()
+    with pytest.raises(ProviderError):
+        await adapter.health()
 
 
 async def test_http_lifecycle_is_logged(http_server: str, logs: Logs) -> None:
@@ -109,7 +110,8 @@ async def test_http_a_refused_status_a_timeout_and_a_dead_server_are_logged_wher
 
 
 async def test_http_unhealthy_is_warned_and_an_unopened_call_is_not_translated(logs: Logs) -> None:
-    assert not await WreqDriver(WreqSettings()).health()
+    with pytest.raises(ProviderError):
+        await WreqDriver(WreqSettings()).health()
     assert logs.at("warning") == ["wreq unhealthy"]
 
 

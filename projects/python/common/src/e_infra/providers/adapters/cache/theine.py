@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, ClassVar, Self
 
 from theine import Cache
 
-from e_infra.infra.errors import CacheError
+from e_infra.infra.errors import CacheError, ProviderError
 from e_infra.infra.logger import logger
 from e_infra.infra.settings import settings as st
 from e_infra.ports.provider import Isolation, Locality, ProviderSpec, Workload
@@ -55,9 +55,12 @@ class TheineAdapter[T]:
         logger.info("theine closed")
 
     async def health(self) -> bool:
-        opened = self._store is not None
-        _ = opened or logger.warning("theine unhealthy", reason="not open")
-        return opened
+        try:
+            self._common_open()
+        except ProviderError as error:
+            logger.warning("theine unhealthy", error=str(error))
+            raise
+        return True
 
     async def get(self, key: str) -> T | None:
         value, found = self._common_open().get(key)

@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Final
 import pytest
 
 from e_infra.engines.health import HealthEngine, ProviderHealth
+from e_infra.infra.errors import DatabaseError
 from unit.e_infra.engines.conftest import StubProvider
 
 if TYPE_CHECKING:
@@ -58,10 +59,11 @@ async def test_survey_timeout_isolated() -> None:
     ("provider", "reason", "latency"),
     [
         (StubProvider(up=False), "unhealthy", None),
+        (StubProvider(error=DatabaseError("connection refused")), "DatabaseError: connection refused", None),
         (StubProvider(error=ValueError("bad")), "ValueError: bad", None),
         (StubProvider(error=asyncio.CancelledError()), "CancelledError", 0.0),
     ],
-    ids=["down", "breaks-contract", "cancelled"],
+    ids=["false", "says-why", "foreign-error", "cancelled"],
 )
 async def test_survey_failures(provider: StubProvider, reason: str, latency: float | None) -> None:
     """A provider down says why; a check cancelled under the gather is that provider's verdict, never the caller's."""

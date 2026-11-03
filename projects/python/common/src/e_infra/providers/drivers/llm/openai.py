@@ -146,7 +146,7 @@ class OpenaiDriver:
             )
         except ProviderError as error:
             logger.warning("openai unhealthy", error=str(error))
-            return False
+            raise
         return True
 
     async def structured(self, system: str, prompt: str, schema: Mapping[str, Any]) -> Any:

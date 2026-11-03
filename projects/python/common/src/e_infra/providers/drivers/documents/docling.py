@@ -193,5 +193,5 @@ class DoclingDriver:
             await self._common_call("GET", "/ready")
         except ProviderError as error:
             logger.warning("docling unhealthy", error=str(error))
-            return False
+            raise
         return True

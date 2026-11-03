@@ -14,7 +14,7 @@ from e_infra.infra.config.providers.drivers.documents.docling import (
     DoclingSettings,
     DoclingTables,
 )
-from e_infra.infra.errors import DocumentError, HttpError, HttpTimeoutError
+from e_infra.infra.errors import DocumentError, HttpError, HttpTimeoutError, ProviderError
 from e_infra.ports.documents import DocumentConversion, DocumentPort
 from e_infra.providers.drivers.documents.docling import DoclingDriver
 from unit.e_infra.providers.drivers.conftest import DOWN
@@ -143,9 +143,11 @@ async def test_health_reflects_the_server(docling_server: Any, http: HttpPort) -
     async with DoclingDriver(http, settings(docling_server.url)) as adapter:
         assert await adapter.health()
         docling_server.handler.ready = False
-        assert not await adapter.health()
+        with pytest.raises(ProviderError):
+            await adapter.health()
     async with DoclingDriver(http, settings(DOWN)) as gone:
-        assert not await gone.health()
+        with pytest.raises(ProviderError):
+            await gone.health()
 
 
 async def test_a_server_error_surfaces_as_an_http_error(docling_server: Any, http: HttpPort) -> None:
@@ -173,7 +175,8 @@ async def test_lifecycle_and_the_failures_are_logged(docling_server: Any, http: 
         with pytest.raises(DocumentError):
             await adapter.convert("https://example.org/fail")
         docling_server.handler.ready = False
-        assert not await adapter.health()
+        with pytest.raises(ProviderError):
+            await adapter.health()
     assert logs.at("info", "docling") == ["docling opened", "docling closed"]
     assert logs.at("error", "docling") == ["docling task failed"]
     assert logs.at("warning", "docling") == ["docling unhealthy"]

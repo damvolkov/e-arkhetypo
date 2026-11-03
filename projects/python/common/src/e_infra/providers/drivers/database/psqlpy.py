@@ -235,7 +235,7 @@ class PsqlpyDriver:
             await self.fetch("SELECT 1")
         except ProviderError as error:
             logger.warning("psqlpy unhealthy", error=str(error))
-            return False
+            raise
         return True
 
     async def provision(self) -> bool:

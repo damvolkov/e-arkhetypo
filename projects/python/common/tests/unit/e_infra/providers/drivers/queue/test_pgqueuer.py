@@ -14,7 +14,7 @@ from pgqueuer.domain.types import JobId
 
 from e_infra.infra.background import BackgroundState
 from e_infra.infra.config.providers.drivers.queue.pgqueuer import PgqueuerSettings
-from e_infra.infra.errors import QueueError
+from e_infra.infra.errors import ProviderError, QueueError
 from e_infra.ports.queue import QueuePort, SchedulePort
 from e_infra.providers.drivers.database.asyncpg import AsyncpgDriver
 from e_infra.providers.drivers.queue.pgqueuer import MANY, ONE, RECORD, REPORT, SCHEMA, PgqueuerBridge, PgqueuerDriver
@@ -61,7 +61,8 @@ async def test_pgqueuer_on_a_driver_that_never_opened_is_a_queue_error(
         await driver.__aenter__()
     with pytest.raises(QueueError, match="not open"):
         await driver.start({"q": 1})
-    assert not await driver.health()
+    with pytest.raises(ProviderError):
+        await driver.health()
 
 
 async def test_pgqueuer_default_settings_come_from_the_composer(fake_db: AsyncpgDriver) -> None:
@@ -81,7 +82,8 @@ async def test_pgqueuer_close_that_cannot_drain_is_a_queue_error(
     with anyio.fail_after(5), pytest.raises(QueueError, match="close timed out"):
         await opened.__aexit__(None, None, None)
     assert logs.at("error") == ["pgqueuer close timed out"]
-    assert not await opened.health()
+    with pytest.raises(ProviderError):
+        await opened.health()
 
 
 ##### HEALTH #####
@@ -93,7 +95,8 @@ async def test_pgqueuer_health_true_when_the_pool_answers(
 
 
 async def test_pgqueuer_health_false_and_warned_before_it_opens(pgqueuer_driver: PgqueuerDriver, logs: Logs) -> None:
-    assert not await pgqueuer_driver.health()
+    with pytest.raises(ProviderError):
+        await pgqueuer_driver.health()
     assert logs.at("warning") == ["pgqueuer unhealthy"]
 
 
@@ -101,7 +104,8 @@ async def test_pgqueuer_health_false_and_warned_when_the_database_fails(
     opened: PgqueuerDriver, asyncpg_server: FakeAsyncpgServer, logs: Logs
 ) -> None:
     asyncpg_server.failures["SELECT 1"] = asyncpg.InterfaceError("pool is closing")
-    assert not await opened.health()
+    with pytest.raises(ProviderError):
+        await opened.health()
     assert "pgqueuer unhealthy" in logs.at("warning")
 
 

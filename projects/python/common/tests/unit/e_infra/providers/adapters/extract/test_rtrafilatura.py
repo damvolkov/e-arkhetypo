@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Final
 import pytest
 from rtrafilatura.errors import ExtractionError
 
-from e_infra.infra.errors import ParseError
+from e_infra.infra.errors import ParseError, ProviderError
 from e_infra.ports.extract import ExtractPort
 from e_infra.providers.adapters.extract import rtrafilatura
 from e_infra.providers.adapters.extract.rtrafilatura import RtrafilaturaAdapter
@@ -48,7 +48,8 @@ async def test_rtrafilatura_error_translated(monkeypatch: pytest.MonkeyPatch) ->
     async with RtrafilaturaAdapter() as extractor:
         with pytest.raises(ParseError, match="tree too large"):
             await extractor.extract(PAGE)
-        assert not await extractor.health()
+        with pytest.raises(ProviderError):
+            await extractor.health()
 
 
 async def test_rtrafilatura_lifecycle_and_its_failures_are_logged(monkeypatch: pytest.MonkeyPatch, logs: Logs) -> None:
@@ -58,7 +59,8 @@ async def test_rtrafilatura_lifecycle_and_its_failures_are_logged(monkeypatch: p
 
     monkeypatch.setattr(rtrafilatura.rtrafilatura, "extract", broken)
     async with RtrafilaturaAdapter() as extractor:
-        assert not await extractor.health()
+        with pytest.raises(ProviderError):
+            await extractor.health()
     assert logs.at("info") == ["rtrafilatura opened", "rtrafilatura closed"]
     assert logs.at("error") == ["rtrafilatura failed"]
     assert logs.at("warning") == ["rtrafilatura unhealthy"]

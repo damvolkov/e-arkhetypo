@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 from e_infra.infra.auth.models import Account, Grant, GrantKind, Role
-from e_infra.infra.errors import DatabaseError
+from e_infra.infra.errors import DatabaseError, ProviderError
 from e_infra.ports.auth import AuthPort
 from e_infra.providers.drivers.auth.postgres import AuthPostgresDriver
 
@@ -48,7 +48,8 @@ async def test_postgres_health_follows_the_database(
 ) -> None:
     assert await store.health() is True
     psqlpy.failures["SELECT 1"] = broken
-    assert await store.health() is False
+    with pytest.raises(ProviderError):
+        await store.health()
     assert logs.at("warning", "auth postgres") == ["auth postgres unhealthy"]
 
 

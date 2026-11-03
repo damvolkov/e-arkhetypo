@@ -12,7 +12,7 @@ from e_infra.infra.config.base import Secret
 from e_infra.infra.config.engines.dispatch import DispatchSettings
 from e_infra.infra.config.providers.drivers.queue.awa import AwaSettings
 from e_infra.infra.config.providers.drivers.telemetry.otel import OtelSettings
-from e_infra.infra.errors import DispatchError
+from e_infra.infra.errors import DispatchError, ProviderError
 from e_infra.ports.telemetry import SpanRole
 from e_infra.providers.drivers.queue.awa import AwaDriver
 from e_infra.providers.drivers.telemetry.otel import OtelDriver
@@ -239,7 +239,8 @@ async def test_dispatch_an_unreachable_durable_queue_runs_the_work_in_memory_and
         job = await dispatch.submit("ok")
         assert (dispatch.engine, job.id.isdecimal()) == ("memory", False)
         assert (await settled(dispatch, job.id)).state is BackgroundState.COMPLETED
-        assert not await dispatch.health()
+        with pytest.raises(ProviderError):
+            await dispatch.health()
     assert warnings.events == ["background queue unreachable, in memory: jobs will not survive a restart"]
 
 
@@ -254,7 +255,8 @@ async def test_dispatch_a_durable_queue_that_goes_down_falls_back_per_call_with_
         done = await settled(dispatch, fallen.id)
         listed = [job.id for job in await dispatch.jobs()]
         lost = (await dispatch.job(before.id), await dispatch.cancel(before.id))
-        assert not await dispatch.health()
+        with pytest.raises(ProviderError):
+            await dispatch.health()
         durable.down = False
         back = await dispatch.submit("ok")
     assert (fallen.id.isdecimal(), done.state, listed, lost) == (
@@ -335,7 +337,8 @@ async def test_dispatch_health_durable(durable: AwaDriver | PgqueuerDriver, queu
     """The durable queue entered answers; closed, it does not."""
     async with build(durable, queue, works) as dispatch:
         assert await dispatch.health()
-    assert not await dispatch.health()
+    with pytest.raises(ProviderError):
+        await dispatch.health()
 
 
 @pytest.mark.parametrize("unreachable", [False, True], ids=["absent", "unreachable"])
@@ -343,4 +346,5 @@ async def test_dispatch_health_memory(queue: str, works: Works, unreachable: boo
     """No durable queue, or one unreachable on entry: memory runs the work, and health says jobs are not durable."""
     dead = AwaSettings(dsn=Secret("postgresql://u:p@127.0.0.1:1/x"), timeout=timedelta(seconds=1))
     async with build(AwaDriver(dead) if unreachable else None, queue, works) as dispatch:
-        assert not await dispatch.health()
+        with pytest.raises(ProviderError):
+            await dispatch.health()

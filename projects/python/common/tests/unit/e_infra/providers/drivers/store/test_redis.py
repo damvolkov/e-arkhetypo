@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 from e_infra.infra.config.providers.drivers.store.redis import RedisSettings
-from e_infra.infra.errors import StoreError
+from e_infra.infra.errors import ProviderError, StoreError
 from e_infra.ports.store import StorePort
 from e_infra.providers.drivers.store.redis import RedisDriver
 from support.kv import KV_CALLS
@@ -57,7 +57,8 @@ async def test_redis_kv_cycle(driver: RedisDriver) -> None:
 async def test_redis_unopened_calls_are_store_errors(driver: RedisDriver) -> None:
     with pytest.raises(StoreError, match="not open"):
         await driver.get("anything")
-    assert not await driver.health()
+    with pytest.raises(ProviderError):
+        await driver.health()
 
 
 async def test_redis_health_true_then_false_and_warned_when_the_server_goes(
@@ -66,7 +67,8 @@ async def test_redis_health_true_then_false_and_warned_when_the_server_goes(
     async with driver:
         assert await driver.health()
         redis_server.connected = False
-        assert not await driver.health()
+        with pytest.raises(ProviderError):
+            await driver.health()
     assert logs.at("warning") == ["redis unhealthy"]
 
 

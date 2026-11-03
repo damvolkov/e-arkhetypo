@@ -87,7 +87,7 @@ class SqliteDriver:
                     await cursor.fetchone()
         except ProviderError as error:
             logger.warning("sqlite unhealthy", error=str(error))
-            return False
+            raise
         return True
 
     async def get(self, key: str) -> bytes | None:

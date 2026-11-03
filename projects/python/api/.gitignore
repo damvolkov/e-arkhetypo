@@ -18,3 +18,5 @@ data/
 data
 # agent plans (persona: Plans) — working state, never committed
 .plans/
+# the environment's secrets (`secrets/<APP_ENV>/<var>`); anchored without the slash, so a worktree's link is ignored too
+/secrets

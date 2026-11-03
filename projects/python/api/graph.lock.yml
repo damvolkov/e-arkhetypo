@@ -9,8 +9,42 @@ areas:
 - ports
 - processors
 - providers
-inputs_hash: "20ca1e5f20459318b82854845761d9c2a3d1e3ea4d6546a38cb0fbd0174cdff4"
+inputs_hash: "0e83299fb1ec50fae38551f857fa114ab00d6df0041b80969366d40684c86251"
 units:
+- key: engines/auth
+  area: engines
+  name: auth
+  files:
+  - src/engines/auth.py
+  tests:
+  - tests/unit/engines/test_auth.py
+  deps:
+  - infra/auth/models
+  - infra/config/engines/auth
+  - infra/errors
+  - infra/logger
+  - infra/settings
+  - ops/crypto
+  - ops/hash
+  - ports/auth
+  dependents: []
+  closure:
+  - infra/auth/models
+  - infra/config/app
+  - infra/config/base
+  - infra/config/engines/auth
+  - infra/errors
+  - infra/logger
+  - infra/proxy
+  - infra/settings
+  - ops/crypto
+  - ops/file
+  - ops/hash
+  - ports/auth
+  - ports/provider
+  level: 4
+  locked: true
+  detachable: false
 - key: engines/health
   area: engines
   name: health
@@ -33,6 +67,122 @@ units:
   - ops/file
   - ports/provider
   level: 4
+  locked: true
+  detachable: false
+- key: infra/auth/guard
+  area: infra
+  name: auth/guard
+  files:
+  - src/infra/auth/guard.py
+  tests:
+  - tests/unit/infra/auth/test_guard.py
+  deps:
+  - infra/auth/middleware
+  - infra/auth/models
+  - infra/auth/policy
+  - infra/errors
+  - infra/logger
+  dependents:
+  - infra/mcp/models
+  closure:
+  - infra/auth/middleware
+  - infra/auth/models
+  - infra/auth/policy
+  - infra/auth/resolver
+  - infra/config/app
+  - infra/config/base
+  - infra/errors
+  - infra/logger
+  - infra/proxy
+  - infra/settings
+  - ops/file
+  level: 5
+  locked: true
+  detachable: false
+- key: infra/auth/middleware
+  area: infra
+  name: auth/middleware
+  files:
+  - src/infra/auth/middleware.py
+  tests:
+  - tests/unit/infra/auth/test_middleware.py
+  deps:
+  - infra/auth/resolver
+  - infra/errors
+  - infra/logger
+  dependents:
+  - infra/auth/guard
+  - infra/mcp/models
+  closure:
+  - infra/auth/models
+  - infra/auth/resolver
+  - infra/config/app
+  - infra/config/base
+  - infra/errors
+  - infra/logger
+  - infra/proxy
+  - infra/settings
+  - ops/file
+  level: 4
+  locked: true
+  detachable: false
+- key: infra/auth/models
+  area: infra
+  name: auth/models
+  files:
+  - src/infra/auth/models.py
+  tests: []
+  deps: []
+  dependents:
+  - engines/auth
+  - infra/auth/guard
+  - infra/auth/policy
+  - infra/auth/resolver
+  - infra/mcp/models
+  - ports/auth
+  - providers/drivers/auth/postgres
+  closure: []
+  level: 0
+  locked: true
+  detachable: false
+- key: infra/auth/policy
+  area: infra
+  name: auth/policy
+  files:
+  - src/infra/auth/policy.py
+  tests:
+  - tests/unit/infra/auth/test_policy.py
+  deps:
+  - infra/auth/models
+  - infra/errors
+  - infra/logger
+  dependents:
+  - infra/auth/guard
+  closure:
+  - infra/auth/models
+  - infra/config/app
+  - infra/config/base
+  - infra/errors
+  - infra/logger
+  - infra/proxy
+  - infra/settings
+  - ops/file
+  level: 4
+  locked: true
+  detachable: false
+- key: infra/auth/resolver
+  area: infra
+  name: auth/resolver
+  files:
+  - src/infra/auth/resolver.py
+  tests: []
+  deps:
+  - infra/auth/models
+  dependents:
+  - infra/auth/middleware
+  closure:
+  - infra/auth/models
+  level: 1
   locked: true
   detachable: false
 - key: infra/background
@@ -116,6 +266,8 @@ units:
   - infra/config/crypto
   - infra/config/darts
   - infra/config/docs
+  - infra/config/engines/auth
+  - infra/config/mcp
   - infra/config/oauth
   - infra/config/ping
   - infra/config/processors/doc
@@ -186,6 +338,37 @@ units:
   - src/infra/config/docs.py
   tests:
   - tests/unit/infra/config/test_docs.py
+  deps:
+  - infra/config/base
+  dependents: []
+  closure:
+  - infra/config/base
+  level: 1
+  locked: true
+  detachable: false
+- key: infra/config/engines/auth
+  area: infra
+  name: config/engines/auth
+  files:
+  - src/infra/config/engines/auth.py
+  tests:
+  - tests/unit/infra/config/engines/test_auth.py
+  deps:
+  - infra/config/base
+  dependents:
+  - engines/auth
+  closure:
+  - infra/config/base
+  level: 1
+  locked: true
+  detachable: false
+- key: infra/config/mcp
+  area: infra
+  name: config/mcp
+  files:
+  - src/infra/config/mcp.py
+  tests:
+  - tests/unit/infra/config/test_mcp.py
   deps:
   - infra/config/base
   dependents: []
@@ -412,7 +595,12 @@ units:
   - tests/unit/infra/test_errors.py
   deps: []
   dependents:
+  - engines/auth
+  - infra/auth/guard
+  - infra/auth/middleware
+  - infra/auth/policy
   - infra/background
+  - infra/mcp/registry
   - ops/crypto
   - ops/file
   - ops/image
@@ -463,14 +651,24 @@ units:
   - infra/proxy
   - infra/settings
   dependents:
+  - engines/auth
   - engines/health
+  - infra/auth/guard
+  - infra/auth/middleware
+  - infra/auth/policy
   - infra/background
   - infra/events
+  - infra/mcp/bridge
+  - infra/mcp/guard
+  - infra/mcp/mount
+  - infra/mcp/registry
+  - infra/mcp/server
   - processors/doc
   - processors/md
   - providers/adapters/extract/rtrafilatura
   - providers/adapters/markdown/anytomd
   - providers/adapters/pages/liteparse
+  - providers/drivers/auth/postgres
   - providers/drivers/database/psqlpy
   - providers/drivers/documents/docling
   - providers/drivers/http/wreq
@@ -484,6 +682,182 @@ units:
   - infra/settings
   - ops/file
   level: 3
+  locked: true
+  detachable: false
+- key: infra/mcp/bridge
+  area: infra
+  name: mcp/bridge
+  files:
+  - src/infra/mcp/bridge.py
+  tests: []
+  deps:
+  - infra/logger
+  - infra/mcp/guard
+  - infra/mcp/models
+  dependents:
+  - infra/mcp/server
+  closure:
+  - infra/auth/guard
+  - infra/auth/middleware
+  - infra/auth/models
+  - infra/auth/policy
+  - infra/auth/resolver
+  - infra/config/app
+  - infra/config/base
+  - infra/errors
+  - infra/logger
+  - infra/mcp/guard
+  - infra/mcp/models
+  - infra/proxy
+  - infra/settings
+  - ops/file
+  level: 7
+  locked: true
+  detachable: false
+- key: infra/mcp/guard
+  area: infra
+  name: mcp/guard
+  files:
+  - src/infra/mcp/guard.py
+  tests: []
+  deps:
+  - infra/logger
+  dependents:
+  - infra/mcp/bridge
+  closure:
+  - infra/config/app
+  - infra/config/base
+  - infra/errors
+  - infra/logger
+  - infra/proxy
+  - infra/settings
+  - ops/file
+  level: 4
+  locked: true
+  detachable: false
+- key: infra/mcp/models
+  area: infra
+  name: mcp/models
+  files:
+  - src/infra/mcp/models.py
+  tests: []
+  deps:
+  - infra/auth/guard
+  - infra/auth/middleware
+  - infra/auth/models
+  dependents:
+  - infra/mcp/bridge
+  - infra/mcp/registry
+  - infra/mcp/server
+  closure:
+  - infra/auth/guard
+  - infra/auth/middleware
+  - infra/auth/models
+  - infra/auth/policy
+  - infra/auth/resolver
+  - infra/config/app
+  - infra/config/base
+  - infra/errors
+  - infra/logger
+  - infra/proxy
+  - infra/settings
+  - ops/file
+  level: 6
+  locked: true
+  detachable: false
+- key: infra/mcp/mount
+  area: infra
+  name: mcp/mount
+  files:
+  - src/infra/mcp/mount.py
+  tests: []
+  deps:
+  - infra/logger
+  - infra/mcp/server
+  dependents: []
+  closure:
+  - infra/auth/guard
+  - infra/auth/middleware
+  - infra/auth/models
+  - infra/auth/policy
+  - infra/auth/resolver
+  - infra/config/app
+  - infra/config/base
+  - infra/errors
+  - infra/logger
+  - infra/mcp/bridge
+  - infra/mcp/guard
+  - infra/mcp/models
+  - infra/mcp/registry
+  - infra/mcp/server
+  - infra/proxy
+  - infra/settings
+  - ops/file
+  level: 9
+  locked: true
+  detachable: false
+- key: infra/mcp/registry
+  area: infra
+  name: mcp/registry
+  files:
+  - src/infra/mcp/registry.py
+  tests:
+  - tests/unit/infra/mcp/test_registry.py
+  deps:
+  - infra/errors
+  - infra/logger
+  - infra/mcp/models
+  dependents:
+  - infra/mcp/server
+  closure:
+  - infra/auth/guard
+  - infra/auth/middleware
+  - infra/auth/models
+  - infra/auth/policy
+  - infra/auth/resolver
+  - infra/config/app
+  - infra/config/base
+  - infra/errors
+  - infra/logger
+  - infra/mcp/models
+  - infra/proxy
+  - infra/settings
+  - ops/file
+  level: 7
+  locked: true
+  detachable: false
+- key: infra/mcp/server
+  area: infra
+  name: mcp/server
+  files:
+  - src/infra/mcp/server.py
+  tests:
+  - tests/unit/infra/mcp/test_server.py
+  deps:
+  - infra/logger
+  - infra/mcp/bridge
+  - infra/mcp/models
+  - infra/mcp/registry
+  dependents:
+  - infra/mcp/mount
+  closure:
+  - infra/auth/guard
+  - infra/auth/middleware
+  - infra/auth/models
+  - infra/auth/policy
+  - infra/auth/resolver
+  - infra/config/app
+  - infra/config/base
+  - infra/errors
+  - infra/logger
+  - infra/mcp/bridge
+  - infra/mcp/guard
+  - infra/mcp/models
+  - infra/mcp/registry
+  - infra/proxy
+  - infra/settings
+  - ops/file
+  level: 8
   locked: true
   detachable: false
 - key: infra/proxy
@@ -513,6 +887,7 @@ units:
   - infra/proxy
   - ops/file
   dependents:
+  - engines/auth
   - engines/health
   - infra/logger
   - processors/doc
@@ -568,6 +943,7 @@ units:
   deps:
   - infra/errors
   dependents:
+  - engines/auth
   - infra/config/crypto
   closure:
   - infra/errors
@@ -598,10 +974,11 @@ units:
   tests:
   - tests/unit/ops/test_hash.py
   deps: []
-  dependents: []
+  dependents:
+  - engines/auth
   closure: []
   level: 0
-  locked: false
+  locked: true
   detachable: false
 - key: ops/image
   area: ops
@@ -646,6 +1023,23 @@ units:
   level: 0
   locked: false
   detachable: false
+- key: ports/auth
+  area: ports
+  name: auth
+  files:
+  - src/ports/auth.py
+  tests: []
+  deps:
+  - infra/auth/models
+  - ports/provider
+  dependents:
+  - engines/auth
+  closure:
+  - infra/auth/models
+  - ports/provider
+  level: 1
+  locked: true
+  detachable: false
 - key: ports/database
   area: ports
   name: database
@@ -655,6 +1049,7 @@ units:
   deps:
   - ports/provider
   dependents:
+  - providers/drivers/auth/postgres
   - providers/drivers/database/psqlpy
   closure:
   - ports/provider
@@ -752,6 +1147,7 @@ units:
   deps: []
   dependents:
   - engines/health
+  - ports/auth
   - ports/database
   - ports/documents
   - ports/extract
@@ -762,6 +1158,7 @@ units:
   - providers/adapters/extract/rtrafilatura
   - providers/adapters/markdown/anytomd
   - providers/adapters/pages/liteparse
+  - providers/drivers/auth/postgres
   - providers/drivers/database/psqlpy
   - providers/drivers/documents/docling
   - providers/drivers/http/wreq
@@ -953,6 +1350,33 @@ units:
   - ports/provider
   level: 4
   locked: false
+  detachable: false
+- key: providers/drivers/auth/postgres
+  area: providers
+  name: drivers/auth/postgres
+  files:
+  - src/providers/drivers/auth/postgres.py
+  tests:
+  - tests/unit/providers/drivers/auth/test_postgres.py
+  deps:
+  - infra/auth/models
+  - infra/logger
+  - ports/database
+  - ports/provider
+  dependents: []
+  closure:
+  - infra/auth/models
+  - infra/config/app
+  - infra/config/base
+  - infra/errors
+  - infra/logger
+  - infra/proxy
+  - infra/settings
+  - ops/file
+  - ports/database
+  - ports/provider
+  level: 4
+  locked: true
   detachable: false
 - key: providers/drivers/database/psqlpy
   area: providers

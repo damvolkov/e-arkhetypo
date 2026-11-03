@@ -17,10 +17,10 @@ ROLES: Final[tuple[str, ...]] = tuple(each.name for each in fields(ProvidersStat
 
 
 async def test_engines_health_surveys_every_provider(client: TestClient) -> None:
-    """In field order, `store` the only required one; the open sqlite file and the open client always answer."""
+    """In field order, `store` and `auth` the required ones; the open sqlite file and the open client always answer."""
     verdicts = {verdict.name: verdict for verdict in await client.app.state.system.engines.health.survey()}
     assert tuple(verdicts) == ROLES
-    assert [verdicts[name].required for name in ROLES] == [name == "store" for name in ROLES]
+    assert [verdicts[name].required for name in ROLES] == [name in {"store", "auth"} for name in ROLES]
     assert verdicts["store"].ok
 
 
@@ -46,4 +46,4 @@ async def test_engines_startup_logs_each_verdict(
         False,
         "unhealthy",
     )
-    assert not any(verdicts[name]["required"] for name in ROLES if name != "store")
+    assert not any(verdicts[name]["required"] for name in ROLES if name not in {"store", "auth"})

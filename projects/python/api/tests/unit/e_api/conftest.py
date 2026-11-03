@@ -1,5 +1,7 @@
 """tests/unit/e_api: the live app on the real graph — env seeded before the lazy infra singletons ever load, and no
-service behind it: redis answers from fakeredis, Postgres from the scripted pool of `tests/support/psqlpy`.
+service behind it: redis answers from fakeredis, Postgres from the scripted pool of `tests/support/psqlpy`, the accounts
+and keys from the dicts of `tests/support/auth` (`keys`: `ana` an account, `root` the admin; `ana_key` and `root_key`
+the `Authorization` headers that carry theirs).
 
 `os.environ` stays untouched at module import (doctrine: no side-effect between imports); the seeding
 rides `pytest_configure`, which pytest runs before collection. Collection matters: pytest probes every
@@ -9,7 +11,6 @@ point any settings access can happen, and the reason a session fixture is alread
 
 import os
 import tempfile
-from datetime import timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -18,19 +19,24 @@ import fakeredis.aioredis
 import pytest
 from litestar.testing import TestClient
 
+from e_api.api import middlewares as middlewares_module
 from e_api.api.deps import USER_KEY
+from e_api.api.lifespan import providers as providers_module
 from e_api.main import create_app
+from infra.auth.models import Role
 from providers.drivers.database import psqlpy as psqlpy_module
 from providers.drivers.store import redis as redis_module
+from support.auth import FakeAuth
 from support.psqlpy import FakePsqlpyServer
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Iterator
+    from collections.abc import Iterator
 
 
 def pytest_configure() -> None:
-    """Seed SECRET and a private DB_PATH before any collection-time settings touch; external env wins."""
+    """Seed the secrets and a private DB_PATH before any collection-time settings touch; external env wins."""
     os.environ.setdefault("CRYPTO__SECRET", "unit-test-secret-0123456789")
+    os.environ.setdefault("AUTH_SECRET", "unit-test-auth-secret-0123456789")
     os.environ.setdefault("DB_PATH", str(Path(tempfile.mkdtemp(prefix="e-api-tests-")) / "test.db"))
 
 
@@ -52,6 +58,44 @@ def psqlpy(monkeypatch: pytest.MonkeyPatch) -> FakePsqlpyServer:
     return server
 
 
+@pytest.fixture(autouse=True)
+def keys(monkeypatch: pytest.MonkeyPatch) -> FakeAuth:
+    """The accounts and keys of the test: the lifespan opens this store where it would open Postgres."""
+    store = FakeAuth()
+    store.key("t-ana", "ana")
+    store.key("t-root", "root", Role.ADMIN)
+    monkeypatch.setattr(providers_module, "AuthPostgresDriver", lambda _database: store)
+    return store
+
+
+class RequestLogs:
+    """The `request` events the access log writes, fields only — what a test asserts a request was logged with."""
+
+    def __init__(self) -> None:
+        self.requests: list[dict[str, object]] = []
+
+    def info(self, event: str, **fields: object) -> None:
+        _ = event == "request" and self.requests.append(fields)
+
+
+@pytest.fixture
+def request_logs(monkeypatch: pytest.MonkeyPatch) -> RequestLogs:
+    """The access log's logger replaced by a recorder for the test's length."""
+    recorder = RequestLogs()
+    monkeypatch.setattr(middlewares_module, "logger", recorder)
+    return recorder
+
+
+@pytest.fixture
+def ana_key() -> dict[str, str]:
+    return {"Authorization": "Bearer t-ana"}
+
+
+@pytest.fixture
+def root_key() -> dict[str, str]:
+    return {"Authorization": "Bearer t-root"}
+
+
 @pytest.fixture
 def client() -> Iterator[TestClient]:
     with TestClient(create_app()) as test_client:
@@ -67,18 +111,7 @@ def client() -> Iterator[TestClient]:
 
 
 @pytest.fixture
-def bearer(client: TestClient) -> Callable[[str], dict[str, str]]:
-    """Mint real tokens with the live crypto engine — the fake check accepts exactly what crypto signs."""
-
-    def make(subject: str) -> dict[str, str]:
-        token = client.app.state.system.crypto.create_token({"sub": subject}, expires_in=timedelta(minutes=5))
-        return {"Authorization": f"Bearer {token}"}
-
-    return make
-
-
-@pytest.fixture
-def created_user(client: TestClient) -> dict[str, Any]:
+def created_user(client: TestClient, root_key: dict[str, str]) -> dict[str, Any]:
     response = client.post(
         "/users",
         json={
@@ -87,6 +120,7 @@ def created_user(client: TestClient) -> dict[str, Any]:
             "password": "correct-horse-1",
             "quota": "12.50",
         },
+        headers=root_key,
     )
     assert response.status_code == 201, response.text
     return response.json()

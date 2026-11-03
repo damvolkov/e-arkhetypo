@@ -1,0 +1,118 @@
+[
+  {
+    "name": "api_health",
+    "title": "Check liveness",
+    "description": "Whether the service is up. It touches nothing, so it answers even while a backend is down.",
+    "access": "anonymous",
+    "annotations": {
+      "destructive_hint": false,
+      "open_world_hint": false,
+      "read_only_hint": true
+    },
+    "arguments": [],
+    "required": []
+  },
+  {
+    "name": "api_status",
+    "title": "Check readiness",
+    "description": "Whether the service is ready, and every provider's verdict: its name, whether a ready service needs it, whether it answers, how long it took (ms) and why not. Ready means every required provider answers.",
+    "access": "anonymous",
+    "annotations": {
+      "destructive_hint": false,
+      "open_world_hint": false,
+      "read_only_hint": true
+    },
+    "arguments": [],
+    "required": []
+  },
+  {
+    "name": "api_user_create",
+    "title": "Create a user",
+    "description": "Create a user record; the password is hashed and never returned. Returns the record. Needs the admin's key.",
+    "access": "admin",
+    "annotations": {
+      "destructive_hint": false,
+      "open_world_hint": false,
+      "read_only_hint": false
+    },
+    "arguments": [
+      "birth",
+      "email",
+      "password",
+      "quota",
+      "username"
+    ],
+    "required": [
+      "email",
+      "password",
+      "username"
+    ]
+  },
+  {
+    "name": "api_user_delete",
+    "title": "Delete a user",
+    "description": "Delete a user record by `user_id`; one already gone is no error. Needs the admin's key.",
+    "access": "admin",
+    "annotations": {
+      "destructive_hint": true,
+      "open_world_hint": false,
+      "read_only_hint": false
+    },
+    "arguments": [
+      "user_id"
+    ],
+    "required": [
+      "user_id"
+    ]
+  },
+  {
+    "name": "api_user_list",
+    "title": "List users",
+    "description": "Every user record: id, username, email, birth, quota, created. Needs an account's key.",
+    "access": "user",
+    "annotations": {
+      "destructive_hint": false,
+      "open_world_hint": false,
+      "read_only_hint": true
+    },
+    "arguments": [],
+    "required": []
+  },
+  {
+    "name": "api_user_read",
+    "title": "Read a user",
+    "description": "One user record by `user_id`. Needs an account's key.",
+    "access": "user",
+    "annotations": {
+      "destructive_hint": false,
+      "open_world_hint": false,
+      "read_only_hint": true
+    },
+    "arguments": [
+      "user_id"
+    ],
+    "required": [
+      "user_id"
+    ]
+  },
+  {
+    "name": "api_user_update",
+    "title": "Update a user",
+    "description": "Change a user record by `user_id`: a field left out stays, `null` sets it to null. Returns the record. Needs the admin's key.",
+    "access": "admin",
+    "annotations": {
+      "destructive_hint": false,
+      "open_world_hint": false,
+      "read_only_hint": false
+    },
+    "arguments": [
+      "birth",
+      "email",
+      "quota",
+      "user_id"
+    ],
+    "required": [
+      "user_id"
+    ]
+  }
+]

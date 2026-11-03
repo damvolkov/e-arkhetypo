@@ -1,36 +1,36 @@
 """tests/unit: concurrent load on the live app — chains, graph and seal survive a burst; `make stress` soaks it."""
 
 import asyncio
-from datetime import timedelta
 
 import pytest
 from litestar.testing import AsyncTestClient
 
 from e_api.main import create_app
 
+ADMIN: dict[str, str] = {"Authorization": "Bearer t-root"}
+READER: dict[str, str] = {"Authorization": "Bearer t-ana"}
 ACTORS: int = 8
 HEALTH_BURST: int = 50
 
 
 @pytest.mark.stress
 async def test_api_survives_concurrent_traffic() -> None:
-    """Eight actors run the full user flow at once while health is hammered: no crosstalk, no failure."""
+    """Eight actors run the full user flow at once, each key at its access, while health is hammered: no crosstalk."""
 
     async def actor(client: AsyncTestClient, i: int) -> None:
         created = await client.post(
             "/users",
             json={"username": f"user{i}", "email": f"user{i}@stress.test", "password": "s3cret-passphrase"},
+            headers=ADMIN,
         )
         assert created.status_code == 201
         user_id = created.json()["id"]
-        token = client.app.state.system.crypto.create_token({"sub": user_id}, expires_in=timedelta(minutes=1))
-        headers = {"Authorization": f"Bearer {token}"}
 
-        read = await client.get(f"/users/{user_id}", headers=headers)
+        read = await client.get(f"/users/{user_id}", headers=READER)
         assert read.status_code == 200
         assert read.json()["username"] == f"user{i}"
 
-        patched = await client.patch(f"/users/{user_id}", json={"quota": f"0.{i:02d}"}, headers=headers)
+        patched = await client.patch(f"/users/{user_id}", json={"quota": f"0.{i:02d}"}, headers=ADMIN)
         assert patched.status_code == 200
         assert patched.json()["quota"] == f"0.{i:02d}"
 

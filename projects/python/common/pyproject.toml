@@ -151,7 +151,7 @@ ignore = ["E501", "ISC001", "PLR0913"]
 "scripts/**" = ["T20", "S603", "S607", "PTH"]
 ### NON_SERVICE is an exclusion vocabulary for host tokens, not a socket bind.
 "src/e_infra/ops/compose.py" = ["S104"]
-### the one module that speaks the MCP protocol, and the tests' client and its fake server.
+### the one module that speaks the MCP protocol: an SDK upgrade touches it alone.
 "src/e_infra/infra/mcp/server.py" = ["TID251"]
 
 [tool.ruff.lint.isort]

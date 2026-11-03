@@ -15,9 +15,13 @@ from litestar import Litestar
 
 from e_api.api.state import AppState
 from infra.logger import logger
+from ports.auth import AuthPort
+from ports.database import DatabasePort
 from ports.http import HttpPort
 from ports.provider import Provider
 from ports.store import StorePort
+from providers.drivers.auth.postgres import AuthPostgresDriver
+from providers.drivers.database.psqlpy import PsqlpyDriver
 from providers.drivers.http.wreq import WreqDriver
 from providers.drivers.store.redis import RedisDriver
 from providers.drivers.store.sqlite import SqliteDriver
@@ -28,12 +32,15 @@ from providers.drivers.store.sqlite import SqliteDriver
 class ProvidersState:
     """The typed providers section: fields named by role, typed by the port the role speaks.
 
-    `store` is the KV edge the app's records live on; any further field is an optional provider the
-    export may drop. The providers are singletons — factory machinery comes later."""
+    `store` is the KV edge the app's records live on; `auth` is where accounts and keys live, over `database`, the
+    service's one SQL pool; any further field is an optional provider the export may drop. The providers are
+    singletons — factory machinery comes later."""
 
     store: StorePort
     redis: StorePort
     http: HttpPort
+    database: DatabasePort
+    auth: AuthPort
 
     @property
     def named(self) -> Mapping[str, Provider]:
@@ -50,7 +57,9 @@ async def lifespan(app: Litestar) -> AsyncGenerator[None]:
         store = await enter(SqliteDriver())
         redis = await enter(RedisDriver())
         http = await enter(WreqDriver())
-        providers = ProvidersState(store=store, redis=redis, http=http)
+        database = await enter(PsqlpyDriver())
+        auth = await enter(AuthPostgresDriver(database))
+        providers = ProvidersState(store=store, redis=redis, http=http, database=database, auth=auth)
         system.providers = providers
         logger.info("providers ready", providers=sorted(providers.named), step="START")
         yield

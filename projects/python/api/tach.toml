@@ -17,7 +17,7 @@ unused_ignore_directives = "error"
 ### the service stands on the materialized sections and on its own models; nothing materialized imports it back.
 [[modules]]
 path = "e_api"
-depends_on = ["e_api.api", "e_api.websockets", "infra"]
+depends_on = ["e_api.api", "e_api.api.lifespan", "e_api.mcp", "e_api.websockets", "infra", "infra.auth", "infra.mcp"]
 
 [[modules]]
 path = "e_api.api"
@@ -28,9 +28,31 @@ depends_on = [
     "providers.adapters",
     "ports",
     "infra",
+    "infra.auth",
     "infra.errors",
     "ops",
 ]
+
+### the composition root's lifespans stand on every section and on the MCP door they build the server of; the door reads
+### the graph's typed state back from `e_api.api`, which is why the lifespans are a module of their own.
+[[modules]]
+path = "e_api.api.lifespan"
+depends_on = [
+    "e_api.api",
+    "e_api.mcp",
+    "engines",
+    "providers.drivers",
+    "ports",
+    "infra",
+    "infra.auth",
+    "infra.mcp",
+    "infra.errors",
+    "ops",
+]
+
+[[modules]]
+path = "e_api.mcp"
+depends_on = ["e_api.api", "e_api.models", "engines", "ports", "infra", "infra.auth", "infra.mcp", "infra.errors"]
 
 [[modules]]
 path = "e_api.websockets"
@@ -45,7 +67,7 @@ depends_on = ["infra", "infra.errors"]
 ### lists another — the horizontal ban is the absence of an edge.
 [[modules]]
 path = "engines"
-depends_on = ["ports", "infra", "infra.errors", "ops"]
+depends_on = ["ports", "infra", "infra.auth", "infra.errors", "ops"]
 
 [[modules]]
 path = "processors"
@@ -53,7 +75,7 @@ depends_on = ["ports", "infra", "infra.errors", "ops"]
 
 [[modules]]
 path = "providers.drivers"
-depends_on = ["ports", "infra", "infra.errors", "ops"]
+depends_on = ["ports", "infra", "infra.auth", "infra.errors", "ops"]
 
 [[modules]]
 path = "providers.adapters"
@@ -62,11 +84,20 @@ depends_on = ["ports", "infra", "infra.errors", "ops"]
 ### ports are the bottleneck of the import graph: they see infra and nothing else.
 [[modules]]
 path = "ports"
-depends_on = ["infra", "infra.errors"]
+depends_on = ["infra", "infra.auth", "infra.errors"]
 
 [[modules]]
 path = "infra"
 depends_on = ["ops", "infra.errors"]
+
+### the opt-in infra packages look only down: nothing in `infra` proper imports them, and the MCP engine rides the auth package.
+[[modules]]
+path = "infra.auth"
+depends_on = ["infra", "infra.errors"]
+
+[[modules]]
+path = "infra.mcp"
+depends_on = ["infra", "infra.auth", "infra.errors"]
 
 ### the error tree is the floor of the package: every module, `ops` included, raises from it and it imports nothing.
 [[modules]]

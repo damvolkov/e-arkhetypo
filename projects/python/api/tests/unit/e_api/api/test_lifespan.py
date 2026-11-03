@@ -8,7 +8,6 @@ from typing import TYPE_CHECKING, cast
 import pytest
 from litestar.testing import TestClient
 
-from e_api.api.deps import registered_providers
 from e_api.api.lifespan import engines, providers, sealed, services
 from e_api.api.lifespan.engines import EnginesState
 from e_api.api.lifespan.infra import SharedState
@@ -16,11 +15,13 @@ from e_api.api.lifespan.infra import lifespan as infra_lifespan
 from e_api.api.lifespan.providers import ProvidersState
 from e_api.api.state import AppState
 from e_api.main import create_app
+from engines.auth import AuthEngine
 from infra.errors import StoreError
 from infra.logger import logger
-from infra.settings import Settings
 from infra.settings import settings as st
 from infra.state import State
+from ports.auth import AuthPort
+from ports.database import DatabasePort
 from ports.http import HttpPort
 from ports.store import StorePort
 
@@ -56,18 +57,23 @@ def test_providers_section_is_typed_and_ported(client) -> None:
     assert isinstance(section.store, StorePort)
     assert isinstance(section.redis, StorePort)
     assert isinstance(section.http, HttpPort)
+    assert isinstance(section.database, DatabasePort)
+    assert isinstance(section.auth, AuthPort)
     assert section.store.spec.name == "sqlite"
     assert section.redis.spec.name == "redis"
     assert section.http.spec.name == "wreq"
+    assert section.database.spec.name == "psqlpy"
 
 
 def test_engines_section_is_typed(client) -> None:
-    assert isinstance(client.app.state.system.engines, EnginesState)
+    section = client.app.state.system.engines
+    assert isinstance(section, EnginesState)
+    assert isinstance(section.auth, AuthEngine)
 
 
 def test_graph_opens_sealed(client) -> None:
     graph = client.app.state.system
-    assert {"shared", "providers", "engines", "crypto", "oauth"} <= set(graph)
+    assert {"shared", "providers", "engines", "crypto"} <= set(graph)
     with pytest.raises(RuntimeError, match="Sealed"):
         graph.held_by_the_lifespan_only = 1
     with pytest.raises(AttributeError, match="Sealed state has no node"):
@@ -85,16 +91,8 @@ async def test_providers_close_when_the_lifespan_exits() -> None:
         await store.get("anything")
 
 
-async def test_services_register_configured_idp(monkeypatch: pytest.MonkeyPatch) -> None:
-    """The non-empty branch of the match: a metadata url means a named client in the registry."""
-    monkeypatch.setattr(
-        services,
-        "st",
-        Settings.load(
-            oauth={"client_id": "cid", "client_secret": "sec", "server_metadata_url": "https://idp.test/openid"}
-        ),
-    )
+async def test_services_write_crypto_to_the_graph() -> None:
+    """Crypto is the one engine the services concern writes; it owns no resource to close."""
     app = SimpleNamespace(state=AppState({"system": State()}))
     async with services.lifespan(cast("Litestar", app)):
         assert app.state.system.crypto is not None
-    assert registered_providers(app.state.system.oauth) == ["dev"]

@@ -22,12 +22,18 @@ edit them there, never here:
 | Module | Layer | Purpose |
 |---|---|---|
 | [`e_api.main`](reference/e_api/main.md) | api | Composition root: explicit registration only, `create_app` for granian |
-| [`e_api.api.security`](reference/e_api/api/security.md) | api | Bearer enforcement and the OpenAPI contract |
+| [`e_api.api.security`](reference/e_api/api/security.md) | api | The OpenAPI contract of the key — who may call is `infra.auth`'s, one system for both doors |
+| [`e_api.api.router.auth`](reference/e_api/api/router/auth.md) | api | Who the key names, and the admin's accounts and keys |
+| [`e_api.api.admin`](reference/e_api/api/admin.md) | api | A fresh admin key minted on the service's database — `python -m e_api admin` |
+| [`e_api.api.lifespan.mcp`](reference/e_api/api/lifespan/mcp.md) | api | The MCP server built over the door's tools and run for the app's life, mounted under `system.mcp` |
+| [`e_api.mcp.registry`](reference/e_api/mcp/registry.md) | mcp | The door's whole surface: every tool route, resource by resource |
+| [`e_api.mcp.tools.user`](reference/e_api/mcp/tools/user.md) | mcp | The user records as tools — the twin of `api.router.user` |
+| [`e_api.mcp.state`](reference/e_api/mcp/state.md) | mcp | The typed branch `system.mcp` — the engine's server over the door's tools |
 | [`e_api.api.middlewares`](reference/e_api/api/middlewares.md) | api | Correlation id, CORS and the middleware chain |
-| [`e_api.api.deps`](reference/e_api/api/deps.md) | api | Dependency chains: store access, current user, graph |
+| [`e_api.api.deps`](reference/e_api/api/deps.md) | api | Dependency chains: store access, the auth engine, the caller, graph |
 | [`e_api.api.lifespan.infra`](reference/e_api/api/lifespan/infra.md) | api | One-time load of the infra singletons, mirrored into `state.shared` |
-| [`e_api.api.lifespan.providers`](reference/e_api/api/lifespan/providers.md) | api | The composition root's providers — sqlite, redis, wreq opened on one exit stack, typed by port |
-| [`e_api.api.lifespan.engines`](reference/e_api/api/lifespan/engines.md) | api | The engines over the providers' ports — `HealthEngine` for the startup survey and `GET /ready` |
+| [`e_api.api.lifespan.providers`](reference/e_api/api/lifespan/providers.md) | api | The composition root's providers — sqlite, redis, wreq, psqlpy and the auth driver opened on one exit stack, typed by port |
+| [`e_api.api.lifespan.engines`](reference/e_api/api/lifespan/engines.md) | api | The engines over the providers' ports — `AuthEngine` for who is asking, `HealthEngine` for the startup survey and `GET /ready` |
 | [`ports.store`](reference/ports/store.md) | ports | Contracts — StorePort, HttpPort, one per capability; the sqlite, redis and wreq drivers fill them (materialized) |
 | [`providers.drivers.store.sqlite`](reference/providers/drivers/store/sqlite.md) | execution | Drivers by capability, `providers/drivers/<capability>/<name>.py` — sqlite and redis (store), wreq (http), psqlpy (database); every one logs (materialized) |
 | [`engines.health`](reference/engines/health.md) | execution | Every provider surveyed at once — the startup log and the readiness verdicts (materialized) |

@@ -6,7 +6,7 @@ import msgspec
 import pytest
 
 from e_infra.infra.config.providers.drivers.ner.gliner import GlinerSettings
-from e_infra.infra.errors import HttpError, ModelError
+from e_infra.infra.errors import HttpError, ModelError, ProviderError
 from e_infra.ports.ner import NerEntity, NerPort
 from e_infra.providers.drivers.ner.gliner import GlinerDriver
 
@@ -135,3 +135,8 @@ async def test_gliner_a_streamed_answer_in_frames_is_read_as_it_arrives(stub: St
     async with GlinerDriver(GlinerSettings(url=stub.url)) as ner:
         found = await ner.entities(["Ada", "none"], labels=["person"], threshold=0.5)
     assert [len(entities) for entities in found] == [1, 0]
+
+
+async def test_gliner_off_refuses_to_open() -> None:
+    with pytest.raises(ProviderError, match="GLINER_URL is none"):
+        await GlinerDriver(GlinerSettings(url=None)).__aenter__()

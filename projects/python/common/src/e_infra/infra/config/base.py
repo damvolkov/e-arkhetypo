@@ -1,9 +1,13 @@
 """infra/config/base: pydantic-settings — frozen, typed, layered config.
 
 This module wires the five layers every scope shares: config file < secrets < .env < environment <
-kwargs. `Secret` is pydantic's `SecretStr`: masked through repr, str and f-strings, readable only
-via `.get_secret_value()`. All sub-settings inherit from here."""
+kwargs. The secrets are files under `secrets/<APP_ENV>/` (gitignored), one per key, named as its variable in lower case
+(`secrets/dev/auth_secret` is AUTH_SECRET): the process of an environment reads its own — dev the dev keys, prod the
+prod ones —; a scope that names its own `secrets_dir` (`/run/secrets` in a container) reads that instead. `Secret` is
+pydantic's `SecretStr`: masked through repr, str and f-strings, readable only via `.get_secret_value()`. All
+sub-settings inherit from here."""
 
+from pathlib import Path
 from typing import Final
 
 from pydantic import SecretStr
@@ -13,12 +17,16 @@ from pydantic_settings import (
 from pydantic_settings import (
     JsonConfigSettingsSource,
     PydanticBaseSettingsSource,
+    SecretsSettingsSource,
     SettingsConfigDict,
     TomlConfigSettingsSource,
     YamlConfigSettingsSource,
 )
 
 Secret = SecretStr
+
+### the root of the secrets folders, one per environment; relative to the working directory, as `.env` is.
+SECRETS: Final[Path] = Path("secrets")
 
 FILE_SOURCES: Final = (
     ("toml_file", TomlConfigSettingsSource),
@@ -27,12 +35,21 @@ FILE_SOURCES: Final = (
 )
 
 
+class SecretsEnv(SettingsBase):
+    """The environment whose secrets a process reads: APP_ENV alone, from the environment or `.env` — read apart, before
+    any scope, so choosing the folder never needs the secrets it chooses."""
+
+    model_config = SettingsConfigDict(extra="ignore", env_file=".env")
+
+    app_env: str = "dev"
+
+
 class BaseSettings(SettingsBase):
     """Subclass and declare typed fields; the constructor merges every layer in one pass.
 
     A scope narrows its own sources through ``model_config``: ``env_prefix``, ``env_file``,
     ``toml_file`` / ``yaml_file`` / ``json_file``, ``secrets_dir`` (set ``/run/secrets`` there when
-    it is containerized — an absent default directory warns). Complex values in env or .env are
+    it is containerized; unset, the environment's folder under ``secrets/``, absent folder, absent source). Complex values in env or .env are
     JSON-decoded; enums, paths and timedeltas validate on load, never at runtime."""
 
     model_config = SettingsConfigDict(
@@ -55,13 +72,15 @@ class BaseSettings(SettingsBase):
         file_secret_settings: PydanticBaseSettingsSource,
     ) -> tuple[PydanticBaseSettingsSource, ...]:
         ### pydantic-settings reads these first-to-highest: kwargs beat env, the config file is the floor.
-        return (
-            init_settings,
-            env_settings,
-            dotenv_settings,
-            file_secret_settings,
-            *cls._settings_customise_files(settings_cls),
-        )
+        own = settings_cls.model_config.get("secrets_dir")
+        secrets = (file_secret_settings,) if own else cls._settings_customise_secrets(settings_cls)
+        return (init_settings, env_settings, dotenv_settings, *secrets, *cls._settings_customise_files(settings_cls))
+
+    @staticmethod
+    def _settings_customise_secrets(settings_cls: type[SettingsBase]) -> tuple[PydanticBaseSettingsSource, ...]:
+        """The environment's secrets folder, when it exists: absent folder, absent source."""
+        folder = SECRETS / SecretsEnv().app_env
+        return (SecretsSettingsSource(settings_cls, secrets_dir=folder),) if folder.is_dir() else ()
 
     @staticmethod
     def _settings_customise_files(settings_cls: type[SettingsBase]) -> tuple[PydanticBaseSettingsSource, ...]:

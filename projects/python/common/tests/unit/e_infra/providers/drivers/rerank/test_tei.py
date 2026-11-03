@@ -3,8 +3,10 @@
 from typing import TYPE_CHECKING, Any
 
 import msgspec
+import pytest
 
 from e_infra.infra.config.providers.drivers.rerank.tei import TeiRerankSettings
+from e_infra.infra.errors import ProviderError
 from e_infra.ports.rerank import RerankPort
 from e_infra.providers.drivers.rerank.tei import TeiRerankDriver
 
@@ -44,3 +46,8 @@ async def test_rerank_lifecycle_requests_and_an_unhealthy_server_are_logged(
     assert logs.at("info", "tei") == ["tei rerank opened", "tei rerank closed"]
     assert logs.at("debug", "tei") == ["tei rerank"]
     assert logs.at("warning", "tei") == ["tei rerank unhealthy"]
+
+
+async def test_rerank_off_refuses_to_open(http: HttpPort) -> None:
+    with pytest.raises(ProviderError, match="RERANK_URL is none"):
+        await TeiRerankDriver(http, TeiRerankSettings(url=None)).__aenter__()

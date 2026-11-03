@@ -13,3 +13,8 @@ def test_rerank_default_and_env(monkeypatch: pytest.MonkeyPatch) -> None:
     assert (TeiRerankSettings().batch, TeiRerankSettings().timeout) == (64, timedelta(seconds=30))
     monkeypatch.setenv("RERANK_URL", "http://rerank:80")
     assert TeiRerankSettings().url == "http://rerank:80"
+
+
+def test_rerank_url_none_turns_it_off(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("RERANK_URL", "none")
+    assert TeiRerankSettings().url is None

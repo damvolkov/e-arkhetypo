@@ -74,7 +74,8 @@ class GlinerDriver:
     def __init__(self, settings: GlinerSettings | None = None) -> None:
         ### the default is read on call, not at import: the settings singleton stays lazy.
         conf = st.providers.drivers.ner.gliner if settings is None else settings
-        self._url = conf.url.rstrip("/")
+        ### no URL is the NER off: the root builds no driver; one built anyway refuses to open.
+        self._url = (conf.url or "").rstrip("/")
         self._timeout = conf.timeout
         self._batch = conf.batch
         self._client: wreq.Client | None = None
@@ -166,6 +167,12 @@ class GlinerDriver:
         return self._annotator
 
     async def __aenter__(self) -> Self:
+        match self._url:
+            case "":
+                msg = "GLINER_URL is none: the NER is off, the composition root builds no driver"
+                raise ProviderError(msg)
+            case _:
+                pass
         self._client = wreq.Client(read_timeout=self._timeout)
         logger.info("gliner opened", url=self._url)
         return self

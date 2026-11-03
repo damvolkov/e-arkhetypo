@@ -23,11 +23,13 @@ class TeiRerankDriver:
 
     spec: ClassVar[ProviderSpec] = ProviderSpec("tei-rerank", Locality.REMOTE, Workload.IO_BOUND, Isolation.LOOP)
 
-    __slots__ = ("_conf", "_http")
+    __slots__ = ("_base", "_conf", "_http")
 
     def __init__(self, http: HttpPort, settings: TeiRerankSettings | None = None) -> None:
         self._conf = st.providers.drivers.rerank.tei if settings is None else settings
         self._http = http
+        ### no URL is the reranker off: the root builds no driver; one built anyway refuses to open.
+        self._base = (self._conf.url or "").rstrip("/")
 
     ##### PRIVATE #####
 
@@ -35,7 +37,7 @@ class TeiRerankDriver:
         payload = {"query": question, "texts": list(texts), "truncate": True}
         logger.debug("tei rerank", texts=len(texts))
         return await self._http.post(
-            f"{self._conf.url.rstrip('/')}/rerank", payload, as_=list[dict[str, float]], within=self._conf.timeout
+            f"{self._base}/rerank", payload, as_=list[dict[str, float]], within=self._conf.timeout
         )
 
     ############################################################
@@ -43,8 +45,14 @@ class TeiRerankDriver:
     ##### PUBLIC #####
 
     async def __aenter__(self) -> Self:
-        """Nothing to open: the HTTP pool is the lifespan's."""
-        logger.info("tei rerank opened", url=self._conf.url)
+        """Nothing to open: the HTTP pool is the lifespan's; no URL is the reranker off, refused."""
+        match self._base:
+            case "":
+                msg = "RERANK_URL is none: the reranker is off, the composition root builds no driver"
+                raise ProviderError(msg)
+            case _:
+                pass
+        logger.info("tei rerank opened", url=self._base)
         return self
 
     async def __aexit__(self, *exc: object) -> None:
@@ -54,7 +62,7 @@ class TeiRerankDriver:
     async def health(self) -> bool:
         """TEI's own health route: 200 once the model answers."""
         try:
-            await self._http.raw(f"{self._conf.url.rstrip('/')}/health", within=self._conf.timeout)
+            await self._http.raw(f"{self._base}/health", within=self._conf.timeout)
         except ProviderError as error:
             logger.warning("tei rerank unhealthy", error=str(error))
             return False

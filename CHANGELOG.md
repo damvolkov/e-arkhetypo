@@ -32,6 +32,17 @@ touches — `stack`, `systems`, `infra`. Lines under `[Unreleased]` are written 
 
 ### projects
 
+- `common`'s config (TODO_REVERSE step 9, e-gnosis's content):
+  - secrets: every scope reads `secrets/<APP_ENV>/<var>` (gitignored, one file per key, its variable in lower case:
+    `secrets/dev/auth_secret` is AUTH_SECRET) — dev the dev keys, prod the prod ones —; a scope that names its own
+    `secrets_dir` (`/run/secrets`) reads that instead.
+  - `RERANK_URL`, `GLINER_URL`: `none` turns them off — the composition root builds no driver, and one built anyway
+    refuses to open.
+  - the LLM's defaults meet the blueprint's own `stack/llm/vllm` (`demian-model`, the development key `local-dev`):
+    before, a default call answered 401.
+  - Not taken: lazy scope discovery (the blueprint's scopes import `infra/config/base`, never the composer, so no scope
+    is met half-built). Open for Damien: a slot for a project's own scopes — today `common-check` refuses any file of
+    a project's own under `infra/config`. e-gnosis's env names stay e-gnosis's; nothing here renames them.
 - `common`'s processors and ops (TODO_REVERSE step 8, e-gnosis's content):
   - doc: no fast-pass block is dropped — the kinds both readers share are named as docling names them, any other
     (`rule`, `grid_fallback`) keeps its own label —, and every item carries its `group` (docling's `list`, `slide`,

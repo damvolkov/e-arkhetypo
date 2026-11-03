@@ -22,7 +22,7 @@ class OtelSettings(BaseSettings):
     """OTEL_ENDPOINT — collector base (empty: spans are minted, never exported); OTEL_PROTOCOL — http | grpc;
     OTEL_HEADERS — export headers as JSON, secret (a remote collector's key); OTEL_TIMEOUT — per-export deadline, which
     also bounds a shutdown against a dead collector; OTEL_FLUSH — how often the batch leaves (shorter: traces show
-    sooner); OTEL_SERVICE — `service.name`; OTEL_ATTRIBUTES — extra resource attributes as JSON
+    sooner); OTEL_SERVICE — `service.name`, and the tracer's name; OTEL_ATTRIBUTES — extra resource attributes as JSON
     (`{"openinference.project.name": "e-graph"}`); OTEL_SAMPLE — share of traces kept, 0..1, parent-based. Read like
     every other setting (.env included) — the SDK's own OTEL_* variables only reach it from the real process
     environment."""

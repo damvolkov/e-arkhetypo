@@ -15,8 +15,16 @@ from opentelemetry.trace import StatusCode
 from e_infra.infra.config.base import Secret
 from e_infra.infra.config.providers.drivers.telemetry.otel import OtelProtocol, OtelSettings
 from e_infra.infra.errors import TelemetryError
-from e_infra.ports.telemetry import SpanKind, SpanPort, SpanStatus, TelemetryPort
-from e_infra.providers.drivers.telemetry.otel import KINDS, STATUSES, OtelDriver, OtelSpan, export_grpc, export_http
+from e_infra.ports.telemetry import SpanKey, SpanKind, SpanPort, SpanRole, SpanStatus, TelemetryPort
+from e_infra.providers.drivers.telemetry.otel import (
+    KINDS,
+    ROLES,
+    STATUSES,
+    OtelDriver,
+    OtelSpan,
+    export_grpc,
+    export_http,
+)
 
 if TYPE_CHECKING:
     from unit.e_infra.conftest import Logs
@@ -206,3 +214,68 @@ async def test_otel_lifecycle_and_an_unhealthy_provider_are_logged(
     assert logs.at("info") == ["otel opened", "otel closed"]
     assert logs.at("warning") == ["otel unhealthy", "otel unhealthy"]
     assert logs.at("debug") == ["otel span"]
+
+
+##### ROLES — the service's vocabulary in OTel's and OpenInference's words #####
+def test_every_role_has_a_kind_and_a_convention() -> None:
+    assert set(ROLES) == set(SpanRole)
+
+
+@pytest.mark.parametrize(
+    ("role", "kind", "convention", "model"),
+    [
+        (SpanRole.LLM, SdkKind.CLIENT, "LLM", "llm.model_name"),
+        (SpanRole.EMBEDDING, SdkKind.CLIENT, "EMBEDDING", "embedding.model_name"),
+        (SpanRole.JOB, SdkKind.CONSUMER, "CHAIN", "llm.model_name"),
+    ],
+    ids=["llm", "embedding", "job"],
+)
+async def test_a_role_picks_the_kind_the_convention_and_its_own_key_names(
+    exporter: InMemorySpanExporter, role: SpanRole, kind: SdkKind, convention: str, model: str
+) -> None:
+    async with OtelDriver(OtelSettings(), exporter) as adapter:
+        with adapter.span("call", {SpanKey.MODEL: "m", "free.key": 1}, SpanKind.INTERNAL, role=role) as span:
+            span.record({SpanKey.OUTPUT: "done"})
+            span.event("step", {SpanKey.SIZE: 3})
+    (finished,) = exporter.get_finished_spans()
+    assert finished.kind == kind
+    assert dict(finished.attributes or {}) == {
+        "openinference.span.kind": convention,
+        model: "m",
+        "free.key": 1,
+        "output.value": "done",
+    }
+    assert dict(finished.events[0].attributes or {}) == {"input.size": 3}
+
+
+async def test_without_a_role_the_span_is_as_written(exporter: InMemorySpanExporter) -> None:
+    async with OtelDriver(OtelSettings(), exporter) as adapter:
+        with adapter.span("raw", {SpanKey.MODEL: "m"}, SpanKind.SERVER):
+            pass
+    (finished,) = exporter.get_finished_spans()
+    assert (finished.kind, dict(finished.attributes or {})) == (SdkKind.SERVER, {"model": "m"})
+
+
+##### CARRIER — a trace across a queue #####
+async def test_a_carrier_resumed_makes_the_child_of_its_trace(exporter: InMemorySpanExporter) -> None:
+    async with OtelDriver(OtelSettings(), exporter) as adapter:
+        assert adapter.carrier() == {}
+        with adapter.span("submit", {}) as parent:
+            carrier = adapter.carrier()
+        with adapter.resume(carrier), adapter.span("job", {}) as child:
+            pass
+        assert adapter.carrier() == {}
+    assert "traceparent" in carrier
+    assert child.trace_id == parent.trace_id
+    job = next(span for span in exporter.get_finished_spans() if span.name == "job")
+    assert job.parent is not None
+    assert format(job.parent.span_id, "016x") == parent.span_id
+
+
+async def test_the_tracer_is_named_by_the_service(exporter: InMemorySpanExporter) -> None:
+    async with OtelDriver(OtelSettings(service="svc"), exporter) as adapter:
+        with adapter.span("work", {}):
+            pass
+    (finished,) = exporter.get_finished_spans()
+    assert finished.instrumentation_scope is not None
+    assert finished.instrumentation_scope.name == "svc"

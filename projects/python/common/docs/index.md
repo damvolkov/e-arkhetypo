@@ -255,6 +255,7 @@ An adapter wraps a library with no connection (`Locality.EMBEDDED`): `__aenter__
 | [`e_infra.providers.adapters.extract.rtrafilatura`](reference/e_infra/providers/adapters/extract/rtrafilatura.md) | a web page's main content as Markdown — the article without its chrome. |
 | [`e_infra.providers.adapters.markdown.anytomd`](reference/e_infra/providers/adapters/markdown/anytomd.md) | anytomd bound to Python — one engine for every format, PDF and images folded in. |
 | [`e_infra.providers.adapters.pages.liteparse`](reference/e_infra/providers/adapters/pages/liteparse.md) | a document's fast pass on liteparse (Rust, in-process) — the `PagesPort`. |
+| [`e_infra.providers.adapters.telemetry.null`](reference/e_infra/providers/adapters/telemetry/null.md) | the provider of no provider — tracing off. |
 
 ### engines — execution against resources
 
@@ -270,6 +271,7 @@ module, not a rename.
 | [`e_infra.engines.cache`](reference/e_infra/engines/cache.md) | a fast cache in front of a durable one — the cache every module takes. |
 | [`e_infra.engines.dispatch`](reference/e_infra/engines/dispatch.md) | background work by kind — on the durable queue when it answers, in memory when it does not. |
 | [`e_infra.engines.health`](reference/e_infra/engines/health.md) | every provider asked how it is, at once — the startup survey and the readiness route's verdicts. |
+| [`e_infra.engines.telemetry`](reference/e_infra/engines/telemetry.md) | what a service traces, guarded — the facade every module reaches, over one `TelemetryPort`. |
 
 ### processors — transform input into output
 

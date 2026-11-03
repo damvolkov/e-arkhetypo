@@ -3,14 +3,19 @@ from typing import TYPE_CHECKING, Any
 
 import anyio
 import pytest
+from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 
-from e_infra.engines.dispatch import DispatchEngine
+from e_infra.engines.dispatch import TRACE, DispatchEngine
+from e_infra.engines.telemetry import TelemetryEngine
 from e_infra.infra.background import Background, BackgroundState
 from e_infra.infra.config.base import Secret
 from e_infra.infra.config.engines.dispatch import DispatchSettings
 from e_infra.infra.config.providers.drivers.queue.awa import AwaSettings
+from e_infra.infra.config.providers.drivers.telemetry.otel import OtelSettings
 from e_infra.infra.errors import DispatchError
+from e_infra.ports.telemetry import SpanRole
 from e_infra.providers.drivers.queue.awa import AwaDriver
+from e_infra.providers.drivers.telemetry.otel import OtelDriver
 from unit.e_infra.conftest import Warnings, Works, outage, settled, until
 from unit.e_infra.engines.conftest import FakeQueue, build
 
@@ -129,6 +134,44 @@ async def test_dispatch_registry_sealed_after_start(queue: str, works: Works, la
         with pytest.raises(DispatchError, match="after the dispatch started"):
             calls[late]()
     assert "late" not in dispatch.kinds | dispatch.schedules
+
+
+##### TRACING — a job is the child of the trace it was submitted in #####
+async def test_dispatch_a_job_is_traced_as_the_child_of_its_submit(queue: str, works: Works) -> None:
+    exporter = InMemorySpanExporter()
+    async with OtelDriver(OtelSettings(), exporter) as otel:
+        telemetry = TelemetryEngine(otel)
+        dispatch = DispatchEngine(None, Background(), {queue: 2}, throttle=0, telemetry=telemetry)
+        dispatch.register("ok", works.ok, queue=queue)
+        async with dispatch:
+            with telemetry.span("request", SpanRole.REQUEST):
+                job = await dispatch.submit("ok", n=1)
+            assert TRACE in job.args
+            assert (await settled(dispatch, job.id)).state is BackgroundState.COMPLETED
+    assert works.calls == [{"n": 1}]
+    request = next(span for span in exporter.get_finished_spans() if span.name == "request")
+    run = next(span for span in exporter.get_finished_spans() if span.name == "job.ok")
+    assert run.context.trace_id == request.context.trace_id
+    assert [event.name for event in run.events] == ["progress", "progress"]
+    assert (run.attributes or {})["stage"] == "smoke"
+    assert (run.attributes or {})["openinference.span.kind"] == "CHAIN"
+
+
+async def test_dispatch_coalescing_ignores_the_trace(queue: str, works: Works) -> None:
+    """Two slots held by hanging jobs: a twin submitted in another trace is still the waiting job."""
+    async with OtelDriver(OtelSettings(), InMemorySpanExporter()) as otel:
+        telemetry = TelemetryEngine(otel)
+        dispatch = DispatchEngine(None, Background(), {queue: 2}, throttle=0, telemetry=telemetry)
+        _ = [dispatch.register(kind, getattr(works, kind), queue=queue) for kind in ("ok", "hang")]
+        async with dispatch:
+            _ = [await dispatch.submit("hang"), await dispatch.submit("hang")]
+            await works.started.wait()
+            with telemetry.span("first", SpanRole.REQUEST):
+                waiting = await dispatch.submit("ok", source="a")
+            with telemetry.span("second", SpanRole.REQUEST):
+                twin = await dispatch.submit("ok", coalesce=True, source="a")
+            _ = [await dispatch.cancel(job.id) for job in await dispatch.jobs(limit=10)]
+    assert twin.id == waiting.id
 
 
 ##### COALESCE AND SCHEDULE #####

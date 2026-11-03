@@ -40,7 +40,7 @@ async def test_asyncpg_open_builds_the_pool_from_settings_and_close_closes_it(
                 "init": AsyncpgStatements._common_born,
             },
         )
-        assert asyncpg_driver.pool is pool
+        assert asyncpg_driver._common_pool() is pool
     assert pool.closed
     assert logs.at("info") == ["asyncpg opened", "asyncpg closed"]
     await asyncpg_driver.__aexit__(None, None, None)
@@ -60,7 +60,7 @@ async def test_asyncpg_unopened_calls_are_database_errors(asyncpg_driver: Asyncp
         with pytest.raises(DatabaseError, match="not open"):
             await call
     with pytest.raises(DatabaseError, match="not open"):
-        _ = asyncpg_driver.pool
+        _ = asyncpg_driver._common_pool()
 
 
 @pytest.mark.parametrize(
@@ -238,36 +238,7 @@ async def test_asyncpg_a_cancelled_call_is_not_swallowed_and_gives_its_connectio
     assert asyncpg_server.held == 0
 
 
-##### DEDICATED CONNECTIONS — what a library that owns its client rides #####
-async def test_asyncpg_dedicated_connection_is_opened_outside_the_pool_and_closed_on_exit(
-    asyncpg_driver: AsyncpgDriver, asyncpg_server: FakeAsyncpgServer
-) -> None:
-    async with asyncpg_driver, asyncpg_driver.dedicated():
-        opened = asyncpg_server.connections[0]
-        assert (opened.dsn, opened.kwargs, asyncpg_server.dedicated) == (DSN, {"timeout": 3.0}, 1)
-    assert (opened.closed, asyncpg_server.dedicated) == (True, 0)
-
-
-async def test_asyncpg_dedicated_connection_closes_when_its_block_fails(
-    asyncpg_driver: AsyncpgDriver, asyncpg_server: FakeAsyncpgServer
-) -> None:
-    async def fails() -> None:
-        async with asyncpg_driver.dedicated():
-            msg = "block"
-            raise ValueError(msg)
-
-    with pytest.raises(ValueError, match="block"):
-        await fails()
-    assert asyncpg_server.dedicated == 0
-
-
-async def test_asyncpg_dedicated_connection_refused_is_a_database_error(
-    asyncpg_driver: AsyncpgDriver, asyncpg_server: FakeAsyncpgServer
-) -> None:
-    asyncpg_server.refuse = OSError("connection refused")
-    with pytest.raises(DatabaseError, match="refused"):
-        async with asyncpg_driver.dedicated():
-            pass
+#####
 
 
 ##### SHAPES — psqlpy's, on every connection of the pool #####

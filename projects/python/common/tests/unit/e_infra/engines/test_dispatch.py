@@ -9,6 +9,7 @@ from e_infra.infra.background import Background, BackgroundState
 from e_infra.infra.config.base import Secret
 from e_infra.infra.config.engines.dispatch import DispatchSettings
 from e_infra.infra.config.providers.drivers.queue.awa import AwaSettings
+from e_infra.infra.errors import DispatchError
 from e_infra.providers.drivers.queue.awa import AwaDriver
 from unit.e_infra.conftest import Warnings, Works, outage, settled, until
 from unit.e_infra.engines.conftest import FakeQueue, build
@@ -106,6 +107,28 @@ async def test_dispatch_throttled(queue: str, pace: dict[str, Any]) -> None:
         job = await dispatch.submit("chatty")
         done = await settled(dispatch, job.id)
     assert (seen, done.progress) == ([{"n": 0}], {"n": 4})
+
+
+##### REGISTRY — open until the engine starts, sealed after #####
+async def test_dispatch_registry_reads_what_every_client_declared(queue: str, works: Works) -> None:
+    dispatch = build(None, queue, works)
+    dispatch.schedule("nightly", "0 3 * * *", "ok")
+    dispatch.queue("slow", 1)
+    assert (dispatch.kinds, dispatch.schedules) == (frozenset({"ok", "boom", "flaky", "hang"}), frozenset({"nightly"}))
+    assert dispatch._slots == {queue: 2, "slow": 1}
+
+
+@pytest.mark.parametrize("late", ["queue", "register", "schedule"])
+async def test_dispatch_registry_sealed_after_start(queue: str, works: Works, late: str) -> None:
+    async with build(None, queue, works) as dispatch:
+        calls = {
+            "queue": lambda: dispatch.queue("late", 1),
+            "register": lambda: dispatch.register("late", works.ok, queue=queue),
+            "schedule": lambda: dispatch.schedule("late", "* * * * *", "ok"),
+        }
+        with pytest.raises(DispatchError, match="after the dispatch started"):
+            calls[late]()
+    assert "late" not in dispatch.kinds | dispatch.schedules
 
 
 ##### COALESCE AND SCHEDULE #####

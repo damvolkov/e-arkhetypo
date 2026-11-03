@@ -9,11 +9,12 @@ from e_infra.infra.config.base import BaseSettings
 
 
 class PgqueuerSettings(BaseSettings):
-    """The database is the `AsyncpgDriver` PgQueuer rides: its DSN and pool are `AsyncpgSettings`'. QUEUE_TIMEOUT — a
+    """The database is the one PgQueuer is handed, on either Postgres driver: its DSN and pool are that driver's (a pool
+    of at least six serves every manager). QUEUE_TIMEOUT — a
     call on the pool before work falls back to memory; QUEUE_POLL — how often an idle worker looks for work; QUEUE_DRAIN
     — how long shutdown waits for in-flight jobs; QUEUE_HEARTBEAT — PgQueuer re-picks a job whose heartbeat (sent every
     half of this) is older than it: a crashed worker's job is rescued after it, and a loop blocked for longer runs the
-    job twice; QUEUE_RESTART — the pause before a dead manager is started again on a fresh connection."""
+    job twice; QUEUE_RESTART — the pause before a dead manager is started again."""
 
     model_config = SettingsConfigDict(env_prefix="QUEUE_")
 

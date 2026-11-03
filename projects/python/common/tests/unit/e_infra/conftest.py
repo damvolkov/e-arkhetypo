@@ -253,9 +253,10 @@ def pgqueuer_settings() -> PgqueuerSettings:
 
 @pytest.fixture
 async def pgqueuer_db(pgqueuer_database: str) -> AsyncIterator[AsyncpgDriver]:
-    """The asyncpg driver PgQueuer rides, open on this worker's database."""
+    """The asyncpg driver PgQueuer rides, open on this worker's database: six connections, the least that serves
+    every manager."""
     async with AsyncpgDriver(
-        AsyncpgSettings(dsn=Secret(pgqueuer_database), pool=4, timeout=timedelta(seconds=5))
+        AsyncpgSettings(dsn=Secret(pgqueuer_database), pool=6, timeout=timedelta(seconds=5))
     ) as db:
         yield db
 

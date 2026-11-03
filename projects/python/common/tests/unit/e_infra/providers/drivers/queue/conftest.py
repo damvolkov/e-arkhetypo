@@ -86,14 +86,20 @@ async def port(
     pgqueuer_settings: PgqueuerSettings,
     pgqueuer_db: AsyncpgDriver,
 ) -> AwaDriver | PgqueuerDriver:
-    """The durable engine under test, not yet connected (PgQueuer's asyncpg driver is open beneath it)."""
-    return AwaDriver(queue_settings) if request.param == "awa" else PgqueuerDriver(pgqueuer_db, pgqueuer_settings)
+    """The durable engine under test, not yet connected (PgQueuer's database driver is open beneath it)."""
+    return (
+        AwaDriver(queue_settings)
+        if request.param == "awa"
+        else PgqueuerDriver(pgqueuer_db, pgqueuer_db, pgqueuer_settings)
+    )
 
 
 @pytest.fixture
 def engine(pgqueuer_db: AsyncpgDriver, pgqueuer_settings: PgqueuerSettings) -> PgqueuerDriver:
     """A PgQueuer engine on this worker's database, short timeouts, not yet connected."""
-    return PgqueuerDriver(pgqueuer_db, pgqueuer_settings.model_copy(update={"timeout": timedelta(seconds=1)}))
+    return PgqueuerDriver(
+        pgqueuer_db, pgqueuer_db, pgqueuer_settings.model_copy(update={"timeout": timedelta(seconds=1)})
+    )
 
 
 @dataclass(slots=True)
@@ -176,7 +182,7 @@ def awa_driver(awa_clients: list[FakeAwaClient], awa_settings: AwaSettings) -> A
 ##### PGQUEUER — PgQueuer's in-memory backend over a pool that holds no database #####
 @pytest.fixture
 def pgqueuer_memory(monkeypatch: pytest.MonkeyPatch) -> FakePgqueuer:
-    """`Queries.from_asyncpg_connection` patched to answer PgQueuer's own in-memory backend."""
+    """`Queries` patched to answer PgQueuer's own in-memory backend."""
     memory = FakePgqueuer()
     monkeypatch.setattr(pgqueuer_module, "Queries", memory)
     return memory
@@ -184,7 +190,8 @@ def pgqueuer_memory(monkeypatch: pytest.MonkeyPatch) -> FakePgqueuer:
 
 @pytest.fixture
 async def fake_db(asyncpg_server: FakeAsyncpgServer) -> AsyncIterator[AsyncpgDriver]:
-    """The asyncpg driver PgQueuer rides, open over the fake server."""
+    """The database PgQueuer is handed — the asyncpg driver, a `DatabasePort` and a `ListenPort` —, open over the fake
+    server."""
     async with AsyncpgDriver(AsyncpgSettings(dsn=Secret("postgresql://u:p@db/q"), timeout=timedelta(seconds=1))) as db:
         yield db
 
@@ -194,7 +201,7 @@ def pgqueuer_driver(
     fake_db: AsyncpgDriver, pgqueuer_memory: FakePgqueuer, pgqueuer_settings: PgqueuerSettings
 ) -> PgqueuerDriver:
     """The PgQueuer driver over the open fake driver and the in-memory backend, not yet open itself."""
-    return PgqueuerDriver(fake_db, pgqueuer_settings)
+    return PgqueuerDriver(fake_db, fake_db, pgqueuer_settings)
 
 
 @pytest.fixture

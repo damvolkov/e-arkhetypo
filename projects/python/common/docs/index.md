@@ -210,13 +210,13 @@ pinning one connection, `connection()` pinning one with each statement its own c
 scope being that scope, `listen`/`unlisten` on one held connection, errors as `DatabaseError` with the server's `sqlstate`
 and `constraint_name` (psqlpy reads the unique violation off the message); the pool is the driver's and a connection is
 taken per operation, never kept. `tests/unit/e_infra/ports/test_database_real.py` holds the contract on both. The project
-picks one at its root. `AsyncpgDriver` also gives a library that owns its client what it needs, on the driver class and
-in no port: `pool`, `dedicated()` (a connection outside the pool, closed on exit) and `guard()` (asyncpg's errors as
-`DatabaseError`). `PgqueuerDriver` **receives** an
-`AsyncpgDriver` by constructor and rides it — its schema on the pool, one dedicated connection for each queue manager and
-for the scheduler — and opens no pool of its own; the lifespan opens the database first and closes it last. The queue
-wants a database of its own (`app_background` beside the service's `app`): hand it an `AsyncpgDriver` built on
-`AsyncpgSettings(dsn=...)` for that database.
+picks one at its root. `PgqueuerDriver` **receives** its database by constructor — the same driver typed as
+`DatabasePort` and as `ListenPort` — and rides it: PgQueuer's own `Driver` is met by a bridge over the ports (its
+statements on the pool, a transaction or a connection; its LISTEN on the one connection the database driver holds), so
+it opens no pool and no connection of its own; the lifespan opens the database first and closes it last. The queue
+wants a database of its own (`app_background` beside the service's `app`) with a pool of at least six. On psqlpy,
+PgQueuer 1.6 cannot open: its schema read returns `name[]`, which psqlpy does not decode — the queue rides asyncpg, and
+`test_pgqueuer_on_psqlpy_is_refused_by_its_catalog_read` holds the day that changes.
 
 #### providers/drivers — I/O with systems outside the process
 
@@ -224,14 +224,13 @@ A driver talks to something that lives elsewhere (network, socket, another proce
 service). Singleton in the lifespan: `__aenter__` opens the pool or client, `__aexit__` releases it, `health` never
 raises, third-party exceptions are translated into `infra.errors` at the border (`DriverError` and below). A driver composes
 another provider only through its port, received by constructor (docling, TEI and the OpenAI-compatible driver ride an
-`HttpPort`; the durable cache rides a `DatabasePort`) — with one stated exception: PgQueuer's library owns its
-asyncpg client, so its driver is handed the `AsyncpgDriver`, typed by a small protocol it declares itself.
+`HttpPort`; the durable cache rides a `DatabasePort`, PgQueuer a `DatabasePort` and a `ListenPort`).
 
 | Module | Purpose |
 |---|---|
 | [`e_infra.providers.drivers.auth.postgres`](reference/e_infra/providers/drivers/auth/postgres.md) | accounts and grants in Postgres — the `AuthPort` over any `DatabasePort`. |
 | [`e_infra.providers.drivers.cache.postgres`](reference/e_infra/providers/drivers/cache/postgres.md) | a durable cache in a Postgres database — it rides a `DatabasePort`, whichever driver. |
-| [`e_infra.providers.drivers.database.asyncpg`](reference/e_infra/providers/drivers/database/asyncpg.md) | the SQL edge over asyncpg — a pooled client, and the pool PgQueuer rides. |
+| [`e_infra.providers.drivers.database.asyncpg`](reference/e_infra/providers/drivers/database/asyncpg.md) | the SQL edge over asyncpg, and the pool PgQueuer rides. |
 | [`e_infra.providers.drivers.database.psqlpy`](reference/e_infra/providers/drivers/database/psqlpy.md) | the SQL edge over psqlpy — a Rust (tokio-postgres) pool, pgvector bound natively. |
 | [`e_infra.providers.drivers.documents.docling`](reference/e_infra/providers/drivers/documents/docling.md) | document conversion on docling-serve — any source in, the DoclingDocument out. |
 | [`e_infra.providers.drivers.embed.tei`](reference/e_infra/providers/drivers/embed/tei.md) | embeddings on text-embeddings-inference — `POST /embed`, behind `EmbedPort`. |
@@ -239,7 +238,7 @@ asyncpg client, so its driver is handed the `AsyncpgDriver`, typed by a small pr
 | [`e_infra.providers.drivers.llm.openai`](reference/e_infra/providers/drivers/llm/openai.md) | a chat model over an OpenAI-compatible server (vLLM, OpenAI) — JSON-schema answers. |
 | [`e_infra.providers.drivers.ner.gliner`](reference/e_infra/providers/drivers/ner/gliner.md) | zero-shot entities from a gliner service — `POST /ner/batch`, NDJSON streamed both ways. |
 | [`e_infra.providers.drivers.queue.awa`](reference/e_infra/providers/drivers/queue/awa.md) | the durable queue — awa, a Rust Postgres job queue, behind `QueuePort`. |
-| [`e_infra.providers.drivers.queue.pgqueuer`](reference/e_infra/providers/drivers/queue/pgqueuer.md) | the default durable queue, PgQueuer on asyncpg, behind `QueuePort` and `SchedulePort`. |
+| [`e_infra.providers.drivers.queue.pgqueuer`](reference/e_infra/providers/drivers/queue/pgqueuer.md) | the default durable queue, PgQueuer behind `QueuePort` and `SchedulePort`. |
 | [`e_infra.providers.drivers.rerank.tei`](reference/e_infra/providers/drivers/rerank/tei.md) | reranking on text-embeddings-inference — `POST /rerank`, behind `RerankPort`. |
 | [`e_infra.providers.drivers.store.redis`](reference/e_infra/providers/drivers/store/redis.md) | a store over redis.asyncio (the official client, async driver) — bytes in, bytes out. |
 | [`e_infra.providers.drivers.store.sqlite`](reference/e_infra/providers/drivers/store/sqlite.md) | a store over aiosqlite (stdlib sqlite3 is sync-only on 3.14) — one kv table in one file. |
@@ -300,7 +299,7 @@ telemetry reads spans from the SDK's in-memory exporter; sqlite is a temp file. 
 the repo writes its own under `tests/support/`: a pool, connection and transaction that hold scripted rows, record the SQL
 and raise the library's own exception types, which the driver is patched to build. PgQueuer runs its real managers,
 retries and cron on its own in-memory backend (`InMemoryQueries`), with the driver's `background.job` book on the fake
-asyncpg pool. The real-service tests stay, marked `integration` (a Postgres at `POSTGRES_TEST_DSN`, skipped when none
+asyncpg driver. The real-service tests stay, marked `integration` (a Postgres at `POSTGRES_TEST_DSN`, skipped when none
 answers): `make integration`.
 
 ## Layers and dependencies
@@ -345,7 +344,7 @@ e-taxis itself materializes the whole tree (the stack machinery — `ops/compose
 | `ports/database.py`, `providers/drivers/database/psqlpy.py` | api, graph — `database/asyncpg.py` is the alternative a project may take instead (or beside, for PgQueuer) |
 | `ports/http.py`, `providers/drivers/http/wreq.py` | api, cli, graph, tui |
 | `ports/store.py`, `providers/drivers/store/redis.py`, `providers/drivers/store/sqlite.py` | api, cli, graph, tui |
-| `ports/queue.py`, `providers/drivers/queue/awa.py`, `providers/drivers/queue/pgqueuer.py` (with `database/asyncpg.py`), `engines/dispatch.py` | none by default — the background's durable queues are opt-in: a service that runs one drops the exclusion, and the composition root names which class fills `QueuePort` |
+| `ports/queue.py`, `providers/drivers/queue/awa.py`, `providers/drivers/queue/pgqueuer.py` (over `database/asyncpg.py`), `engines/dispatch.py` | none by default — the background's durable queues are opt-in: a service that runs one drops the exclusion, and the composition root names which class fills `QueuePort` |
 | `ports/telemetry.py`, `providers/drivers/telemetry/otel.py` | none by default — tracing is opt-in |
 | `ports/documents.py`, `providers/drivers/documents/docling.py` | api, cli, graph, tui (with `processors/doc`) |
 | `ports/pages.py`, `providers/adapters/pages/liteparse.py` | api, cli, graph, tui (with `processors/doc`) |

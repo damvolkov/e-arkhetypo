@@ -4,7 +4,7 @@ import uuid
 
 import pytest
 
-from e_graph.instrument.state import AdaptersState, Channels, InfraState, InstrumentState, RunState
+from e_graph.instrument.state import Channels, InfraState, InstrumentState, ProvidersState, RunState
 from e_graph.logic.agent import AgnosticAgent
 from e_graph.logic.state import LogicState
 from infra.state import State
@@ -58,12 +58,12 @@ def test_run_state_release_drops_its_context(system: State) -> None:
 def test_run_state_branches_typed(run_state: RunState) -> None:
     infra = run_state.infra
     assert isinstance(infra, InfraState)
-    assert isinstance(infra.adapters, AdaptersState)
+    assert isinstance(infra.providers, ProvidersState)
     assert isinstance(run_state.logic, LogicState)
     assert isinstance(run_state.logic.agent, AgnosticAgent)
     assert isinstance(run_state.instrument, InstrumentState)
-    assert infra.adapters.telemetry.name == "otel"
-    assert run_state.instrument.telemetry.provider is infra.adapters.telemetry
+    assert infra.providers.telemetry.spec.name == "otel"
+    assert run_state.instrument.telemetry.provider is infra.providers.telemetry
 
 
 def test_run_state_graphs_are_the_system_singletons(run_state: RunState, system: State) -> None:

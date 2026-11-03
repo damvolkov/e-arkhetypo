@@ -1,22 +1,13 @@
-"""api.security: bearer enforcement and the OpenAPI contract — `ops/crypto` is the only source of truth.
+"""api.security: the OpenAPI contract of the key — who may call is `infra/auth`'s, one system for both doors.
 
-The guard verifies the token and parks its claims in the connection scope; `provide_current_user`
-(api.deps) turns those claims into a `User`. Guards run before dependencies, so a handler that
-depends on `current_user` is automatically behind the bearer check once `auth_guard` is attached.
-"""
+A route declares its access in its options (`opt=OPT[Access.USER]`); the token middleware has resolved the caller from the
+`Authorization` header before any route runs and the guard admits it (`infra/auth/guard`). This module only tells the
+OpenAPI pages how a key is sent: a bearer, opaque — a key `POST /auth/accounts/{name}/token` hands out, not a JWT."""
 
 from enum import StrEnum
-from typing import TYPE_CHECKING, Any, Final
+from typing import Final
 
-from litestar.exceptions import NotAuthorizedException
 from litestar.openapi.spec import SecurityScheme
-
-from e_api.api.state import AppState
-from ops.crypto import TokenError
-
-if TYPE_CHECKING:
-    from litestar.connection import ASGIConnection
-    from litestar.handlers import BaseRouteHandler
 
 
 ##### CONTRACT #####
@@ -24,28 +15,6 @@ class SecuritySchemeName(StrEnum):
     BEARER = "bearerAuth"
 
 
-BEARER_SCHEME = SecurityScheme(type="http", scheme="bearer", bearer_format="JWT")
+BEARER_SCHEME = SecurityScheme(type="http", scheme="bearer", bearer_format="opaque")
 ### OpenAPI requirement maps key by scheme id: the enum owns the vocabulary, `.value` is the str edge litestar types.
 SECURITY: Final[list[dict[str, list[str]]]] = [{SecuritySchemeName.BEARER.value: []}]
-
-
-##### HELPERS #####
-def bearer_claims(request: ASGIConnection) -> dict[str, Any]:
-    """Verified claims for the request's bearer token, or 401."""
-    match request.headers.get("authorization", "").split():
-        case ["Bearer", token]:
-            try:
-                return AppState.of(request.app).system.crypto.verify_token(token)
-            except TokenError as exc:
-                raise NotAuthorizedException(detail=str(exc)) from exc
-        case _:
-            raise NotAuthorizedException(detail="Bearer token required")
-
-
-async def auth_guard(connection: ASGIConnection, _handler: BaseRouteHandler) -> None:
-    """Litestar calls guards with (connection, handler): this one authenticates and nothing else.
-
-    Claims are not smuggled through the scope — `provide_current_user` re-derives them (a verify is
-    microseconds, an implicit side channel between guard and dependency is forever).
-    """
-    bearer_claims(connection)

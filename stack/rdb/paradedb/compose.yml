@@ -1,6 +1,6 @@
 services:
   paradedb:
-    image: paradedb/paradedb:0.26.2-pg17
+    image: paradedb/paradedb:v0.26.4-pg17
     container_name: paradedb
     hostname: paradedb
     restart: unless-stopped

@@ -49,8 +49,8 @@ def openapi_config(
     return OpenAPIConfig(
         title=title,
         version=version,
-        path=resolved.docs_path,
-        render_plugins=[RENDERERS[renderer]() for renderer in resolved.docs_renderers],
+        path=resolved.path,
+        render_plugins=[RENDERERS[renderer]() for renderer in resolved.renderers],
         components=Components() if components is None else components,
     )
 
@@ -63,10 +63,10 @@ def routes(settings: DocsSettings | None = None) -> tuple[HTTPRouteHandler, ...]
         async def redirect(request: Request) -> Redirect:
             ### the subpath survives the hop: an alias is the same tree under another root.
             return Redirect(
-                path=f"{resolved.docs_path}{request.url.path.removeprefix(prefix)}",
+                path=f"{resolved.path}{request.url.path.removeprefix(prefix)}",
                 status_code=HTTP_307_TEMPORARY_REDIRECT,
             )
 
         return get([prefix, f"{prefix}/{{rest:path}}"], name=f"docs.alias:{prefix}", include_in_schema=False)(redirect)
 
-    return tuple(redirect_from(alias) for alias in resolved.docs_aliases)
+    return tuple(redirect_from(alias) for alias in resolved.aliases)

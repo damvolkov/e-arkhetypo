@@ -33,7 +33,7 @@ def test_auth_flag_beats_the_stored_login(ecli) -> None:
 
 
 def test_auth_env_token_is_used_when_no_flag(ecli, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(launcher, "st", SimpleNamespace(cli=SimpleNamespace(cli_token=Secret("env-7777"))))
+    monkeypatch.setattr(launcher, "st", SimpleNamespace(cli=SimpleNamespace(token=Secret("env-7777"))))
     _, out, _ = ecli("auth", "status")
     assert "env" in out
     assert "7777" in out

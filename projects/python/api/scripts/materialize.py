@@ -1,9 +1,10 @@
-"""scripts/materialize: the hardened sed — copy `projects/python/infra` sections into `src/` with a structural rewrite.
+"""scripts/materialize: the hardened sed — copy `projects/python/common` sections into `src/` with a structural rewrite.
 
 libcst parses each source file as real 3.14 syntax (PEP 695 included, verified against the whole
-`e_infra` tree) and rewrites *only* the import nodes `e_infra.{infra,ops,adapters,processors} → {infra,ops,adapters,processors}`;
-every result is re-parsed with `ast.parse` and scanned for leftovers before it is written. `make infra`
-materializes into `src/`; `make infra-check` materializes into a throwaway tree under `/tmp` and diffs,
+`e_infra` tree) and rewrites *only* the import nodes `e_infra.<section> → <section>` for the six sections
+`infra`, `ops`, `ports`, `providers` (`drivers/`, `adapters/`), `engines`, `processors`;
+every result is re-parsed with `ast.parse` and scanned for leftovers before it is written. `make common`
+materializes into `src/`; `make common-check` materializes into a throwaway tree under `/tmp` and diffs,
 so both modes run the exact same generation path and the drift-check cannot lie about a second one.
 """
 
@@ -22,15 +23,53 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
 API_ROOT: Path = Path(__file__).resolve().parents[1]
-INFRA_SRC: Path = API_ROOT.parent / "infra" / "src" / "e_infra"
-SECTIONS: tuple[str, ...] = ("adapters", "infra", "ops", "processors")
+COMMON_SRC: Path = API_ROOT.parent / "common" / "src" / "e_infra"
+SECTIONS: tuple[str, ...] = ("infra", "ops", "ports", "providers", "engines", "processors")
 ### the TUI header belongs to the boilerplate wizard, not to a running service: same topology as the old sed.
 ### the compose tool belongs to stack management (e-taxis materializes the whole ops area), not to a running service.
-### the durable background engines ride in only for a service that runs them: add pgqueuer[asyncpg] and awa-pg, drop
-### the exclusions (adapters/queue picks one by QUEUE_ENGINE); postgres rides in always — the db lifespan provisions
-### every database the settings name.
+### the durable queue rides in only for a service that runs one: drop the queue row, add pgqueuer[asyncpg] and awa-pg,
+### and the composition root names the class that fills `QueuePort`. Tracing, the cache and the model edges are opt-in
+### the same way; postgres rides in always — the db lifespan provisions every database the settings name.
 EXCLUDES: frozenset[str] = frozenset(
-    {"ops/tui.py", "ops/snap.py", "ops/compose.py", "adapters/awa.py", "adapters/pgqueuer.py", "adapters/queue.py"}
+    {
+        "ops/tui.py",
+        "ops/snap.py",
+        "ops/compose.py",
+        ##### queue #####
+        "ports/queue.py",
+        "providers/drivers/database/asyncpg.py",
+        "infra/config/providers/drivers/database/asyncpg.py",
+        "providers/drivers/queue/awa.py",
+        "providers/drivers/queue/pgqueuer.py",
+        "infra/config/providers/drivers/queue/awa.py",
+        "infra/config/providers/drivers/queue/pgqueuer.py",
+        "engines/dispatch.py",
+        "infra/config/engines/dispatch.py",
+        ##### telemetry #####
+        "ports/telemetry.py",
+        "providers/drivers/telemetry/otel.py",
+        "infra/config/providers/drivers/telemetry/otel.py",
+        ##### cache #####
+        "ports/cache.py",
+        "providers/adapters/cache/theine.py",
+        "providers/drivers/cache/postgres.py",
+        "infra/config/providers/adapters/cache/theine.py",
+        "infra/config/providers/drivers/cache/postgres.py",
+        "engines/cache.py",
+        ##### models #####
+        "ports/embed.py",
+        "ports/rerank.py",
+        "providers/drivers/embed/tei.py",
+        "providers/drivers/rerank/tei.py",
+        "infra/config/providers/drivers/embed/tei.py",
+        "infra/config/providers/drivers/rerank/tei.py",
+        "ports/llm.py",
+        "providers/drivers/llm/openai.py",
+        "infra/config/providers/drivers/llm/openai.py",
+        "ports/ner.py",
+        "providers/drivers/ner/gliner.py",
+        "infra/config/providers/drivers/ner/gliner.py",
+    }
 )
 
 
@@ -123,18 +162,18 @@ def _sources(section: str) -> list[Path]:
     """Every .py of one section, in stable order, minus the excluded files."""
     return [
         path
-        for path in sorted((INFRA_SRC / section).rglob("*.py"))
-        if "__pycache__" not in path.parts and str(path.relative_to(INFRA_SRC)) not in EXCLUDES
+        for path in sorted((COMMON_SRC / section).rglob("*.py"))
+        if "__pycache__" not in path.parts and str(path.relative_to(COMMON_SRC)) not in EXCLUDES
     ]
 
 
 def materialize(dest_root: Path) -> None:
-    """Write the three rewritten sections under `dest_root/src`, replacing any previous copy."""
+    """Write the rewritten sections under `dest_root/src`, replacing any previous copy."""
     for section in SECTIONS:
         shutil.rmtree(dest_root / "src" / section, ignore_errors=True)
     for section in SECTIONS:
         for path in _sources(section):
-            rel = path.relative_to(INFRA_SRC)
+            rel = path.relative_to(COMMON_SRC)
             target = dest_root / "src" / rel
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_text(rewrite_source(path.read_text(), str(rel)))
@@ -154,7 +193,7 @@ def check(dest_root: Path) -> int:
     tmp = Path(tempfile.mkdtemp(prefix="e-api-materialize-"))
     try:
         materialize(tmp)
-        expected = {path.relative_to(INFRA_SRC) for section in SECTIONS for path in _sources(section)}
+        expected = {path.relative_to(COMMON_SRC) for section in SECTIONS for path in _sources(section)}
         actual = _materialized(dest_root)
         issues = [
             *(f"{rel}: missing" for rel in sorted(expected - actual)),
@@ -167,10 +206,10 @@ def check(dest_root: Path) -> int:
         ]
         match issues:
             case []:
-                print("✓ materialized infra/ops/adapters in sync")
+                print("✓ materialized sections in sync")
                 return 0
             case _:
-                print("✗ drift from projects/python/infra (run make infra):")
+                print("✗ drift from projects/python/common (run make common):")
                 print("\n".join(f"  {issue}" for issue in issues))
                 return 1
     finally:
@@ -188,7 +227,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             return check(API_ROOT)
         case _:
             materialize(API_ROOT)
-            print("✓ materialized adapters/, infra/, ops/ from projects/python/infra")
+            print(f"✓ materialized {', '.join(f'{section}/' for section in SECTIONS)} from projects/python/common")
             return 0
 
 

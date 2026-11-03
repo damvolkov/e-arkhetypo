@@ -26,7 +26,7 @@ class SharedState:
     """The typed shared section: exactly the two singletons every other concern may depend on.
 
     An explicit two-field section beats a generic bag (the decision, documented): consumers want
-    `state.shared.settings.app.app_env`, not a stringly-typed lookup — and `Settings` is `Any`-typed by
+    `state.shared.settings.app.env`, not a stringly-typed lookup — and `Settings` is `Any`-typed by
     design in infra (dynamic composition), so a fancier wrapper could not add static strength anyway.
     The values held are the lazy singletons themselves: their delegation surface *is* the
     `Settings`/`BindableLogger` contract, and the load this lifespan triggered already ran."""
@@ -39,7 +39,7 @@ class SharedState:
 async def lifespan(app: Litestar) -> AsyncGenerator[None]:
     """Force the lazy infra load once, then mirror the pair into `system.shared` before yielding."""
     system = AppState.of(app).system
-    ### first attribute access builds and caches each singleton: app_env loads settings, this log line configures structlog.
-    logger.info("shared ready", env=st.app.app_env, step="START")
+    ### first attribute access builds and caches each singleton: env loads settings, this log line configures structlog.
+    logger.info("shared ready", env=st.app.env, step="START")
     system.shared = SharedState(settings=st, logger=logger)
     yield

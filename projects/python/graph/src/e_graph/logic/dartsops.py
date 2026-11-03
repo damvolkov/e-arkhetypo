@@ -122,11 +122,11 @@ class DartsOps:
             "sections": {str(section): PREFIXES[section] for section in ORDER},
             "tiers": [str(tier) for tier in Tier],
             "budget": {
-                "darts_concurrency": self._conf.darts_concurrency,
-                "darts_calls": self._conf.darts_calls,
-                "darts_fusion_specs": self._conf.darts_fusion_specs,
-                "darts_fusion_tokens": self._conf.darts_fusion_tokens,
-                "darts_timeout": msgspec.json.encode(self._conf.darts_timeout).decode().strip('"'),
+                "darts_concurrency": self._conf.concurrency,
+                "darts_calls": self._conf.calls,
+                "darts_fusion_specs": self._conf.fusion_specs,
+                "darts_fusion_tokens": self._conf.fusion_tokens,
+                "darts_timeout": msgspec.json.encode(self._conf.timeout).decode().strip('"'),
             },
             "laws": [{"rule": str(rule), "scope": scope, "fix": fix} for rule, (scope, fix) in LAWS.items()],
         }

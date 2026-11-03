@@ -1,6 +1,6 @@
-"""runtime.deps: injection by declared type — the one place ports meet adapters, built on demand, once per run.
+"""runtime.deps: injection by declared type — the one place ports meet providers, built on demand, once per run.
 
-This is the composition root of the hexagon: `SQLiteAdapter` is named here and nowhere else, wrapped in the
+This is the composition root of the hexagon: `SqliteDriver` is named here and nowhere else, wrapped in the
 undo journal and handed to the services as a bare `StorePort`. `Inject[T]` marks a parameter cyclopts must not parse (and `--help` must not show); the launcher resolves
 each one from its type through `Deps.PROVIDERS`, a frozen table type → builder. A builder runs at most once
 per run, and every resource it opens enters the run's exit stack, so edges close in reverse on the way out.
@@ -15,14 +15,14 @@ from typing import Annotated, ClassVar, TypeVar, cast
 from cyclopts import Parameter
 from rich.console import Console
 
-from adapters.ports import StorePort
-from adapters.sqlite import SQLiteAdapter
 from e_cli.models.identity import Identity
 from e_cli.runtime.journal import StoreJournal
 from e_cli.services.auth import AuthService
 from e_cli.services.project import ProjectService
 from infra.settings import settings as st
 from infra.state import State
+from ports.store import StorePort
+from providers.drivers.store.sqlite import SqliteDriver
 
 T = TypeVar("T")
 ### cyclopts reads `Annotated` metadata but does not unwrap PEP 695 `type` aliases: the classic generic alias is what it sees.
@@ -52,8 +52,8 @@ class Deps:
 
     async def _resolve_store(self) -> StoreJournal:
         """The local store behind the undo journal: every command write is revertible by construction."""
-        store = await self._stack.enter_async_context(SQLiteAdapter())
-        journal = StoreJournal(store, command=self._state.session.command, depth=st.cli.cli_history)
+        store = await self._stack.enter_async_context(SqliteDriver())
+        journal = StoreJournal(store, command=self._state.session.command, depth=st.cli.history)
         return await self._stack.enter_async_context(journal)
 
     async def _resolve_projects(self) -> ProjectService:

@@ -42,7 +42,7 @@ def test_every_renderer_has_a_plugin() -> None:
 
 
 def test_settings_decide_root_renderers_and_aliases() -> None:
-    settings = DocsSettings(docs_path="/api/docs", docs_aliases=["/a", "/b"], docs_renderers=["scalar", "redoc"])
+    settings = DocsSettings(path="/api/docs", aliases=["/a", "/b"], renderers=["scalar", "redoc"])
     config = openapi_config("t", "1", settings=settings)
     assert config.path == "/api/docs"
     assert [type(plugin) for plugin in config.render_plugins] == [ScalarRenderPlugin, RedocRenderPlugin]
@@ -53,10 +53,10 @@ def test_settings_decide_root_renderers_and_aliases() -> None:
 
 def test_components_pass_through() -> None:
     components = Components(security_schemes={})
-    config = openapi_config("t", "1", components=components, settings=DocsSettings(docs_renderers=["swagger"]))
+    config = openapi_config("t", "1", components=components, settings=DocsSettings(renderers=["swagger"]))
     assert config.components is components
     assert [type(plugin) for plugin in config.render_plugins] == [SwaggerRenderPlugin]
 
 
 def test_no_aliases_no_routes() -> None:
-    assert routes(DocsSettings(docs_aliases=[])) == ()
+    assert routes(DocsSettings(aliases=[])) == ()

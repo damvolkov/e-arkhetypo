@@ -17,12 +17,12 @@ from litestar.di import NamedDependency
 from litestar.exceptions import NotFoundException
 from litestar.params import FromPath
 
-from adapters.ports import StorePort
 from e_graph.api.state import AppState
 from e_graph.instrument.graph import InstrumentGraph
 from e_graph.logic.orchestrator.lab import SectionLab
 from e_graph.models.section import Section
 from infra.state import State
+from ports.store import StorePort
 
 
 ##### DEPENDENCY KEYS — the wiring vocabulary: a typo is an attribute error at import, never a silent runtime miss #####
@@ -43,8 +43,8 @@ def system(state: AppState) -> State:
 
 
 def store(system: NamedDependency[State]) -> StorePort:
-    """The KV edge the app's records live on; swap scope here to send a route elsewhere. Chain: system."""
-    return system.infra.adapters.store
+    """The KV provider the app's records live on; swap scope here to send a route elsewhere. Chain: system."""
+    return system.infra.providers.store
 
 
 def graphs(system: NamedDependency[State]) -> Mapping[str, InstrumentGraph]:

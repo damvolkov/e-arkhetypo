@@ -4,13 +4,17 @@ The MEDIUM tier defaults to the local vLLM; AGENT_MEDIUM__* point it anywhere el
 never hold a credential: every auth header is redacted before a request is written."""
 
 import os
-from typing import Any, Final
+from typing import TYPE_CHECKING, Any, Final
 
 import pytest
 
 from e_graph.logic.agent import AgnosticAgent
 from e_graph.logic.models import Endpoint, Provider, Tier
 from infra.config.agent import AgentSettings
+from providers.adapters.pages.liteparse import LiteparseAdapter
+
+if TYPE_CHECKING:
+    from collections.abc import AsyncIterator
 
 VLLM: Final[Endpoint] = Endpoint(provider=Provider.VLLM, model="gemma4-26b-a4b", api_base="http://localhost:45100/v1")
 SECRET_HEADERS: Final[tuple[str, ...]] = ("authorization", "api-key", "x-api-key", "x-goog-api-key", "cookie")
@@ -46,12 +50,12 @@ def settings(request: pytest.FixtureRequest) -> Any:
     retarget, and then the cassettes are rewritten to whatever the tiers point at."""
     declared = AgentSettings()
     recording = str(request.config.getoption("--record-mode", "none")).lower() in {"all", "rewrite", "new_episodes"}
-    match declared.agent_medium is not None and recording:
+    match declared.medium is not None and recording:
         case True:
             return declared
         case _:
             local = {"provider": VLLM.provider, "model": VLLM.model, "api_base": VLLM.api_base}
-            return AgentSettings(agent_medium=local, agent_high=local, agent_low=local)
+            return AgentSettings(medium=local, high=local, low=local)
 
 
 @pytest.fixture
@@ -64,3 +68,10 @@ def endpoint() -> Tier:
 async def agent(settings: Any) -> Any:
     async with AgnosticAgent(settings) as live:
         yield live
+
+
+@pytest.fixture(scope="session")
+async def pages() -> AsyncIterator[LiteparseAdapter]:
+    """The in-process fast pass the DocProcessor reads every page with, opened once per worker."""
+    async with LiteparseAdapter() as adapter:
+        yield adapter

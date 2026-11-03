@@ -31,6 +31,7 @@ if TYPE_CHECKING:
 
     from e_graph.instrument.graph import InstrumentGraph
     from e_graph.logic.models import SectionPlan
+    from providers.adapters.pages.liteparse import LiteparseAdapter
 
 NOTES = Path(__file__).resolve().parents[5] / "tests" / "resources" / "documents" / "notes"
 PAYMENT_DATES: Final = (
@@ -142,10 +143,11 @@ def orchestrator() -> OrchestratorCore:
 
 
 @pytest.fixture
-def state(agent: ScriptedAgent, orchestrator: OrchestratorCore) -> RunState:
+def state(agent: ScriptedAgent, orchestrator: OrchestratorCore, pages: LiteparseAdapter) -> RunState:
     infra = InfraState(
-        adapters=None,  # ty: ignore[invalid-argument-type]
-        processors=ProcessorsState(doc=DocProcessor(GoldenPort())),
+        providers=None,  # ty: ignore[invalid-argument-type]
+        engines=None,  # ty: ignore[invalid-argument-type]
+        processors=ProcessorsState(doc=DocProcessor(GoldenPort(), pages)),
         graphs=MappingProxyType({}),
     )
     system = State(

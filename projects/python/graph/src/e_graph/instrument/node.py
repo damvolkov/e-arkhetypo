@@ -28,7 +28,6 @@ from langgraph.config import get_stream_writer
 from langgraph.graph._node import StateNodeSpec
 from langgraph.types import StreamWriter
 
-from adapters.ports import SpanPort
 from e_graph.instrument.errors import ContractError, ContractRule
 from e_graph.instrument.models import NodeOutput, NodeRole, NodeStatus
 from e_graph.instrument.state import Channels, RunState
@@ -38,6 +37,7 @@ from e_graph.logic.models import Usage
 from e_graph.models.section import Section
 from infra.logger import logger
 from ops.wrappers import LatencyWrapper
+from ports.telemetry import SpanPort
 
 type NodeResult = str | dict[str, Any] | NodeOutput | None
 type NodeFunc = Callable[[RunState], Awaitable[NodeResult]]

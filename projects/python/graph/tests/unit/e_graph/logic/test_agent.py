@@ -92,7 +92,7 @@ def compatible(mocker: MockerFixture, client: MockType) -> MockType:
 
 @pytest.fixture
 def agent(settings: Callable[..., Any], create: MockType) -> AgnosticAgent:
-    return AgnosticAgent(settings(agent_retries=1))
+    return AgnosticAgent(settings(retries=1))
 
 
 def sent(client: MockType, call: int = -1) -> dict[str, Any]:
@@ -102,14 +102,14 @@ def sent(client: MockType, call: int = -1) -> dict[str, Any]:
 
 ##### RESOLUTION #####
 async def test_run_tier_resolved_from_settings(settings: Callable[..., Any], create: MockType) -> None:
-    agent = AgnosticAgent(settings(agent_high={"provider": "vllm", "model": "big", "api_base": "http://h/v1"}))
+    agent = AgnosticAgent(settings(high={"provider": "vllm", "model": "big", "api_base": "http://h/v1"}))
     reply = await agent.run("be brief", "hi", Ack, endpoint=Tier.HIGH)
     assert (reply.output, reply.provider, reply.model, reply.attempts) == (Ack(ok=True), Provider.VLLM, "served", 1)
     create.assert_called_once_with("vllm", api_key=DUMMY_KEY, api_base="http://h/v1")
 
 
 def test_resolve_names_where_a_call_would_go(settings: Callable[..., Any]) -> None:
-    agent = AgnosticAgent(settings(agent_medium={"provider": "vllm", "model": "m", "api_base": "http://v/v1"}))
+    agent = AgnosticAgent(settings(medium={"provider": "vllm", "model": "m", "api_base": "http://v/v1"}))
     endpoint = agent.resolve(Tier.MEDIUM)
     assert (endpoint.provider, endpoint.model, endpoint.api_base, endpoint.api_key) == (
         Provider.VLLM,
@@ -121,7 +121,7 @@ def test_resolve_names_where_a_call_would_go(settings: Callable[..., Any]) -> No
 
 async def test_run_tier_carries_its_key_and_options(settings: Callable[..., Any], create: MockType) -> None:
     tier = {"provider": "openai", "model": "m", "api_key": "k-tier", "options": {"organization": "o"}}
-    await AgnosticAgent(settings(agent_low=tier)).run("i", "p", Ack, endpoint=Tier.LOW)
+    await AgnosticAgent(settings(low=tier)).run("i", "p", Ack, endpoint=Tier.LOW)
     create.assert_called_once_with("openai", api_key="k-tier", api_base=None, organization="o")
 
 
@@ -389,7 +389,7 @@ async def test_run_fails_typed_and_traced(
 ) -> None:
     create.side_effect = case.connect
     client.acompletion.side_effect = list(case.replies) or None
-    agent = AgnosticAgent(settings(agent_retries=1, **case.tiers))
+    agent = AgnosticAgent(settings(retries=1, **case.tiers))
     with AgnosticAgent.meter() as meter, pytest.raises(case.error, match=re.escape(case.match)) as caught:
         await agent.run("i", "p", case.output, endpoint=case.endpoint, **case.options)
     assert type(caught.value) is case.error

@@ -16,6 +16,7 @@ from litestar import Response, get, post
 from litestar.di import NamedDependency, Provide
 from litestar.exceptions import HTTPException
 from litestar.handlers import HTTPRouteHandler
+from litestar.params import JSONBody
 from litestar.status_codes import HTTP_422_UNPROCESSABLE_ENTITY
 
 from e_graph.api.deps import DepKey, graph, graphs, lab, section, system
@@ -61,7 +62,7 @@ async def svg(
 
 
 async def simulate(
-    data: SimulateRequest,
+    data: JSONBody[SimulateRequest],
     system: NamedDependency[State],
     graph: NamedDependency[InstrumentGraph],
     section: NamedDependency[Section],

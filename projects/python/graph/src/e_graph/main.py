@@ -3,7 +3,7 @@
 `create_app` is the composition root and the factory granian calls per worker. Routers enter
 through `register` calls — the include_router shape; middleware, the lifespan
 chain and CORS enter through the constructor, and the order of `lifespan=[...]` is the startup
-order: infra first (every later concern may depend on the loaded singletons), then the edges, the
+order: infra first (every later concern may depend on the loaded singletons), then the providers, the
 services, the instrument's and the logic's branches and the built graphs, sealed last. Dependency chains
 are wired by each endpoint, never here. Nothing loads at import; the infra singletons load on the first
 touch, which the infra lifespan makes.
@@ -17,7 +17,7 @@ from litestar.router import Router
 from litestar.types import Middleware
 
 from e_graph.api import docs
-from e_graph.api.lifespan import adapters, db, instrument, logic, sealed, services
+from e_graph.api.lifespan import db, instrument, logic, providers, sealed, services
 from e_graph.api.lifespan.graphs import lifespan as graphs_lifespan
 from e_graph.api.lifespan.infra import lifespan as infra_lifespan
 from e_graph.api.middlewares import MIDDLEWARES, cors_config
@@ -36,7 +36,7 @@ def create_app() -> Litestar:
         lifespan=[
             infra_lifespan,
             db.lifespan,
-            adapters.lifespan,
+            providers.lifespan,
             services.lifespan,
             instrument.lifespan,
             logic.lifespan,

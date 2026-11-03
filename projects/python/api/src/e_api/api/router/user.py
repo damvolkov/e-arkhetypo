@@ -1,7 +1,9 @@
-"""api.router.user: CRUD over the User DTO family — guard, three injection chains, msgspec at both edges.
+"""api.router.user: CRUD over the User DTO family — the key's access per route, three injection chains, msgspec at both edges.
 
 Handlers are plain async functions with no knowledge of HTTP; the ROUTES tuple at the bottom is the
-single place where routes, guards and dependencies meet them — declarative registration, not decorators.
+single place where routes, access and dependencies meet them — declarative registration, not decorators. Reading is an
+account's (`Access.USER`), writing the admin's (`Access.ADMIN`): the caller is the token middleware's and the refusal the
+guard's (`infra/auth`), the same at the MCP door, whose tools call these very handlers (`mcp/tools/user`).
 """
 
 from datetime import UTC, datetime
@@ -13,28 +15,32 @@ from litestar import delete, get, patch, post
 from litestar.di import NamedDependency, Provide
 from litestar.exceptions import NotFoundException
 from litestar.handlers import HTTPRouteHandler
-from litestar.params import FromPath
+from litestar.params import FromPath, JSONBody
 
-from adapters.ports import StorePort
 from e_api.api.deps import (
     USER_KEY,
     DepKey,
+    caller,
     correlation_id,
-    current_user,
     graph,
     load_record,
     store,
     to_user,
 )
-from e_api.api.security import SECURITY, auth_guard
+from e_api.api.security import SECURITY
 from e_api.models.user import User, UserCreate, UserRecord, UserUpdate
+from infra.auth.guard import OPT
+from infra.auth.models import Access, Caller
 from infra.logger import logger
 from infra.state import State
+from ports.store import StorePort
 
 
 ##### HANDLERS #####
-async def create_user(data: UserCreate, graph: NamedDependency[State], store: NamedDependency[StorePort]) -> User:
-    """Public registration: hash through crypto, persist through the store — the credential never returns."""
+async def create_user(
+    data: JSONBody[UserCreate], graph: NamedDependency[State], store: NamedDependency[StorePort]
+) -> User:
+    """Hash through crypto, persist through the store — the credential never returns."""
     record = UserRecord(
         id=uuid4(),
         username=data.username,
@@ -60,19 +66,19 @@ async def list_users(store: NamedDependency[StorePort]) -> list[User]:
 async def read_user(
     user_id: FromPath[UUID],
     store: NamedDependency[StorePort],
-    current_user: NamedDependency[User],
+    caller: NamedDependency[Caller],
     correlation_id: NamedDependency[str],
 ) -> User:
-    """Behind the bearer: `current_user` (fake check via `store`) and the request's correlation id."""
+    """One record, read for the caller and the request's correlation id."""
     match await load_record(store, str(user_id)):
         case None:
             raise NotFoundException(detail="No such user")
         case record:
-            logger.info("user read", user_id=str(user_id), by=current_user.username, correlation=correlation_id)
+            logger.info("user read", user_id=str(user_id), by=caller.name, correlation=correlation_id)
             return to_user(record)
 
 
-async def update_user(user_id: FromPath[UUID], data: UserUpdate, store: NamedDependency[StorePort]) -> User:
+async def update_user(user_id: FromPath[UUID], data: JSONBody[UserUpdate], store: NamedDependency[StorePort]) -> User:
     """PATCH with the UNSET sentinel: absent fields stay, nulls apply."""
     match await load_record(store, str(user_id)):
         case None:
@@ -104,25 +110,28 @@ STORE_DEPS: Final[dict[str, Provide]] = {
 READ_DEPS: Final[dict[str, Provide]] = {
     **STORE_DEPS,
     DepKey.CORRELATION_ID.value: Provide(correlation_id, sync_to_thread=False),
-    DepKey.CURRENT_USER.value: Provide(current_user),
+    DepKey.CALLER.value: Provide(caller, sync_to_thread=False),
 }
 
 ##### ROUTES #####
 ROUTES: tuple[HTTPRouteHandler, ...] = (
-    post("/users", name="user.create", status_code=201, tags=["users"], dependencies=STORE_DEPS)(create_user),
-    get(
+    post(
         "/users",
-        name="user.list",
+        name="user.create",
+        status_code=201,
         tags=["users"],
-        guards=[auth_guard],
+        opt=OPT[Access.ADMIN],
         security=SECURITY,
         dependencies=STORE_DEPS,
-    )(list_users),
+    )(create_user),
+    get("/users", name="user.list", tags=["users"], opt=OPT[Access.USER], security=SECURITY, dependencies=STORE_DEPS)(
+        list_users
+    ),
     get(
         "/users/{user_id:uuid}",
         name="user.read",
         tags=["users"],
-        guards=[auth_guard],
+        opt=OPT[Access.USER],
         security=SECURITY,
         dependencies=READ_DEPS,
     )(read_user),
@@ -130,7 +139,7 @@ ROUTES: tuple[HTTPRouteHandler, ...] = (
         "/users/{user_id:uuid}",
         name="user.update",
         tags=["users"],
-        guards=[auth_guard],
+        opt=OPT[Access.ADMIN],
         security=SECURITY,
         dependencies=STORE_DEPS,
     )(update_user),
@@ -139,7 +148,7 @@ ROUTES: tuple[HTTPRouteHandler, ...] = (
         name="user.delete",
         status_code=204,
         tags=["users"],
-        guards=[auth_guard],
+        opt=OPT[Access.ADMIN],
         security=SECURITY,
         dependencies=STORE_DEPS,
     )(delete_user),

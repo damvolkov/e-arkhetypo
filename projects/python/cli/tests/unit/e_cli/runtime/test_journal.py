@@ -2,13 +2,20 @@
 
 import pytest
 
-from adapters.ports import StorePort
 from e_cli.models.error import JournalError
 from e_cli.runtime.journal import PREFIX, StoreJournal
+from ports.store import StorePort
 
 
 def test_journal_satisfies_the_store_port(store) -> None:
     assert isinstance(StoreJournal(store, command="x", depth=5), StorePort)
+
+
+async def test_journal_health_is_the_inner_store_health(store) -> None:
+    journal = StoreJournal(store, command="x", depth=5)
+    assert await journal.health()
+    store.healthy = False
+    assert not await journal.health()
 
 
 async def test_journal_undo_restores_the_value_before_the_first_write(store) -> None:

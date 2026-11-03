@@ -1,6 +1,6 @@
 """tests/support/docling: docling-serve, offline — the corpus's recorded spans, served as the port serves.
 
-`GoldenPort` satisfies `DocumentPort` by shape. Asked to convert a span of a corpus document (matched by
+`GoldenPort` satisfies `DocumentPort` by shape — spec, lifecycle and health included. Asked to convert a span of a corpus document (matched by
 file name stem and `page_range`), it answers with what the live docling-serve answered for that very
 span (`tests/resources/conversions`, `make conversions`): its nodes, its tables, its markdown. A span
 never recorded fails as the service would, and the processor falls back to liteparse for it. Every
@@ -8,11 +8,12 @@ call is recorded, so a test sees what was routed."""
 
 import gzip
 from pathlib import Path
-from typing import Any, ClassVar, Final
+from typing import Any, ClassVar, Final, Self
 
 import msgspec
 
-from adapters.ports import DocumentConversion
+from ports.documents import DocumentConversion
+from ports.provider import Isolation, Locality, ProviderSpec, Workload
 
 CONVERSIONS: Final[Path] = Path(__file__).resolve().parents[1] / "resources" / "conversions"
 
@@ -20,11 +21,20 @@ CONVERSIONS: Final[Path] = Path(__file__).resolve().parents[1] / "resources" / "
 class GoldenPort:
     """A document port backed by the recorded spans; `calls` keeps every request's filename and options."""
 
-    name: ClassVar[str] = "docling"
+    spec: ClassVar[ProviderSpec] = ProviderSpec("docling", Locality.FILESYSTEM, Workload.IO_BOUND, Isolation.LOOP)
 
     def __init__(self) -> None:
         self.calls: list[dict[str, Any]] = []
         self._spans: dict[str, dict[str, DocumentConversion]] = {}
+
+    async def __aenter__(self) -> Self:
+        return self
+
+    async def __aexit__(self, *exc: object) -> None:
+        """Nothing held open: the recordings are read on demand."""
+
+    async def health(self) -> bool:
+        return True
 
     def _convert_spans(self, stem: str) -> dict[str, DocumentConversion]:
         match self._spans.get(stem):

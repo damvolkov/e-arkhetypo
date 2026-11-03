@@ -8,6 +8,12 @@ touches — `stack`, `systems`, `infra`. Lines under `[Unreleased]` are written 
 
 ### stack
 
+- floating tags resolved to current digests, the ledger's paradedb row on `v0.26.4-pg17` (`stack/resolve-2026-11-02`)
+- `llm/gliner` has a healthcheck: `ghcr.io/edamlabs/gliner:0.1.3` (pinned, the EDamLabs image) ships `gliner probe`,
+  which `GET /ready`s from inside the distroless image — `docker ps` shows `(healthy)` once the model is loaded.
+- `rdb/paradedb` rides `paradedb/paradedb:v0.26.4-pg17` (from `0.26.2-pg17`, Renovate) — the tag is real on Docker Hub
+  (amd64 + arm64, published 2026-10-29), and infra's `full_stack` golden, which pins the merged model of the whole real
+  stack, is re-recorded to follow it: one byte wider, one line different, nothing else moved (`renovate/stack-images`)
 - The LLM slot's default is `llm/vllm` (Gemma 4 26B-A4B AWQ), `llm/strata` its alternative — the final fight on one
   4090 and the same 20.6 GiB, measured 2026-10-28: 175 vs 57-86 tok/s decode, ~10k vs 4.1k prefill, 760 vs 59 tok/s
   at 8 concurrent, prefix reuse 34x vs 2x; strata speaks no logprobs (jev). `llm/vllm` defaults to 0.86 · 131072
@@ -25,6 +31,27 @@ touches — `stack`, `systems`, `infra`. Lines under `[Unreleased]` are written 
 - `storage/minio` parked: `stack.parked: "true"` — the image died upstream with MinIO's OSS, the service is off on the host and the version bots stop probing it until removal
 
 ### projects
+
+- **The MCP door and the unified auth join the blueprint**, from e-gnosis's finished door (PR #165, `07d5477`), stripped of its domain. `common` (opt-in like the queue drivers; cli, tui and graph exclude them): `infra/auth` (`models`, `policy`, `resolver` — the Protocol the token middleware asks of whoever knows the keys —, `TokenMiddleware`, and the `guard` at `OPT[Access.*]` for routes and tools), `infra/mcp` (`models`, `registry`, `bridge`, `guard`, `mount` and `server` — the only module that imports `mcp.server*`, ruff TID251 holds the rest), `ports/auth`, `providers/drivers/auth/postgres` (`AuthPostgresDriver` over any `DatabasePort`; it creates its two tables on open) and `engines/auth` (`AuthEngine`: named by its module, the surname rule; accounts and keys over `AuthPort`). Errors join the one root (`AuthError`, `McpError`), settings the mirrored tree (`st.engines.auth`: `AUTH_SECRET` a `Secret`, `AUTH_TTL`, `AUTH_ADMIN`; `st.mcp`: `MCP_PATH`, `MCP_HOSTS`, `MCP_ORIGINS`); tach spells `infra.auth` and `infra.mcp` as edges and `test_taxonomy` reads that nothing always shipped imports them. api: `src/e_api/mcp/` (`tools/{health,user}.py` — each tool a native Litestar route, twin of its router —, `registry`, `mount`, `state`, `instructions`, `models`, `refusals`), the MCP lifespan beside the others (`system.mcp` ≡ `e_api/mcp/state.py`), and one auth system for both doors: the JWT bearer guard and `current_user` retire, `/users` rides `OPT[Access.USER|ADMIN]`, `GET /auth/me` and the admin's `POST|DELETE /auth/accounts/{name}/token` hand out and revoke opaque keys (the first admin key: `python -m e_api admin`), the authlib OAuth registry goes (no consumer left; OAuth2 is a sibling engine over the same records). The surface is held to `tests/resources/mcp/surface.json`; the endpoint is tested through the SDK's own client, both handshakes. `templates.yml`: the api choice `mcp` (modules, default on) removes the door cleanly. Gates: common 1273 tests at 99 %, api 146 at 100 %.
+
+- **The house taxonomy** (e-nous `TODO_taxonomy`, 2026-10-30). The blueprint moves `projects/python/infra` →
+  `projects/python/common` (package `e_infra`; `make common` / `common-check`), and `e_infra` is laid out by nature:
+  `ports/` (one Protocol per capability, every provider port extends `Provider` — lifecycle, `health()`, a mandatory
+  `ProviderSpec`: locality, workload, isolation, fork-safety, pooling, warm-up, memory hint), `providers/drivers/` and
+  `providers/adapters/` by capability (`drivers/database/psqlpy.py`, `drivers/database/asyncpg.py`, `drivers/store/redis.py`,
+  `drivers/http/wreq.py`, `drivers/queue/{pgqueuer,awa}.py`, `drivers/telemetry/otel.py`, `drivers/documents/docling.py`,
+  `drivers/{embed,rerank}/tei.py`, `drivers/llm/openai.py`, `drivers/ner/gliner.py`, `drivers/cache/postgres.py`;
+  `adapters/{cache/theine,markdown/anytomd,pages/liteparse,extract/rtrafilatura}.py`), `engines/` (`health`,
+  `dispatch`, `cache`), `processors/` (`doc`, `md` — no library of their own). Providers are singletons, open by
+  `async with`, translate foreign errors at the border; PgQueuer rides the asyncpg driver. `infra/errors.py` is the one
+  root of every exception (`ProviderError` → `DriverError`/`AdapterError`, `EngineError`, `ProcessorError`, `OpsError`);
+  `infra/config/` mirrors the module tree (`st.providers.drivers.database.psqlpy.dsn`, env names unchanged); every layer
+  logs. tach and `test_taxonomy` gate the import table, the capability folders and the config mirror. Brought in from
+  e-gnosis (read-only): the tiered cache, TEI embed/rerank, the OpenAI-compatible LLM, GLiNER, liteparse, rtrafilatura,
+  PgQueuer's cron. Unit runs need no service: fakeredis, PgQueuer's in-memory queries, OTel's in-memory exporter,
+  pytest-httpserver, and our own psqlpy/asyncpg/awa fakes; real-service tests are `integration`, out of CI's default.
+  api, cli, graph and tui ride it (state branch `providers`, `/ready` from `HealthEngine`); the **mcp template retires**
+  (MCP joins api next). `stack/README.md` maps each provider capability to its stack category.
 
 - api, graph: **the tree is the state** (house law 22), gated — `tests/unit/e_<svc>/api/lifespan/test_parity.py` boots the real lifespan chain, walks the sealed system whole (`State` nodes and typed sections alike) and fails on any node whose class is a stratum's (every `e_<svc>` package but the edge `api`) living outside the package its chain names — e-gnosis's parity rule, exactly; the infrastructure sections (`shared`, `adapters`, `infra`) are walked, never placed. graph failed it on seven nodes and is reshaped: `system.logic` = `LogicState(agent, orchestrator)` in `e_graph/logic/state.py`, `system.instrument` = `InstrumentState(telemetry, contexts)` beside the RunState in `e_graph/instrument/state.py`; `ContextState` becomes `InstrumentContexts` in `e_graph/instrument/contexts.py`; `InfraState` keeps `adapters`, `processors`, `graphs`. One lifespan per layer: `api/lifespan/instrument.py` and `api/lifespan/logic.py` (the agent opens and closes there) split out of `services`, which keeps crypto and the processors; `sealed` composes `infra` and seals. The RunState mirrors the tree — `state.logic.orchestrator`, `state.logic.agent`, `state.instrument.telemetry` — and the lab's and DARTSOPS's sandboxes take the system root as RunState does (`simulate(..., system=)`, `evaluate(pipeline, data, system, agent)`); the cli's `system()` yields the same sealed tree. tach registers `e_graph.logic.state` in the `logic` layer. api passes as it stands (no stratum mounts a node yet; a planted one fails it). cli seals `shared` + `session` with no stratum node, mcp holds no state tree, tui's `State` is a walk's mutable bag: no gate for them. One object, one path: the gate also fails on any object the sealed tree holds at two paths (identity; interned atoms and the settings proxies aside, containers counted). graph held nine twins — `adapters`, `processors`, `graphs` and their leaves beside `infra.*` — and now writes them only under `system.infra` (the lifespans fill the open node, `sealed` retypes it as `InfraState`); `deps`, `/ready`, the routers' docstrings, README and the tests read `system.infra.*`. api has no `infra` section and holds no twin (a planted one fails it). Behaviour unchanged: every suite green.
 - infra: two modules ported from e-gnosis (reverse-distill `gnosis-r4`), riding into every service by default like the rest of `infra/` and stdlib-or-anyio only. `ops/hash` — `hash_text` (sha256 over NUL-joined parts, 16 hex), `hash_bytes` (full sha256), `hash_version` (semver + 8-hex config digest); the keyless counterpart of `ops/crypto`, its registry row already claimed. `infra/events` — `MemoryEvents`, in-process pub/sub by event type over one bounded anyio stream (CAPACITY 1000, backpressure), one ordered delivery task, a raising handler logged and skipped, enter starts / exit drains; producers depend on `EventsPort`, declared beside it as `BackgroundPort` is beside `Background`. Its log test patches a fresh structlog logger inside `capture_logs`, never the module's cached one. The state-parity gate ships with the state-tree reshape (entry above).
@@ -44,6 +71,7 @@ touches — `stack`, `systems`, `infra`. Lines under `[Unreleased]` are written 
 
 ### infra
 
+- the root `make update` materializes through the api's `common` target (it still called the retired `infra`)
 - **CI stops re-proving on main**: quality, test, coverage, ui, ecosystem, repo-gates and snapshots run on pull
   requests only — a push to main re-ran what its PR had just proved (710 of ~1,935 Actions minutes in a month on
   e-gnosis). docs builds on pull requests, and on push only where it deploys (public Pages). test skips its work on a

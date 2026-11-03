@@ -10,7 +10,7 @@ from e_cli.models.error import IdentityError
 from e_cli.models.identity import Identity, IdentityOrigin
 
 if TYPE_CHECKING:
-    from adapters.ports import StorePort
+    from ports.store import StorePort
 
 ##### DEFAULTS #####
 KEY: str = "auth:token"

@@ -26,6 +26,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable, Mapping
 
     from e_graph.instrument.graph import InstrumentGraph
+    from providers.adapters.pages.liteparse import LiteparseAdapter
     from support.darts import DartsHarness
 
 AAPL: Final[str] = str(Path(__file__).resolve().parents[5] / "tests/resources/documents/filings/aapl-10k-2025.pdf")
@@ -36,12 +37,13 @@ async def graphs() -> Mapping[str, InstrumentGraph]:
     return await PipelineRegistry().build()
 
 
-def tree(graphs: Mapping[str, InstrumentGraph], agent: Any) -> State:
+def tree(graphs: Mapping[str, InstrumentGraph], agent: Any, pages: LiteparseAdapter) -> State:
     """The sealed system a rehearsal copies, branch for branch as the lifespans mount it: the real processor over replayed docling spans, the agent given."""
     root = State(
         infra=InfraState(
-            adapters=None,  # ty: ignore[invalid-argument-type]
-            processors=ProcessorsState(doc=DocProcessor(GoldenPort())),
+            providers=None,  # ty: ignore[invalid-argument-type]
+            engines=None,  # ty: ignore[invalid-argument-type]
+            processors=ProcessorsState(doc=DocProcessor(GoldenPort(), pages)),
             graphs=MappingProxyType(dict(graphs)),
         ),
         logic=LogicState(agent=agent, orchestrator=OrchestratorCore()),
@@ -130,8 +132,10 @@ async def test_an_empty_mounted_section_lists_as_empty(darts: DartsHarness) -> N
 
 
 ##### THE REHEARSAL #####
-async def test_a_rehearsal_runs_every_earlier_section_once(graphs: Mapping[str, InstrumentGraph]) -> None:
-    system = tree(graphs, ScriptedAgent())
+async def test_a_rehearsal_runs_every_earlier_section_once(
+    graphs: Mapping[str, InstrumentGraph], pages: LiteparseAdapter
+) -> None:
+    system = tree(graphs, ScriptedAgent(), pages)
     lab = SectionLab(system.logic.orchestrator, graphs)
     data = {"document": "invoice 3 total 7.25"}
     simulation = await lab.simulate("doc", Section.VALIDATE, data, system=system)
@@ -146,10 +150,10 @@ async def test_a_rehearsal_runs_every_earlier_section_once(graphs: Mapping[str, 
 
 
 async def test_a_rehearsal_sends_what_a_live_run_sends_and_answers_without_a_model(
-    graphs: Mapping[str, InstrumentGraph],
+    graphs: Mapping[str, InstrumentGraph], pages: LiteparseAdapter
 ) -> None:
     agent = ScriptedAgent()
-    system = tree(graphs, agent)
+    system = tree(graphs, agent, pages)
     simulation = await SectionLab(system.logic.orchestrator, graphs).simulate(
         "filing", Section.EXTRACT, {"source": AAPL}, system=system
     )
@@ -167,10 +171,12 @@ async def test_a_rehearsal_sends_what_a_live_run_sends_and_answers_without_a_mod
     assert (cover["shares_outstanding"], simulation.written["EXT-income"]["revenue"]) == (1, 0)
 
 
-async def test_a_live_rehearsal_asks_the_real_agent(graphs: Mapping[str, InstrumentGraph]) -> None:
+async def test_a_live_rehearsal_asks_the_real_agent(
+    graphs: Mapping[str, InstrumentGraph], pages: LiteparseAdapter
+) -> None:
     agent = ScriptedAgent()
     agent.answers["EXT-cover"] = {"company": "Apple Inc.", "period_end": "2025-09-27", "shares_outstanding": 7}
-    system = tree(graphs, agent)
+    system = tree(graphs, agent, pages)
     simulation = await SectionLab(system.logic.orchestrator, graphs).simulate(
         "filing", Section.EXTRACT, {"source": AAPL}, system=system, live=True
     )
@@ -178,12 +184,14 @@ async def test_a_live_rehearsal_asks_the_real_agent(graphs: Mapping[str, Instrum
     assert simulation.written["EXT-cover"]["company"] == "Apple Inc."
 
 
-async def test_examples_answer_first(darts: DartsHarness, graphs: Mapping[str, InstrumentGraph]) -> None:
+async def test_examples_answer_first(
+    darts: DartsHarness, graphs: Mapping[str, InstrumentGraph], pages: LiteparseAdapter
+) -> None:
     total = {"type": "object", "properties": {"total": {"type": "number"}}}
     darts.semantic("EXT-a", output=total, examples=({"total": 9.5},))
     darts.semantic("EXT-b", output=total)
     graph = graphs["doc"]
-    system = tree({"doc": graph}, ScriptedAgent())
+    system = tree({"doc": graph}, ScriptedAgent(), pages)
     lab = SectionLab(darts.orchestrator, {"doc": graph})
     simulation = await lab.simulate("doc", Section.INGEST, {}, system=system)
     assert simulation.runs[-1].section == Section.INGEST
@@ -191,9 +199,11 @@ async def test_examples_answer_first(darts: DartsHarness, graphs: Mapping[str, I
     assert rehearsed.written == {"EXT-a": {"total": 9.5}, "EXT-b": {"total": 0.0}}
 
 
-async def test_a_tier_without_endpoint_routes_to_its_reason(settings: Callable[..., Any]) -> None:
+async def test_a_tier_without_endpoint_routes_to_its_reason(
+    settings: Callable[..., Any], pages: LiteparseAdapter
+) -> None:
     async with AgnosticAgent(settings()) as agent:
-        route = SectionLab.route(tree({}, agent).logic, Tier.HIGH)
+        route = SectionLab.route(tree({}, agent, pages).logic, Tier.HIGH)
     assert route.error.startswith("tier high has no endpoint")
 
 

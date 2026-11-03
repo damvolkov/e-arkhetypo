@@ -1,7 +1,7 @@
 """tests/unit: logic.models — specs decoded per section: names, references, schema, examples, extension."""
 
 from datetime import timedelta
-from typing import Any
+from typing import Any, cast
 
 import msgspec
 import pytest
@@ -41,7 +41,7 @@ DETERMINISTIC: dict[str, Any] = {
 
 def decode(raw: dict[str, Any], section: Section = Section.EXTRACT) -> Spec[str]:
     name = Spec.named(section)
-    return CheckedStruct.convert(raw, DeterministicSpec[name] | SemanticSpec[name])
+    return CheckedStruct.convert(raw, cast("Any", DeterministicSpec)[name] | cast("Any", SemanticSpec)[name])
 
 
 def test_semantic_decoded_with_defaults() -> None:
@@ -168,7 +168,8 @@ def test_a_pipeline_extends_a_spec_with_its_own_kind() -> None:
 
     name = Spec.named(Section.EXTRACT)
     spec = CheckedStruct.convert(
-        {**SEMANTIC, "kind": "table", "columns": ["sku"]}, SemanticSpec[name] | TableSpec[name]
+        {**SEMANTIC, "kind": "table", "columns": ["sku"]},
+        cast("Any", SemanticSpec)[name] | cast("Any", TableSpec)[name],
     )
     assert isinstance(spec, TableSpec)
     assert (spec.columns, spec.tier) == (("sku",), Tier.MEDIUM)
@@ -178,7 +179,7 @@ def test_an_extension_cannot_reshape_inherited_fields() -> None:
     with pytest.raises(TypeError, match=r"redefines inherited spec fields \['instructions', 'output'\]"):
 
         class Broken[N: str](SemanticSpec[N], frozen=True, kw_only=True, tag="broken"):
-            output: str
+            output: JsonSchema
             instructions: int
 
 
@@ -224,4 +225,4 @@ def test_built_in_code_validated_like_decoded(fields: dict[str, Any], error: str
 
 def test_a_raw_dict_never_decodes_without_the_hook() -> None:
     with pytest.raises(msgspec.ValidationError, match="Expected `JsonSchema`, got `dict`"):
-        msgspec.convert(SEMANTIC, SemanticSpec[NAME])
+        msgspec.convert(SEMANTIC, cast("Any", SemanticSpec)[NAME])

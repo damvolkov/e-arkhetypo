@@ -2,8 +2,8 @@
 lives with the run — and the instrument's own branch, `InstrumentState`.
 
 Two zones, never mixed. The app's singletons, sealed at startup and shared by every run, are the system's branches
-under the same names: `infra.adapters` (every external edge), `infra.processors` (the readers over them,
-`processors.doc`), `infra.graphs` (every built pipeline), `logic.agent` (the agnostic agent), `logic.orchestrator`
+under the same names: `infra.providers` (every provider, by role), `infra.engines` (the health survey over them),
+`infra.processors` (the readers over them, `processors.doc`), `infra.graphs` (every built pipeline), `logic.agent` (the agnostic agent), `logic.orchestrator`
 (the DARTS engine) and `instrument.telemetry` (the instrument's tracer). `context` is everything one request
 produces — ephemeral, owned by its run id. Contexts live in one process-wide store, `instrument.contexts`, as
 `context.<id>`; a `RunState` is a run's view of the app: its `id`, the shared branches, and its own
@@ -22,50 +22,61 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field, fields
 from typing import TYPE_CHECKING, Annotated, Final, TypedDict, cast
 
-from adapters.base import AdapterPing, BaseAdapter
-from adapters.ports import DocumentPort, HttpPort, StorePort, TelemetryPort
 from e_graph.instrument.contexts import InstrumentContexts
 from e_graph.instrument.models import NodeOutput
+from engines.health import HealthEngine
 from infra.state import State
+from ports.documents import DocumentPort
+from ports.http import HttpPort
+from ports.pages import PagesPort
+from ports.provider import Provider
+from ports.store import StorePort
+from ports.telemetry import TelemetryPort
 
 if TYPE_CHECKING:
-    from datetime import timedelta
-
     ### annotation only: each sits above this module — it imports this one at runtime, or lives in a higher layer.
     from e_graph.instrument.graph import InstrumentGraph
     from e_graph.instrument.telemetry import InstrumentTelemetry
     from e_graph.logic.state import LogicState
     from processors.doc import DocProcessor
 
-### the edges a ready service cannot do without; a role not here is optional.
+### the providers a ready service cannot do without; a role not here is optional.
 REQUIRED: Final[frozenset[str]] = frozenset({"store"})
 
 
 ##### INFRA #####
 @dataclass(frozen=True, slots=True)
-class AdaptersState:
-    """The typed adapters section: fields named by role, typed by the port the role speaks.
+class ProvidersState:
+    """The typed providers section: fields named by role, typed by the port the role speaks.
 
-    `store` is the KV edge the app's records live on; `telemetry` is the raw provider whose lifecycle the
-    exit stack owns — the instrument reaches it only through `instrument.telemetry`; `docling` converts documents
-    (the DocProcessor drives it). Any further field is an optional edge the export may drop."""
+    `store` is the KV provider the app's records live on; `telemetry` is the raw provider whose lifecycle the
+    exit stack owns — the instrument reaches it only through `instrument.telemetry`; `http` is the one HTTP pool,
+    `docling` converts documents over it and `pages` is the in-process fast pass (the DocProcessor drives both). Any
+    further field is an optional provider the export may drop."""
 
     store: StorePort
     telemetry: TelemetryPort
     redis: StorePort
     http: HttpPort
     docling: DocumentPort
+    pages: PagesPort
 
-    async def ping(self, limit: timedelta) -> tuple[AdapterPing, ...]:
-        """Every edge pinged at once, each within `limit`, in field order; the REQUIRED ones decide readiness."""
-        ### every field is a concrete adapter behind its port, and every adapter pings.
-        named = {each.name: cast("BaseAdapter", getattr(self, each.name)) for each in fields(self)}
-        return await BaseAdapter.survey(named, limit, REQUIRED)
+    @property
+    def named(self) -> Mapping[str, Provider]:
+        """Every provider by its role, in field order — what the health engine surveys."""
+        return {each.name: getattr(self, each.name) for each in fields(self)}
+
+
+@dataclass(frozen=True, slots=True)
+class EnginesState:
+    """The typed engines section: `health` surveys the providers — the startup log and `GET /ready`."""
+
+    health: HealthEngine
 
 
 @dataclass(frozen=True, slots=True)
 class ProcessorsState:
-    """The typed processors section: stateless readers over the adapters — `doc` reads documents, hybrid."""
+    """The typed processors section: stateless readers over the providers — `doc` reads documents, hybrid."""
 
     doc: DocProcessor
 
@@ -74,7 +85,8 @@ class ProcessorsState:
 class InfraState:
     """The infrastructure a run may use: built once at startup, shared by every run, mutated by none."""
 
-    adapters: AdaptersState
+    providers: ProvidersState
+    engines: EnginesState
     processors: ProcessorsState
     graphs: Mapping[str, InstrumentGraph]
 
@@ -131,7 +143,7 @@ class RunState(State):
 
     @property
     def infra(self) -> InfraState:
-        """The app's infrastructure: adapters, processors, graphs."""
+        """The app's infrastructure: providers, engines, processors, graphs."""
         return cast("InfraState", self["infra"])
 
     @property

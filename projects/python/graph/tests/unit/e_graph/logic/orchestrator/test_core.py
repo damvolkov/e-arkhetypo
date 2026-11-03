@@ -237,7 +237,7 @@ async def test_a_spec_that_cannot_prepare_leaves_the_call(darts: DartsHarness) -
 
 
 async def test_material_heavier_than_the_budget_splits_the_call(darts: DartsHarness) -> None:
-    darts.configure(darts_fusion_tokens=600)
+    darts.configure(fusion_tokens=600)
     darts.semantic("EXT-a")
     darts.runner("EXT-a", pre_run='return "row " * 400')
     darts.semantic("EXT-b")
@@ -252,7 +252,7 @@ async def test_material_heavier_than_the_budget_splits_the_call(darts: DartsHarn
 ##### BOUNDS #####
 @pytest.mark.parametrize(("limit", "peak"), [(1, 1), (2, 2), (8, 4)])
 async def test_a_step_runs_at_most_its_concurrency_at_once(darts: DartsHarness, limit: int, peak: int) -> None:
-    darts.configure(darts_concurrency=limit)
+    darts.configure(concurrency=limit)
     for name in ("EXT-a", "EXT-b", "EXT-c", "EXT-d"):
         darts.deterministic(name)
         darts.runner(name, imports="import asyncio", run=FLIGHT)

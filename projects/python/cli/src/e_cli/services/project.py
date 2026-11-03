@@ -16,7 +16,7 @@ from e_cli.models.project import EnvKey, Project, ProjectSpec, ProjectState
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
 
-    from adapters.ports import StorePort
+    from ports.store import StorePort
 
 ##### DEFAULTS #####
 PREFIX: str = "project:"

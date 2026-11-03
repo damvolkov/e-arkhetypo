@@ -40,6 +40,12 @@ Convenciones:
   pero no se levanta solo: el principal lo `include`a y lo exige con `depends_on`
   (`required: true`, `service_healthy`). Un `compose up` levanta ambos; un `down`, ambos.
   Hoy: `rag/searxng` ⊃ `rag/yacy`.
+- **Un supervisor: Docker.** Un servicio que arranca con la sesión lleva una unidad `systemd --user`
+  `Type=oneshot` + `RemainAfterExit=yes`, `ExecStart=docker compose up -d --wait`, `ExecStop=docker compose stop`;
+  el contenedor declara `restart: unless-stopped` y Docker lo mantiene vivo. Nunca `Type=simple` sobre un
+  `compose up` en primer plano (dos supervisores; un cliente colgado por servicio si el daemon se atasca) ni
+  `docker compose pull` en `ExecStartPre` (un reinicio de Docker lanza todos los pulls a la vez y tumba containerd,
+  medido 2026-11-03). Las imágenes se actualizan a mano, servicio a servicio: `pull` y `systemctl --user reload`.
 - `stack/_template/compose.yml` es la **plantilla absoluta** con todos los campos
   de Compose y valores fake: cópiala y poda para dar de alta un servicio.
 

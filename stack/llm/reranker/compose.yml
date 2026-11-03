@@ -25,12 +25,15 @@ services:
     # gte-multilingual-reranker-base, multilingual (ES/EN cross-lingual), 8192 tokens, ~1 GiB of GPU; on CPU ~0.3 s per
     # passage — too slow for a query path. Qwen3-Reranker is not served by TEI (vLLM only). Sharing a card with embed
     # and an LLM, batches above 2048 tokens ran out of memory under concurrent load.
+    # TEI starts one tokenization worker per core, each with its own tokenizer: XLM-R's costs 262 MiB, 31 of them
+    # held 8.1 GiB of RAM. Four: 1.9 GiB, rerank of 64 passages p50 35 ms (2026-11-03, RTX 4090, 32 cores).
     command: >-
       --model-id ${RERANKER_MODEL:-Alibaba-NLP/gte-multilingual-reranker-base}
       --port 80
       --dtype float16
       --max-batch-tokens ${RERANKER_MAX_BATCH:-2048}
       --max-client-batch-size 128
+      --tokenization-workers ${RERANKER_TOKENIZERS:-4}
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost:80/health || exit 1"]
       interval: 10s

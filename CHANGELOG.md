@@ -7,6 +7,10 @@ touches — `stack`, `systems`, `infra`. Lines under `[Unreleased]` are written 
 ## [Unreleased]
 
 ### Changed
+- `stack`: one supervisor, Docker — units oneshot `compose up -d --wait`, never `Type=simple` over an attached `up`
+  nor a pull in `ExecStartPre` (a Docker restart fired every pull at once and hung containerd, 2026-11-03); llamacpp
+  and strata setups follow. TEI embed and reranker cap `--tokenization-workers` (8, 4): one tokenizer per core held
+  8.1 GiB in the reranker, now 1.9. Host plan TODO_SUPERVISE.
 - `common` and the templates: class names keep their acronyms whole (Damien) — `EmbedTEIDriver`, `RerankTEIDriver`,
   `OTelDriver`, `MCP…`, `LLMPort`, `HTTPPort`, `HTTPError`, `NERPort`, `MDConversion`, `APISettings`, `CLIError`,
   `JSONSchema`, `UIView`; brands that are no acronym keep theirs; Litestar's `HttpMethod` untouched. TODO_REVERSE 15.

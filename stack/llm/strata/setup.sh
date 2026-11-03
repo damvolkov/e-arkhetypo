@@ -47,7 +47,7 @@ git clone -q --depth 1 --branch "$STRATA_TAG" "$STRATA_REPO" "$SRC"
 docker build -q -t "strata:${STRATA_TAG#v}" --build-arg "CUDA_ARCHITECTURES=${ARCH}" "$SRC"
 
 # 2. deploy the service dir + unit (compose from this folder, .env pins the pack).
-#    No ExecStartPre pull: the image is built here, it is not on a registry.
+#    No --wait: the first start downloads ~68 GB, an hour no start timeout should hold; the loop below waits.
 mkdir -p "$SERVICE_DIR" "$SYSTEMD_DIR"
 cp "$(dirname "$0")/compose.yml" "${SERVICE_DIR}/compose.yml"
 grep -q '^STRATA_FAMILY=' "${SERVICE_DIR}/.env" 2>/dev/null || \
@@ -57,14 +57,15 @@ cat > "${SYSTEMD_DIR}/${SERVICE_NAME}.service" << EOF
 Description=${SERVICE_NAME} via Docker Compose
 
 [Service]
-Type=simple
+Type=oneshot
+RemainAfterExit=yes
 WorkingDirectory=${SERVICE_DIR}
-ExecStart=/usr/bin/docker compose up --remove-orphans
-ExecStop=/usr/bin/docker compose down
+ExecStart=/usr/bin/docker compose up -d --remove-orphans
+ExecStop=/usr/bin/docker compose stop
 ExecReload=/usr/bin/docker compose up -d --remove-orphans
 Restart=on-failure
-RestartSec=10s
-TimeoutStartSec=900
+RestartSec=30s
+TimeoutStartSec=120
 TimeoutStopSec=90
 
 [Install]

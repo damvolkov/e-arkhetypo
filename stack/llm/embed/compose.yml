@@ -16,11 +16,14 @@ services:
       - HUGGING_FACE_HUB_TOKEN=${HF_TOKEN:-}
     # client batch 512 / queue 1024: CortexDB embeds a whole document per request (a 94 KB file = 200 chunks) and its
     # indexer is strictly in order — one refused batch stalls every event behind it; compute stays bounded by max-batch-tokens
+    # One tokenization worker per core by default, each with its own tokenizer (Qwen3's: 58 MiB): 31 held 1.8 GiB.
+    # Eight: 1.1 GiB in all, 256 chunks p50 425 ms (2026-11-03, RTX 4090, 32 cores).
     command: >-
       --model-id ${EMBED_MODEL:-Qwen/Qwen3-Embedding-0.6B}
       --port 80
       --max-batch-tokens ${EMBED_MAX_BATCH:-1024}
       --max-client-batch-size 512
+      --tokenization-workers ${EMBED_TOKENIZERS:-8}
       --max-concurrent-requests 1024
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost:80/health || exit 1"]

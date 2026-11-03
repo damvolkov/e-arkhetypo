@@ -32,6 +32,11 @@ touches — `stack`, `systems`, `infra`. Lines under `[Unreleased]` are written 
 
 ### projects
 
+- `common`'s auth (TODO_REVERSE step 6): the bearer is the scheme and everything after it (`strip().partition(" ")`,
+  e-gnosis's parse) — `Bearer a b` is a key nobody holds, a 401, never the anonymous caller it read as before. Settled
+  without change: the driver already prepares its tables on open (the admin path enters it, so no `migrate()` on the
+  port), `ensure()` already runs only with AUTH_SECRET, and the tables stay `auth_account`/`auth_grant` — e-gnosis keeps
+  `owner`/`token` on its own driver, so nobody renames and nothing migrates.
 - `common`'s cache (TODO_REVERSE step 5): theine's CACHE_TTL may be None (kept until evicted), so each cache is built
   on its own settings — a ledger kept forever beside annotations kept 180 days — instead of one TTL for every scope;
   the Postgres cache refuses a value msgspec cannot encode as a `CacheError` at its border, so `CacheEngine` degrades on

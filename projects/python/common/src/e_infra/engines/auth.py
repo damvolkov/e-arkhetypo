@@ -59,12 +59,10 @@ class AuthEngine:
 
     @staticmethod
     def _resolve_bearer(header: str) -> str:
-        """The token an `Authorization: Bearer` header carries; empty for any other shape."""
-        match header.split():
-            case [scheme, token] if scheme.lower() == SCHEME:
-                return token
-            case _:
-                return ""
+        """The token an `Authorization: Bearer` header carries (scheme in any case); empty when it carries none. What
+        follows the scheme is the token whole: `Bearer a b` is a key nobody holds — refused —, never nobody."""
+        scheme, _, token = header.strip().partition(" ")
+        return token.strip() if scheme.casefold() == SCHEME else ""
 
     @staticmethod
     def _resolve_held(account: Account, grant: Grant, now: datetime) -> Caller:

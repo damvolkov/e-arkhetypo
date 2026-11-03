@@ -1,7 +1,10 @@
 """processors/md: the MDProcessor — any file to Markdown, detected and rendered by the engine behind `MarkdownPort`.
 
-Detection, every format's conversion, PDF reading and image description live behind one port (`MarkdownPort`);
-this processor only guards the size, unpacks a ZIP and re-enters each member in parallel,
+Detection, every format's conversion, PDF reading and image description live behind one port (`MarkdownPort`); a web
+page is read by its main content first when an `ExtractPort` is handed (the article, its facts as front matter, never
+the menus, footers and language links around it — a URL passed along only when the name is one), whole through the
+converter when none is found or the extractor fails; this processor only guards the size, unpacks a ZIP and re-enters
+each member in parallel,
 and records an engine's failure per file so one bad member never sinks a batch. It holds no state: `convert`
 is a pure function of bytes that returns a typed list of rendered files."""
 
@@ -9,11 +12,11 @@ import io
 import zipfile
 from dataclasses import replace
 from pathlib import PurePath
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Final
 
 import anyio
 
-from e_infra.infra.errors import InputTooLargeError, UnsupportedFormatError, ZipBombError
+from e_infra.infra.errors import InputTooLargeError, ProviderError, UnsupportedFormatError, ZipBombError
 from e_infra.infra.logger import logger
 from e_infra.infra.settings import settings as st
 from e_infra.processors.models import MarkdownFile
@@ -22,18 +25,25 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from e_infra.infra.config.processors.md import MDSettings
+    from e_infra.ports.extract import ExtractPort
     from e_infra.ports.markdown import MarkdownPort
+
+### the format a web page is detected as.
+PAGE: Final[str] = "html"
 
 
 class MDProcessor:
     """Renders any file to Markdown through one engine; a ZIP is unpacked and each member re-entered."""
 
-    __slots__ = ("_conf", "_md")
+    __slots__ = ("_conf", "_extract", "_md")
 
-    def __init__(self, markdown: MarkdownPort, settings: MDSettings | None = None) -> None:
+    def __init__(
+        self, markdown: MarkdownPort, settings: MDSettings | None = None, extract: ExtractPort | None = None
+    ) -> None:
         ### the default is read on call, not at import: the settings singleton stays lazy.
         self._conf = st.processors.md if settings is None else settings
         self._md = markdown
+        self._extract = extract
 
     ##### PRIVATE — rendering #####
 
@@ -68,6 +78,24 @@ class MDProcessor:
         except Exception as error:  # noqa: BLE001 — a leaf engine: its reason rides on the file, the run continues
             return self._file(name, "", source, error=f"{type(error).__name__}: {error}")
         return self._file(name, conversion.markdown, source, warnings=conversion.warnings)
+
+    async def _render_page(self, data: bytes, name: str) -> MarkdownFile:
+        """A web page by its main content; whole, through the converter, when it holds none to find, when no extractor
+        is handed, or when the extractor fails."""
+        match self._extract:
+            case None:
+                return await self._render(data, name, PAGE)
+            case extract:
+                try:
+                    found = await extract.extract(data, url=name if name.startswith(("http://", "https://")) else "")
+                except ProviderError as error:
+                    logger.warning("md main content failed, whole page", name=name, error=str(error))
+                    found = None
+                match found:
+                    case str() as markdown if markdown.strip():
+                        return self._file(name, markdown, PAGE, warnings=(f"main content by {extract.spec.name}",))
+                    case _:
+                        return await self._render(data, name, PAGE)
 
     @staticmethod
     def _read_zip(data: bytes, entries: int, total: int) -> list[tuple[str, bytes]]:
@@ -120,6 +148,8 @@ class MDProcessor:
                 raise UnsupportedFormatError(msg)
             case "zip":
                 files = await self._fan_out(raw)
+            case "html":
+                files = [await self._render_page(raw, label)]
             case fmt:
                 files = [await self._render(raw, label, fmt)]
         logger.info(

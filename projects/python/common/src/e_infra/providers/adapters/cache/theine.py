@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 
 ##### ADAPTER #####
 class TheineAdapter[T]:
-    """Values of type T in memory, at most CACHE_SIZE, each kept CACHE_TTL."""
+    """Values of type T in memory, at most CACHE_SIZE, each kept CACHE_TTL (None: until evicted)."""
 
     spec: ClassVar[ProviderSpec] = ProviderSpec("theine", Locality.EMBEDDED, Workload.CPU_BOUND, Isolation.LOOP)
 

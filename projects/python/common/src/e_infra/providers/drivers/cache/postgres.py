@@ -1,7 +1,8 @@
 """providers/drivers/cache/postgres: a durable cache in a Postgres database — it rides a `DatabasePort`, whichever driver.
 
 Values of type T under a namespace in the database's `cache` table, shared by every process of the service. The
-database is the lifespan's to open and close, not this cache's."""
+database is the lifespan's to open and close, not this cache's. Every refusal at its border — the database's, or a
+value msgspec cannot encode — is a `CacheError`, so the engine above degrades on it and never fails its caller."""
 
 from contextlib import contextmanager
 from datetime import UTC, datetime
@@ -65,6 +66,15 @@ class CachePostgresDriver[T]:
             logger.error("cache postgres failed", error=str(error))
             raise CacheError(str(error)) from error
 
+    def _put_encoded(self, value: T) -> bytes:
+        """A value as msgpack; one msgspec cannot encode is the cache's `CacheError`, like any refusal at its border."""
+        try:
+            return self._encoder.encode(value)
+        ### msgspec raises TypeError for a type it does not know, EncodeError for a value it cannot write.
+        except (msgspec.EncodeError, TypeError) as error:
+            logger.error("cache postgres encode failed", namespace=self._namespace, error=str(error))
+            raise CacheError(str(error)) from error
+
     def _common_decoded(self, value: bytes) -> T | None:
         try:
             return self._decoder.decode(value)
@@ -108,7 +118,7 @@ class CachePostgresDriver[T]:
 
     async def put_many(self, items: Mapping[str, T]) -> None:
         expires = self._common_expires()
-        rows = [[self._namespace, key, self._encoder.encode(value), expires] for key, value in items.items()]
+        rows = [[self._namespace, key, self._put_encoded(value), expires] for key, value in items.items()]
         logger.debug("cache postgres put many", namespace=self._namespace, keys=len(rows))
         with self._common_guard():
             _ = rows and await self._db.many(CACHE_PUT, rows)

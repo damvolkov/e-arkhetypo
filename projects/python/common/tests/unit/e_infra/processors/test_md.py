@@ -14,7 +14,7 @@ import pytest
 
 from e_infra.infra.config.processors.md import MDSettings
 from e_infra.infra.config.providers.adapters.markdown.anytomd import AnytomdSettings
-from e_infra.infra.errors import InputTooLargeError, UnsupportedFormatError, ZipBombError
+from e_infra.infra.errors import AdapterError, InputTooLargeError, UnsupportedFormatError, ZipBombError
 from e_infra.ports.markdown import MdConversion
 from e_infra.ports.provider import Isolation, Locality, ProviderSpec, Workload
 from e_infra.processors.md import MDProcessor
@@ -176,3 +176,48 @@ async def test_every_refusal_is_logged_as_an_error_and_a_conversion_as_debug(log
     await processor().convert(b"a,b\n", name="t.csv")
     assert logs.at("error") == ["md input too large", "md format unsupported"]
     assert logs.at("debug") == ["md convert"] * 3
+
+
+##### WEB PAGES — the main content first, the whole page when none is found #####
+class FakeExtract:
+    """An `ExtractPort` that answers what it is told, or raises it, and records the URLs it was given."""
+
+    spec: ClassVar[ProviderSpec] = ProviderSpec("fake-extract", Locality.EMBEDDED, Workload.CPU_BOUND, Isolation.LOOP)
+
+    def __init__(self, answer: str | Exception | None) -> None:
+        self.answer = answer
+        self.urls: list[str] = []
+
+    async def __aenter__(self) -> Self:
+        return self
+
+    async def __aexit__(self, *exc: object) -> None:
+        """Nothing to release."""
+
+    async def health(self) -> bool:
+        return True
+
+    async def extract(self, html: bytes, *, url: str = "") -> str | None:
+        self.urls.append(url)
+        match self.answer:
+            case Exception() as failure:
+                raise failure
+            case answer:
+                return answer
+
+
+PAGE_HTML = b"<html><body><nav>menu</nav><article>the article</article></body></html>"
+
+
+async def test_a_page_is_read_by_its_main_content_when_found() -> None:
+    port, extract = FakePort(), FakeExtract("# the article")
+    [file] = await MDProcessor(port, MDSettings(), extract).convert(PAGE_HTML, name="https://example.org/a.html")
+    assert (file.markdown, file.source, file.warnings) == ("# the article", "html", ("main content by fake-extract",))
+    assert (port.calls, extract.urls) == ([], ["https://example.org/a.html"])
+
+
+@pytest.mark.parametrize("answer", [None, "  ", AdapterError("extractor broke")], ids=["none", "blank", "failed"])
+async def test_a_page_with_no_main_content_is_rendered_whole(answer: str | Exception | None) -> None:
+    port, extract = FakePort(), FakeExtract(answer)
+    [file] = await MDProcessor(port, MDSettings(), extract).convert(PAGE_HTML, name="saved.html")
+    assert (file.source, len(port.calls), extract.urls) == ("html", 1, [""])

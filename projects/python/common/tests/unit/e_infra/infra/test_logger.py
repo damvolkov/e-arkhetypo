@@ -18,6 +18,20 @@ async def test_setup(env: str) -> None:
     lg.setup(env=env)
 
 
+async def test_setup_extra_processors_run_before_the_renderer() -> None:
+    """The composition root's processors (the tracer's, for one) see every line before it is rendered."""
+
+    def mark(_logger: WrappedLogger, _method: str, event_dict: EventDict) -> EventDict:
+        return event_dict
+
+    try:
+        lg.setup(env="prod", extra=[mark])
+        chain = lg.structlog.get_config()["processors"]
+    finally:
+        lg.setup(env="prod")
+    assert chain.index(mark) == len(chain) - 2
+
+
 async def test_setup_unknown_env() -> None:
     with pytest.raises(ValueError, match="Unknown env"):
         lg.setup(env="nope")

@@ -18,10 +18,13 @@ class OpenaiSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="LLM_")
 
     url: str = "http://127.0.0.1:45100/v1"
-    key: Secret | None = None
+    ### the local stack's development key (`stack/llm/vllm`: `--api-key local-dev`), no secret: the default URL refuses
+    ### every call without it (401). A provider's own key comes from the environment or the secrets folder.
+    key: Secret | None = Secret("local-dev")
     timeout: timedelta = timedelta(seconds=120)
     concurrency: int = Field(default=8, ge=1)
     rpm: int = Field(default=120, ge=1)
     max_tokens: int = Field(default=4096, ge=16)
-    model: str = "local-model"
+    ### the stack's served alias (`stack/llm/vllm`: `--served-model-name … demian-model`): stable across the models it serves.
+    model: str = "demian-model"
     extra: dict[str, Any] = Field(default_factory=dict)

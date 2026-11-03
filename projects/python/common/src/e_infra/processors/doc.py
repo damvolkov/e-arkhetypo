@@ -54,10 +54,13 @@ EMBEDDED: Final[re.Pattern[str]] = re.compile(r"!\[[^\]]*\]\(data:[^)]*\)")
 IMAGE: Final[str] = "<!-- image -->"
 HEADINGS: Final[frozenset[str]] = frozenset({"title", "section_header"})
 BODY: Final[frozenset[str]] = frozenset({"text", "list_item", "paragraph"})
-### liteparse block kinds onto docling's labels; a `rule` (a drawn line) carries no text and is dropped.
+### liteparse block kinds onto docling's labels where they share a meaning; any other kind (a drawn `rule`, a
+### `grid_fallback` the fast pass could not grid) keeps its own label: a block is never dropped here, its reader decides.
 KINDS: Final[Mapping[str, str]] = MappingProxyType(
     {"heading": "section_header", "paragraph": "text", "list_item": "list_item"}
 )
+### a fast-pass table becomes a `Table`, never an item; every other block kind is an item, its text or its lines.
+TABLE: Final[str] = "table"
 ITEMS: Final[Mapping[str, pl.DataType]] = MappingProxyType(
     {
         "ref": pl.String(),
@@ -66,6 +69,8 @@ ITEMS: Final[Mapping[str, pl.DataType]] = MappingProxyType(
         "text": pl.String(),
         "level": pl.Int64(),
         "backend": pl.String(),
+        "group": pl.String(),
+        "hyperlink": pl.String(),
     }
 )
 
@@ -157,13 +162,15 @@ class DocProcessor:
             {
                 "ref": f"liteparse:p{number}/b{index}",
                 "page": number,
-                "label": KINDS[block.kind],
+                "label": KINDS.get(block.kind, block.kind),
                 "text": block.text,
                 "level": block.level,
                 "backend": Backend.LITEPARSE,
+                "group": "",
+                "hyperlink": "",
             }
             for index, block in blocks
-            if block.kind in KINDS
+            if block.kind != TABLE
         ]
         tables: list[Table] = [
             Table(
@@ -177,7 +184,7 @@ class DocProcessor:
                 backend=Backend.LITEPARSE,
             )
             for index, block in blocks
-            if block.kind == "table"
+            if block.kind == TABLE
         ]
         return rows, tables
 
@@ -199,6 +206,8 @@ class DocProcessor:
                 "text": node.get("text", ""),
                 "level": node.get("level"),
                 "backend": Backend.DOCLING,
+                "group": cls._deep_group(document, node),
+                "hyperlink": str(node.get("hyperlink") or ""),
             }
             for node in texts
             if node.get("content_layer", "body") == "body"
@@ -240,6 +249,15 @@ class DocProcessor:
         parts = [part.strip() for part in text.split(BREAK)] if text.strip() else []
         pages = range(span[0], span[1] + 1)
         return dict(zip(pages, parts, strict=True)) if len(parts) == len(pages) else {}
+
+    @staticmethod
+    def _deep_group(document: Node, node: Node) -> str:
+        """The label of the group a node sits in (`list`, `slide`, `form_area`…); empty for a child of the body."""
+        match (node.get("parent") or {}).get("$ref", "").split("/"):
+            case ["#", "groups", index]:
+                return document["groups"][int(index)].get("label", "")
+            case _:
+                return ""
 
     @classmethod
     def _deep_frame(cls, grid: Sequence[Sequence[Node]]) -> pl.DataFrame:

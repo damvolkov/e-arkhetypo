@@ -1,7 +1,8 @@
 """infra/errors: the one root of every error — each layer imports its exceptions from here, none defines its own.
 
-`CoreError` is the root. Four branches hang from it, one per kind of module: `ProviderError` (a provider failed at its
-border), `EngineError`, `ProcessorError` and `OpsError`. Providers translate the exceptions of their library into the
+`CoreError` is the root. Five branches hang from it, one per kind of module: `ProviderError` (a provider failed at its
+border), `EngineError`, `ProcessorError`, `OpsError` and `ServiceError` — the slot of a project's own business, the
+one layer that never travels, so the tree names the branch and the project fills it. Providers translate the exceptions of their library into the
 provider branch; no upper layer imports a library's own.
 
 A provider fails as a **driver** (`DriverError`: a system outside the process) or as an **adapter** (`AdapterError`: a
@@ -204,3 +205,8 @@ class TokenError(CryptoError):
     def __init__(self, message: str, *, kind: TokenFailure = TokenFailure.MALFORMED) -> None:
         super().__init__(message)
         self.kind = kind
+
+
+##### SERVICES #####
+class ServiceError(CoreError):
+    """A service — the project's own business — refused or failed a decision of its own: its errors hang here."""

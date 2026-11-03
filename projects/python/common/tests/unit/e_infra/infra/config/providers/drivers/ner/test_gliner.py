@@ -13,3 +13,8 @@ def test_gliner_default_and_env(monkeypatch: pytest.MonkeyPatch) -> None:
     assert (GlinerSettings().batch, GlinerSettings().timeout) == (16, timedelta(seconds=60))
     monkeypatch.setenv("GLINER_BATCH", "4")
     assert GlinerSettings().batch == 4
+
+
+def test_gliner_url_none_turns_it_off(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("GLINER_URL", "none")
+    assert GlinerSettings().url is None

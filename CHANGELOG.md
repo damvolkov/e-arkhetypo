@@ -32,6 +32,57 @@ touches — `stack`, `systems`, `infra`. Lines under `[Unreleased]` are written 
 
 ### projects
 
+- `common`'s error tree gains `ServiceError` (TODO_REVERSE step 11), the branch of a project's own business — the one
+  layer that never travels, named by the tree, filled by the project (e-gnosis hangs knowledge's and memory's there).
+- `common`'s config (TODO_REVERSE step 9, e-gnosis's content):
+  - secrets: every scope reads `secrets/<APP_ENV>/<var>` (gitignored, one file per key, its variable in lower case:
+    `secrets/dev/auth_secret` is AUTH_SECRET) — dev the dev keys, prod the prod ones —; a scope that names its own
+    `secrets_dir` (`/run/secrets`) reads that instead.
+  - `RERANK_URL`, `GLINER_URL`: `none` turns them off — the composition root builds no driver, and one built anyway
+    refuses to open.
+  - the LLM's defaults meet the blueprint's own `stack/llm/vllm` (`demian-model`, the development key `local-dev`):
+    before, a default call answered 401.
+  - Not taken: lazy scope discovery (the blueprint's scopes import `infra/config/base`, never the composer, so no scope
+    is met half-built). Open for Damien: a slot for a project's own scopes — today `common-check` refuses any file of
+    a project's own under `infra/config`. e-gnosis's env names stay e-gnosis's; nothing here renames them.
+- `common`'s processors and ops (TODO_REVERSE step 8, e-gnosis's content):
+  - doc: no fast-pass block is dropped — the kinds both readers share are named as docling names them, any other
+    (`rule`, `grid_fallback`) keeps its own label —, and every item carries its `group` (docling's `list`, `slide`,
+    `form_area`…) and its `hyperlink`.
+  - md: handed an `ExtractPort`, a web page is read by its main content first (a URL passed only when the name is one),
+    whole through the converter when none is found or the extractor fails.
+  - ops/file: `FileDetector` beside `FileFinder` — a file named from its name and first 64 KiB (anytomd's format and
+    ZIP office format, tree-sitter's grammar by name then content, MIME, a UTF-8 sniff telling a page from text), the
+    deciding layer in `because`; `tree-sitter-language-pack` joins every project. Not taken: e-gnosis's nature table
+    and conversation dialects — its readers' routing, a consumer's table.
+  - graph locks regenerated with e-taxis main (they lagged the units of steps 7 and 8).
+- `common`'s HTTP, telemetry and dispatch tracing (TODO_REVERSE step 7, e-gnosis's content):
+  - wreq: HTTP_AGENT on every request (Wikimedia answers 403 without one), HTTP_HEADERS as the process's own, a call's
+    `headers` over both for that request only — one shared client, a service's credential never in it; `HttpPort`
+    gains `upload` (a streamed POST) and `delete` (204 is None).
+  - telemetry: `ports/telemetry` speaks the service's vocabulary — `SpanRole`, `SpanKey` —, and a span opened with a
+    role is the role's kind and `openinference.span.kind`, its keys named per role (`embedding.model_name` on an
+    embedding); without one it is as before (the graph template's calls unchanged). `carrier`/`resume` move a trace
+    across a queue (W3C `traceparent`); the tracer is named by OTEL_SERVICE. `providers/adapters/telemetry/null` is
+    tracing off. `engines/telemetry` (`TelemetryEngine`) is the guarded facade: a failing provider costs a warning and
+    the trace, never the call; its `processor`, handed to `Logger.setup(extra=...)`, makes a log line inside a span
+    one of its events with its ids.
+  - dispatch: given a tracer (met by shape), a submit carries the current trace in `_trace` — never handed to the work,
+    never compared when coalescing — and the run is a `job.<kind>` span, the child of that trace, each snapshot an
+    event and the last one on the span.
+  - health: already in `HealthEngine` (the reason of a raise or a timeout, one gather, the name as data); the reason a
+    provider's own `health()` would give needs the `Provider` contract to change, left to decide.
+- `common`'s auth (TODO_REVERSE step 6): the bearer is the scheme and everything after it (`strip().partition(" ")`,
+  e-gnosis's parse) — `Bearer a b` is a key nobody holds, a 401, never the anonymous caller it read as before. Settled
+  without change: the driver already prepares its tables on open (the admin path enters it, so no `migrate()` on the
+  port), `ensure()` already runs only with AUTH_SECRET, and the tables stay `auth_account`/`auth_grant` — e-gnosis keeps
+  `owner`/`token` on its own driver, so nobody renames and nothing migrates.
+- `common`'s cache (TODO_REVERSE step 5): theine's CACHE_TTL may be None (kept until evicted), so each cache is built
+  on its own settings — a ledger kept forever beside annotations kept 180 days — instead of one TTL for every scope;
+  the Postgres cache refuses a value msgspec cannot encode as a `CacheError` at its border, so `CacheEngine` degrades on
+  every refusal of its durable layer while still catching only `ProviderError`. Not taken from e-gnosis: `TieredCache.over`
+  and `TieredCaches` (they build providers inside the engine, and the blueprint's theine is opened by the lifespan) and
+  the partial `expires` index (the blueprint runs no expiry sweep that would read it).
 - `common`'s PgQueuer rides the ports (TODO_REVERSE step 4): `PgqueuerDriver(database, listen)` takes a `DatabasePort`
   and a `ListenPort` — e-gnosis's design — and PgQueuer's own `Driver` is met by `PgqueuerBridge` over them (statements
   on the pool, a transaction or a connection, LISTEN on the database driver's one held connection): no pool and no

@@ -89,3 +89,14 @@ async def test_cache_postgres_a_database_failure_is_a_cache_error_and_logged(
     with pytest.raises(CacheError, match="connection reset"):
         await action()
     assert logs.at("error") == ["cache postgres failed"]
+
+
+async def test_cache_postgres_a_value_msgspec_cannot_encode_is_a_cache_error_and_logged(
+    db: FakeDatabase, logs: Logs
+) -> None:
+    """Refused at the border like the database's own refusal: the engine above degrades on it, never fails."""
+    async with CachePostgresDriver[object](db, "odd", object, CachePostgresSettings()) as odd:
+        with pytest.raises(CacheError):
+            await odd.put("a", object())
+    assert db.table == {}
+    assert logs.at("error") == ["cache postgres encode failed"]

@@ -117,15 +117,19 @@ class ELogger:
         level: int = DEFAULT_LEVEL,
         order: Sequence[str] = DEFAULT_ORDER,
         stream: TextIO = DEFAULT_STREAM,
+        extra: Sequence[Processor] = (),
         **renderer_kwargs: Any,
     ) -> None:
-        """Configure structlog for the given env — the first call marks the process configured."""
+        """Configure structlog for the given env — the first call marks the process configured. `extra` processors run
+        before the renderer, after the shared ones: the composition root hands the tracer's there (a log line inside a
+        span becomes one of its events), so this module never imports what it hands."""
         shared: list[Processor] = [
             structlog.contextvars.merge_contextvars,
             structlog.processors.add_log_level,
             structlog.processors.TimeStamper(fmt="iso", utc=True),
             structlog.processors.StackInfoRenderer(),
             structlog.processors.format_exc_info,
+            *extra,
         ]
         match env.lower():
             case Env.PROD:

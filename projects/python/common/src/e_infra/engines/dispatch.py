@@ -15,17 +15,23 @@ Registration — `queue`, `register`, `schedule` — is open until the engine is
 queues, kinds and schedules first, and once it starts the registry is sealed (a late one is a `DispatchError`, never a
 work that silently never runs). `kinds` and `schedules` read what was declared, whichever client declared it.
 
+A job is traced when a tracer is handed (the composition root's `TelemetryEngine`, met by shape): `submit` sends the
+current trace along in the job's arguments (`_trace`, an opaque carrier — never handed to the work, never compared when
+coalescing), and the run is a `job.<kind>` span, the child of that trace across the queue, each snapshot an event on it
+and the last one written on the span itself.
+
 A schedule puts a registered kind on a cron: on each tick the engine submits it, coalesced, so a run that has not
 started yet absorbs the next tick; the work itself always runs as a job, with its retries, progress and record. The
 clock belongs to the durable queue when it keeps one (`SchedulePort`: one fire per tick across every process),
 else to the supervisor. Which concrete queue is the durable one is the composition root's decision, never this module's."""
 
 import json
-from contextlib import AsyncExitStack
+from collections.abc import Mapping
+from contextlib import AsyncExitStack, contextmanager
 from dataclasses import dataclass
 from functools import partial
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Any, Final, Self
+from typing import TYPE_CHECKING, Any, Final, Protocol, Self
 
 import anyio
 from croniter import croniter
@@ -42,9 +48,11 @@ from e_infra.infra.errors import DispatchError, QueueError, ScheduleError, Unkno
 from e_infra.infra.logger import logger
 from e_infra.infra.settings import settings as st
 from e_infra.ports.queue import QueuePort, SchedulePort
+from e_infra.ports.telemetry import SpanKey, SpanRole
 
 if TYPE_CHECKING:
-    from collections.abc import Awaitable, Callable, Mapping
+    from collections.abc import Awaitable, Callable, Generator
+    from contextlib import AbstractContextManager
     from types import TracebackType
 
     from e_infra.infra.config.engines.dispatch import DispatchSettings
@@ -53,6 +61,54 @@ if TYPE_CHECKING:
 
 ### the waiting jobs a coalesced submit looks among: past them a twin is queued anew — wasteful, never wrong.
 WAITING: Final[int] = 100
+### the argument a job's trace carrier travels under: the engine's, never the work's.
+TRACE: Final[str] = "_trace"
+
+
+##### TRACER — what dispatch needs of a tracer, met by shape (an engine never imports another) #####
+class DispatchTelemetry(Protocol):
+    """A guarded tracer: a span around a block, writes on the current one, the trace as a carrier and resumed."""
+
+    def span(
+        self, name: str, role: SpanRole, attributes: Mapping[str, str | bool | int | float] = ...
+    ) -> AbstractContextManager[None]: ...
+
+    def record(self, attributes: Mapping[str, str | bool | int | float]) -> None: ...
+
+    def event(self, name: str, attributes: Mapping[str, object]) -> None: ...
+
+    def carrier(self) -> dict[str, str]: ...
+
+    def resume(self, carrier: Mapping[str, str]) -> AbstractContextManager[None]: ...
+
+
+class DispatchUntraced:
+    """No tracer: every span an empty block, every write nowhere, no carrier."""
+
+    __slots__ = ()
+
+    @contextmanager
+    def span(
+        self,
+        name: str,  # noqa: ARG002 — kept by nobody
+        role: SpanRole,  # noqa: ARG002
+        attributes: Mapping[str, str | bool | int | float] = MappingProxyType({}),  # noqa: ARG002
+    ) -> Generator[None]:
+        yield
+
+    def record(self, attributes: Mapping[str, str | bool | int | float]) -> None: ...
+
+    def event(self, name: str, attributes: Mapping[str, object]) -> None: ...
+
+    def carrier(self) -> dict[str, str]:
+        return {}
+
+    @contextmanager
+    def resume(self, carrier: Mapping[str, str]) -> Generator[None]:  # noqa: ARG002 — no trace to resume
+        yield
+
+
+UNTRACED: Final[DispatchTelemetry] = DispatchUntraced()
 
 
 @dataclass(frozen=True, slots=True)
@@ -68,7 +124,17 @@ class BackgroundSchedule:
 class DispatchEngine:
     """Background work by kind, on the durable queue when it answers, in memory when it does not."""
 
-    __slots__ = ("_durable", "_memory", "_schedules", "_slots", "_stack", "_started", "_throttle", "_works")
+    __slots__ = (
+        "_durable",
+        "_memory",
+        "_schedules",
+        "_slots",
+        "_stack",
+        "_started",
+        "_telemetry",
+        "_throttle",
+        "_works",
+    )
 
     def __init__(
         self,
@@ -78,11 +144,13 @@ class DispatchEngine:
         *,
         throttle: float | None = None,
         settings: DispatchSettings | None = None,
+        telemetry: DispatchTelemetry = UNTRACED,
     ) -> None:
         ### the default is read on call, not at import: the settings singleton stays lazy.
         conf = st.engines.dispatch if settings is None else settings
         self._durable = durable
         self._memory = memory
+        self._telemetry = telemetry
         self._slots = MappingProxyType(dict(slots))
         self._throttle = conf.throttle.total_seconds() if throttle is None else throttle
         self._works: dict[str, tuple[str, BackgroundWork]] = {}
@@ -93,12 +161,39 @@ class DispatchEngine:
     ##### PRIVATE #####
 
     async def _register_run(self, work: BackgroundWork, run: BackgroundRun) -> None:
+        """The work over the job's arguments, in the job's span — the child of the trace it was submitted in."""
+        job, telemetry = run.job, self._telemetry
+        args = {key: value for key, value in job.args.items() if key != TRACE}
         reporter = BackgroundReport(run, self._throttle)
-        try:
-            await work(run.job.args, reporter.report)
-        finally:
-            with anyio.CancelScope(shield=True):
-                await reporter.flush()
+        last: list[Mapping[str, Any]] = [{}]
+        named = {
+            SpanKey.INPUT: self._submit_plain(args),
+            "job.id": job.id,
+            "job.kind": job.kind,
+            "job.attempt": job.attempt,
+        }
+
+        async def report(progress: Mapping[str, Any]) -> None:
+            last[0] = progress
+            telemetry.event("progress", self._register_flat(progress))
+            await reporter.report(progress)
+
+        with telemetry.resume(job.args.get(TRACE, {})), telemetry.span(f"job.{job.kind}", SpanRole.JOB, named):
+            try:
+                await work(args, report)
+            finally:
+                telemetry.record({k: v for k, v in self._register_flat(last[0]).items() if v is not None})
+                with anyio.CancelScope(shield=True):
+                    await reporter.flush()
+
+    @staticmethod
+    def _register_flat(progress: Mapping[str, Any]) -> dict[str, Any]:
+        """A snapshot one level deep as dotted keys (`tally.ingested`), a sequence as its length: what a span holds."""
+        return {
+            f"{key}.{inner}" if inner else key: value
+            for key, held in progress.items()
+            for inner, value in (held.items() if isinstance(held, Mapping) else (("", held),))
+        } | {key: len(held) for key, held in progress.items() if isinstance(held, list | tuple)}
 
     async def _schedule_fire(self, schedule: BackgroundSchedule) -> None:
         """One tick: the schedule's kind submitted, coalesced; a tick that cannot be submitted is said and skipped."""
@@ -161,8 +256,10 @@ class DispatchEngine:
 
     @staticmethod
     def _submit_plain(args: Mapping[str, Any]) -> str:
-        """Arguments as a queue keeps them — JSON, keys sorted —: what tells the same submit from another."""
-        return json.dumps(json.loads(json.dumps(args, default=str)), sort_keys=True)
+        """Arguments as a queue keeps them — JSON, keys sorted, the trace left out —: what tells the same submit from
+        another."""
+        kept = {key: value for key, value in args.items() if key != TRACE}
+        return json.dumps(json.loads(json.dumps(kept, default=str)), sort_keys=True)
 
     async def _submit_waiting(self, kind: str, args: Mapping[str, Any]) -> BackgroundJob | None:
         """The same kind and arguments already queued and not yet started, if any."""
@@ -248,9 +345,10 @@ class DispatchEngine:
     async def submit(self, kind: str, /, *, attempts: int = 1, coalesce: bool = False, **args: Any) -> BackgroundJob:
         """Queue a job of `kind` whose work receives `args`; it comes back queued. Coalesced, the same kind and
         arguments already waiting to start is the job: one pending at most, however often asked."""
+        traced = {**args, TRACE: carrier} if (carrier := self._telemetry.carrier()) else args
         waiting = await self._submit_waiting(kind, args) if coalesce else None
-        durable = waiting or await self._submit_durable(kind, args, attempts)
-        return durable or await self._memory.enqueue(kind, args, queue=self._works[kind][0], attempts=attempts)
+        durable = waiting or await self._submit_durable(kind, traced, attempts)
+        return durable or await self._memory.enqueue(kind, traced, queue=self._works[kind][0], attempts=attempts)
 
     async def job(self, job: str) -> BackgroundJob | None:
         """One job by id, from memory or the durable queue; None when unknown."""

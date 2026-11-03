@@ -21,7 +21,7 @@ def registry(repo: Path) -> CodeRegistry:
 def test_every_level_of_the_hierarchy_is_registered_by_path(registry: CodeRegistry) -> None:
     assert registry["e_infra"].kind is Kind.PACKAGE
     assert registry["e_infra.ops.file"].kind is Kind.MODULE
-    assert registry["e_infra.ops.file"].doc.startswith("ops/file: agnostic discovery")
+    assert registry["e_infra.ops.file"].doc.startswith("ops/file: what a file is")
     finder = registry["e_infra.ops.file.FileFinder"]
     assert finder.kind is Kind.CLASS
     assert finder.parent == "e_infra.ops.file"

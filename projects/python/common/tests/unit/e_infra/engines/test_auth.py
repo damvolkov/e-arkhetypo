@@ -82,9 +82,16 @@ async def test_auth_expires(fake_auth: FakeAuth) -> None:
     assert (await held.resolve(bearer(kept.token))).name == "ana"
 
 
-@pytest.mark.parametrize("header", ["", "Basic x", "Bearer ", "Bearer a b"], ids=["none", "scheme", "empty", "spaced"])
+@pytest.mark.parametrize("header", ["", "Basic x", "Bearer ", "  Bearer  "], ids=["none", "scheme", "empty", "blank"])
 async def test_auth_no_bearer_is_nobody(auth: AuthEngine, fake_auth: FakeAuth, header: str) -> None:
     assert (await auth.resolve(header), fake_auth.lookups) == (ANONYMOUS, 0)
+
+
+async def test_auth_a_spaced_bearer_is_a_key_nobody_holds_never_nobody(auth: AuthEngine, fake_auth: FakeAuth) -> None:
+    """What follows the scheme is the token whole: a malformed key is refused, not read as an anonymous caller."""
+    with pytest.raises(UnknownTokenError):
+        await auth.resolve("Bearer a b")
+    assert fake_auth.lookups == 1
 
 
 async def test_auth_scheme_is_caseless(auth: AuthEngine) -> None:

@@ -43,7 +43,7 @@ async def test_openai_structured_answer_under_the_schema(stub: Stub, http: HttpP
 
 async def test_openai_no_key_no_bearer(stub: Stub, http: HttpPort) -> None:
     stub.json("POST", "/v1/chat/completions", completion("{}"))
-    async with OpenaiDriver(http, OpenaiSettings(url=f"{stub.url}/v1")) as llm:
+    async with OpenaiDriver(http, OpenaiSettings(url=f"{stub.url}/v1", key=None)) as llm:
         await llm.structured("s", "p", SCHEMA)
     assert "authorization" not in stub.sent[0][2]
 

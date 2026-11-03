@@ -9,7 +9,7 @@ areas:
 - ports
 - processors
 - providers
-inputs_hash: ddb470446335367e447c624ac708152e6530eb1f1a910b77569e318d79bacb22
+inputs_hash: d46f3a1a3da018edd531cd6cc1e38d321b9244b6a2e12cf16f196d160c142426
 units:
 - key: engines/cache
   area: engines
@@ -50,6 +50,7 @@ units:
   - infra/logger
   - infra/settings
   - ports/queue
+  - ports/telemetry
   dependents: []
   closure:
   - infra/background
@@ -63,6 +64,7 @@ units:
   - ops/file
   - ports/provider
   - ports/queue
+  - ports/telemetry
   level: 6
   locked: false
   detachable: false
@@ -87,6 +89,30 @@ units:
   - infra/settings
   - ops/file
   - ports/provider
+  level: 4
+  locked: false
+  detachable: false
+- key: engines/telemetry
+  area: engines
+  name: telemetry
+  files:
+  - src/engines/telemetry.py
+  tests:
+  - tests/unit/engines/test_telemetry.py
+  deps:
+  - infra/logger
+  - ports/telemetry
+  dependents: []
+  closure:
+  - infra/config/app
+  - infra/config/base
+  - infra/errors
+  - infra/logger
+  - infra/proxy
+  - infra/settings
+  - ops/file
+  - ports/provider
+  - ports/telemetry
   level: 4
   locked: false
   detachable: false
@@ -699,6 +725,7 @@ units:
   - engines/cache
   - engines/dispatch
   - engines/health
+  - engines/telemetry
   - infra/background
   - infra/events
   - processors/doc
@@ -914,7 +941,8 @@ units:
   name: database
   files:
   - src/ports/database.py
-  tests: []
+  tests:
+  - tests/unit/ports/test_database_real.py
   deps:
   - ports/provider
   dependents:
@@ -962,7 +990,8 @@ units:
   tests: []
   deps:
   - ports/provider
-  dependents: []
+  dependents:
+  - processors/md
   closure:
   - ports/provider
   level: 1
@@ -1079,6 +1108,7 @@ units:
   - providers/adapters/extract/rtrafilatura
   - providers/adapters/markdown/anytomd
   - providers/adapters/pages/liteparse
+  - providers/adapters/telemetry/null
   - providers/drivers/cache/postgres
   - providers/drivers/documents/docling
   - providers/drivers/embed/tei
@@ -1154,6 +1184,9 @@ units:
   deps:
   - ports/provider
   dependents:
+  - engines/dispatch
+  - engines/telemetry
+  - providers/adapters/telemetry/null
   - providers/drivers/telemetry/otel
   closure:
   - ports/provider
@@ -1205,6 +1238,7 @@ units:
   - infra/errors
   - infra/logger
   - infra/settings
+  - ports/extract
   - ports/markdown
   - processors/models
   dependents: []
@@ -1219,6 +1253,7 @@ units:
   - infra/proxy
   - infra/settings
   - ops/file
+  - ports/extract
   - ports/markdown
   - ports/provider
   - processors/models
@@ -1354,6 +1389,23 @@ units:
   - ports/pages
   - ports/provider
   level: 4
+  locked: false
+  detachable: false
+- key: providers/adapters/telemetry/null
+  area: providers
+  name: adapters/telemetry/null
+  files:
+  - src/providers/adapters/telemetry/null.py
+  tests:
+  - tests/unit/providers/adapters/telemetry/test_null.py
+  deps:
+  - ports/provider
+  - ports/telemetry
+  dependents: []
+  closure:
+  - ports/provider
+  - ports/telemetry
+  level: 2
   locked: false
   detachable: false
 - key: providers/drivers/cache/postgres

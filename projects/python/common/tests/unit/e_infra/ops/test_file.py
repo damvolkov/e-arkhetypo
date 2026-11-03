@@ -2,13 +2,14 @@
 
 import re
 import types
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
 import pytest
 
 from e_infra.infra.config import crypto as crypto_mod
 from e_infra.infra.config.base import BaseSettings
-from e_infra.ops.file import FileError, FileFinder, Kind
+from e_infra.ops.file import FileDetector, FileError, FileFinder, FileLayer, Kind
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -85,3 +86,65 @@ def test_summary_survives_missing_and_blank_docstrings() -> None:
     blank = types.ModuleType("blank")
     blank.__doc__ = "   "
     assert FileFinder.summary(blank) == ""
+
+
+##### DETECTOR #####
+@pytest.mark.parametrize(
+    ("name", "expected"),
+    [
+        ("script", (None, "python", True, FileLayer.CONTENT)),
+        ("paper", ("pdf", None, False, FileLayer.ANYTOMD)),
+        ("cat.jpg", ("image", None, False, FileLayer.ANYTOMD)),
+        ("report.docx", ("docx", None, False, FileLayer.ZIP)),
+        ("main.py", ("code", "python", True, FileLayer.ANYTOMD)),
+        ("lib.rs", ("code", "rust", True, FileLayer.ANYTOMD)),
+        ("config.json", ("json", "json", True, FileLayer.ANYTOMD)),
+        ("Dockerfile", (None, "dockerfile", True, FileLayer.PATH)),
+        ("Makefile", (None, "make", True, FileLayer.PATH)),
+        ("notes.md", ("txt", "markdown", True, FileLayer.ANYTOMD)),
+        ("page.html", ("html", "html", True, FileLayer.ANYTOMD)),
+        ("readme", ("txt", None, True, FileLayer.SNIFF)),
+        ("noise.bin", (None, None, False, FileLayer.MIME)),
+    ],
+)
+async def test_detector_detect(
+    samples: Path, name: str, expected: tuple[str | None, str | None, bool, FileLayer]
+) -> None:
+    found = await FileDetector().detect(str(samples / name))
+    assert (found.format, found.language, found.is_text, found.because) == expected
+
+
+async def test_detector_detect_head_given(samples: Path) -> None:
+    """A head handed in is the whole evidence: the path is only a name, never read."""
+    found = await FileDetector().detect(str(samples / "absent.pdf"), head=b"%PDF-1.7\n")
+    assert (found.format, found.mime) == ("pdf", "application/pdf")
+
+
+@pytest.mark.parametrize(
+    ("head", "expected"),
+    [
+        (b"\x00\x01\x02", (None, False, FileLayer.NONE)),
+        (b"caf\xc3", ("txt", True, FileLayer.SNIFF)),
+        (b"\xff\xfe\xfd", (None, False, FileLayer.NONE)),
+        (b"", ("txt", True, FileLayer.SNIFF)),
+    ],
+    ids=["nul", "utf8-cut-at-the-edge", "not-utf8", "empty"],
+)
+def test_detector_classify(head: bytes, expected: tuple[str | None, bool, FileLayer]) -> None:
+    found = FileDetector.classify("blob", head)
+    assert (found.format, found.is_text, found.because) == expected
+
+
+@pytest.mark.parametrize(
+    ("head", "fmt"),
+    [
+        (b"<!DOCTYPE html><html><body>x</body></html>", "html"),
+        (b"\xef\xbb\xbf  <!-- served -->\n<html lang='en'>", "html"),
+        (b"Plain words about html.", "txt"),
+    ],
+    ids=["doctype", "bom-comment", "prose"],
+)
+def test_detector_page_without_extension(head: bytes, fmt: str) -> None:
+    """A page served at an address with no extension is told by its head: HTML, read as such — prose stays text."""
+    found = FileDetector.classify("https://12factor.net/config", head)
+    assert (found.format, found.because) == (fmt, FileLayer.SNIFF)

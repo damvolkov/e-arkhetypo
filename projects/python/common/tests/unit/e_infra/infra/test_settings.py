@@ -168,7 +168,6 @@ async def test_composite_scopes_discovered() -> None:
             (st, "app"),
             (st, "cli"),
             (st, "crypto"),
-            (st, "oauth"),
             (st, "ping"),
             (st.engines, "dispatch"),
             (st.processors, "doc"),

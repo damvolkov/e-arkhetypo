@@ -33,7 +33,7 @@ def test_classes_and_functions_are_own_symbols_only() -> None:
 
 
 def test_base_selects_subclasses_and_module_target_reads_one_file() -> None:
-    assert {"CryptoSettings", "OAuthSettings"} <= set(CONFIG.discover(BaseSettings))
+    assert {"CryptoSettings", "PingSettings"} <= set(CONFIG.discover(BaseSettings))
     ### `base.py` is part of the sweep: the base itself is still never a result.
     assert "BaseSettings" not in CONFIG.discover(BaseSettings)
     assert set(CONFIG.discover(crypto_mod)) == {"CryptoSettings"}

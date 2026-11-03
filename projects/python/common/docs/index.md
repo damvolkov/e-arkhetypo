@@ -114,7 +114,6 @@ read lazily from the composer when absent.
 | `infra/config/engines/auth.py` | `st.engines.auth` | the auth engine — the secret ids are minted under, a key's lifetime, the admin's name. |
 | `infra/config/engines/dispatch.py` | `st.engines.dispatch` | the dispatch engine — which durable queue backs the background, and its write pace. |
 | `infra/config/mcp.py` | `st.mcp` | the MCP door — where the endpoint answers and which Host and Origin the transport accepts (MCP_*). |
-| `infra/config/oauth.py` | `st.oauth` | the OAuth2 identity provider — name, client, secret and metadata URL. |
 | `infra/config/ping.py` | `st.ping` | how long one provider's health check may take — PING_TIMEOUT. |
 | `infra/config/processors/doc.py` | `st.processors.doc` | the document processor — which engine reads which page, and how hard to push (DOC_*). |
 | `infra/config/processors/md.py` | `st.processors.md` | the Markdown processor — input ceiling, ZIP fan-out and its zip-bomb guard (MD_*). |

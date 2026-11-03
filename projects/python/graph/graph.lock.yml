@@ -9,7 +9,7 @@ areas:
 - ports
 - processors
 - providers
-inputs_hash: "71dccfb7ab144a1ef9357137bb4cb3852b8153b250234ae53e966c3f4744b936"
+inputs_hash: "1244c60af31a4303e4eb51585a182ff34d28c29d6c95f1b1f2a86cb5107a86ee"
 units:
 - key: engines/cache
   area: engines
@@ -174,7 +174,6 @@ units:
   - infra/config/darts
   - infra/config/docs
   - infra/config/engines/dispatch
-  - infra/config/oauth
   - infra/config/ping
   - infra/config/processors/doc
   - infra/config/processors/md
@@ -273,20 +272,6 @@ units:
   - infra/config/base
   dependents:
   - engines/dispatch
-  closure:
-  - infra/config/base
-  level: 1
-  locked: false
-  detachable: false
-- key: infra/config/oauth
-  area: infra
-  name: config/oauth
-  files:
-  - src/infra/config/oauth.py
-  tests: []
-  deps:
-  - infra/config/base
-  dependents: []
   closure:
   - infra/config/base
   level: 1

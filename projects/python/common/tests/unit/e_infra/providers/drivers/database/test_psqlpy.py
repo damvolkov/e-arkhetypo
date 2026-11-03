@@ -5,17 +5,16 @@ from typing import TYPE_CHECKING, Any
 
 import anyio
 import pytest
+from psqlpy.exceptions import Error as PsqlError
 from psqlpy.extra_types import PgVector
 
 from e_infra.infra.config.base import Secret
 from e_infra.infra.config.providers.drivers.database.psqlpy import PsqlpySettings
 from e_infra.infra.errors import DatabaseError
 from e_infra.ports.database import DatabasePort, Vector
-from e_infra.providers.drivers.database.psqlpy import FOUND, PsqlpyDriver, PsqlpyTransaction
+from e_infra.providers.drivers.database.psqlpy import FOUND, PsqlpyDriver, PsqlpyStatements
 
 if TYPE_CHECKING:
-    from psqlpy.exceptions import Error as PsqlError
-
     from support.psqlpy import FakePsqlpyServer
     from unit.e_infra.conftest import Logs
 
@@ -115,7 +114,7 @@ async def test_psqlpy_transaction_commits_on_a_clean_exit(driver: PsqlpyDriver, 
         assert await tx.fetch("SELECT id FROM t") == [{"id": 1}]
         assert await tx.row("SELECT id FROM t") == {"id": 1}
         await tx.many("INSERT INTO t VALUES ($1)", [[1], [2]])
-        assert isinstance(tx, PsqlpyTransaction)
+        assert isinstance(tx, PsqlpyStatements)
         async with tx.transaction() as nested:
             assert nested is tx
     assert psqlpy.transactions == ["begin", "commit"]
@@ -225,3 +224,73 @@ async def test_psqlpy_provision_of_an_unreachable_server_is_a_database_error(
 async def test_psqlpy_pool_timeout_reaches_the_connect_bound(psqlpy: FakePsqlpyServer) -> None:
     async with PsqlpyDriver(PsqlpySettings(dsn=Secret("postgresql://h/x"), timeout=timedelta(seconds=7))):
         assert psqlpy.pools[0].kwargs["connect_timeout_sec"] == 7
+
+
+##### SCRIPT AND CONNECTION #####
+async def test_psqlpy_script_runs_as_one_batch(driver: PsqlpyDriver, psqlpy: FakePsqlpyServer) -> None:
+    async with driver:
+        await driver.script("CREATE TABLE a (k int); CREATE INDEX a_k ON a (k)")
+    assert psqlpy.statements == [("CREATE TABLE a (k int); CREATE INDEX a_k ON a (k)", [])]
+
+
+async def test_psqlpy_connection_pins_one_without_a_transaction(driver: PsqlpyDriver, psqlpy: FakePsqlpyServer) -> None:
+    async with driver, driver.connection() as held, held.connection() as inner, inner.transaction() as same:
+        assert held is inner is same
+        await same.script("SELECT 1; SELECT 2")
+        await same.many("INSERT", [[1]])
+        assert psqlpy.held == 1
+    assert (psqlpy.transactions, psqlpy.held) == ([], 0)
+
+
+@pytest.mark.parametrize(
+    ("message", "state"),
+    [
+        ('db error: ERROR: duplicate key value violates unique constraint "job_pkey"', ("23505", "job_pkey")),
+        ('db error: ERROR: relation "nowhere" does not exist', (None, None)),
+    ],
+    ids=["unique", "other"],
+)
+async def test_psqlpy_refusal_reads_the_state_off_the_message(
+    driver: PsqlpyDriver, psqlpy: FakePsqlpyServer, message: str, state: tuple[str | None, str | None]
+) -> None:
+    psqlpy.failures["INSERT"] = PsqlError(message)
+    async with driver:
+        with pytest.raises(DatabaseError) as refused:
+            await driver.execute("INSERT INTO job VALUES (1)")
+    assert (refused.value.sqlstate, refused.value.constraint_name, str(refused.value)) == (*state, message)
+
+
+##### LISTEN #####
+async def test_psqlpy_listen_fans_out_and_unlistens(driver: PsqlpyDriver, psqlpy: FakePsqlpyServer) -> None:
+    heard: list[tuple[str, str]] = []
+
+    def first(payload: str) -> None:
+        heard.append(("first", payload))
+
+    def second(payload: str) -> None:
+        heard.append(("second", payload))
+
+    async with driver:
+        await driver.listen("jobs", first)
+        await driver.listen("jobs", second)
+        await psqlpy.notify("jobs", "both")
+        await driver.unlisten("jobs", first)
+        await psqlpy.notify("jobs", "one")
+        await driver.unlisten("jobs", first)
+    assert heard == [("first", "both"), ("second", "both"), ("second", "one")]
+    assert [(each.started, each.listening, each.stopped) for each in psqlpy.listeners] == [(True, True, True)]
+
+
+async def test_psqlpy_listen_on_a_new_channel_renews_the_listener(
+    driver: PsqlpyDriver, psqlpy: FakePsqlpyServer
+) -> None:
+    """A new channel starts a listener holding every channel; the old one stops, and its stale callbacks deliver nothing."""
+    heard: list[str] = []
+    async with driver:
+        await driver.listen("a", heard.append)
+        await driver.listen("b", heard.append)
+        old, new = psqlpy.listeners
+        assert (old.stopped, new.started, [channel for channel, _ in new.callbacks]) == (True, True, ["a", "b"])
+        await old.callbacks[0][1](None, "stale", "a", 0)
+        await psqlpy.notify("a", "fresh")
+    assert heard == ["fresh"]

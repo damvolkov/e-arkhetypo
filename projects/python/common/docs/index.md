@@ -203,11 +203,16 @@ groups what is deployed, the providers group contracts, and a new capability ent
 #### Two Postgres drivers, both first-class
 
 `database/psqlpy.py` (`PsqlpyDriver`: a Rust tokio-postgres pool, pgvector bound natively) and `database/asyncpg.py`
-(`AsyncpgDriver`: asyncpg's pool, a `Vector` bound as pgvector's text form) meet the same `DatabasePort` with the same
-semantics — `$n` parameters, rows as dicts, `transaction()` pinning one connection, errors as `DatabaseError`; the pool is
-the driver's and a connection is taken per operation, never kept. The project picks one at its root. `AsyncpgDriver` also
-gives a library that owns its client what it needs, on the driver class and in no port: `pool`, `connection()` (a dedicated
-connection, closed on exit) and `guard()` (asyncpg's errors as `DatabaseError`). `PgqueuerDriver` **receives** an
+(`AsyncpgDriver`: asyncpg's pool, a `Vector` bound as pgvector's text form) meet the same `DatabasePort` and `ListenPort`
+with the same semantics — `$n` parameters, rows as dicts of the same types (asyncpg's connections are born with psqlpy's
+shapes: JSON as Python values, UUIDs as text), `script()` for several statements in one round trip, `transaction()`
+pinning one connection, `connection()` pinning one with each statement its own commit (a session lock), a scope inside a
+scope being that scope, `listen`/`unlisten` on one held connection, errors as `DatabaseError` with the server's `sqlstate`
+and `constraint_name` (psqlpy reads the unique violation off the message); the pool is the driver's and a connection is
+taken per operation, never kept. `tests/unit/e_infra/ports/test_database_real.py` holds the contract on both. The project
+picks one at its root. `AsyncpgDriver` also gives a library that owns its client what it needs, on the driver class and
+in no port: `pool`, `dedicated()` (a connection outside the pool, closed on exit) and `guard()` (asyncpg's errors as
+`DatabaseError`). `PgqueuerDriver` **receives** an
 `AsyncpgDriver` by constructor and rides it — its schema on the pool, one dedicated connection for each queue manager and
 for the scheduler — and opens no pool of its own; the lifespan opens the database first and closes it last. The queue
 wants a database of its own (`app_background` beside the service's `app`): hand it an `AsyncpgDriver` built on

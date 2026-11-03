@@ -1,17 +1,25 @@
-"""providers/drivers/database/psqlpy: the SQL edge over psqlpy — a Rust (tokio-postgres) pool, pgvector bound natively.
+"""providers/drivers/database/psqlpy: the SQL edge over psqlpy, a Rust (tokio-postgres) pool.
+
+Behind `DatabasePort` and `ListenPort`, the twin of the asyncpg driver call for call, pgvector bound natively.
 
 Rows come back as dicts; `Vector` parameters bind as pgvector values (a plain list would bind as an array and
-the driver panics on it). One pool per process; a transaction pins one connection for its whole scope. Statement
-text is the caller's: this driver knows no schema. `provision` creates the database its DSN names when missing, on
-the server's maintenance database (CREATE DATABASE runs outside any transaction); a twin creating it at the same
-moment — two workers booting — is no error, it was just not this one that created it. psqlpy's own errors are
-`DatabaseError` from here up."""
+the driver panics on it). One pool per process; a transaction pins one connection for its whole scope, a connection
+scope pins one with each statement its own commit. LISTEN rides psqlpy's listener, a connection of its own; psqlpy only
+listens for sure on the channels it holds when it starts, so a new channel starts a new listener holding them all and
+stops the old one — each listener a generation, only the newest delivering. One callback per channel fans each payload
+out to every callback listening there; unlistening drops a callback, the channel stays held until close. Statement
+text is the caller's: this driver knows no schema. psqlpy's errors carry the server's message only, no SQLSTATE: a
+unique violation is read off the message (the server's English, `lc_messages` C or en) — the one state a caller
+branches on. `provision` creates the database its DSN names when missing, on the server's maintenance database
+(CREATE DATABASE runs outside any transaction); a twin creating it at the same moment — two workers booting — is no
+error, it was just not this one that created it. psqlpy's own errors are `DatabaseError` from here up."""
 
+import re
 from contextlib import asynccontextmanager, contextmanager
-from typing import TYPE_CHECKING, ClassVar, Final, Self
+from typing import TYPE_CHECKING, Any, ClassVar, Final, Self
 from urllib.parse import urlsplit
 
-from psqlpy import Connection, ConnectionPool, Transaction
+from psqlpy import Connection, ConnectionPool, Listener, Transaction
 from psqlpy.exceptions import Error as PsqlError
 from psqlpy.extra_types import PgVector
 
@@ -22,35 +30,42 @@ from e_infra.ports.database import Row, Vector
 from e_infra.ports.provider import Isolation, Locality, ProviderSpec, Workload
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncGenerator, Generator, Sequence
+    from collections.abc import AsyncGenerator, Callable, Coroutine, Generator, Sequence
     from contextlib import AbstractAsyncContextManager
 
     from e_infra.infra.config.providers.drivers.database.psqlpy import PsqlpySettings
-    from e_infra.ports.database import QueryPort
+    from e_infra.ports.database import Notify, QueryPort
 
 ### psqlpy refuses a pool of one connection.
 FLOOR: Final[int] = 2
 ### every Postgres server has it: where a database that does not exist yet is created from.
 MAINTENANCE: Final[str] = "postgres"
 FOUND: Final[str] = "SELECT 1 FROM pg_database WHERE datname = $1"
+UNIQUE: Final[re.Pattern[str]] = re.compile(r'duplicate key value violates unique constraint "(?P<constraint>[^"]+)"')
+UNIQUE_STATE: Final[str] = "23505"
 
 
-##### DRIVER #####
-class PsqlpyDriver:
-    """A psqlpy connection pool behind `DatabasePort`."""
+##### STATEMENTS #####
+class PsqlpyStatements:
+    """One held connection or open transaction as a `QueryPort`: every call on it; a nested scope is itself. Owns the
+    translation both ways: `Vector` bound as pgvector, psqlpy's error raised as `DatabaseError`."""
 
-    spec: ClassVar[ProviderSpec] = ProviderSpec(
-        "psqlpy", Locality.REMOTE, Workload.IO_BOUND, Isolation.LOOP, pooled=True
-    )
+    __slots__ = ("_on",)
 
-    __slots__ = ("_conf", "_pool")
-
-    def __init__(self, settings: PsqlpySettings | None = None) -> None:
-        ### the default is read on call, not at import: the settings singleton stays lazy.
-        self._conf = st.providers.drivers.database.psqlpy if settings is None else settings
-        self._pool: ConnectionPool | None = None
+    def __init__(self, on: Connection | Transaction) -> None:
+        self._on = on
 
     ##### PRIVATE #####
+
+    @staticmethod
+    def _common_error(error: PsqlError) -> DatabaseError:
+        """psqlpy's error as the tree's: its message, and the unique violation the message names."""
+        message = str(error)
+        match UNIQUE.search(message):
+            case None:
+                return DatabaseError(message)
+            case found:
+                return DatabaseError(message, sqlstate=UNIQUE_STATE, constraint_name=found["constraint"])
 
     @staticmethod
     @contextmanager
@@ -60,12 +75,68 @@ class PsqlpyDriver:
             yield
         except PsqlError as error:
             logger.error("psqlpy failed", error=str(error))
-            raise DatabaseError(str(error)) from error
+            raise PsqlpyStatements._common_error(error) from error
 
     @staticmethod
     def _common_params(params: Sequence[object]) -> list[object]:
         """Parameters as psqlpy takes them: a `Vector` as a pgvector value."""
         return [PgVector(list(value)) if isinstance(value, Vector) else value for value in params]
+
+    @classmethod
+    async def _common_call[T](cls, call: Coroutine[Any, Any, T]) -> T:
+        """One driver call, its refusal a `DatabaseError`."""
+        with cls._common_guard():
+            return await call
+
+    @asynccontextmanager
+    async def _common_self(self) -> AsyncGenerator[Self]:
+        yield self
+
+    ############################################################
+
+    ##### PUBLIC #####
+
+    async def execute(self, query: str, params: Sequence[object] = ()) -> None:
+        await self._common_call(self._on.execute(query, self._common_params(params)))
+
+    async def fetch(self, query: str, params: Sequence[object] = ()) -> list[Row]:
+        return (await self._common_call(self._on.fetch(query, self._common_params(params)))).result()
+
+    async def row(self, query: str, params: Sequence[object] = ()) -> Row | None:
+        return next(iter(await self.fetch(query, params)), None)
+
+    async def many(self, query: str, params: Sequence[Sequence[object]]) -> None:
+        await self._common_call(self._on.execute_many(query, [self._common_params(each) for each in params]))
+
+    async def script(self, statements: str) -> None:
+        await self._common_call(self._on.execute_batch(statements))
+
+    def transaction(self) -> AbstractAsyncContextManager[Self]:
+        return self._common_self()
+
+    def connection(self) -> AbstractAsyncContextManager[Self]:
+        return self._common_self()
+
+
+##### DRIVER #####
+class PsqlpyDriver:
+    """A psqlpy connection pool behind `DatabasePort` and `ListenPort`."""
+
+    spec: ClassVar[ProviderSpec] = ProviderSpec(
+        "psqlpy", Locality.REMOTE, Workload.IO_BOUND, Isolation.LOOP, pooled=True
+    )
+
+    __slots__ = ("_channels", "_conf", "_generation", "_listener", "_pool")
+
+    def __init__(self, settings: PsqlpySettings | None = None) -> None:
+        ### the default is read on call, not at import: the settings singleton stays lazy.
+        self._conf = st.providers.drivers.database.psqlpy if settings is None else settings
+        self._pool: ConnectionPool | None = None
+        self._listener: Listener | None = None
+        self._channels: dict[str, list[Notify]] = {}
+        self._generation = 0
+
+    ##### PRIVATE #####
 
     async def _provision_create(self, connection: Connection, name: str) -> bool:
         """Create the database unless it exists; False when it does, or when a twin created it first."""
@@ -99,6 +170,41 @@ class PsqlpyDriver:
             case pool:
                 return pool
 
+    @asynccontextmanager
+    async def _common_held(self, transactional: bool) -> AsyncGenerator[QueryPort]:  # noqa: FBT001 — two scopes, one body
+        with PsqlpyStatements._common_guard():
+            async with self._common_pool().acquire() as connection:
+                match transactional:
+                    case True:
+                        async with connection.transaction() as transaction:
+                            yield PsqlpyStatements(transaction)
+                    case _:
+                        yield PsqlpyStatements(connection)
+
+    async def _listen_renewed(self) -> None:
+        """A listener holding every channel, started; the one it replaces stopped after it, never before."""
+        generation = self._generation + 1
+        listener = self._common_pool().listener()
+        _ = [
+            await PsqlpyStatements._common_call(
+                listener.add_callback(channel, self._listen_fanout(channel, generation))
+            )
+            for channel in self._channels
+        ]
+        await PsqlpyStatements._common_call(listener.startup())
+        listener.listen()
+        old, self._listener, self._generation = self._listener, listener, generation
+        _ = old and await old.shutdown()
+        logger.debug("psqlpy listening", channels=len(self._channels), generation=generation)
+
+    def _listen_fanout(
+        self, channel: str, generation: int
+    ) -> Callable[[Connection, str, str, int], Coroutine[Any, Any, None]]:
+        async def fanout(_connection: Connection, payload: str, _channel: str, _process: int) -> None:
+            _ = generation == self._generation and [callback(payload) for callback in tuple(self._channels[channel])]
+
+        return fanout
+
     ############################################################
 
     ##### PUBLIC #####
@@ -113,12 +219,14 @@ class PsqlpyDriver:
         return self
 
     async def __aexit__(self, *exc: object) -> None:
-        match self._pool:
+        listener, pool = self._listener, self._pool
+        self._listener, self._pool, self._channels = None, None, {}
+        _ = listener and await listener.shutdown()
+        match pool:
             case None:
                 pass
-            case pool:
+            case _:
                 pool.close()
-                self._pool = None
                 logger.info("psqlpy closed")
 
     async def health(self) -> bool:
@@ -151,63 +259,39 @@ class PsqlpyDriver:
 
     async def execute(self, query: str, params: Sequence[object] = ()) -> None:
         logger.debug("psqlpy execute", params=len(params))
-        with PsqlpyDriver._common_guard():
-            async with self._common_pool().acquire() as connection:
-                await connection.execute(query, PsqlpyDriver._common_params(params))
+        async with self.connection() as held:
+            await held.execute(query, params)
 
     async def fetch(self, query: str, params: Sequence[object] = ()) -> list[Row]:
         logger.debug("psqlpy fetch", params=len(params))
-        with PsqlpyDriver._common_guard():
-            async with self._common_pool().acquire() as connection:
-                return (await connection.fetch(query, PsqlpyDriver._common_params(params))).result()
+        async with self.connection() as held:
+            return await held.fetch(query, params)
 
     async def row(self, query: str, params: Sequence[object] = ()) -> Row | None:
         return next(iter(await self.fetch(query, params)), None)
 
     async def many(self, query: str, params: Sequence[Sequence[object]]) -> None:
         logger.debug("psqlpy many", sets=len(params))
-        with PsqlpyDriver._common_guard():
-            async with self._common_pool().acquire() as connection:
-                await connection.execute_many(query, [PsqlpyDriver._common_params(each) for each in params])
+        async with self.connection() as held:
+            await held.many(query, params)
+
+    async def script(self, statements: str) -> None:
+        logger.debug("psqlpy script")
+        async with self.connection() as held:
+            await held.script(statements)
 
     def transaction(self) -> AbstractAsyncContextManager[QueryPort]:
-        return self._transaction_scope()
-
-    @asynccontextmanager
-    async def _transaction_scope(self) -> AsyncGenerator[QueryPort]:
         logger.debug("psqlpy transaction")
-        with PsqlpyDriver._common_guard():
-            async with self._common_pool().acquire() as connection, connection.transaction() as transaction:
-                yield PsqlpyTransaction(connection, transaction)
+        return self._common_held(transactional=True)
 
+    def connection(self) -> AbstractAsyncContextManager[QueryPort]:
+        return self._common_held(transactional=False)
 
-class PsqlpyTransaction:
-    """One open transaction as a `QueryPort`: every call on its connection; nested `transaction()` is itself."""
+    async def listen(self, channel: str, callback: Notify) -> None:
+        held = channel in self._channels
+        self._channels.setdefault(channel, []).append(callback)
+        _ = held or await self._listen_renewed()
 
-    __slots__ = ("_connection", "_transaction")
-
-    def __init__(self, connection: Connection, transaction: Transaction) -> None:
-        self._connection = connection
-        self._transaction = transaction
-
-    async def execute(self, query: str, params: Sequence[object] = ()) -> None:
-        with PsqlpyDriver._common_guard():
-            await self._transaction.execute(query, PsqlpyDriver._common_params(params))
-
-    async def fetch(self, query: str, params: Sequence[object] = ()) -> list[Row]:
-        with PsqlpyDriver._common_guard():
-            return (await self._transaction.fetch(query, PsqlpyDriver._common_params(params))).result()
-
-    async def row(self, query: str, params: Sequence[object] = ()) -> Row | None:
-        return next(iter(await self.fetch(query, params)), None)
-
-    async def many(self, query: str, params: Sequence[Sequence[object]]) -> None:
-        with PsqlpyDriver._common_guard():
-            await self._transaction.execute_many(query, [PsqlpyDriver._common_params(each) for each in params])
-
-    def transaction(self) -> AbstractAsyncContextManager[Self]:
-        return self._transaction_self()
-
-    @asynccontextmanager
-    async def _transaction_self(self) -> AsyncGenerator[Self]:
-        yield self
+    async def unlisten(self, channel: str, callback: Notify) -> None:
+        held = self._channels.get(channel, [])
+        _ = callback in held and held.remove(callback)

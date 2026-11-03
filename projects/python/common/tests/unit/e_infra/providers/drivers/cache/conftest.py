@@ -65,7 +65,13 @@ class FakeDatabase:
         rows: list[Any] = [*params] if query == CACHE_PUT else []
         self.table |= {(namespace, key): (value, expires) for namespace, key, value, expires in rows}
 
+    async def script(self, statements: str) -> None:
+        raise NotImplementedError
+
     def transaction(self) -> AbstractAsyncContextManager[QueryPort]:
+        raise NotImplementedError
+
+    def connection(self) -> AbstractAsyncContextManager[QueryPort]:
         raise NotImplementedError
 
 

@@ -9,7 +9,7 @@ areas:
 - ports
 - processors
 - providers
-inputs_hash: cad4a60bbd90e0cf2c97e75311aa8fd51fc66bb9e69ad7db0f3488a88ba99586
+inputs_hash: a5f4c6bbb0bd6e8d7c7a4d55e7232727613266352b53fb182b48df70ef1e25cc
 units:
 - key: engines/health
   area: engines
@@ -32,6 +32,27 @@ units:
   - infra/settings
   - ops/file
   - ports/provider
+  level: 4
+  locked: false
+  detachable: false
+- key: engines/telemetry
+  area: engines
+  name: telemetry
+  files:
+  - src/engines/telemetry.py
+  tests:
+  - tests/unit/engines/test_telemetry.py
+  deps:
+  - infra/logger
+  dependents: []
+  closure:
+  - infra/config/app
+  - infra/config/base
+  - infra/errors
+  - infra/logger
+  - infra/proxy
+  - infra/settings
+  - ops/file
   level: 4
   locked: false
   detachable: false
@@ -622,6 +643,7 @@ units:
   - infra/settings
   dependents:
   - engines/health
+  - engines/telemetry
   - infra/background
   - infra/events
   - processors/doc
@@ -911,6 +933,7 @@ units:
   - ports/store
   - providers/adapters/markdown/anytomd
   - providers/adapters/pages/liteparse
+  - providers/adapters/telemetry/null
   - providers/drivers/documents/docling
   - providers/drivers/http/wreq
   - providers/drivers/store/redis
@@ -1076,6 +1099,21 @@ units:
   - ports/pages
   - ports/provider
   level: 4
+  locked: false
+  detachable: false
+- key: providers/adapters/telemetry/null
+  area: providers
+  name: adapters/telemetry/null
+  files:
+  - src/providers/adapters/telemetry/null.py
+  tests:
+  - tests/unit/providers/adapters/telemetry/test_null.py
+  deps:
+  - ports/provider
+  dependents: []
+  closure:
+  - ports/provider
+  level: 1
   locked: false
   detachable: false
 - key: providers/drivers/documents/docling

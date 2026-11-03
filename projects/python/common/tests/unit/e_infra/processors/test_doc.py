@@ -17,6 +17,7 @@ import pytest
 from e_infra.infra.config.processors.doc import DocMode, DocSettings, DocSignal
 from e_infra.infra.config.providers.drivers.documents.docling import DoclingTables
 from e_infra.ports.documents import DocumentConversion
+from e_infra.ports.pages import FastPage, PageBlock
 from e_infra.ports.provider import Isolation, Locality, ProviderSpec, Workload
 from e_infra.processors.doc import BREAK, DocProcessor
 from e_infra.processors.models import Backend, Document, Section
@@ -159,7 +160,7 @@ async def test_tables_come_from_the_engine_of_their_page() -> None:
 async def test_items_are_one_frame_across_engines() -> None:
     document = await processor().process(FILING)
     items = document.items
-    assert items.columns == ["ref", "page", "label", "text", "level", "backend"]
+    assert items.columns == ["ref", "page", "label", "text", "level", "backend", "group", "hyperlink"]
     assert items["page"].is_sorted()
     assert set(items.filter(pl.col("page") <= WORKFORCE)["backend"]) == {"liteparse"}
     assert set(items.filter(pl.col("page") >= STATEMENT)["backend"]) == {"docling"}
@@ -258,3 +259,33 @@ def test_docling_pictures_decode_and_rank_classes() -> None:
 
 def test_a_node_without_provenance_sits_on_no_page() -> None:
     assert DocProcessor._common_page({}) == 0
+
+
+##### LABELS — nothing a reader saw is dropped #####
+def test_a_fast_page_keeps_every_block_its_shared_kinds_named_as_docling_names_them() -> None:
+    blocks = (
+        PageBlock(kind="heading", text="Risk", level=1),
+        PageBlock(kind="paragraph", text="body"),
+        PageBlock(kind="rule"),
+        PageBlock(kind="grid_fallback", text="a | b"),
+        PageBlock(kind="table", header=("h",), rows=(("v",),)),
+    )
+    page = FastPage(number=3, markdown="", blocks=blocks, signals=())
+    rows, tables = DocProcessor._lite_read(page, 3)
+    assert [(row["label"], row["group"], row["hyperlink"]) for row in rows] == [
+        ("section_header", "", ""),
+        ("text", "", ""),
+        ("rule", "", ""),
+        ("grid_fallback", "", ""),
+    ]
+    assert [table.ref for table in tables] == ["liteparse:p3/b4"]
+
+
+@pytest.mark.parametrize(
+    ("parent", "group"),
+    [({"$ref": "#/groups/1"}, "slide"), ({"$ref": "#/body"}, ""), (None, "")],
+    ids=["grouped", "body", "orphan"],
+)
+def test_a_deep_node_names_the_group_it_sits_in(parent: dict[str, str] | None, group: str) -> None:
+    document = {"groups": [{"label": "list"}, {"label": "slide"}]}
+    assert DocProcessor._deep_group(document, {"parent": parent}) == group

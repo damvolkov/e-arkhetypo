@@ -9,7 +9,7 @@ areas:
 - ports
 - processors
 - providers
-inputs_hash: d3fe49b7bf36d162237bd6509d57c656bbffcdb9dd34de98a4df96fabac6453d
+inputs_hash: "89ae20357502c8a49825462925f34d71fc48543475e9b2a1e05e6a202aef3d1b"
 units:
 - key: engines/auth
   area: engines
@@ -68,6 +68,27 @@ units:
   - ports/provider
   level: 4
   locked: true
+  detachable: false
+- key: engines/telemetry
+  area: engines
+  name: telemetry
+  files:
+  - src/engines/telemetry.py
+  tests:
+  - tests/unit/engines/test_telemetry.py
+  deps:
+  - infra/logger
+  dependents: []
+  closure:
+  - infra/config/app
+  - infra/config/base
+  - infra/errors
+  - infra/logger
+  - infra/proxy
+  - infra/settings
+  - ops/file
+  level: 4
+  locked: false
   detachable: false
 - key: infra/auth/guard
   area: infra
@@ -638,6 +659,7 @@ units:
   dependents:
   - engines/auth
   - engines/health
+  - engines/telemetry
   - infra/auth/guard
   - infra/auth/middleware
   - infra/auth/policy
@@ -1030,7 +1052,8 @@ units:
   name: database
   files:
   - src/ports/database.py
-  tests: []
+  tests:
+  - tests/unit/ports/test_database_real.py
   deps:
   - ports/provider
   dependents:
@@ -1065,7 +1088,8 @@ units:
   tests: []
   deps:
   - ports/provider
-  dependents: []
+  dependents:
+  - processors/md
   closure:
   - ports/provider
   level: 1
@@ -1143,6 +1167,7 @@ units:
   - providers/adapters/extract/rtrafilatura
   - providers/adapters/markdown/anytomd
   - providers/adapters/pages/liteparse
+  - providers/adapters/telemetry/null
   - providers/drivers/auth/postgres
   - providers/drivers/database/psqlpy
   - providers/drivers/documents/docling
@@ -1212,6 +1237,7 @@ units:
   - infra/errors
   - infra/logger
   - infra/settings
+  - ports/extract
   - ports/markdown
   - processors/models
   dependents: []
@@ -1226,6 +1252,7 @@ units:
   - infra/proxy
   - infra/settings
   - ops/file
+  - ports/extract
   - ports/markdown
   - ports/provider
   - processors/models
@@ -1334,6 +1361,21 @@ units:
   - ports/pages
   - ports/provider
   level: 4
+  locked: false
+  detachable: false
+- key: providers/adapters/telemetry/null
+  area: providers
+  name: adapters/telemetry/null
+  files:
+  - src/providers/adapters/telemetry/null.py
+  tests:
+  - tests/unit/providers/adapters/telemetry/test_null.py
+  deps:
+  - ports/provider
+  dependents: []
+  closure:
+  - ports/provider
+  level: 1
   locked: false
   detachable: false
 - key: providers/drivers/auth/postgres

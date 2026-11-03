@@ -1,4 +1,13 @@
-"""ops/file: agnostic discovery over an installed package — modules, classes, functions.
+"""ops/file: what a file is and what a package holds — deterministic detection, and discovery over a package.
+
+``FileDetector`` names a file from its name and first 64 KiB, Rust and stdlib only, each layer asked in order and the
+first that decides named in ``because``: anytomd's ``detect_format`` (magic bytes, then extension) — behind ZIP magic,
+``detect_zip_format`` names the office format —, tree-sitter-language-pack's grammar by file name (an extension, or a
+known name: ``Dockerfile``, ``Makefile``) then by content (a shebang), ``mimetypes``, and a text sniff (UTF-8, no NUL):
+text nobody named is ``html`` when its head is a page, else ``txt``; binary nobody reads has no format. Which reader a
+detection goes to is the caller's table, never this module's.
+
+``FileFinder``: agnostic discovery over an installed package — modules, classes, functions.
 
 The sweep is single-level and import-based: files of the package directory, subpackages excluded — unless
 ``recursive``, which walks every folder below it too (a namespace tree, no ``__init__`` needed) and names a module by
@@ -9,21 +18,26 @@ category, a base class selects its subclasses (never itself), a module reads tha
 predicate decides freely; ``pattern`` filters the resulting names. ``adiscover``/``asummaries``
 offload the import walk to a thread."""
 
+import codecs
 import functools
 import importlib
 import inspect
+import mimetypes
 import pkgutil
+import re
 from enum import StrEnum, auto
-from pathlib import Path
+from pathlib import Path, PurePath
 from types import ModuleType
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Final
 
 import anyio
+import msgspec
+from anytomd import detect_format, detect_zip_format
+from tree_sitter_language_pack import detect_language, detect_language_from_content
 
 from e_infra.infra.errors import FileError
 
 if TYPE_CHECKING:
-    import re
     from collections.abc import Callable
 
 
@@ -32,6 +46,99 @@ class Kind(StrEnum):
     MODULES = auto()
     CLASSES = auto()
     FUNCTIONS = auto()
+
+
+class FileLayer(StrEnum):
+    """The detection layer that decided a file's format."""
+
+    ANYTOMD = auto()
+    ZIP = auto()
+    PATH = auto()
+    CONTENT = auto()
+    MIME = auto()
+    SNIFF = auto()
+    NONE = auto()
+
+
+class FileDetection(msgspec.Struct, frozen=True, kw_only=True):
+    """A file as detection reads it: the format anytomd named (None: no reader has one), its MIME type, the grammar
+    tree-sitter names, whether its head is text, and the layer that decided."""
+
+    format: str | None = None
+    mime: str | None = None
+    language: str | None = None
+    is_text: bool = False
+    because: FileLayer = FileLayer.NONE
+
+
+##### DETECTOR #####
+### the window detection reads: every magic number and a shebang sit well inside it.
+HEAD: Final[int] = 65_536
+TEXT: Final[str] = "txt"
+HTML: Final[str] = "html"
+### a page served with no extension in its address: its head says HTML, comments and white space aside.
+MARKUP: Final[re.Pattern[str]] = re.compile(
+    r"\A\ufeff?\s*(?:<!--.*?-->\s*)*<(?:!doctype\s+html|html)\b", re.IGNORECASE | re.DOTALL
+)
+
+
+class FileDetector:
+    """Names a file from its name and head; holds nothing."""
+
+    __slots__ = ()
+
+    ##### PRIVATE #####
+
+    @staticmethod
+    def _classify_text(head: bytes) -> str | None:
+        """The head as text when it is: valid UTF-8 (a character cut at the window's edge forgiven), no NUL."""
+        try:
+            text = codecs.getincrementaldecoder("utf-8")().decode(head)
+        except UnicodeDecodeError:
+            return None
+        return None if "\x00" in text else text
+
+    @staticmethod
+    async def _detect_head(path: anyio.Path) -> bytes:
+        async with await anyio.open_file(path, "rb") as file:
+            return await file.read(HEAD)
+
+    ############################################################
+
+    ##### PUBLIC #####
+
+    @classmethod
+    def classify(cls, name: str, head: bytes) -> FileDetection:
+        """A file from its name and first bytes alone, no I/O."""
+        base = PurePath(name).name
+        text = cls._classify_text(head)
+        found = detect_format(base, head)
+        by_path = detect_language(base)
+        by_content = detect_language_from_content(text) if text is not None and by_path is None else None
+        detection = FileDetection(
+            format=(detect_zip_format(head) or found) if found == "zip" else found,
+            mime=mimetypes.guess_file_type(base)[0],
+            language=by_path or by_content,
+            is_text=text is not None,
+        )
+        match found, detection.language, detection.is_text:
+            case "zip", _, _:
+                because = {"because": FileLayer.ZIP}
+            case str(), _, _:
+                because = {"because": FileLayer.ANYTOMD}
+            case None, str(), True:
+                because = {"because": FileLayer.PATH if by_path else FileLayer.CONTENT}
+            case None, None, True:
+                because = {"format": HTML if MARKUP.match(text or "") else TEXT, "because": FileLayer.SNIFF}
+            case _:
+                because = {"because": FileLayer.MIME if detection.mime else FileLayer.NONE}
+        return msgspec.structs.replace(detection, **because)
+
+    async def detect(self, path: anyio.Path | str, head: bytes | None = None) -> FileDetection:
+        """A file, reading only its first 64 KiB when no head is handed in. Classification stays on the loop: a few
+        Rust calls over at most 64 KiB cost microseconds."""
+        source = anyio.Path(path)
+        return self.classify(source.name, head if head is not None else await self._detect_head(source))
 
 
 ##### FINDER #####

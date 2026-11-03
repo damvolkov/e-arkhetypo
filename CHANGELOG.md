@@ -32,6 +32,17 @@ touches — `stack`, `systems`, `infra`. Lines under `[Unreleased]` are written 
 
 ### projects
 
+- `common`'s processors and ops (TODO_REVERSE step 8, e-gnosis's content):
+  - doc: no fast-pass block is dropped — the kinds both readers share are named as docling names them, any other
+    (`rule`, `grid_fallback`) keeps its own label —, and every item carries its `group` (docling's `list`, `slide`,
+    `form_area`…) and its `hyperlink`.
+  - md: handed an `ExtractPort`, a web page is read by its main content first (a URL passed only when the name is one),
+    whole through the converter when none is found or the extractor fails.
+  - ops/file: `FileDetector` beside `FileFinder` — a file named from its name and first 64 KiB (anytomd's format and
+    ZIP office format, tree-sitter's grammar by name then content, MIME, a UTF-8 sniff telling a page from text), the
+    deciding layer in `because`; `tree-sitter-language-pack` joins every project. Not taken: e-gnosis's nature table
+    and conversation dialects — its readers' routing, a consumer's table.
+  - graph locks regenerated with e-taxis main (they lagged the units of steps 7 and 8).
 - `common`'s HTTP, telemetry and dispatch tracing (TODO_REVERSE step 7, e-gnosis's content):
   - wreq: HTTP_AGENT on every request (Wikimedia answers 403 without one), HTTP_HEADERS as the process's own, a call's
     `headers` over both for that request only — one shared client, a service's credential never in it; `HttpPort`

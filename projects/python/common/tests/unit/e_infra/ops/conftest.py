@@ -16,6 +16,7 @@ if TYPE_CHECKING:
     from e_infra.ops.tui import HeaderTui
 
 _RES = Path(__file__).resolve().parents[3] / "resources" / "compose"
+_DETECT = Path(__file__).resolve().parents[3] / "resources" / "detect"
 _GOLDENS = Path(__file__).resolve().parent / "__snapshots__"
 
 
@@ -34,6 +35,12 @@ class HostApp(App[None]):
 def host_app() -> Callable[[HeaderTui], App[None]]:
     """The app class: tests mount their own HeaderTui through it."""
     return HostApp
+
+
+@pytest.fixture(scope="session")
+def samples() -> Path:
+    """`tests/resources/detect`: code with and without extension, a PDF without one, an image, office, prose, noise."""
+    return _DETECT
 
 
 @pytest.fixture(scope="session")

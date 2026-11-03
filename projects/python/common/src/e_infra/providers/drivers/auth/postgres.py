@@ -40,7 +40,7 @@ FROM auth_grant g JOIN auth_account a ON a.id = g.owner WHERE g.digest = $1"""
 
 
 ##### DRIVER #####
-class AuthPostgresDriver:
+class PostgresAuthDriver:
     """Accounts and grants in the service's Postgres, over whichever `DatabasePort` it is handed."""
 
     spec: ClassVar[ProviderSpec] = ProviderSpec("auth-postgres", Locality.REMOTE, Workload.IO_BOUND, Isolation.LOOP)

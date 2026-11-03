@@ -19,12 +19,12 @@ from e_infra.ports.provider import Isolation, Locality, ProviderSpec, Workload
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from e_infra.infra.config.providers.drivers.embed.tei import EmbedTEISettings
+    from e_infra.infra.config.providers.drivers.embed.tei import TEIEmbedSettings
     from e_infra.ports.http import HTTPPort
 
 
 ##### EMBED #####
-class EmbedTEIDriver:
+class TEIEmbedDriver:
     """TEI's embedding route behind `EmbedPort`, and the model's tokenizer."""
 
     spec: ClassVar[ProviderSpec] = ProviderSpec(
@@ -33,7 +33,7 @@ class EmbedTEIDriver:
 
     __slots__ = ("_conf", "_http", "_tokenizer")
 
-    def __init__(self, http: HTTPPort, settings: EmbedTEISettings | None = None) -> None:
+    def __init__(self, http: HTTPPort, settings: TEIEmbedSettings | None = None) -> None:
         ### the default is read on call, not at import: the settings singleton stays lazy.
         self._conf = st.providers.drivers.embed.tei if settings is None else settings
         self._http = http
@@ -51,7 +51,7 @@ class EmbedTEIDriver:
     def _common_tokenizer(self) -> Tokenizer:
         match self._tokenizer:
             case None:
-                msg = "EmbedTEIDriver is not open: the lifespan opens it, handlers never do"
+                msg = "TEIEmbedDriver is not open: the lifespan opens it, handlers never do"
                 raise ModelError(msg)
             case tokenizer:
                 return tokenizer

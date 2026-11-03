@@ -6,10 +6,10 @@ from typing import TYPE_CHECKING
 import anyio
 import pytest
 
-from e_infra.infra.config.providers.drivers.cache.postgres import CachePostgresSettings
+from e_infra.infra.config.providers.drivers.cache.postgres import PostgresCacheSettings
 from e_infra.infra.errors import CacheError, ProviderError
 from e_infra.ports.cache import CachePort
-from e_infra.providers.drivers.cache.postgres import CachePostgresDriver
+from e_infra.providers.drivers.cache.postgres import PostgresCacheDriver
 from support.cache import cache
 
 if TYPE_CHECKING:
@@ -28,7 +28,7 @@ async def test_cache_postgres_opening_creates_the_table_and_logs(db: FakeDatabas
 
 
 async def test_cache_postgres_default_settings_come_from_the_composer(db: FakeDatabase) -> None:
-    assert CachePostgresDriver(db, "unit", int)._conf == CachePostgresSettings()
+    assert PostgresCacheDriver(db, "unit", int)._conf == PostgresCacheSettings()
 
 
 async def test_cache_postgres_typed_values_by_namespace(db: FakeDatabase) -> None:
@@ -96,7 +96,7 @@ async def test_cache_postgres_a_value_msgspec_cannot_encode_is_a_cache_error_and
     db: FakeDatabase, logs: Logs
 ) -> None:
     """Refused at the border like the database's own refusal: the engine above degrades on it, never fails."""
-    async with CachePostgresDriver[object](db, "odd", object, CachePostgresSettings()) as odd:
+    async with PostgresCacheDriver[object](db, "odd", object, PostgresCacheSettings()) as odd:
         with pytest.raises(CacheError):
             await odd.put("a", object())
     assert db.table == {}

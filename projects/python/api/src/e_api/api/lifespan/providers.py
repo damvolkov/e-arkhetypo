@@ -20,7 +20,7 @@ from ports.database import DatabasePort
 from ports.http import HTTPPort
 from ports.provider import Provider
 from ports.store import StorePort
-from providers.drivers.auth.postgres import AuthPostgresDriver
+from providers.drivers.auth.postgres import PostgresAuthDriver
 from providers.drivers.database.psqlpy import PsqlpyDriver
 from providers.drivers.http.wreq import WreqDriver
 from providers.drivers.store.redis import RedisDriver
@@ -58,7 +58,7 @@ async def lifespan(app: Litestar) -> AsyncGenerator[None]:
         redis = await enter(RedisDriver())
         http = await enter(WreqDriver())
         database = await enter(PsqlpyDriver())
-        auth = await enter(AuthPostgresDriver(database))
+        auth = await enter(PostgresAuthDriver(database))
         providers = ProvidersState(store=store, redis=redis, http=http, database=database, auth=auth)
         system.providers = providers
         logger.info("providers ready", providers=sorted(providers.named), step="START")

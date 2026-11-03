@@ -93,7 +93,7 @@ GLYPHS: Final[Mapping[Glyph, tuple[Rect, ...]]] = MappingProxyType(
             Rect(210, 194, 45, 242),
         ),
         Glyph.C: (Rect(0, 0, 255, 45), Rect(0, 391, 255, 45), Rect(0, 0, 45, 436)),
-        Glyph.D: (Rect(0, 0, 45, 436), Rect(210, 0, 45, 436), Rect(0, 0, 255, 45), Rect(0, 391, 255, 45)),
+        Glyph.D: (Rect(0, 0, 45, 436), Rect(0, 0, 210, 45), Rect(0, 391, 210, 45), Rect(210, 45, 45, 346)),
         Glyph.F: (Rect(0, 0, 45, 436), Rect(0, 0, 255, 45), Rect(0, 194, 219, 45)),
         Glyph.G: (
             Rect(0, 0, 255, 45),
@@ -105,7 +105,14 @@ GLYPHS: Final[Mapping[Glyph, tuple[Rect, ...]]] = MappingProxyType(
         Glyph.H: (Rect(0, 0, 45, 436), Rect(210, 0, 45, 436), Rect(0, 194, 255, 45)),
         Glyph.I: (Rect(0, 0, 255, 45), Rect(0, 391, 255, 45), Rect(105, 0, 45, 436)),
         Glyph.J: (Rect(210, 0, 45, 436), Rect(0, 391, 255, 45), Rect(105, 0, 150, 45)),
-        Glyph.K: (Rect(0, 0, 45, 436), Rect(0, 194, 255, 45), Rect(210, 0, 45, 194), Rect(210, 239, 45, 197)),
+        Glyph.K: (
+            Rect(0, 0, 45, 436),
+            Rect(45, 194, 157, 45),
+            Rect(140, 97, 62, 107),
+            Rect(193, 0, 62, 107),
+            Rect(140, 232, 62, 107),
+            Rect(193, 329, 62, 107),
+        ),
         Glyph.L: (Rect(0, 0, 45, 436), Rect(0, 391, 255, 45)),
         Glyph.M: (Rect(0, 0, 45, 436), Rect(210, 0, 45, 436), Rect(105, 0, 45, 239), Rect(0, 0, 255, 45)),
         Glyph.N: (

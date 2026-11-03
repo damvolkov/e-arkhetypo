@@ -90,8 +90,8 @@ from it).
 
 #### infra.config — the settings tree mirrors the module tree
 
-`infra.settings` discovers every `*Settings` of `infra.config` recursively on import and builds nested, lazy, frozen
-sections: the module path, the attribute chain and the module configured are one hierarchy (the OST parity,
+`infra.settings` discovers every `*Settings` of `infra.config` recursively on first use — never at import — and builds
+nested, lazy, frozen sections: the module path, the attribute chain and the module configured are one hierarchy (the OST parity,
 `test_taxonomy` is its gate). `st.providers.drivers.database.psqlpy.dsn` is read from
 `infra/config/providers/drivers/database/psqlpy.py` and configures `providers/drivers/database/psqlpy.py`;
 `st.app.env` is a scope that serves no provider, engine or processor, so it sits at the top. Adding a scope is dropping a
@@ -100,7 +100,9 @@ file in the tree; each scope keeps its own sources (`env_prefix`, `env_file`, `t
 Env variable names are the scope's `env_prefix` plus the field, so a scope that already existed keeps its names
 (`POSTGRES_*`, `REDIS_*`, `QUEUE_*`); a new scope takes a prefix named after its provider (`ASYNCPG_*`). Fields always
 run connection, credentials, limits, behaviour, and a provider's constructor takes `settings: <X>Settings | None = None`,
-read lazily from the composer when absent.
+read lazily from the composer when absent. A project's own scopes — its services', which `infra/config` (materialized,
+held by `common-check`) has no room for — live in `<package>/settings/` of any package beside the composer's under
+`src`, and hang at `st.<package>`: `e_api/settings/orders.py` is `st.e_api.orders`, its env names its own prefix.
 
 | Config module | Chain | Purpose |
 |---|---|---|

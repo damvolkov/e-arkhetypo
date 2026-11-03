@@ -3,13 +3,14 @@
 import sys
 from datetime import timedelta
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import anyio
 import pytest
 from pydantic import BaseModel, ValidationError
 from pydantic_settings import SettingsConfigDict
 
+from e_infra.infra import settings as composer
 from e_infra.infra.config.api import ApiSettings, HttpMethod
 from e_infra.infra.config.app import AppSettings, Env
 from e_infra.infra.config.crypto import CryptoSettings
@@ -20,6 +21,9 @@ from e_infra.infra.config.providers.drivers.store.sqlite import SqliteSettings
 from e_infra.infra.settings import BaseSettings, Secret
 from e_infra.infra.settings import Settings as Composite
 from e_infra.infra.settings import settings as st
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
 
 
 class DB(BaseModel):
@@ -224,3 +228,52 @@ async def test_shared_dotenv_feeds_each_scope_its_own_keys(tmp_path: Path, monke
     assert ApiSettings().allow_origins
     assert WreqSettings().base_url == "https://dotenv.test"
     assert CryptoSettings().secret is not None
+
+
+##### A PROJECT'S OWN SCOPES — `<package>/settings/` beside the composer, under `st.<package>` #####
+ORDERS = """
+from pydantic_settings import SettingsConfigDict
+
+from e_infra.infra.config.base import BaseSettings
+from e_infra.infra.settings import settings as st
+
+
+class OrdersSettings(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix="ORDERS_")
+
+    size: int = 3
+"""
+BILLING = """
+from e_infra.infra.config.base import BaseSettings
+
+
+class BillingSettings(BaseSettings):
+    plan: str = "free"
+"""
+
+
+@pytest.fixture
+def project(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Path]:
+    """A `src` of the test's own: a package with scopes (one nested, one importing the composer at its import) and a
+    package with none; the composer pointed at it, its discovery forgotten before and after."""
+    (tmp_path / "probe_shop" / "settings" / "deep").mkdir(parents=True)
+    (tmp_path / "probe_shop" / "settings" / "orders.py").write_text(ORDERS)
+    (tmp_path / "probe_shop" / "settings" / "deep" / "billing.py").write_text(BILLING)
+    (tmp_path / "probe_plain").mkdir()
+    monkeypatch.syspath_prepend(str(tmp_path))
+    monkeypatch.setattr(composer, "_SRC", tmp_path)
+    composer._scopes.cache_clear()
+    composer._model.cache_clear()
+    yield tmp_path
+    composer._scopes.cache_clear()
+    composer._model.cache_clear()
+
+
+async def test_composite_hangs_a_projects_own_scopes_under_its_package(
+    project: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("ORDERS_SIZE", "7")
+    loaded = composer.Settings.load()
+    assert (loaded.probe_shop.orders.size, loaded.probe_shop.deep.billing.plan) == (7, "free")
+    assert loaded.app.env == AppSettings().env
+    assert "probe_plain" not in composer.Settings.model_fields

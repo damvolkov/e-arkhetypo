@@ -49,7 +49,8 @@ templates:
       - tests/unit/test_resources.py
       - tests/resources
       - tests/unit/e_api/conftest.py
-      - tests/support
+      - tests/support/psqlpy.py
+      - tests/support/auth.py
       - tests/unit/e_api/api/test_assembly.py
       - tests/unit/e_api/api/test_lifespan.py
       - tests/unit/e_api/api/test_stress.py
@@ -66,10 +67,39 @@ templates:
         paths: [src/e_api/websockets, src/e_api/models/telemetry.py, tests/unit/e_api/websockets, tests/unit/e_api/models/test_telemetry.py]
         prunes:
           - {file: src/e_api/main.py, pattern: '^from e_api\.websockets import telemetry\n'}
-          - {file: src/e_api/main.py, pattern: '^    app\.register\(Router\(path="/", route_handlers=list\(telemetry\.ws_routes\(\)\)\)\)\n'}
+          - {file: src/e_api/main.py, pattern: '^    app\.register\(\n        Router\(path="/", route_handlers=list\(telemetry\.ws_routes\(\)\)[^\n]*\n    \)\n'}
           - {file: tach.toml, pattern: ', "e_api\.websockets"'}
           - {file: tach.toml, pattern: '\[\[modules\]\]\npath = "e_api\.websockets"\ndepends_on = \["e_api\.api", "e_api\.models", "infra", "infra\.errors"\]\n\n'}
-          - {file: tests/unit/e_api/api/test_assembly.py, pattern: '"/ws/telemetry", '}
+          - {file: tests/unit/e_api/api/test_assembly.py, pattern: '^        "/ws/telemetry",\n'}
+
+      - name: mcp
+        group: modules
+        label: MCP door (the resources as tools, served at /mcp)
+        default: true
+        paths: [src/e_api/mcp, src/e_api/api/lifespan/mcp.py, src/infra/mcp, src/infra/config/mcp.py, tests/unit/e_api/mcp, tests/resources/mcp, tests/support/mcp.py]
+        prunes:
+          - {file: src/e_api/main.py, pattern: 'engines, mcp, providers', to: 'engines, providers'}
+          - {file: src/e_api/main.py, pattern: '^from e_api\.mcp import mount\n'}
+          - {file: src/e_api/main.py, pattern: '^from e_api\.mcp import registry as tools\n'}
+          - {file: src/e_api/main.py, pattern: '^from infra\.mcp\.guard import internal\n'}
+          - {file: src/e_api/main.py, pattern: '^            mcp\.lifespan,\n'}
+          - {file: src/e_api/main.py, pattern: '^    ### the MCP door:[^\n]*\n    ###[^\n]*\n    app\.register\(Router\(path="/", route_handlers=list\(tools\.ROUTES\)[^\n]*\n    app\.register\(Router\(path="/", route_handlers=list\(mount\.routes\(\)\)[^\n]*\n'}
+          - {file: tach.toml, pattern: '\[\[modules\]\]\npath = "e_api\.mcp"\ndepends_on = [^\n]*\n\n'}
+          - {file: tach.toml, pattern: '\[\[modules\]\]\npath = "infra\.mcp"\ndepends_on = [^\n]*\n\n'}
+          - {file: tach.toml, pattern: '"e_api\.mcp", ', to: ''}
+          - {file: tach.toml, pattern: ', "infra\.mcp"\]', to: ']'}
+          - {file: tach.toml, pattern: '^    "e_api\.mcp",\n'}
+          - {file: tach.toml, pattern: '^    "infra\.mcp",\n'}
+          - {file: pyproject.toml, pattern: '^    ### the MCP door: the official SDK[^\n]*\n    "mcp>=[^"]*",\n    ###[^\n]*\n    "python-multipart>=[^"]*",\n'}
+          - {file: pyproject.toml, pattern: '^    ### the MCP door.s tests drive[^\n]*\n    "httpx2>=[^"]*",\n'}
+          - {file: pyproject.toml, pattern: '^"src/e_api/mcp/\*\*" = [^\n]*\n'}
+          - {file: pyproject.toml, pattern: '^### the one module that speaks the MCP protocol[^\n]*\n"src/infra/mcp/server\.py" = [^\n]*\n'}
+          - {file: pyproject.toml, pattern: '\n\[tool\.ruff\.lint\.flake8-tidy-imports\.banned-api\]\n"mcp\.server"\.msg = [^\n]*\n'}
+          - {file: README.md, pattern: ', mcp/ \(the MCP door\)', to: ''}
+          - {file: README.md, pattern: ', the MCP client', to: ''}
+          - {file: README.md, pattern: '^The MCP door \(`src/e_api/mcp/`\)[^\n]*\n\n'}
+          - {file: docs/index.md, pattern: '^\| \[`e_api\.(api\.lifespan\.mcp|mcp\.[a-z.]+)`\][^\n]*\n'}
+          - {file: .env.example, pattern: '^# MCP_[^\n]*\n'}
 
       # ·· stack ··
       - name: docker

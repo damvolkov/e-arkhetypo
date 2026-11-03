@@ -32,6 +32,12 @@ touches — `stack`, `systems`, `infra`. Lines under `[Unreleased]` are written 
 
 ### projects
 
+- `common`'s cache (TODO_REVERSE step 5): theine's CACHE_TTL may be None (kept until evicted), so each cache is built
+  on its own settings — a ledger kept forever beside annotations kept 180 days — instead of one TTL for every scope;
+  the Postgres cache refuses a value msgspec cannot encode as a `CacheError` at its border, so `CacheEngine` degrades on
+  every refusal of its durable layer while still catching only `ProviderError`. Not taken from e-gnosis: `TieredCache.over`
+  and `TieredCaches` (they build providers inside the engine, and the blueprint's theine is opened by the lifespan) and
+  the partial `expires` index (the blueprint runs no expiry sweep that would read it).
 - `common`'s PgQueuer rides the ports (TODO_REVERSE step 4): `PgqueuerDriver(database, listen)` takes a `DatabasePort`
   and a `ListenPort` — e-gnosis's design — and PgQueuer's own `Driver` is met by `PgqueuerBridge` over them (statements
   on the pool, a transaction or a connection, LISTEN on the database driver's one held connection): no pool and no

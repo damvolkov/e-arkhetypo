@@ -33,6 +33,13 @@ async def test_theine_ttl() -> None:
         assert await cache.get("a") is None
 
 
+async def test_theine_without_a_ttl_keeps_until_evicted() -> None:
+    async with TheineAdapter[int](TheineSettings(size=10, ttl=None)) as cache:
+        await cache.put("a", 1)
+        await anyio.sleep(0.1)
+        assert await cache.get("a") == 1
+
+
 async def test_theine_lifecycle() -> None:
     cache = TheineAdapter[int](TheineSettings(size=10))
     assert not await cache.health()

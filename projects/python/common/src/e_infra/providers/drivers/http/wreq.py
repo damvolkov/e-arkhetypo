@@ -2,7 +2,8 @@
 
 One client per process, opened by the lifespan. The other drivers that speak HTTP (docling, TEI, an OpenAI-compatible
 server) receive it as an `HttpPort` and name absolute URLs, so the process holds one connection pool, not one per
-service. wreq's errors are `HttpError` from here up: a non-2xx answer carries its `status`, a request past its bound is
+service. Every request carries HTTP_AGENT as its User-Agent and HTTP_HEADERS; a call's own `headers` go over them for
+that request only — a service's credential travels there, never in the shared client. wreq's errors are `HttpError` from here up: a non-2xx answer carries its `status`, a request past its bound is
 an `HttpTimeoutError` — the bound covers the body too, where wreq says `BodyError` with a `TimedOut` source."""
 
 from contextlib import contextmanager
@@ -18,7 +19,7 @@ from e_infra.infra.settings import settings as st
 from e_infra.ports.provider import Isolation, Locality, ProviderSpec, Workload
 
 if TYPE_CHECKING:
-    from collections.abc import Awaitable, Callable, Generator, Mapping
+    from collections.abc import AsyncGenerator, Awaitable, Callable, Generator, Mapping
     from datetime import timedelta
 
     from e_infra.infra.config.providers.drivers.http.wreq import WreqSettings
@@ -48,6 +49,7 @@ class WreqDriver:
         conf = st.providers.drivers.http.wreq if settings is None else settings
         self._base_url = conf.base_url
         self._timeout = conf.timeout
+        self._headers = {"User-Agent": conf.agent, **conf.headers}
         self._client: wreq.Client | None = None
 
     ##### PRIVATE METHODS #####
@@ -96,37 +98,44 @@ class WreqDriver:
     async def _common_send[R](
         self,
         read: Callable[[wreq.Response], Awaitable[R]],
+        method: str,
         path: str,
         *,
         within: timedelta | None,
         headers: Mapping[str, str] | None,
-        post: bool = False,
-        payload: object = None,
+        **body: object,
     ) -> R:
-        """One request, its answer read; any 2xx, else `HttpError` with the status."""
+        """One request, its answer read; any 2xx, else `HttpError` with the status. `body` is the verb's own: `json`, or
+        a streamed `body`."""
         client, url = self._common_open(), self._common_url(path)
-        logger.debug("wreq request", method="POST" if post else "GET", url=url)
+        logger.debug("wreq request", method=method.upper(), url=url)
         options: dict[str, Any] = {
             key: value for key, value in {"timeout": within, "headers": headers and dict(headers)}.items() if value
         }
         with self._common_guard():
-            response = await (client.post(url, json=payload, **options) if post else client.get(url, **options))
+            response = await getattr(client, method)(url, **body, **options)
             match response.status.is_success():
                 case True:
-                    body = await read(response)
+                    answer = await read(response)
                 case False:
                     status = response.status.as_int()
                     msg = f"{url} answered {status}"
                     logger.error("wreq refused", url=url, status=status)
                     raise HttpError(msg, status)
-        return body
+        return answer
+
+    @staticmethod
+    async def _delete_read(response: wreq.Response) -> object:
+        """A DELETE's answer: its JSON, or None for an empty body (204)."""
+        raw = await response.bytes()
+        return msgspec.json.decode(raw) if raw else None
 
     ############################################################
 
     ##### PUBLIC #####
 
     async def __aenter__(self) -> Self:
-        self._client = wreq.Client(timeout=self._timeout)
+        self._client = wreq.Client(timeout=self._timeout, headers=self._headers)
         logger.info("wreq opened", base_url=self._base_url)
         return self
 
@@ -168,7 +177,7 @@ class WreqDriver:
         headers: Mapping[str, str] | None = None,
     ) -> T | object:
         """GET: the JSON body, decoded to `as_` when named; non-2xx raises `HttpError`, never a silent body."""
-        body = await self._common_send(methodcaller("json"), path, within=within, headers=headers)
+        body = await self._common_send(methodcaller("json"), "get", path, within=within, headers=headers)
         return self._common_decode(body, as_)
 
     @overload
@@ -203,13 +212,28 @@ class WreqDriver:
         headers: Mapping[str, str] | None = None,
     ) -> T | object:
         """POST with a JSON payload; same raise-and-decode contract as get()."""
-        body = await self._common_send(
-            methodcaller("json"), path, post=True, payload=payload, within=within, headers=headers
-        )
+        body = await self._common_send(methodcaller("json"), "post", path, within=within, headers=headers, json=payload)
         return self._common_decode(body, as_)
 
     async def raw(
         self, path: str, *, within: timedelta | None = None, headers: Mapping[str, str] | None = None
     ) -> bytes:
         """GET whose body leaves undecoded."""
-        return bytes(await self._common_send(methodcaller("bytes"), path, within=within, headers=headers))
+        return bytes(await self._common_send(methodcaller("bytes"), "get", path, within=within, headers=headers))
+
+    async def upload(
+        self,
+        path: str,
+        body: AsyncGenerator[bytes],
+        *,
+        within: timedelta | None = None,
+        headers: Mapping[str, str] | None = None,
+    ) -> object:
+        """POST a body streamed as it is produced — a file never held whole —; the JSON answer, same raise contract."""
+        return await self._common_send(methodcaller("json"), "post", path, within=within, headers=headers, body=body)
+
+    async def delete(
+        self, path: str, *, within: timedelta | None = None, headers: Mapping[str, str] | None = None
+    ) -> object:
+        """DELETE: the JSON answer, or None for an empty one (204); same raise contract as get()."""
+        return await self._common_send(self._delete_read, "delete", path, within=within, headers=headers)

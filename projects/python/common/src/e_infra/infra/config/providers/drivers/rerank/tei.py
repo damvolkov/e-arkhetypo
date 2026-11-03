@@ -8,7 +8,7 @@ from pydantic_settings import SettingsConfigDict
 from e_infra.infra.config.base import BaseSettings
 
 
-class TeiRerankSettings(BaseSettings):
+class RerankTeiSettings(BaseSettings):
     """RERANK_URL — the TEI base serving a reranker; `none` turns it off (the composition root builds no driver, and one
     built anyway refuses to open); RERANK_TIMEOUT — one request; RERANK_BATCH — texts per request."""
 

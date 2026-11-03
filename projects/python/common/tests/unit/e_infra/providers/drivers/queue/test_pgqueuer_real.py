@@ -1,5 +1,6 @@
 """PgQueuer on a real Postgres: the `QueuePort` contract held by it and awa alike; then its own recovery."""
 
+from itertools import count
 from typing import TYPE_CHECKING, Any
 
 import anyio
@@ -74,13 +75,28 @@ async def test_pgqueuer_retry(
     assert done.errors[0].startswith("RuntimeError: attempt 1 failed")
 
 
+async def told(port: AwaDriver | PgqueuerDriver, job: str) -> bool:
+    """Whether the job's handler has reported; a pause before the next look when not."""
+    found = await port.job(job)
+    told = bool(found and found.progress)
+    _ = told or await anyio.sleep(0.05)
+    return told
+
+
+async def reported(port: AwaDriver | PgqueuerDriver, job: str, seconds: float = 10) -> None:
+    """Returns once the job's handler has reported — it runs, past its pick —; the test fails after `seconds`."""
+    with anyio.fail_after(seconds):
+        await anext(None for _ in count() if await told(port, job))
+
+
 async def test_pgqueuer_cancel_running(port: AwaDriver | PgqueuerDriver, queue: str, hang: Hang) -> None:
-    """A running job is cancelled where it awaits, and stays cancelled."""
+    """A job whose handler runs is cancelled where it awaits, and stays cancelled."""
     async with port:
         port.register("hang", queue, hang)
         await port.start({queue: 1})
         job = await port.enqueue("hang", {}, queue=queue, attempts=3)
-        await running(port, job.id)
+        ### running means picked; the handler runs once it has reported.
+        await reported(port, job.id)
         await port.cancel(job.id)
         done = await settled(port, job.id)
         await anyio.sleep(1)
@@ -189,6 +205,34 @@ async def test_pgqueuer_call_outage(
             await engine._common_call(lambda: engine._db.fetch("SELECT 1"))
         with pytest.raises(ProviderError):
             await engine.health()
+
+
+async def test_pgqueuer_cancel_before_the_scope(
+    monkeypatch: pytest.MonkeyPatch, engine: PgqueuerDriver, queue: str, hang: Hang
+) -> None:
+    """A cancel whose NOTIFY came between the pick and the job's scope is no lost cancel: the job never starts. The
+    interleaving is forced — the cancel logged, its NOTIFY never sent, right after the pick."""
+    read = PgqueuerDriver._register_cancelled
+
+    async def lost(self: PgqueuerDriver, job: int) -> bool:
+        queries = self._common_queries()
+        await queries.driver.execute(queries.qbq.build_log_job_query(), [job], ["canceled"], [None])
+        return await read(self, job)
+
+    monkeypatch.setattr(PgqueuerDriver, "_register_cancelled", lost)
+    async with engine:
+        engine.register("hang", queue, hang)
+        await engine.start({queue: 1})
+        job = await engine.enqueue("hang", {}, queue=queue, attempts=3)
+        done = await settled(engine, job.id)
+        await anyio.sleep(0.2)
+        again = await engine.job(job.id)
+    assert (done.state, done.progress, hang.cancelled, again and again.state) == (
+        BackgroundState.CANCELLED,
+        None,
+        False,
+        BackgroundState.CANCELLED,
+    )
 
 
 async def test_pgqueuer_lost_job(

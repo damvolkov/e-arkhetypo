@@ -13,19 +13,19 @@ from e_infra.ports.provider import Isolation, Locality, ProviderSpec, Workload
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from e_infra.infra.config.providers.drivers.rerank.tei import TeiRerankSettings
+    from e_infra.infra.config.providers.drivers.rerank.tei import RerankTeiSettings
     from e_infra.ports.http import HttpPort
 
 
 ##### RERANK #####
-class TeiRerankDriver:
+class RerankTeiDriver:
     """TEI's rerank route behind `RerankPort`: it answers best first, by index; scores come back in the texts' order."""
 
     spec: ClassVar[ProviderSpec] = ProviderSpec("tei-rerank", Locality.REMOTE, Workload.IO_BOUND, Isolation.LOOP)
 
     __slots__ = ("_base", "_conf", "_http")
 
-    def __init__(self, http: HttpPort, settings: TeiRerankSettings | None = None) -> None:
+    def __init__(self, http: HttpPort, settings: RerankTeiSettings | None = None) -> None:
         self._conf = st.providers.drivers.rerank.tei if settings is None else settings
         self._http = http
         ### no URL is the reranker off: the root builds no driver; one built anyway refuses to open.

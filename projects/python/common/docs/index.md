@@ -182,7 +182,7 @@ port it meets** (`ports/embed.py` ↔ `providers/drivers/embed/tei.py`, one to o
 it: the path is a port module and the provider has the port's members. **The file names what tells implementations apart**:
 the library when several reach one service (`database/psqlpy.py`, `database/asyncpg.py`), otherwise the service or brand
 (`embed/tei.py`, `llm/openai.py`). **Class names are unique in the package, `<Name><Nature>`**; a brand that repeats across
-capabilities takes the capability as a qualifier before it (`TeiEmbedDriver`, `TeiRerankDriver`, `CachePostgresDriver`).
+capabilities takes the capability as a qualifier before it (`EmbedTeiDriver`, `RerankTeiDriver`, `CachePostgresDriver`).
 Every implementation worth keeping stays: the blueprint holds the alternatives and a project picks one at its composition
 root. SQLite is a driver (`Locality.FILESYSTEM`) and, as it meets `StorePort` (one kv table), it lives at
 `store/sqlite.py`; a SQL-flavoured sqlite driver would be `database/sqlite.py` meeting `DatabasePort`.

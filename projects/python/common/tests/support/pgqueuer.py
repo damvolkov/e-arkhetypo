@@ -8,24 +8,50 @@ every bridge it was built over, the scope each one rides. `schema_is_installed` 
 
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from pgqueuer.adapters.inmemory import InMemoryDriver, InMemoryQueries
+
+if TYPE_CHECKING:
+    from pgqueuer.domain.types import JobId
+
+
+class FakePgqueuerDriver(InMemoryDriver):
+    """PgQueuer's in-memory driver, answering the one SQL the driver sends itself — the cancel's log — by doing nothing:
+    the in-memory backend logs a cancel when it applies it."""
+
+    async def execute(self, query: str, *args: Any) -> str:
+        return ""
 
 
 @dataclass
 class FakePgqueuerQueries(InMemoryQueries):
-    """PgQueuer's in-memory queries, with the schema probe the driver asks first."""
+    """PgQueuer's in-memory queries, with the schema probe the driver asks first and a cancel's NOTIFY applied as the
+    in-memory cancel (the log and the removal at once, as the server's listener would see them)."""
 
     async def schema_is_installed(self) -> bool:
         return False
+
+    applying: bool = False
+
+    async def notify_job_cancellation(self, ids: list[JobId]) -> None:
+        """The driver's NOTIFY as the in-memory cancel; the cancel's own NOTIFY, inside it, is PgQueuer's."""
+        match self.applying:
+            case True:
+                await super().notify_job_cancellation(ids)
+            case False:
+                self.applying = True
+                try:
+                    await self.mark_job_as_cancelled(ids)
+                finally:
+                    self.applying = False
 
 
 class FakePgqueuer:
     """Stands for the `Queries` class: every bridge it is built over leads to the one in-memory backend."""
 
     def __init__(self) -> None:
-        self.queries = FakePgqueuerQueries(driver=InMemoryDriver())
+        self.queries = FakePgqueuerQueries(driver=FakePgqueuerDriver())
         self.bridges: list[Any] = []
 
     def __call__(self, bridge: Any) -> FakePgqueuerQueries:

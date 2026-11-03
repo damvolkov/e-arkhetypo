@@ -32,6 +32,18 @@ touches — `stack`, `systems`, `infra`. Lines under `[Unreleased]` are written 
 
 ### projects
 
+- `common` takes e-gnosis's second pass (TODO_REVERSE step 13):
+  - PgQueuer never loses a cancel: PgQueuer 1.6 drops a cancel NOTIFY for a job picked but not yet registered and sends
+    its log and NOTIFY at once, so a job cancelled in that window ran to its end under a `cancelled` record (e-gnosis
+    #190, measured 1 in 20). The driver now logs first and notifies after (`_cancel_ordered`), and reads the log once
+    the job's scope exists (`_register_cancelled`): a job cancelled by then never starts. A real test forces the
+    interleaving; the running-cancel test waits for the handler, not the pick.
+  - every template ignores `/secrets` — the folder `secrets/<APP_ENV>/` that step 9 reads was ignored by none — and
+    `data` without its slash (a worktree's link), as e-gnosis learned (#192).
+  - `TeiEmbedDriver`/`TeiRerankDriver` (and their settings) are `EmbedTeiDriver`/`RerankTeiDriver`: the capability
+    before the brand, as every other repeated brand (`AuthPostgresDriver`, `CachePostgresDriver`).
+  - Settled without change: dispatch's traced jobs and injected memory were already here (step 7); the templates
+    type-check `tests/` whole, benchmarks included (e-gnosis's ty-excluded scripts do not exist here).
 - `common` gains e-gnosis's last two providers and its health contract (TODO_REVERSE steps 11 and 7):
   - `ports/language` + `providers/adapters/language/lingua` (`LinguaAdapter`: ISO 639-1 over LANGUAGE_LANGUAGES, a
     20 000-character prefix, a text under 40 characters told by no one, pickled as its settings for worker processes,

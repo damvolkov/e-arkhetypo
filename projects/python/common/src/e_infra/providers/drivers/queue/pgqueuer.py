@@ -98,6 +98,8 @@ LEFT JOIN LATERAL (
 ONE: Final[str] = f"SELECT * FROM ({READ}) r WHERE id = $1"  # noqa: S608 — constants only, values bound
 WHERE: Final[str] = "($1::text IS NULL OR kind = $1) AND ($2::text IS NULL OR state = $2)"
 MANY: Final[str] = f"SELECT * FROM ({READ}) r WHERE {WHERE} ORDER BY created DESC, id DESC LIMIT $3"  # noqa: S608 — constants only, values bound
+### a cancel already logged for the job: what a NOTIFY that came before the job's scope existed would have said.
+CANCELLED: Final[str] = "SELECT 1 FROM pgqueuer_log WHERE job_id = $1 AND status IN ('canceled', 'deleted') LIMIT 1"
 
 
 ##### BRIDGE #####
@@ -285,17 +287,34 @@ class PgqueuerDriver:
             args=body["args"],
             created=job.created,
         )
-        ### a cancel NOTIFY cancels this scope; PgQueuer leaves entering it to the entrypoint.
+        ### a cancel NOTIFY cancels this scope; PgQueuer leaves entering it to the entrypoint. A NOTIFY that came
+        ### between the pick and the scope's registration found no scope and was dropped: the log, written before
+        ### every NOTIFY (`cancel`), is read once now — a job cancelled by then never starts.
         with context.cancellation:
-            try:
-                await handler(PgqueuerRun(found, lambda progress: self._register_report(job.id, progress)))
-            except Exception as error:
-                _ = job.attempts + 1 < attempts and self._register_retry(error)
-                raise
+            match await self._register_cancelled(job.id):
+                case True:
+                    context.cancellation.cancel()
+                case _:
+                    try:
+                        await handler(PgqueuerRun(found, lambda progress: self._register_report(job.id, progress)))
+                    except Exception as error:
+                        _ = job.attempts + 1 < attempts and self._register_retry(error)
+                        raise
 
     @staticmethod
     def _register_retry(error: Exception) -> None:
         raise RetryRequested(delay=timedelta(0), reason=f"{type(error).__name__}: {error}") from error
+
+    async def _register_cancelled(self, job: int) -> bool:
+        """Whether the job's cancel is already logged."""
+        return bool(await self._common_call(lambda: self._db.fetch(CANCELLED, [job])))
+
+    async def _cancel_ordered(self, job: JobId) -> None:
+        """PgQueuer's cancel in order: the log written, then the NOTIFY — its own sends both at once, so a NOTIFY could
+        land before the log a late-registered job reads."""
+        queries = self._common_queries()
+        await queries.driver.execute(queries.qbq.build_log_job_query(), [job], ["canceled"], [None])
+        await queries.notify_job_cancellation([job])
 
     async def _register_report(self, job: int, progress: Mapping[str, Any]) -> None:
         ### a JSON parameter travels as a Python value: each driver binds it as jsonb (text would bind as a JSON string).
@@ -427,7 +446,5 @@ class PgqueuerDriver:
     async def cancel(self, job: str) -> BackgroundJob | None:
         """A queued or running job is logged cancelled and its row deleted at once; a running one is interrupted by
         PgQueuer's NOTIFY where it awaits. A settled one comes back unchanged."""
-        _ = job.isdecimal() and await self._common_call(
-            lambda: self._common_queries().mark_job_as_cancelled([JobId(int(job))])
-        )
+        _ = job.isdecimal() and await self._common_call(lambda: self._cancel_ordered(JobId(int(job))))
         return await self.job(job)

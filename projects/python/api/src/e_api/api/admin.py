@@ -10,7 +10,7 @@ from engines.auth import AuthEngine
 from infra.auth.models import Issued
 from infra.logger import logger
 from infra.settings import settings as st
-from providers.drivers.auth.postgres import AuthPostgresDriver
+from providers.drivers.auth.postgres import PostgresAuthDriver
 from providers.drivers.database.psqlpy import PsqlpyDriver
 
 
@@ -20,7 +20,7 @@ async def mint() -> Issued:
         database = PsqlpyDriver()
         await database.provision()
         await stack.enter_async_context(database)
-        store = await stack.enter_async_context(AuthPostgresDriver(database))
+        store = await stack.enter_async_context(PostgresAuthDriver(database))
         issued = await AuthEngine(store, st.engines.auth).rotate(st.engines.auth.admin)
     logger.info("admin key minted", owner=issued.owner)
     return issued

@@ -8,7 +8,7 @@ from pydantic_settings import SettingsConfigDict
 from e_infra.infra.config.base import BaseSettings
 
 
-class EmbedTEISettings(BaseSettings):
+class TEIEmbedSettings(BaseSettings):
     """EMBED_URL — TEI base; EMBED_TIMEOUT — one request; EMBED_BATCH — texts per request; EMBED_CONCURRENCY — requests
     in flight; EMBED_MODEL — the HF id whose tokenizer sizes chunks; EMBED_DIMENSIONS — vector width;
     EMBED_QUERY_PREFIX — the instruction a query carries (Qwen3-Embedding embeds queries with one, documents without)."""

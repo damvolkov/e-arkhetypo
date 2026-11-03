@@ -18,7 +18,7 @@ from e_infra.ports.provider import Isolation, Locality, ProviderSpec, Workload
 if TYPE_CHECKING:
     from collections.abc import Generator, Mapping, Sequence
 
-    from e_infra.infra.config.providers.drivers.cache.postgres import CachePostgresSettings
+    from e_infra.infra.config.providers.drivers.cache.postgres import PostgresCacheSettings
     from e_infra.ports.database import DatabasePort
 
 CACHE_SCHEMA: Final[str] = (
@@ -35,7 +35,7 @@ CACHE_PUT: Final[str] = (
 
 
 ##### DRIVER #####
-class CachePostgresDriver[T]:
+class PostgresCacheDriver[T]:
     """Values of type `kind` under `namespace` in the database's `cache` table — durable, shared by every process —,
     each kept CACHE_TTL (unset: until replaced). A value is msgpack; a row that no longer decodes (the type changed) is a
     miss, and a read skips what expired. The table is logged: what it keeps is often a paid answer."""
@@ -45,7 +45,7 @@ class CachePostgresDriver[T]:
     __slots__ = ("_conf", "_db", "_decoder", "_encoder", "_namespace")
 
     def __init__(
-        self, db: DatabasePort, namespace: str, kind: type[T], settings: CachePostgresSettings | None = None
+        self, db: DatabasePort, namespace: str, kind: type[T], settings: PostgresCacheSettings | None = None
     ) -> None:
         ### the default is read on call, not at import: the settings singleton stays lazy.
         self._conf = st.providers.drivers.cache.postgres if settings is None else settings

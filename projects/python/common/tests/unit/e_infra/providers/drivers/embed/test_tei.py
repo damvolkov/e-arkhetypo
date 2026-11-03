@@ -6,11 +6,11 @@ import msgspec
 import pytest
 from tokenizers import Tokenizer, models, pre_tokenizers
 
-from e_infra.infra.config.providers.drivers.embed.tei import EmbedTEISettings
+from e_infra.infra.config.providers.drivers.embed.tei import TEIEmbedSettings
 from e_infra.infra.errors import HTTPError, ModelError, ProviderError
 from e_infra.ports.embed import EmbedPort
 from e_infra.providers.drivers.embed import tei
-from e_infra.providers.drivers.embed.tei import EmbedTEIDriver
+from e_infra.providers.drivers.embed.tei import TEIEmbedDriver
 
 if TYPE_CHECKING:
     from e_infra.ports.http import HTTPPort
@@ -28,8 +28,8 @@ def words(monkeypatch: pytest.MonkeyPatch) -> None:
 
 async def test_embed_vectors_in_order_with_the_query_prefix(stub: Stub, http: HTTPPort) -> None:
     stub.json("POST", "/embed", [[0.1, 0.2], [0.3, 0.4]])
-    conf = EmbedTEISettings(url=stub.url, query_prefix="Q: ")
-    async with EmbedTEIDriver(http, conf) as embed:
+    conf = TEIEmbedSettings(url=stub.url, query_prefix="Q: ")
+    async with TEIEmbedDriver(http, conf) as embed:
         assert isinstance(embed, EmbedPort)
         assert await embed.embed(["x", "y"], query=True) == [[0.1, 0.2], [0.3, 0.4]]
         assert await embed.embed([]) == []
@@ -39,7 +39,7 @@ async def test_embed_vectors_in_order_with_the_query_prefix(stub: Stub, http: HT
 
 
 async def test_embed_tokens_from_the_models_tokenizer(stub: Stub, http: HTTPPort) -> None:
-    async with EmbedTEIDriver(http, EmbedTEISettings(url=stub.url)) as embed:
+    async with TEIEmbedDriver(http, TEIEmbedSettings(url=stub.url)) as embed:
         assert embed.tokens("a b a") == 3
     with pytest.raises(ModelError, match="not open"):
         embed.tokens("a")
@@ -47,7 +47,7 @@ async def test_embed_tokens_from_the_models_tokenizer(stub: Stub, http: HTTPPort
 
 async def test_embed_server_error_is_an_http_error(stub: Stub, http: HTTPPort) -> None:
     stub.json("POST", "/embed", {"error": "boom"}, status=500)
-    async with EmbedTEIDriver(http, EmbedTEISettings(url=stub.url)) as embed:
+    async with TEIEmbedDriver(http, TEIEmbedSettings(url=stub.url)) as embed:
         with pytest.raises(HTTPError) as caught:
             await embed.embed(["x"])
     assert caught.value.status == 500
@@ -55,7 +55,7 @@ async def test_embed_server_error_is_an_http_error(stub: Stub, http: HTTPPort) -
 
 async def test_embed_health(stub: Stub, http: HTTPPort) -> None:
     stub.on("GET", "/health", lambda _body: (200, b""))
-    embed = EmbedTEIDriver(http, EmbedTEISettings(url=stub.url))
+    embed = TEIEmbedDriver(http, TEIEmbedSettings(url=stub.url))
     with pytest.raises(ProviderError):
         await embed.health()
     async with embed:
@@ -66,7 +66,7 @@ async def test_embed_health(stub: Stub, http: HTTPPort) -> None:
 
 
 async def test_embed_lifecycle_and_an_unhealthy_server_are_logged(stub: Stub, http: HTTPPort, logs: Logs) -> None:
-    async with EmbedTEIDriver(http, EmbedTEISettings(url=stub.url)) as embed:
+    async with TEIEmbedDriver(http, TEIEmbedSettings(url=stub.url)) as embed:
         with pytest.raises(ProviderError):
             await embed.health()
     assert logs.at("info", "tei") == ["tei embed opened", "tei embed closed"]

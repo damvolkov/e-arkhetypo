@@ -37,6 +37,9 @@ touches — `stack`, `systems`, `infra`. Lines under `[Unreleased]` are written 
 
 ### projects
 
+- Class names read from the nature back to the provider (Damien): `TEIEmbedDriver`, `TEIRerankDriver`,
+  `PostgresAuthDriver`, `PostgresCacheDriver` (and their settings) — the surname is the nature, then the capability,
+  the provider first; a new provider changes the first word only. Replaces #100's capability-first order.
 - TODO_REVERSE finished: what e-gnosis learned on the house taxonomy, in `common` — the Postgres drivers' contract and
   LISTEN, PgQueuer over the ports (and its lost cancel), cache TTLs, the bearer, HTTP and telemetry, processors and the
   file detector, secrets per environment, lingua and watchfiles, a provider's health reason, a project's own scopes

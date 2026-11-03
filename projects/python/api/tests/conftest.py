@@ -59,5 +59,5 @@ def keys(monkeypatch: pytest.MonkeyPatch) -> FakeAuth:
     store = FakeAuth()
     store.key("t-ana", "ana")
     store.key("t-root", "root", Role.ADMIN)
-    monkeypatch.setattr(providers_module, "AuthPostgresDriver", lambda _database: store)
+    monkeypatch.setattr(providers_module, "PostgresAuthDriver", lambda _database: store)
     return store

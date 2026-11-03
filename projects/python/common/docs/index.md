@@ -184,7 +184,7 @@ port it meets** (`ports/embed.py` ↔ `providers/drivers/embed/tei.py`, one to o
 it: the path is a port module and the provider has the port's members. **The file names what tells implementations apart**:
 the library when several reach one service (`database/psqlpy.py`, `database/asyncpg.py`), otherwise the service or brand
 (`embed/tei.py`, `llm/openai.py`). **Class names are unique in the package, `<Name><Nature>`**; a brand that repeats across
-capabilities takes the capability as a qualifier before it (`EmbedTEIDriver`, `RerankTEIDriver`, `CachePostgresDriver`).
+capabilities takes the capability as a qualifier before it (`TEIEmbedDriver`, `TEIRerankDriver`, `PostgresCacheDriver`).
 Every implementation worth keeping stays: the blueprint holds the alternatives and a project picks one at its composition
 root. SQLite is a driver (`Locality.FILESYSTEM`) and, as it meets `StorePort` (one kv table), it lives at
 `store/sqlite.py`; a SQL-flavoured sqlite driver would be `database/sqlite.py` meeting `DatabasePort`.
@@ -353,7 +353,7 @@ e-taxis itself materializes the whole tree (the stack machinery — `ops/compose
 | `ports/documents.py`, `providers/drivers/documents/docling.py` | api, cli, graph, tui (with `processors/doc`) |
 | `ports/pages.py`, `providers/adapters/pages/liteparse.py` | api, cli, graph, tui (with `processors/doc`) |
 | `ports/markdown.py`, `providers/adapters/markdown/anytomd.py` | api, cli, graph, tui (with `processors/md`) |
-| `ports/cache.py`, `providers/adapters/cache/theine.py`, `engines/cache.py` | none by default — the cache is opt-in; its durable layer is `CachePostgresDriver` in `providers/drivers/cache/postgres.py`, over any `DatabasePort` |
+| `ports/cache.py`, `providers/adapters/cache/theine.py`, `engines/cache.py` | none by default — the cache is opt-in; its durable layer is `PostgresCacheDriver` in `providers/drivers/cache/postgres.py`, over any `DatabasePort` |
 | `ports/embed.py`, `ports/rerank.py`, `providers/drivers/embed/tei.py`, `providers/drivers/rerank/tei.py` | none by default — model edges are opt-in |
 | `ports/llm.py`, `providers/drivers/llm/openai.py` | none by default — model edges are opt-in |
 | `ports/ner.py`, `providers/drivers/ner/gliner.py` | none by default — model edges are opt-in |

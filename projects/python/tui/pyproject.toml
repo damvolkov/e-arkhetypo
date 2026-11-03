@@ -1,6 +1,6 @@
 ##### BUILD #####
 [build-system]
-requires = ["hatchling>=1.32", "uv-dynamic-versioning>=0.14"]
+requires = ["hatchling>=1.32", "uv-dynamic-versioning>=0.14.1"]
 build-backend = "hatchling.build"
 
 ##### PROJECT #####

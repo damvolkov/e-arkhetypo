@@ -43,6 +43,23 @@ EXCLUDES: frozenset[str] = frozenset(
         "providers/drivers/rerank/tei.py",
         "providers/adapters/cache/theine.py",
         "providers/adapters/extract/rtrafilatura.py",
+        ##### auth and the MCP door: a service that runs a door (api) takes them #####
+        "infra/auth/guard.py",
+        "infra/auth/middleware.py",
+        "infra/auth/models.py",
+        "infra/auth/policy.py",
+        "infra/auth/resolver.py",
+        "infra/mcp/bridge.py",
+        "infra/mcp/guard.py",
+        "infra/mcp/models.py",
+        "infra/mcp/mount.py",
+        "infra/mcp/registry.py",
+        "infra/mcp/server.py",
+        "infra/config/engines/auth.py",
+        "infra/config/mcp.py",
+        "ports/auth.py",
+        "providers/drivers/auth/postgres.py",
+        "engines/auth.py",
     }
 )
 

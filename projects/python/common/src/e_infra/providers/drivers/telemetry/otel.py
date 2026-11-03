@@ -5,7 +5,7 @@ A singleton like every provider: one per process, opened by the lifespan, closed
 The exporter resolves once: an injected `SpanExporter` wins (tests read spans in memory), then
 `OTEL_ENDPOINT` batches to a collector over `OTEL_PROTOCOL`, and with neither the spans are still minted
 — their ids correlate logs and outputs, they just leave no process. Sampling is parent-based at
-`OTEL_SAMPLE`. Each `span` yields an `OtelSpan` (the `SpanPort`): attributes, events and status may be
+`OTEL_SAMPLE`. Each `span` yields an `OTelSpan` (the `SpanPort`): attributes, events and status may be
 written until the block ends; a clean exit settles OK, a raise settles ERROR with the exception recorded.
 Spans nest through the SDK's contextvars, so a span opened inside another is its child across awaits.
 
@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING, ClassVar, Final, Self
 
 from opentelemetry import context, trace
 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter as GrpcExporter
-from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter as HttpExporter
+from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter as HTTPExporter
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, SimpleSpanProcessor, SpanExporter, SpanProcessor
@@ -30,7 +30,7 @@ from opentelemetry.sdk.trace.sampling import ParentBased, TraceIdRatioBased
 from opentelemetry.trace import Status, StatusCode
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 
-from e_infra.infra.config.providers.drivers.telemetry.otel import OtelProtocol
+from e_infra.infra.config.providers.drivers.telemetry.otel import OTelProtocol
 from e_infra.infra.errors import TelemetryError
 from e_infra.infra.logger import logger
 from e_infra.infra.settings import settings as st
@@ -42,7 +42,7 @@ if TYPE_CHECKING:
 
     from opentelemetry.trace import Tracer
 
-    from e_infra.infra.config.providers.drivers.telemetry.otel import OtelSettings
+    from e_infra.infra.config.providers.drivers.telemetry.otel import OTelSettings
     from e_infra.ports.telemetry import AttributeValue
 
 TRACES_PATH: Final[str] = "/v1/traces"
@@ -100,7 +100,7 @@ STATUSES: Final[Mapping[SpanStatus, StatusCode]] = MappingProxyType(
 ##### EXPORTERS — one handler per transport, chosen by value #####
 def export_http(endpoint: str, headers: dict[str, str], timeout: float) -> SpanExporter:
     """OTLP over HTTP/protobuf: the collector's base URL, traces under `/v1/traces`."""
-    return HttpExporter(endpoint=f"{endpoint}{TRACES_PATH}", headers=headers, timeout=timeout)
+    return HTTPExporter(endpoint=f"{endpoint}{TRACES_PATH}", headers=headers, timeout=timeout)
 
 
 def export_grpc(endpoint: str, headers: dict[str, str], timeout: float) -> SpanExporter:
@@ -108,16 +108,16 @@ def export_grpc(endpoint: str, headers: dict[str, str], timeout: float) -> SpanE
     return GrpcExporter(endpoint=endpoint, insecure=endpoint.startswith("http://"), headers=headers, timeout=timeout)
 
 
-EXPORTERS: Final[Mapping[OtelProtocol, Callable[[str, dict[str, str], float], SpanExporter]]] = MappingProxyType(
+EXPORTERS: Final[Mapping[OTelProtocol, Callable[[str, dict[str, str], float], SpanExporter]]] = MappingProxyType(
     {
-        OtelProtocol.HTTP: export_http,
-        OtelProtocol.GRPC: export_grpc,
+        OTelProtocol.HTTP: export_http,
+        OTelProtocol.GRPC: export_grpc,
     }
 )
 
 
 ##### SPAN #####
-class OtelSpan:
+class OTelSpan:
     """The `SpanPort` over one live SDK span: ids in W3C hex, writes forwarded until the span ends."""
 
     __slots__ = ("_role", "_settled", "_span")
@@ -167,12 +167,12 @@ class OtelSpan:
 
 
 ##### DRIVER #####
-class OtelDriver:
-    """Spans on a private provider: open with `span`, write through the yielded `OtelSpan`, flushed on close."""
+class OTelDriver:
+    """Spans on a private provider: open with `span`, write through the yielded `OTelSpan`, flushed on close."""
 
     spec: ClassVar[ProviderSpec] = ProviderSpec("otel", Locality.REMOTE, Workload.IO_BOUND, Isolation.LOOP)
 
-    def __init__(self, settings: OtelSettings | None = None, exporter: SpanExporter | None = None) -> None:
+    def __init__(self, settings: OTelSettings | None = None, exporter: SpanExporter | None = None) -> None:
         ### the default is read on call, not at import: the settings singleton stays lazy.
         self._settings = st.providers.drivers.telemetry.otel if settings is None else settings
         self._exporter = exporter
@@ -211,12 +211,12 @@ class OtelDriver:
                 return kind, dict(attributes)
             case _:
                 held, convention = ROLES[role]
-                return held, {SPAN_KIND: convention, **OtelSpan._common_named(role, attributes)}
+                return held, {SPAN_KIND: convention, **OTelSpan._common_named(role, attributes)}
 
     def _common_open(self) -> Tracer:
         match self._tracer:
             case None:
-                msg = "OtelDriver is not open: the lifespan opens it, handlers never do"
+                msg = "OTelDriver is not open: the lifespan opens it, handlers never do"
                 raise TelemetryError(msg)
             case tracer:
                 return tracer
@@ -257,7 +257,7 @@ class OtelDriver:
         timeout = int(self._settings.timeout.total_seconds() * MS_PER_SECOND)
         match self._provider:
             case None:
-                msg = "OtelDriver is not open"
+                msg = "OTelDriver is not open"
                 logger.warning("otel unhealthy", error=msg)
                 raise TelemetryError(msg)
             case provider if not await asyncio.to_thread(provider.force_flush, timeout):
@@ -275,14 +275,14 @@ class OtelDriver:
         kind: SpanKind = SpanKind.INTERNAL,
         *,
         role: SpanRole | None = None,
-    ) -> Generator[OtelSpan]:
+    ) -> Generator[OTelSpan]:
         """A current span around the block: a raise is recorded and settles ERROR, a clean exit settles OK. A role
         picks the kind and the OpenInference convention, and names the keys."""
         tracer = self._common_open()
         kind, named = self._span_shaped(kind, role, attributes)
         logger.debug("otel span", name=name, kind=str(kind), role=str(role or ""))
         with tracer.start_as_current_span(name, kind=KINDS[kind], attributes=named) as raw:
-            span = OtelSpan(raw, role)
+            span = OTelSpan(raw, role)
             yield span
             ### only reached on a clean exit: a verdict written explicitly (say, a failed run caught inside) stands.
             match span.settled:

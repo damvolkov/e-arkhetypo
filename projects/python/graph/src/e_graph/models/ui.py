@@ -3,7 +3,7 @@
 import msgspec
 
 
-class UiView(msgspec.Struct, frozen=True, kw_only=True):
+class UIView(msgspec.Struct, frozen=True, kw_only=True):
     """`toast_ms` how long a node toast stays; `pace` the per-node pause (seconds) a demo run asks for;
     `lane_gap` / `rank_gap` the pixels between parallel lanes and sequential ranks."""
 

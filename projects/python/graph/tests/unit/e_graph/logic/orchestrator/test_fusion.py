@@ -3,10 +3,10 @@
 import jsonschema_rs
 import pytest
 
-from e_graph.logic.models import JsonSchema, SemanticSpec, SpecNode
+from e_graph.logic.models import JSONSchema, SemanticSpec, SpecNode
 from e_graph.logic.orchestrator.fusion import BARE, PREAMBLE, SpecFusion
 
-TOTAL = JsonSchema({"type": "object", "properties": {"total": {"type": "number"}}, "required": ["total"]})
+TOTAL = JSONSchema({"type": "object", "properties": {"total": {"type": "number"}}, "required": ["total"]})
 
 
 def node(name: str, **fields: object) -> SpecNode:

@@ -8,7 +8,7 @@ from e_infra.infra.config.base import BaseSettings, Secret
 DEFAULT_HISTORY: int = 50
 
 
-class CliSettings(BaseSettings):
+class CLISettings(BaseSettings):
     """CLI_TOKEN authenticates a run without a stored login; CLI_HISTORY caps how many runs the journal keeps."""
 
     model_config = SettingsConfigDict(env_prefix="CLI_")

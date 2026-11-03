@@ -6,7 +6,7 @@ from pydantic_settings import SettingsConfigDict
 from e_infra.infra.config.base import BaseSettings
 
 
-class McpSettings(BaseSettings):
+class MCPSettings(BaseSettings):
     """MCP_PATH — where the endpoint answers. MCP_HOSTS / MCP_ORIGINS — JSON lists of the `host:port` and the origins
     the transport accepts, a foreign one refused (421); empty, the composition root derives them from APP_PORT:
     `127.0.0.1` and `localhost`, and `http://` each of them."""

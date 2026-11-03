@@ -27,8 +27,8 @@ ecli [--token T] [--verbose] GROUP ... COMMAND ARGS
  └─ Launcher.run        global options; parse_args resolves (and only now imports) the command
      └─ lifespan        logs → stderr, infra singletons loaded, `shared` + `session` sealed into the State graph
          └─ Deps        builds only what the command declares: Inject[StorePort] · Inject[Identity] · Inject[Console] · …
-             └─ command plain async function; raises CliError subclasses, never prints failures or exits
- ← exit code            0 · CliError.exit_code (IdentityError 3 · JournalError 4 · ProjectError 5)
+             └─ command plain async function; raises CLIError subclasses, never prints failures or exits
+ ← exit code            0 · CLIError.exit_code (IdentityError 3 · JournalError 4 · ProjectError 5)
 ```
 
 ##### ADDING A COMMAND #####

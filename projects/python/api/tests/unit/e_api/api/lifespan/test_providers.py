@@ -11,7 +11,7 @@ from e_api.main import create_app
 from infra.errors import StoreError
 from ports.auth import AuthPort
 from ports.database import DatabasePort
-from ports.http import HttpPort
+from ports.http import HTTPPort
 from ports.provider import Provider
 from ports.store import StorePort
 
@@ -36,7 +36,7 @@ async def test_providers_section_is_typed_and_ported(client: TestClient) -> None
     assert isinstance(section, ProvidersState)
     assert isinstance(section.store, StorePort)
     assert isinstance(section.redis, StorePort)
-    assert isinstance(section.http, HttpPort)
+    assert isinstance(section.http, HTTPPort)
     assert isinstance(section.database, DatabasePort)
     assert isinstance(section.auth, AuthPort)
     assert section.store.spec.name == "sqlite"

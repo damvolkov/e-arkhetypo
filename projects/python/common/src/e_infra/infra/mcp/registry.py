@@ -1,6 +1,6 @@
 """infra/mcp/registry: the tools an MCP door declares, read off their routes — explicit, checked once at startup.
 
-Each route carries its `McpTool` (`models.TOOL`), answers POST and takes its arguments as one msgspec Struct, `data`:
+Each route carries its `MCPTool` (`models.TOOL`), answers POST and takes its arguments as one msgspec Struct, `data`:
 the Struct's fields are the tool's arguments, its JSON Schema — required fields, defaults, formats — what a client is
 told; a Struct answer gives the tool's output schema too. A name declared twice, a route without its tool, a method
 other than POST or arguments that are not a Struct refuse the start."""
@@ -10,9 +10,9 @@ from typing import TYPE_CHECKING, Any, cast, get_type_hints
 
 import msgspec
 
-from e_infra.infra.errors import McpRegistryError
+from e_infra.infra.errors import MCPRegistryError
 from e_infra.infra.logger import logger
-from e_infra.infra.mcp.models import TOOL, McpEntry
+from e_infra.infra.mcp.models import TOOL, MCPEntry
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Iterator, Mapping
@@ -20,7 +20,7 @@ if TYPE_CHECKING:
     from litestar.handlers import HTTPRouteHandler
 
 
-class McpRegistry:
+class MCPRegistry:
     """The tools by name, each the route that answers it."""
 
     __slots__ = ("_entries",)
@@ -30,7 +30,7 @@ class McpRegistry:
         names = [entry.tool.name for entry in entries]
         twice = sorted({name for name in names if names.count(name) > 1})
         _ = twice and self._common_refuse(f"tools declared twice: {', '.join(twice)}")
-        self._entries: Mapping[str, McpEntry] = MappingProxyType({entry.tool.name: entry for entry in entries})
+        self._entries: Mapping[str, MCPEntry] = MappingProxyType({entry.tool.name: entry for entry in entries})
         logger.debug("mcp registry read", tools=sorted(self._entries))
 
     ##### PRIVATE #####
@@ -38,7 +38,7 @@ class McpRegistry:
     @staticmethod
     def _common_refuse(message: str) -> None:
         logger.error("mcp registry refused", reason=message)
-        raise McpRegistryError(message)
+        raise MCPRegistryError(message)
 
     @staticmethod
     def _common_schema(kind: type[msgspec.Struct]) -> dict[str, Any]:
@@ -49,7 +49,7 @@ class McpRegistry:
         return {**root, **({"$defs": defined} if defined else {})}
 
     @classmethod
-    def _common_entry(cls, route: HTTPRouteHandler) -> McpEntry:
+    def _common_entry(cls, route: HTTPRouteHandler) -> MCPEntry:
         hints = get_type_hints(route.fn)
         data, answer = hints.get("data"), hints.get("return")
         match (route.opt.get(TOOL), route.http_methods, data):
@@ -62,7 +62,7 @@ class McpRegistry:
             case _:
                 pass
         structured = isinstance(answer, type) and issubclass(answer, msgspec.Struct)
-        return McpEntry(
+        return MCPEntry(
             tool=route.opt[TOOL],
             path=next(iter(route.paths)),
             arguments=cls._common_schema(cast("type[msgspec.Struct]", data)),
@@ -73,13 +73,13 @@ class McpRegistry:
 
     ##### PUBLIC #####
 
-    def __getitem__(self, name: str) -> McpEntry:
+    def __getitem__(self, name: str) -> MCPEntry:
         return self._entries[name]
 
     def __contains__(self, name: object) -> bool:
         return name in self._entries
 
-    def __iter__(self) -> Iterator[McpEntry]:
+    def __iter__(self) -> Iterator[MCPEntry]:
         return iter(self._entries.values())
 
     def __len__(self) -> int:

@@ -8,7 +8,7 @@ from e_infra.infra.config.base import BaseSettings
 
 
 ##### ENUMS #####
-class HttpMethod(StrEnum):
+class HTTPMethod(StrEnum):
     GET = "GET"
     POST = "POST"
     PUT = "PUT"
@@ -19,11 +19,11 @@ class HttpMethod(StrEnum):
 
 ##### DEFAULTS #####
 DEFAULT_ORIGINS: list[str] = ["*"]
-DEFAULT_METHODS: list[HttpMethod] = [HttpMethod.GET, HttpMethod.POST, HttpMethod.PATCH, HttpMethod.DELETE]
+DEFAULT_METHODS: list[HTTPMethod] = [HTTPMethod.GET, HTTPMethod.POST, HTTPMethod.PATCH, HTTPMethod.DELETE]
 
 
-class ApiSettings(BaseSettings):
+class APISettings(BaseSettings):
     """ALLOW_ORIGINS / ALLOW_METHODS — JSON lists via env or config file; verbs validated on decode."""
 
     allow_origins: list[str] = Field(default_factory=lambda: list(DEFAULT_ORIGINS))
-    allow_methods: list[HttpMethod] = Field(default_factory=lambda: list(DEFAULT_METHODS))
+    allow_methods: list[HTTPMethod] = Field(default_factory=lambda: list(DEFAULT_METHODS))

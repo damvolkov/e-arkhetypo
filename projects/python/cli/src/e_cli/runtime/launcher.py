@@ -3,7 +3,7 @@
 cyclopts parses the global options here and hands the remaining tokens to the real tree. `parse_args`
 returns the resolved command (lazily imported by then), its bound CLI arguments and the parameters it
 declared as injected; the launcher opens the run's lifespan, injects those by type and awaits the command.
-`CliError` is caught once, here: the message goes to stderr and its class decides the exit code. Every
+`CLIError` is caught once, here: the message goes to stderr and its class decides the exit code. Every
 mounted command is a coroutine function; the only sync callables the tree resolves are cyclopts' own
 (help on a bare group), which run as they are, outside any lifespan."""
 
@@ -17,7 +17,7 @@ from rich.console import Console
 from rich.markup import escape
 
 from e_cli.models.command import CommandCard
-from e_cli.models.error import CliError
+from e_cli.models.error import CLIError
 from e_cli.models.identity import Identity, IdentityOrigin
 from e_cli.models.session import Session
 from e_cli.runtime.lifespan import lifespan
@@ -58,7 +58,7 @@ class Launcher:
         try:
             async with lifespan(session) as deps:
                 await command(*bound.args, **bound.kwargs, **await deps.inject(injected))
-        except CliError as exc:
+        except CLIError as exc:
             ### messages quote user input and regexes: escaped, or rich would read `[a-z]` as markup and eat it.
             Console(stderr=True).print(f"[bold red]✗[/] {escape(exc.message)}")
             return exc.exit_code

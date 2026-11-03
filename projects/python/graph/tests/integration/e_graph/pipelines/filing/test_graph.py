@@ -21,10 +21,10 @@ from e_graph.instrument.telemetry import InstrumentTelemetry
 from e_graph.logic.orchestrator.core import OrchestratorCore
 from e_graph.logic.state import LogicState
 from e_graph.pipelines.filing.graph import FilingGraph
-from infra.config.providers.drivers.telemetry.otel import OtelSettings
+from infra.config.providers.drivers.telemetry.otel import OTelSettings
 from infra.state import State
 from processors.doc import DocProcessor
-from providers.drivers.telemetry.otel import OtelDriver
+from providers.drivers.telemetry.otel import OTelDriver
 from support.docling import GoldenPort
 
 if TYPE_CHECKING:
@@ -49,7 +49,7 @@ async def read(
     agent: AgnosticAgent, pages: LiteparseAdapter, file: str
 ) -> tuple[RunStatus, dict[str, Any], dict[str, Any]]:
     """One filing through the whole pipeline: the verdict, the record, the audits."""
-    async with OtelDriver(OtelSettings()) as telemetry:
+    async with OTelDriver(OTelSettings()) as telemetry:
         infra = InfraState(
             providers=None,  # ty: ignore[invalid-argument-type]
             engines=None,  # ty: ignore[invalid-argument-type]

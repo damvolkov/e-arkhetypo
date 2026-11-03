@@ -53,7 +53,7 @@ down: nothing `infra` proper imports them (`tach` spells the edges, and `test_ta
 (`scope["user"]`) through a `CallerResolver` — a one-method `Protocol` `AuthEngine` satisfies, found on the running app by
 the `locate` the composition root hands in, so `infra` never names an engine. A route and a tool declare their access in
 their options (`opt=OPT[Access.USER]`) and the same `guard` admits the caller or raises the refusal it earns (401 for
-nobody, 403 for an account short of it), the same words at both doors. A tool is a Litestar route (`McpTool.route`)
+nobody, 403 for an account short of it), the same words at both doors. A tool is a Litestar route (`MCPTool.route`)
 answering the MCP engine alone (`internal`); the bridge serves each call as an in-process request through the app's
 middleware, guards, dependencies and validation. **Only `infra/mcp/server.py` imports `mcp.server*`**: ruff's TID251
 bans it everywhere else, so an SDK upgrade touches one module.
@@ -69,7 +69,7 @@ CoreError
 ├─ ProviderError
 │  ├─ DriverError            a system outside the process failed
 │  │  ├─ DatabaseError · StoreError · QueueError · TelemetryError
-│  │  ├─ HttpError ─ HttpTimeoutError (also TimeoutError)
+│  │  ├─ HTTPError ─ HTTPTimeoutError (also TimeoutError)
 │  │  └─ ModelError ─ TruncatedError
 │  ├─ AdapterError           a library inside the process failed
 │  │  └─ ParseError
@@ -77,7 +77,7 @@ CoreError
 ├─ EngineError
 │  ├─ DispatchError ─ ScheduleError (ValueError) · UnknownWorkError (LookupError)
 │  ├─ AuthError ─ UnknownTokenError · AuthClosedError · AuthNameError · RefusedError ─ AnonymousError · ForbiddenError
-│  └─ McpError ─ McpRegistryError (ValueError)
+│  └─ MCPError ─ MCPRegistryError (ValueError)
 ├─ ProcessorError ─ MDError (RuntimeError) ─ UnsupportedFormatError · InputTooLargeError · ZipBombError
 └─ OpsError ─ ComposeError · RegistryError · FileError · LogoError · CryptoError ─ TokenError
 ```
@@ -184,7 +184,7 @@ port it meets** (`ports/embed.py` ↔ `providers/drivers/embed/tei.py`, one to o
 it: the path is a port module and the provider has the port's members. **The file names what tells implementations apart**:
 the library when several reach one service (`database/psqlpy.py`, `database/asyncpg.py`), otherwise the service or brand
 (`embed/tei.py`, `llm/openai.py`). **Class names are unique in the package, `<Name><Nature>`**; a brand that repeats across
-capabilities takes the capability as a qualifier before it (`EmbedTeiDriver`, `RerankTeiDriver`, `CachePostgresDriver`).
+capabilities takes the capability as a qualifier before it (`EmbedTEIDriver`, `RerankTEIDriver`, `CachePostgresDriver`).
 Every implementation worth keeping stays: the blueprint holds the alternatives and a project picks one at its composition
 root. SQLite is a driver (`Locality.FILESYSTEM`) and, as it meets `StorePort` (one kv table), it lives at
 `store/sqlite.py`; a SQL-flavoured sqlite driver would be `database/sqlite.py` meeting `DatabasePort`.
@@ -226,7 +226,7 @@ A driver talks to something that lives elsewhere (network, socket, another proce
 service). Singleton in the lifespan: `__aenter__` opens the pool or client, `__aexit__` releases it, `health` answers
 True or raises its own error — the reason `/ready` shows —, third-party exceptions are translated into `infra.errors` at the border (`DriverError` and below). A driver composes
 another provider only through its port, received by constructor (docling, TEI and the OpenAI-compatible driver ride an
-`HttpPort`; the durable cache rides a `DatabasePort`, PgQueuer a `DatabasePort` and a `ListenPort`).
+`HTTPPort`; the durable cache rides a `DatabasePort`, PgQueuer a `DatabasePort` and a `ListenPort`).
 
 | Module | Purpose |
 |---|---|

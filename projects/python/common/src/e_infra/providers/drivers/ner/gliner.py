@@ -8,7 +8,7 @@ wait for each next line, not the whole stream. Opening calls nothing: a process 
 `refresh` reads the served model card (`GET /models`) — `gliner:<model>@<version>`, the version a digest of the model's
 files — so a promotion there is another annotator here from the next read on.
 
-It keeps a wreq client of its own, not an `HttpPort`: the port speaks JSON bodies, and this exchange streams a request
+It keeps a wreq client of its own, not an `HTTPPort`: the port speaks JSON bodies, and this exchange streams a request
 body and reads the answer frame by frame."""
 
 from contextlib import contextmanager
@@ -18,10 +18,10 @@ from typing import TYPE_CHECKING, ClassVar, Final, Self, cast
 import msgspec
 import wreq
 
-from e_infra.infra.errors import HttpError, ModelError, ProviderError
+from e_infra.infra.errors import HTTPError, ModelError, ProviderError
 from e_infra.infra.logger import logger
 from e_infra.infra.settings import settings as st
-from e_infra.ports.ner import NerEntity
+from e_infra.ports.ner import NEREntity
 from e_infra.ports.provider import Isolation, Locality, ProviderSpec, Workload
 
 if TYPE_CHECKING:
@@ -59,13 +59,13 @@ class GlinerAnswer(msgspec.Struct, frozen=True):
 
     id: str = ""
     line: int = 0
-    entities: tuple[NerEntity, ...] = ()
+    entities: tuple[NEREntity, ...] = ()
     error: str | None = None
 
 
 ##### DRIVER #####
 class GlinerDriver:
-    """One wreq client per process, behind `NerPort`; the served model is read on `refresh`."""
+    """One wreq client per process, behind `NERPort`; the served model is read on `refresh`."""
 
     spec: ClassVar[ProviderSpec] = ProviderSpec("gliner", Locality.REMOTE, Workload.IO_BOUND, Isolation.LOOP)
 
@@ -86,12 +86,12 @@ class GlinerDriver:
     @staticmethod
     @contextmanager
     def _common_guard() -> Generator[None]:
-        """wreq's own errors, as the tree's `HttpError`."""
+        """wreq's own errors, as the tree's `HTTPError`."""
         try:
             yield
         except WIRE as error:
             logger.error("gliner failed", error=str(error))
-            raise HttpError(str(error)) from error
+            raise HTTPError(str(error)) from error
 
     def _common_open(self) -> wreq.Client:
         match self._client:
@@ -124,7 +124,7 @@ class GlinerDriver:
         yield [rest]
 
     @staticmethod
-    def _entities_check(answers: Sequence[GlinerAnswer], count: int) -> dict[str, tuple[NerEntity, ...]]:
+    def _entities_check(answers: Sequence[GlinerAnswer], count: int) -> dict[str, tuple[NEREntity, ...]]:
         """The entities by id, once every text is answered and no line was refused."""
         refused = [f"{answer.id or f'line {answer.line}'}: {answer.error}" for answer in answers if answer.error]
         found = {answer.id: answer.entities for answer in answers if answer.error is None}
@@ -138,7 +138,7 @@ class GlinerDriver:
 
     async def _entities_batch(
         self, texts: Sequence[str], labels: Sequence[str], threshold: float
-    ) -> list[tuple[NerEntity, ...]]:
+    ) -> list[tuple[NEREntity, ...]]:
         """One request: the texts' entities, in order."""
         logger.debug("gliner batch", texts=len(texts), labels=len(labels))
         with self._common_guard():
@@ -210,7 +210,7 @@ class GlinerDriver:
 
     async def entities(
         self, texts: Sequence[str], *, labels: Sequence[str], threshold: float
-    ) -> list[tuple[NerEntity, ...]]:
+    ) -> list[tuple[NEREntity, ...]]:
         """Each text's entities, in order, GLINER_BATCH texts a request; no text, no call."""
         return [
             entities

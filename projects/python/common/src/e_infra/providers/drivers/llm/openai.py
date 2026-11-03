@@ -4,7 +4,7 @@
 answer parses and conforms by construction; a reply that still does not parse is a `ModelError`, never a guess; one cut at
 the output ceiling is a `TruncatedError`. The server is shared, so every call passes two gates: a semaphore
 (LLM_CONCURRENCY in flight) and a token bucket (LLM_RPM a minute). Temperature 0: annotation is extraction, not
-invention. It speaks through an `HttpPort` received by constructor, the bearer riding every request."""
+invention. It speaks through an `HTTPPort` received by constructor, the bearer riding every request."""
 
 import asyncio
 import time
@@ -21,7 +21,7 @@ if TYPE_CHECKING:
     from collections.abc import Mapping
 
     from e_infra.infra.config.providers.drivers.llm.openai import OpenaiSettings
-    from e_infra.ports.http import HttpPort
+    from e_infra.ports.http import HTTPPort
 
 
 ##### WIRE #####
@@ -64,13 +64,13 @@ class OpenaiBucket:
 
 ##### DRIVER #####
 class OpenaiDriver:
-    """An OpenAI-compatible server behind `LlmPort`, gated by concurrency and rate."""
+    """An OpenAI-compatible server behind `LLMPort`, gated by concurrency and rate."""
 
     spec: ClassVar[ProviderSpec] = ProviderSpec("openai", Locality.REMOTE, Workload.IO_BOUND, Isolation.LOOP)
 
     __slots__ = ("_bucket", "_conf", "_gate", "_http")
 
-    def __init__(self, http: HttpPort, settings: OpenaiSettings | None = None) -> None:
+    def __init__(self, http: HTTPPort, settings: OpenaiSettings | None = None) -> None:
         ### the default is read on call, not at import: the settings singleton stays lazy.
         self._conf = st.providers.drivers.llm.openai if settings is None else settings
         self._http = http

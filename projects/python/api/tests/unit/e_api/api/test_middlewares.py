@@ -4,7 +4,7 @@ transports live — preflight answered, correlation id propagated; the access lo
 from uuid import uuid4
 
 from e_api.api.middlewares import cors_config
-from infra.config.api import ApiSettings, HttpMethod
+from infra.config.api import APISettings, HTTPMethod
 
 
 def test_cors_config_reads_the_singleton_when_no_settings_given() -> None:
@@ -13,7 +13,7 @@ def test_cors_config_reads_the_singleton_when_no_settings_given() -> None:
 
 
 def test_cors_config_honours_explicit_settings() -> None:
-    config = cors_config(ApiSettings(allow_origins=["https://eager.test"], allow_methods=[HttpMethod.GET]))
+    config = cors_config(APISettings(allow_origins=["https://eager.test"], allow_methods=[HTTPMethod.GET]))
     assert config.allow_origins == ["https://eager.test"]
     assert config.allow_methods == ["GET"]
 

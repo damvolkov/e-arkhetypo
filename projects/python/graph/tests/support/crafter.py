@@ -23,7 +23,7 @@ import eserde
 import msgspec
 
 from e_graph.logic.discover import SpecDiscover
-from e_graph.logic.models import ROLES, SIGNATURES, DeterministicSpec, JsonSchema, Role, SemanticSpec, Slot, Spec
+from e_graph.logic.models import ROLES, SIGNATURES, DeterministicSpec, JSONSchema, Role, SemanticSpec, Slot, Spec
 from e_graph.models.section import PREFIXES, Section
 from infra.struct import CheckedStruct
 
@@ -116,9 +116,9 @@ class SpecCrafter:
         """`n` distinct spec names in the section's grammar: `<PREFIX>-<word>-<index>`."""
         return [f"{PREFIXES[section]}-{self._rng.choice(WORDS)}-{index}" for index in range(n)]
 
-    def _craft_output(self) -> JsonSchema:
+    def _craft_output(self) -> JSONSchema:
         picked = self._rng.sample(sorted(PROPERTIES), k=self._rng.randint(1, len(PROPERTIES)))
-        return JsonSchema({"type": "object", "properties": {name: PROPERTIES[name] for name in picked}})
+        return JSONSchema({"type": "object", "properties": {name: PROPERTIES[name] for name in picked}})
 
     def _craft_spec(self, kind: type[Spec[str]], name: str, **pins: Any) -> Spec[str]:
         """A random spec of `kind`, structure pinned — built in code, so validated at birth by `CheckedStruct`."""

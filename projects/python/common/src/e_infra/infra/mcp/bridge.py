@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING, Any, Final, cast
 
 from e_infra.infra.logger import logger
 from e_infra.infra.mcp.guard import MARK
-from e_infra.infra.mcp.models import McpAnswer
+from e_infra.infra.mcp.models import MCPAnswer
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -24,7 +24,7 @@ CARRIED: Final[frozenset[bytes]] = frozenset({b"x-request-id"})
 REFUSED: Final[int] = 400
 
 
-class McpBridge:
+class MCPBridge:
     """Tool calls as in-process requests to the app that serves the MCP endpoint."""
 
     __slots__ = ()
@@ -54,7 +54,7 @@ class McpBridge:
 
     ##### PUBLIC #####
 
-    async def call(self, outer: Scope, path: str, arguments: Mapping[str, Any]) -> McpAnswer:
+    async def call(self, outer: Scope, path: str, arguments: Mapping[str, Any]) -> MCPAnswer:
         """The answer of the tool's route to `arguments`, asked as the endpoint's caller."""
         body = json.dumps(dict(arguments)).encode()
         answered: dict[str, Any] = {"status": 500, "body": b""}
@@ -72,7 +72,7 @@ class McpBridge:
         logger.debug("mcp bridge call", path=path, status=answered["status"])
         match answered["status"] >= REFUSED:
             case True:
-                return McpAnswer(text=self._call_refusal(text), error=True)
+                return MCPAnswer(text=self._call_refusal(text), error=True)
             case _:
                 value = json.loads(text) if text else None
-                return McpAnswer(text=text, value=value if isinstance(value, dict) else {"result": value})
+                return MCPAnswer(text=text, value=value if isinstance(value, dict) else {"result": value})

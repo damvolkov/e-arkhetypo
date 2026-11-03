@@ -2,7 +2,7 @@
 
 TEI normalizes and truncates server-side (`normalize`, `truncate`), so a vector is ready for cosine and an over-long
 text never fails a batch. Batch sizing is the caller's: the driver sends what it is given. It speaks through an
-`HttpPort` received by constructor, absolute URLs. Token counts come from the model's own HF tokenizer, loaded once on
+`HTTPPort` received by constructor, absolute URLs. Token counts come from the model's own HF tokenizer, loaded once on
 entry off the loop; `from_pretrained` reads the Hub cache and honours HF_HUB_OFFLINE, so a cached model loads with no
 network."""
 
@@ -19,12 +19,12 @@ from e_infra.ports.provider import Isolation, Locality, ProviderSpec, Workload
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from e_infra.infra.config.providers.drivers.embed.tei import EmbedTeiSettings
-    from e_infra.ports.http import HttpPort
+    from e_infra.infra.config.providers.drivers.embed.tei import EmbedTEISettings
+    from e_infra.ports.http import HTTPPort
 
 
 ##### EMBED #####
-class EmbedTeiDriver:
+class EmbedTEIDriver:
     """TEI's embedding route behind `EmbedPort`, and the model's tokenizer."""
 
     spec: ClassVar[ProviderSpec] = ProviderSpec(
@@ -33,7 +33,7 @@ class EmbedTeiDriver:
 
     __slots__ = ("_conf", "_http", "_tokenizer")
 
-    def __init__(self, http: HttpPort, settings: EmbedTeiSettings | None = None) -> None:
+    def __init__(self, http: HTTPPort, settings: EmbedTEISettings | None = None) -> None:
         ### the default is read on call, not at import: the settings singleton stays lazy.
         self._conf = st.providers.drivers.embed.tei if settings is None else settings
         self._http = http
@@ -51,7 +51,7 @@ class EmbedTeiDriver:
     def _common_tokenizer(self) -> Tokenizer:
         match self._tokenizer:
             case None:
-                msg = "EmbedTeiDriver is not open: the lifespan opens it, handlers never do"
+                msg = "EmbedTEIDriver is not open: the lifespan opens it, handlers never do"
                 raise ModelError(msg)
             case tokenizer:
                 return tokenizer

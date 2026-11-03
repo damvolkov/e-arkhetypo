@@ -30,7 +30,7 @@ from e_graph.logic.models import (
     WORDS,
     AnyName,
     DeterministicSpec,
-    JsonSchema,
+    JSONSchema,
     Readout,
     Reply,
     Role,
@@ -238,7 +238,7 @@ class DartsOps:
 def _schema_hook(type_: Any) -> dict[str, Any]:
     """The schema mirror of the checked types a spec field may hold: an `output` is an object with an object root."""
     match type_:
-        case type() if issubclass(type_, JsonSchema):
+        case type() if issubclass(type_, JSONSchema):
             return {"type": "object"}
         case _:
             msg = f"no contract schema for {type_!r}"

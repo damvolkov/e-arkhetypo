@@ -1,7 +1,7 @@
 """tests/support/tools: a small door of tools, as a service declares them — the app the MCP engine is tested on.
 
 Four tools of four accesses (`echo` anyone, `whoami` an account, `wipe` the admin, `refuse` raising a 404), each a
-Litestar route made by `McpTool.route`; `build` is the app over an auth engine: the token middleware, the guard on
+Litestar route made by `MCPTool.route`; `build` is the app over an auth engine: the token middleware, the guard on
 every router, the tool routes behind the internal guard, the MCP endpoint on `/mcp`, its server run for the app's life."""
 
 from contextlib import asynccontextmanager
@@ -19,10 +19,10 @@ from e_infra.infra.auth.guard import OPT, guard
 from e_infra.infra.auth.middleware import TokenMiddleware
 from e_infra.infra.auth.models import Access, Caller
 from e_infra.infra.mcp.guard import internal
-from e_infra.infra.mcp.models import McpTool
-from e_infra.infra.mcp.mount import McpMount
-from e_infra.infra.mcp.registry import McpRegistry
-from e_infra.infra.mcp.server import McpServer
+from e_infra.infra.mcp.models import MCPTool
+from e_infra.infra.mcp.mount import MCPMount
+from e_infra.infra.mcp.registry import MCPRegistry
+from e_infra.infra.mcp.server import MCPServer
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
@@ -76,12 +76,12 @@ async def refuse(data: JSONBody[NoArgs]) -> None:
     raise NotFoundException(detail="nothing here")
 
 
-ECHO: Final = McpTool(name="probe_echo", title="Echo", description="Echo the text, `times` times.")
-WHOAMI: Final = McpTool(name="probe_whoami", title="Who am I", description="The account that is asking.")
-WIPE: Final = McpTool(
+ECHO: Final = MCPTool(name="probe_echo", title="Echo", description="Echo the text, `times` times.")
+WHOAMI: Final = MCPTool(name="probe_whoami", title="Who am I", description="The account that is asking.")
+WIPE: Final = MCPTool(
     name="probe_wipe", title="Wipe", description="Wipe everything.", read_only=False, destructive=True
 )
-REFUSE: Final = McpTool(name="probe_refuse", title="Refuse", description="Always answers 404.")
+REFUSE: Final = MCPTool(name="probe_refuse", title="Refuse", description="Always answers 404.")
 
 ROUTES: Final[tuple[HTTPRouteHandler, ...]] = (
     ECHO.route(Access.ANONYMOUS, **NO)(echo),
@@ -93,8 +93,8 @@ ROUTES: Final[tuple[HTTPRouteHandler, ...]] = (
 
 def build(engine: AuthEngine) -> Litestar:
     """The app: both guards, the token middleware over `engine`, the tools and the endpoint, the server run with it."""
-    server = McpServer(
-        McpRegistry(ROUTES),
+    server = MCPServer(
+        MCPRegistry(ROUTES),
         name="probe",
         version="0",
         instructions="A probe.",
@@ -112,7 +112,7 @@ def build(engine: AuthEngine) -> Litestar:
             Router(path="/", route_handlers=list(ROUTES), guards=[internal, guard]),
             Router(
                 path="/",
-                route_handlers=[McpMount(lambda app: app.state["mcp"]).route("/mcp")],
+                route_handlers=[MCPMount(lambda app: app.state["mcp"]).route("/mcp")],
                 opt=OPT[Access.ANONYMOUS],
                 guards=[guard],
             ),

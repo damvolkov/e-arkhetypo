@@ -11,7 +11,7 @@ from mcp import types
 
 from e_api.main import create_app
 from e_api.mcp import mount
-from infra.config.mcp import McpSettings
+from infra.config.mcp import MCPSettings
 from infra.settings import Settings
 from support.mcp import BASE
 
@@ -144,4 +144,4 @@ async def test_mount_follows_the_path_the_settings_say(monkeypatch: pytest.Monke
 
 
 def test_mount_routes_default_to_the_settings_singleton() -> None:
-    assert [route.paths for route in mount.routes(McpSettings(path="/x"))] == [{"/x"}]
+    assert [route.paths for route in mount.routes(MCPSettings(path="/x"))] == [{"/x"}]

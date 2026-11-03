@@ -24,7 +24,7 @@ from infra.settings import settings as st
 if TYPE_CHECKING:
     from litestar.types import Message, Receive, Scope, Send
 
-    from infra.config.api import ApiSettings
+    from infra.config.api import APISettings
 
 
 ##### MIDDLEWARES #####
@@ -68,7 +68,7 @@ class AccessLogMiddleware:
                 await self._app(scope, receive, send)
 
 
-def cors_config(settings: ApiSettings | None = None) -> CORSConfig:
+def cors_config(settings: APISettings | None = None) -> CORSConfig:
     """Translate the settings struct into litestar's config object — data in, behaviour out."""
     ### the default resolves inside the body: an `st.api` default would freeze at import and defeat the lazy singleton.
     resolved = st.api if settings is None else settings

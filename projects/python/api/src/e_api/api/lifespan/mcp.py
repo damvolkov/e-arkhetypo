@@ -16,10 +16,10 @@ from litestar import Litestar
 from e_api.api.state import AppState
 from e_api.mcp.instructions import INSTRUCTIONS
 from e_api.mcp.registry import ROUTES
-from e_api.mcp.state import McpState
+from e_api.mcp.state import MCPState
 from infra.logger import logger
-from infra.mcp.registry import McpRegistry
-from infra.mcp.server import McpServer
+from infra.mcp.registry import MCPRegistry
+from infra.mcp.server import MCPServer
 from infra.settings import settings as st
 
 
@@ -28,8 +28,8 @@ async def lifespan(app: Litestar) -> AsyncGenerator[None]:
     """Build the server over the door's tools, run its session manager, then mount the section under `system.mcp`."""
     hosts = tuple(st.mcp.hosts) or (f"127.0.0.1:{st.app.port}", f"localhost:{st.app.port}")
     origins = tuple(st.mcp.origins) or tuple(f"http://{host}" for host in hosts)
-    server = McpServer(
-        McpRegistry(ROUTES),
+    server = MCPServer(
+        MCPRegistry(ROUTES),
         name="e-api",
         version=version("e-api"),
         instructions=INSTRUCTIONS,
@@ -37,6 +37,6 @@ async def lifespan(app: Litestar) -> AsyncGenerator[None]:
         origins=origins,
     )
     async with server.run():
-        AppState.of(app).system.mcp = McpState(server=server)
+        AppState.of(app).system.mcp = MCPState(server=server)
         logger.info("mcp ready", tools=len(server.registry), step="START")
         yield

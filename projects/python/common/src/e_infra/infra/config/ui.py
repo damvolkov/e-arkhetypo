@@ -7,7 +7,7 @@ from pydantic_settings import SettingsConfigDict
 from e_infra.infra.config.base import BaseSettings
 
 
-class UiSettings(BaseSettings):
+class UISettings(BaseSettings):
     """UI_TOAST — how long a node toast stays; UI_PACE — the per-node pause a demo run asks for (so a
     human can follow it); UI_LANE_GAP / UI_RANK_GAP — canvas pixels between parallel lanes and sequential
     ranks. Timedeltas: plain seconds in a config file or kwargs, `PT2.5S` in env."""

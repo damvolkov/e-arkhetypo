@@ -14,7 +14,7 @@ from mcp.server.streamable_http_manager import StreamableHTTPSessionManager
 from mcp.server.transport_security import TransportSecuritySettings
 
 from e_infra.infra.logger import logger
-from e_infra.infra.mcp.bridge import McpBridge
+from e_infra.infra.mcp.bridge import MCPBridge
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -22,18 +22,18 @@ if TYPE_CHECKING:
 
     from litestar.types import Receive, Scope, Send
 
-    from e_infra.infra.mcp.models import McpEntry
-    from e_infra.infra.mcp.registry import McpRegistry
+    from e_infra.infra.mcp.models import MCPEntry
+    from e_infra.infra.mcp.registry import MCPRegistry
 
 
-class McpServer:
+class MCPServer:
     """The MCP endpoint over a registry of tools: list them, call them through the app, serve the transport."""
 
     __slots__ = ("_bridge", "_manager", "_registry", "_server")
 
     def __init__(
         self,
-        registry: McpRegistry,
+        registry: MCPRegistry,
         *,
         name: str,
         version: str,
@@ -42,7 +42,7 @@ class McpServer:
         origins: Sequence[str],
     ) -> None:
         self._registry = registry
-        self._bridge = McpBridge()
+        self._bridge = MCPBridge()
         self._server = Server(
             name,
             version=version,
@@ -57,7 +57,7 @@ class McpServer:
     ##### PRIVATE #####
 
     @staticmethod
-    def _list_tool(entry: McpEntry) -> types.Tool:
+    def _list_tool(entry: MCPEntry) -> types.Tool:
         tool = entry.tool
         hints = types.ToolAnnotations(
             title=tool.title, read_only_hint=tool.read_only, destructive_hint=tool.destructive, open_world_hint=False
@@ -102,7 +102,7 @@ class McpServer:
     ##### PUBLIC #####
 
     @property
-    def registry(self) -> McpRegistry:
+    def registry(self) -> MCPRegistry:
         return self._registry
 
     @property

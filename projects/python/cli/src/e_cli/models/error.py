@@ -7,7 +7,7 @@ from typing import ClassVar
 
 
 ##### ROOT #####
-class CliError(Exception):
+class CLIError(Exception):
     """All expected cli failures. Anything else is a bug and keeps its traceback."""
 
     exit_code: ClassVar[int] = 1
@@ -18,7 +18,7 @@ class CliError(Exception):
 
 
 ##### SPECIFIC #####
-class IdentityError(CliError):
+class IdentityError(CLIError):
     """The command needs a caller and none was given: no --token, no CLI_TOKEN, no stored login."""
 
     exit_code: ClassVar[int] = 3
@@ -27,13 +27,13 @@ class IdentityError(CliError):
         super().__init__("not authenticated: run `ecli auth login TOKEN`, pass --token or set CLI_TOKEN")
 
 
-class JournalError(CliError):
+class JournalError(CLIError):
     """The journal has nothing to undo."""
 
     exit_code: ClassVar[int] = 4
 
 
-class ProjectError(CliError):
+class ProjectError(CLIError):
     """A project the command names does not exist, or already does."""
 
     exit_code: ClassVar[int] = 5

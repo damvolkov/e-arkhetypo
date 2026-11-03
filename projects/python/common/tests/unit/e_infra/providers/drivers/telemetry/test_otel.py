@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter as GrpcExporter
-from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter as HttpExporter
+from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter as HTTPExporter
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
@@ -13,15 +13,15 @@ from opentelemetry.trace import SpanKind as SdkKind
 from opentelemetry.trace import StatusCode
 
 from e_infra.infra.config.base import Secret
-from e_infra.infra.config.providers.drivers.telemetry.otel import OtelProtocol, OtelSettings
+from e_infra.infra.config.providers.drivers.telemetry.otel import OTelProtocol, OTelSettings
 from e_infra.infra.errors import ProviderError, TelemetryError
 from e_infra.ports.telemetry import SpanKey, SpanKind, SpanPort, SpanRole, SpanStatus, TelemetryPort
 from e_infra.providers.drivers.telemetry.otel import (
     KINDS,
     ROLES,
     STATUSES,
-    OtelDriver,
-    OtelSpan,
+    OTelDriver,
+    OTelSpan,
     export_grpc,
     export_http,
 )
@@ -37,8 +37,8 @@ def exporter() -> InMemorySpanExporter:
 
 ##### CONTRACT #####
 async def test_otel_satisfies_the_ports(exporter: InMemorySpanExporter) -> None:
-    assert isinstance(OtelDriver(OtelSettings()), TelemetryPort)
-    async with OtelDriver(OtelSettings(), exporter) as adapter:
+    assert isinstance(OTelDriver(OTelSettings()), TelemetryPort)
+    async with OTelDriver(OTelSettings(), exporter) as adapter:
         with adapter.span("work", {}) as span:
             assert isinstance(span, SpanPort)
 
@@ -50,7 +50,7 @@ def test_every_kind_and_status_maps_to_the_sdk() -> None:
 
 ##### SPAN #####
 async def test_span_ids_are_w3c_hex(exporter: InMemorySpanExporter) -> None:
-    async with OtelDriver(OtelSettings(service="svc"), exporter) as adapter:
+    async with OTelDriver(OTelSettings(service="svc"), exporter) as adapter:
         with adapter.span("work", {"k": "v"}) as span:
             ids = (span.trace_id, span.span_id)
     assert (len(ids[0]), len(ids[1])) == (32, 16)
@@ -60,7 +60,7 @@ async def test_span_ids_are_w3c_hex(exporter: InMemorySpanExporter) -> None:
 
 
 async def test_clean_exit_settles_ok(exporter: InMemorySpanExporter) -> None:
-    async with OtelDriver(OtelSettings(), exporter) as adapter:
+    async with OTelDriver(OTelSettings(), exporter) as adapter:
         with adapter.span("fine", {}):
             pass
     (span,) = exporter.get_finished_spans()
@@ -68,7 +68,7 @@ async def test_clean_exit_settles_ok(exporter: InMemorySpanExporter) -> None:
 
 
 async def test_handle_records_events_and_kind(exporter: InMemorySpanExporter) -> None:
-    async with OtelDriver(OtelSettings(), exporter) as adapter:
+    async with OTelDriver(OTelSettings(), exporter) as adapter:
         with adapter.span("call", {"a": 1}, kind=SpanKind.CLIENT) as span:
             span.record({"output.value": "done"})
             span.event("checkpoint", {"step": 2})
@@ -80,10 +80,10 @@ async def test_handle_records_events_and_kind(exporter: InMemorySpanExporter) ->
 
 async def test_explicit_verdict_survives_a_clean_exit(exporter: InMemorySpanExporter) -> None:
     """A failure caught inside the block (a run's verdict) is written by hand and must not turn OK."""
-    async with OtelDriver(OtelSettings(), exporter) as adapter:
+    async with OTelDriver(OTelSettings(), exporter) as adapter:
         with adapter.span("run", {}) as span:
             span.status(SpanStatus.ERROR, "RuntimeError: boom")
-            assert isinstance(span, OtelSpan)
+            assert isinstance(span, OTelSpan)
             assert span.settled
     (finished,) = exporter.get_finished_spans()
     assert (finished.status.status_code, finished.status.description) == (StatusCode.ERROR, "RuntimeError: boom")
@@ -91,7 +91,7 @@ async def test_explicit_verdict_survives_a_clean_exit(exporter: InMemorySpanExpo
 
 async def test_error_recorded_then_propagated(exporter: InMemorySpanExporter) -> None:
     msg = "boom"
-    async with OtelDriver(OtelSettings(), exporter) as adapter:
+    async with OTelDriver(OTelSettings(), exporter) as adapter:
         with pytest.raises(ValueError, match=msg), adapter.span("fails", {}):
             raise ValueError(msg)
     (span,) = exporter.get_finished_spans()
@@ -100,7 +100,7 @@ async def test_error_recorded_then_propagated(exporter: InMemorySpanExporter) ->
 
 
 async def test_nested_spans_share_the_trace(exporter: InMemorySpanExporter) -> None:
-    async with OtelDriver(OtelSettings(), exporter) as adapter:
+    async with OTelDriver(OTelSettings(), exporter) as adapter:
         with adapter.span("run", {}) as outer, adapter.span("node", {}) as inner:
             pass
     assert inner.trace_id == outer.trace_id
@@ -112,7 +112,7 @@ async def test_nested_spans_share_the_trace(exporter: InMemorySpanExporter) -> N
 ##### EXPORT #####
 def test_http_exporter_built_with_headers_and_deadline() -> None:
     exporter = export_http("http://collector:4318", {"x-key": "k"}, 3.0)
-    assert isinstance(exporter, HttpExporter)
+    assert isinstance(exporter, HTTPExporter)
     exporter.shutdown()
 
 
@@ -123,36 +123,36 @@ def test_grpc_exporter_built_for_plain_and_tls_collectors(endpoint: str) -> None
     exporter.shutdown()
 
 
-@pytest.mark.parametrize("protocol", list(OtelProtocol))
-async def test_processor_roads(protocol: OtelProtocol) -> None:
-    assert OtelDriver(OtelSettings())._enter_processor() is None
-    assert isinstance(OtelDriver(OtelSettings(), InMemorySpanExporter())._enter_processor(), SimpleSpanProcessor)
-    settings = OtelSettings(
+@pytest.mark.parametrize("protocol", list(OTelProtocol))
+async def test_processor_roads(protocol: OTelProtocol) -> None:
+    assert OTelDriver(OTelSettings())._enter_processor() is None
+    assert isinstance(OTelDriver(OTelSettings(), InMemorySpanExporter())._enter_processor(), SimpleSpanProcessor)
+    settings = OTelSettings(
         endpoint="http://127.0.0.1:4318/",
         protocol=protocol,
         headers={"authorization": Secret("Bearer x")},
         flush=timedelta(milliseconds=200),
     )
-    batched = OtelDriver(settings)._enter_processor()
+    batched = OTelDriver(settings)._enter_processor()
     assert isinstance(batched, BatchSpanProcessor)
     batched.shutdown()
 
 
 async def test_endpoint_road_connects_and_closes() -> None:
     """A collector that never answers: no span is opened, so shutdown has nothing to flush."""
-    async with OtelDriver(OtelSettings(endpoint="http://127.0.0.1:9")) as adapter:
+    async with OTelDriver(OTelSettings(endpoint="http://127.0.0.1:9")) as adapter:
         assert adapter.spec.name == "otel"
 
 
 async def test_zero_sample_keeps_nothing(exporter: InMemorySpanExporter) -> None:
-    async with OtelDriver(OtelSettings(sample=0.0), exporter) as adapter:
+    async with OTelDriver(OTelSettings(sample=0.0), exporter) as adapter:
         with adapter.span("dropped", {}) as span:
             assert len(span.trace_id) == 32
     assert exporter.get_finished_spans() == ()
 
 
 async def test_closed_driver_refuses_spans() -> None:
-    adapter = OtelDriver(OtelSettings())
+    adapter = OTelDriver(OTelSettings())
     async with adapter:
         pass
     await adapter.__aexit__(None, None, None)
@@ -162,8 +162,8 @@ async def test_closed_driver_refuses_spans() -> None:
 
 ##### RESOURCE #####
 async def test_resource_carries_the_configured_attributes(exporter: InMemorySpanExporter) -> None:
-    settings = OtelSettings(service="svc", attributes={"openinference.project.name": "proj", "service.name": "x"})
-    async with OtelDriver(settings, exporter) as adapter:
+    settings = OTelSettings(service="svc", attributes={"openinference.project.name": "proj", "service.name": "x"})
+    async with OTelDriver(settings, exporter) as adapter:
         with adapter.span("work", {}):
             pass
     (span,) = exporter.get_finished_spans()
@@ -176,9 +176,9 @@ def test_settings_read_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("OTEL_PROTOCOL", "grpc")
     monkeypatch.setenv("OTEL_HEADERS", '{"api_key": "s3cret"}')
     monkeypatch.setenv("OTEL_FLUSH", "PT1S")
-    settings = OtelSettings()
+    settings = OTelSettings()
     assert settings.attributes == {"openinference.project.name": "e-graph"}
-    assert settings.protocol is OtelProtocol.GRPC
+    assert settings.protocol is OTelProtocol.GRPC
     assert settings.headers["api_key"].get_secret_value() == "s3cret"
     assert "s3cret" not in repr(settings)
     assert settings.flush == timedelta(seconds=1)
@@ -187,13 +187,13 @@ def test_settings_read_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
 @pytest.mark.parametrize("sample", [-0.1, 1.5])
 def test_sample_is_a_share(sample: float) -> None:
     with pytest.raises(ValueError, match="sample"):
-        OtelSettings(sample=sample)
+        OTelSettings(sample=sample)
 
 
 ##### HEALTH #####
 async def test_otel_health(exporter: InMemorySpanExporter, monkeypatch: pytest.MonkeyPatch) -> None:
     """The provider flushes to its exporter; one that cannot flush, or no provider, is down."""
-    adapter = OtelDriver(OtelSettings(), exporter)
+    adapter = OTelDriver(OTelSettings(), exporter)
     with pytest.raises(ProviderError):
         await adapter.health()
     async with adapter:
@@ -206,7 +206,7 @@ async def test_otel_health(exporter: InMemorySpanExporter, monkeypatch: pytest.M
 async def test_otel_lifecycle_and_an_unhealthy_provider_are_logged(
     exporter: InMemorySpanExporter, monkeypatch: pytest.MonkeyPatch, logs: Logs
 ) -> None:
-    adapter = OtelDriver(OtelSettings(service="svc"), exporter)
+    adapter = OTelDriver(OTelSettings(service="svc"), exporter)
     with pytest.raises(ProviderError):
         await adapter.health()
     async with adapter:
@@ -237,7 +237,7 @@ def test_every_role_has_a_kind_and_a_convention() -> None:
 async def test_a_role_picks_the_kind_the_convention_and_its_own_key_names(
     exporter: InMemorySpanExporter, role: SpanRole, kind: SdkKind, convention: str, model: str
 ) -> None:
-    async with OtelDriver(OtelSettings(), exporter) as adapter:
+    async with OTelDriver(OTelSettings(), exporter) as adapter:
         with adapter.span("call", {SpanKey.MODEL: "m", "free.key": 1}, SpanKind.INTERNAL, role=role) as span:
             span.record({SpanKey.OUTPUT: "done"})
             span.event("step", {SpanKey.SIZE: 3})
@@ -253,7 +253,7 @@ async def test_a_role_picks_the_kind_the_convention_and_its_own_key_names(
 
 
 async def test_without_a_role_the_span_is_as_written(exporter: InMemorySpanExporter) -> None:
-    async with OtelDriver(OtelSettings(), exporter) as adapter:
+    async with OTelDriver(OTelSettings(), exporter) as adapter:
         with adapter.span("raw", {SpanKey.MODEL: "m"}, SpanKind.SERVER):
             pass
     (finished,) = exporter.get_finished_spans()
@@ -262,7 +262,7 @@ async def test_without_a_role_the_span_is_as_written(exporter: InMemorySpanExpor
 
 ##### CARRIER — a trace across a queue #####
 async def test_a_carrier_resumed_makes_the_child_of_its_trace(exporter: InMemorySpanExporter) -> None:
-    async with OtelDriver(OtelSettings(), exporter) as adapter:
+    async with OTelDriver(OTelSettings(), exporter) as adapter:
         assert adapter.carrier() == {}
         with adapter.span("submit", {}) as parent:
             carrier = adapter.carrier()
@@ -277,7 +277,7 @@ async def test_a_carrier_resumed_makes_the_child_of_its_trace(exporter: InMemory
 
 
 async def test_the_tracer_is_named_by_the_service(exporter: InMemorySpanExporter) -> None:
-    async with OtelDriver(OtelSettings(service="svc"), exporter) as adapter:
+    async with OTelDriver(OTelSettings(service="svc"), exporter) as adapter:
         with adapter.span("work", {}):
             pass
     (finished,) = exporter.get_finished_spans()

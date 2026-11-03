@@ -29,7 +29,7 @@ from unit.e_infra.conftest import DSN, create
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator, Callable, Iterator
 
-    from e_infra.ports.http import HttpPort
+    from e_infra.ports.http import HTTPPort
 
 type Answer = tuple[int, bytes | Iterable[bytes]]
 
@@ -194,7 +194,7 @@ DOWN: Final[str] = "http://127.0.0.1:9"
 
 
 @pytest.fixture
-async def http() -> AsyncIterator[HttpPort]:
+async def http() -> AsyncIterator[HTTPPort]:
     """The process's HTTP driver, open, with no base: the drivers that ride it name absolute URLs."""
     async with WreqDriver() as driver:
         yield driver

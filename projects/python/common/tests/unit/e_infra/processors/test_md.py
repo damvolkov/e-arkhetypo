@@ -15,7 +15,7 @@ import pytest
 from e_infra.infra.config.processors.md import MDSettings
 from e_infra.infra.config.providers.adapters.markdown.anytomd import AnytomdSettings
 from e_infra.infra.errors import AdapterError, InputTooLargeError, UnsupportedFormatError, ZipBombError
-from e_infra.ports.markdown import MdConversion
+from e_infra.ports.markdown import MDConversion
 from e_infra.ports.provider import Isolation, Locality, ProviderSpec, Workload
 from e_infra.processors.md import MDProcessor
 from e_infra.providers.adapters.markdown.anytomd import AnytomdAdapter
@@ -56,7 +56,7 @@ class FakePort:
         """The real engine's detection: every route is graded on the formats anytomd actually recognises."""
         return DETECTOR.detect(name, data)
 
-    async def convert(self, data: bytes, *, extension: str) -> MdConversion:
+    async def convert(self, data: bytes, *, extension: str) -> MDConversion:
         self.calls.append((data, extension))
         self.flight += 1
         self.peak = max(self.peak, self.flight)
@@ -65,7 +65,7 @@ class FakePort:
                 await anyio.sleep(self.delay)
             if self.fail:
                 raise self.fail
-            return MdConversion(markdown=self.markdown, warnings=self.warnings)
+            return MDConversion(markdown=self.markdown, warnings=self.warnings)
         finally:
             self.flight -= 1
 

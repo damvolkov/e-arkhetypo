@@ -10,16 +10,16 @@ from e_api.api.router import health as router
 from e_api.mcp.models import NoArgs, Status
 from e_api.mcp.refusals import REFUSALS
 from infra.auth.models import Access
-from infra.mcp.models import McpTool
+from infra.mcp.models import MCPTool
 from infra.state import State
 
 ##### TOOLS — what a client is told #####
-HEALTH: Final = McpTool(
+HEALTH: Final = MCPTool(
     name="api_health",
     title="Check liveness",
     description="Whether the service is up. It touches nothing, so it answers even while a backend is down.",
 )
-STATUS: Final = McpTool(
+STATUS: Final = MCPTool(
     name="api_status",
     title="Check readiness",
     description=(

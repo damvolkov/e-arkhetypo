@@ -14,7 +14,7 @@ import pytest
 from e_infra.infra.config.base import Secret
 from e_infra.infra.config.providers.adapters.markdown.anytomd import AnytomdSettings
 from e_infra.infra.errors import ParseError, ProviderError
-from e_infra.ports.markdown import MarkdownPort, MdConversion
+from e_infra.ports.markdown import MarkdownPort, MDConversion
 from e_infra.providers.adapters.markdown import anytomd
 from e_infra.providers.adapters.markdown.anytomd import AnytomdAdapter
 
@@ -71,7 +71,7 @@ def adapter(**conf: Any) -> AnytomdAdapter:
 async def test_a_pdf_goes_through_the_converter(engine: None) -> None:
     a = adapter(pdf_ocr=True, pdf_language="spa", pdf_workers=4, image_describe=False)
     async with a:
-        assert await a.convert(b"%PDF", extension="pdf") == MdConversion(markdown="# PDF", warnings=("page 1: bad",))
+        assert await a.convert(b"%PDF", extension="pdf") == MDConversion(markdown="# PDF", warnings=("page 1: bad",))
     assert (PDF_KW["ocr"], PDF_KW["language"], PDF_KW["workers"]) == (True, "spa", 4)
 
 

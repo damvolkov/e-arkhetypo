@@ -6,6 +6,11 @@ touches — `stack`, `systems`, `infra`. Lines under `[Unreleased]` are written 
 
 ## [Unreleased]
 
+### Changed
+- `common` and the templates: class names keep their acronyms whole (Damien) — `EmbedTEIDriver`, `RerankTEIDriver`,
+  `OTelDriver`, `MCP…`, `LLMPort`, `HTTPPort`, `HTTPError`, `NERPort`, `MDConversion`, `APISettings`, `CLIError`,
+  `JSONSchema`, `UIView`; brands that are no acronym keep theirs; Litestar's `HttpMethod` untouched. TODO_REVERSE 15.
+
 ### stack
 
 - floating tags resolved to current digests, the ledger's paradedb row on `v0.26.4-pg17` (`stack/resolve-2026-11-02`)

@@ -29,12 +29,12 @@ templates:
         - unit: providers/drivers/http/wreq
           prunes:
             - {file: src/e_api/api/lifespan/providers.py, pattern: '^from providers\.drivers\.http\.wreq import WreqDriver\n'}
-            - {file: src/e_api/api/lifespan/providers.py, pattern: '^from ports\.http import HttpPort\n'}
-            - {file: src/e_api/api/lifespan/providers.py, pattern: '^    http: HttpPort\n'}
+            - {file: src/e_api/api/lifespan/providers.py, pattern: '^from ports\.http import HTTPPort\n'}
+            - {file: src/e_api/api/lifespan/providers.py, pattern: '^    http: HTTPPort\n'}
             - {file: src/e_api/api/lifespan/providers.py, pattern: '^        http = await enter\(WreqDriver\(\)\)\n'}
             - {file: src/e_api/api/lifespan/providers.py, pattern: ', http=http'}
-            - {file: tests/unit/e_api/api/lifespan/test_providers.py, pattern: '^from ports\.http import HttpPort\n'}
-            - {file: tests/unit/e_api/api/lifespan/test_providers.py, pattern: '^    assert (isinstance\(section\.http, HttpPort\)|section\.http\.spec\.name == "wreq")\n'}
+            - {file: tests/unit/e_api/api/lifespan/test_providers.py, pattern: '^from ports\.http import HTTPPort\n'}
+            - {file: tests/unit/e_api/api/lifespan/test_providers.py, pattern: '^    assert (isinstance\(section\.http, HTTPPort\)|section\.http\.spec\.name == "wreq")\n'}
             - {file: pyproject.toml, pattern: '^    ##### http #####\n    "wreq>=[^"]*",\n'}
     materials: &materials
       - {src: projects/python/common/prek.toml, dst: prek.toml}

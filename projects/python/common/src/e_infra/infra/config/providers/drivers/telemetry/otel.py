@@ -10,7 +10,7 @@ from e_infra.infra.config.base import BaseSettings, Secret
 
 
 ##### ENUMS #####
-class OtelProtocol(StrEnum):
+class OTelProtocol(StrEnum):
     """The OTLP transport to the collector: HTTP/protobuf (`<endpoint>/v1/traces`) or gRPC (`host:port`)."""
 
     HTTP = auto()
@@ -18,7 +18,7 @@ class OtelProtocol(StrEnum):
 
 
 ##### SETTINGS #####
-class OtelSettings(BaseSettings):
+class OTelSettings(BaseSettings):
     """OTEL_ENDPOINT — collector base (empty: spans are minted, never exported); OTEL_PROTOCOL — http | grpc;
     OTEL_HEADERS — export headers as JSON, secret (a remote collector's key); OTEL_TIMEOUT — per-export deadline, which
     also bounds a shutdown against a dead collector; OTEL_FLUSH — how often the batch leaves (shorter: traces show
@@ -30,7 +30,7 @@ class OtelSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="OTEL_")
 
     endpoint: str = ""
-    protocol: OtelProtocol = OtelProtocol.HTTP
+    protocol: OTelProtocol = OTelProtocol.HTTP
     headers: dict[str, Secret] = Field(default_factory=dict)
     timeout: timedelta = timedelta(seconds=10)
     flush: timedelta = timedelta(seconds=5)

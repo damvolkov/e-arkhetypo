@@ -8,7 +8,7 @@ import pytest
 from e_infra.infra.config.providers.drivers.http.wreq import WreqSettings
 from e_infra.infra.config.providers.drivers.store.redis import RedisSettings
 from e_infra.infra.config.providers.drivers.store.sqlite import SqliteSettings
-from e_infra.ports.http import HttpPort
+from e_infra.ports.http import HTTPPort
 from e_infra.ports.provider import Isolation, Locality, Provider, ProviderSpec, Workload
 from e_infra.ports.store import StorePort
 from e_infra.providers.drivers.http.wreq import WreqDriver
@@ -41,7 +41,7 @@ async def test_redis_satisfies_store() -> None:
 
 
 async def test_http_satisfies_client() -> None:
-    assert isinstance(WreqDriver(WreqSettings()), HttpPort)
+    assert isinstance(WreqDriver(WreqSettings()), HTTPPort)
 
 
 async def test_a_class_without_lifecycle_is_no_provider() -> None:

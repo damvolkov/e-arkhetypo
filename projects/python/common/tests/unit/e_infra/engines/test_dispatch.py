@@ -11,11 +11,11 @@ from e_infra.infra.background import Background, BackgroundState
 from e_infra.infra.config.base import Secret
 from e_infra.infra.config.engines.dispatch import DispatchSettings
 from e_infra.infra.config.providers.drivers.queue.awa import AwaSettings
-from e_infra.infra.config.providers.drivers.telemetry.otel import OtelSettings
+from e_infra.infra.config.providers.drivers.telemetry.otel import OTelSettings
 from e_infra.infra.errors import DispatchError, ProviderError
 from e_infra.ports.telemetry import SpanRole
 from e_infra.providers.drivers.queue.awa import AwaDriver
-from e_infra.providers.drivers.telemetry.otel import OtelDriver
+from e_infra.providers.drivers.telemetry.otel import OTelDriver
 from unit.e_infra.conftest import Warnings, Works, outage, settled, until
 from unit.e_infra.engines.conftest import FakeQueue, build
 
@@ -139,7 +139,7 @@ async def test_dispatch_registry_sealed_after_start(queue: str, works: Works, la
 ##### TRACING — a job is the child of the trace it was submitted in #####
 async def test_dispatch_a_job_is_traced_as_the_child_of_its_submit(queue: str, works: Works) -> None:
     exporter = InMemorySpanExporter()
-    async with OtelDriver(OtelSettings(), exporter) as otel:
+    async with OTelDriver(OTelSettings(), exporter) as otel:
         telemetry = TelemetryEngine(otel)
         dispatch = DispatchEngine(None, Background(), {queue: 2}, throttle=0, telemetry=telemetry)
         dispatch.register("ok", works.ok, queue=queue)
@@ -159,7 +159,7 @@ async def test_dispatch_a_job_is_traced_as_the_child_of_its_submit(queue: str, w
 
 async def test_dispatch_coalescing_ignores_the_trace(queue: str, works: Works) -> None:
     """Two slots held by hanging jobs: a twin submitted in another trace is still the waiting job."""
-    async with OtelDriver(OtelSettings(), InMemorySpanExporter()) as otel:
+    async with OTelDriver(OTelSettings(), InMemorySpanExporter()) as otel:
         telemetry = TelemetryEngine(otel)
         dispatch = DispatchEngine(None, Background(), {queue: 2}, throttle=0, telemetry=telemetry)
         _ = [dispatch.register(kind, getattr(works, kind), queue=queue) for kind in ("ok", "hang")]

@@ -10,9 +10,9 @@ if TYPE_CHECKING:
 
 
 @runtime_checkable
-class HttpPort(Provider, Protocol):
-    """A path is joined to the configured base, an absolute URL goes as it is. A non-2xx answer raises `HttpError`, a
-    request past its `within` (default the client's) raises `HttpTimeoutError`; `as_` names the msgspec shape the
+class HTTPPort(Provider, Protocol):
+    """A path is joined to the configured base, an absolute URL goes as it is. A non-2xx answer raises `HTTPError`, a
+    request past its `within` (default the client's) raises `HTTPTimeoutError`; `as_` names the msgspec shape the
     JSON body is converted to. `raw` is the GET whose body leaves undecoded, `upload` the POST whose body is streamed,
     `delete` answers None for an empty body (204)."""
 

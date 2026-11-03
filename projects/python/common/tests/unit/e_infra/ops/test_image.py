@@ -1,6 +1,9 @@
 """tests/unit: LogoGenerator — deterministic square-font svg: reference letter byte-for-byte, prefix, colors, refusal."""
 
+import functools
+import operator
 import re
+from collections import Counter
 from typing import TYPE_CHECKING
 
 import pytest
@@ -51,6 +54,23 @@ def test_colors_vary_without_varying_the_geometry() -> None:
 
 def test_every_letter_of_the_font_has_a_glyph() -> None:
     assert set(GLYPHS) == set(Glyph)
+
+
+def _ink(glyph: Glyph) -> tuple[int, ...]:
+    """The pixels a glyph paints on its 255x436 box, one bitmask per row: what a reader sees, not how it is drawn."""
+    return tuple(
+        functools.reduce(
+            operator.or_,
+            (((1 << rect.w) - 1) << rect.x for rect in GLYPHS[glyph] if rect.y <= row < rect.y + rect.h),
+            0,
+        )
+        for row in range(436)
+    )
+
+
+def test_every_glyph_paints_a_shape_no_other_glyph_paints() -> None:
+    inks = Counter(_ink(glyph) for glyph in Glyph if glyph is not Glyph.HYPHEN)
+    assert all(count == 1 for count in inks.values())
 
 
 def test_a_word_wider_than_the_square_canvas_shrinks_as_a_whole() -> None:

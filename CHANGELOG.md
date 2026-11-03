@@ -32,6 +32,9 @@ touches — `stack`, `systems`, `infra`. Lines under `[Unreleased]` are written 
 
 ### projects
 
+- `common/ops/image`: the square font drew K as H and D as O — K now has a waist and stepped arms, D chamfered
+  corners; `test_every_glyph_paints_a_shape_no_other_glyph_paints` gates every letter against every other by the
+  pixels it paints (found rendering `e-track`; `e-serde`'s wordmark reads `SEROE`).
 - `common`'s error tree gains `ServiceError` (TODO_REVERSE step 11), the branch of a project's own business — the one
   layer that never travels, named by the tree, filled by the project (e-gnosis hangs knowledge's and memory's there).
 - `common`'s config (TODO_REVERSE step 9, e-gnosis's content):

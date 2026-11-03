@@ -41,7 +41,8 @@ class FakeDatabase:
         """Nothing to release."""
 
     async def health(self) -> bool:
-        return not self.down
+        self._check()
+        return True
 
     async def execute(self, query: str, params: Sequence[object] = ()) -> None:
         self._check()

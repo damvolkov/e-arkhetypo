@@ -8,6 +8,7 @@ to open and close, not this driver's."""
 from typing import TYPE_CHECKING, ClassVar, Final, Self
 
 from e_infra.infra.auth.models import Account, Grant, GrantKind, Role
+from e_infra.infra.errors import ProviderError
 from e_infra.infra.logger import logger
 from e_infra.ports.provider import Isolation, Locality, ProviderSpec, Workload
 
@@ -69,9 +70,11 @@ class AuthPostgresDriver:
         logger.info("auth postgres closed")
 
     async def health(self) -> bool:
-        up = await self._db.health()
-        _ = up or logger.warning("auth postgres unhealthy")
-        return up
+        try:
+            return await self._db.health()
+        except ProviderError as error:
+            logger.warning("auth postgres unhealthy", error=str(error))
+            raise
 
     async def enroll(self, account: Account) -> Account:
         row = await self._db.row(ENROLL, [account.owner, account.name, account.role.value])

@@ -65,7 +65,7 @@ class TeiRerankDriver:
             await self._http.raw(f"{self._base}/health", within=self._conf.timeout)
         except ProviderError as error:
             logger.warning("tei rerank unhealthy", error=str(error))
-            return False
+            raise
         return True
 
     async def rerank(self, question: str, texts: Sequence[str]) -> list[float]:

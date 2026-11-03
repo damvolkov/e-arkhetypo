@@ -221,8 +221,8 @@ PgQueuer 1.6 cannot open: its schema read returns `name[]`, which psqlpy does no
 #### providers/drivers — I/O with systems outside the process
 
 A driver talks to something that lives elsewhere (network, socket, another process, a file with the semantics of a
-service). Singleton in the lifespan: `__aenter__` opens the pool or client, `__aexit__` releases it, `health` never
-raises, third-party exceptions are translated into `infra.errors` at the border (`DriverError` and below). A driver composes
+service). Singleton in the lifespan: `__aenter__` opens the pool or client, `__aexit__` releases it, `health` answers
+True or raises its own error — the reason `/ready` shows —, third-party exceptions are translated into `infra.errors` at the border (`DriverError` and below). A driver composes
 another provider only through its port, received by constructor (docling, TEI and the OpenAI-compatible driver ride an
 `HttpPort`; the durable cache rides a `DatabasePort`, PgQueuer a `DatabasePort` and a `ListenPort`).
 
@@ -288,7 +288,7 @@ concrete provider or an engine. Whatever library reads a page or detects a forma
 
 Every provider, engine and processor logs through `infra.logger`, as structured key/value events (never an f-string):
 `debug` for lifecycle and per-operation detail, `info` on open and close, `warning` for a degraded or fallback path
-(a health check that answers false, a durable layer left for memory, a manager restarted), `error` for the failure a
+(a health check that finds its provider down, a durable layer left for memory, a manager restarted), `error` for the failure a
 border translates and re-raises. The unit tests assert the events where behaviour depends on them.
 
 ### Testing without a service

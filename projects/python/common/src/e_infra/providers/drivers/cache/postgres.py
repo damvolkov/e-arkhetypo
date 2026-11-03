@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, ClassVar, Final, Self
 
 import msgspec
 
-from e_infra.infra.errors import CacheError, DatabaseError
+from e_infra.infra.errors import CacheError, DatabaseError, ProviderError
 from e_infra.infra.logger import logger
 from e_infra.infra.settings import settings as st
 from e_infra.ports.provider import Isolation, Locality, ProviderSpec, Workload
@@ -100,9 +100,11 @@ class CachePostgresDriver[T]:
         logger.info("cache postgres closed", namespace=self._namespace)
 
     async def health(self) -> bool:
-        up = await self._db.health()
-        _ = up or logger.warning("cache postgres unhealthy", namespace=self._namespace)
-        return up
+        try:
+            return await self._db.health()
+        except ProviderError as error:
+            logger.warning("cache postgres unhealthy", namespace=self._namespace, error=str(error))
+            raise
 
     async def get(self, key: str) -> T | None:
         return (await self.many([key])).get(key)

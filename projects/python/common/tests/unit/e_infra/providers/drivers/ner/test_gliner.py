@@ -85,13 +85,15 @@ async def test_gliner_refresh_reads_the_card(stub: Stub) -> None:
 async def test_gliner_health_and_unopen(stub: Stub) -> None:
     stub.json("GET", "/ready", {})
     ner = GlinerDriver(GlinerSettings(url=stub.url))
-    assert not await ner.health()
+    with pytest.raises(ProviderError):
+        await ner.health()
     with pytest.raises(ModelError, match="not open"):
         await ner.refresh()
     async with ner:
         assert await ner.health()
         stub.routes.clear()
-        assert not await ner.health()
+        with pytest.raises(ProviderError):
+            await ner.health()
 
 
 async def test_gliner_lines_cut_across_frames_and_skip_trailers() -> None:
@@ -115,7 +117,8 @@ async def test_gliner_lifecycle_and_every_failure_are_logged(stub: Stub, logs: L
     async with GlinerDriver(GlinerSettings(url=stub.url)) as ner:
         with pytest.raises(HttpError):
             await ner.entities(["a"], labels=["x"], threshold=0.1)
-        assert not await ner.health()
+        with pytest.raises(ProviderError):
+            await ner.health()
     stub.on("POST", "/ner/batch", lambda _body: (200, b""))
     async with GlinerDriver(GlinerSettings(url=stub.url)) as ner:
         with pytest.raises(ModelError):

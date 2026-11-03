@@ -2,8 +2,9 @@
 
 `survey` calls `health` on many providers together (`asyncio.gather`, each under the same limit, so the whole takes the
 slowest one and one that hangs holds none of the rest) and answers one `ProviderHealth` per provider, never a raise: the
-lifespan logs it at startup, `GET /ready` serves it. A provider that answers False is down; one that outlasts the limit
-is down and says so; one that breaks its contract and raises is down too — a health check's failure is its verdict."""
+lifespan logs it at startup, `GET /ready` serves it. A provider that is down raises its own error, and the error is the
+verdict's reason (`DatabaseError: connection refused`) — what the readiness route shows; one that outlasts the limit is
+down and says so; one that answers False (a provider of no one's) is down, its reason only `unhealthy`."""
 
 import asyncio
 import time

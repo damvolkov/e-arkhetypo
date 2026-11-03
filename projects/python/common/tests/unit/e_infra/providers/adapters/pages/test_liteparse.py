@@ -7,7 +7,7 @@ import pytest
 
 from e_infra.infra.config.processors.doc import DocSignal
 from e_infra.infra.config.providers.adapters.pages.liteparse import LiteparseSettings
-from e_infra.infra.errors import ParseError
+from e_infra.infra.errors import ParseError, ProviderError
 from e_infra.ports.pages import FastPage, PagesPort
 from e_infra.providers.adapters.pages.liteparse import LiteparseAdapter
 
@@ -40,12 +40,14 @@ async def test_liteparse_blocks_carry_tables_and_headings() -> None:
 
 async def test_liteparse_unopen_and_closed() -> None:
     pages = LiteparseAdapter(LiteparseSettings())
-    assert not await pages.health()
+    with pytest.raises(ProviderError):
+        await pages.health()
     with pytest.raises(ParseError, match="not open"):
         await pages.parse(b"%PDF")
     async with pages:
         assert await pages.health()
-    assert not await pages.health()
+    with pytest.raises(ProviderError):
+        await pages.health()
 
 
 async def test_liteparse_error_translated() -> None:
@@ -57,7 +59,8 @@ async def test_liteparse_error_translated() -> None:
 
 async def test_liteparse_lifecycle_and_its_failures_are_logged(logs: Logs) -> None:
     pages = LiteparseAdapter(LiteparseSettings())
-    assert not await pages.health()
+    with pytest.raises(ProviderError):
+        await pages.health()
     async with pages:
         with pytest.raises(ParseError):
             await pages.parse(b"not a pdf at all")

@@ -7,7 +7,7 @@ import pytest
 from tokenizers import Tokenizer, models, pre_tokenizers
 
 from e_infra.infra.config.providers.drivers.embed.tei import TeiEmbedSettings
-from e_infra.infra.errors import HttpError, ModelError
+from e_infra.infra.errors import HttpError, ModelError, ProviderError
 from e_infra.ports.embed import EmbedPort
 from e_infra.providers.drivers.embed import tei
 from e_infra.providers.drivers.embed.tei import TeiEmbedDriver
@@ -56,15 +56,18 @@ async def test_embed_server_error_is_an_http_error(stub: Stub, http: HttpPort) -
 async def test_embed_health(stub: Stub, http: HttpPort) -> None:
     stub.on("GET", "/health", lambda _body: (200, b""))
     embed = TeiEmbedDriver(http, TeiEmbedSettings(url=stub.url))
-    assert not await embed.health()
+    with pytest.raises(ProviderError):
+        await embed.health()
     async with embed:
         assert await embed.health()
         stub.on("GET", "/health", lambda _body: (503, b""))
-        assert not await embed.health()
+        with pytest.raises(ProviderError):
+            await embed.health()
 
 
 async def test_embed_lifecycle_and_an_unhealthy_server_are_logged(stub: Stub, http: HttpPort, logs: Logs) -> None:
     async with TeiEmbedDriver(http, TeiEmbedSettings(url=stub.url)) as embed:
-        assert not await embed.health()
+        with pytest.raises(ProviderError):
+            await embed.health()
     assert logs.at("info", "tei") == ["tei embed opened", "tei embed closed"]
     assert logs.at("warning", "tei") == ["tei embed unhealthy"]

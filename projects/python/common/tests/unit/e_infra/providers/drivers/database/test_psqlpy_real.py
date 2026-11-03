@@ -4,7 +4,7 @@ import pytest
 
 from e_infra.infra.config.base import Secret
 from e_infra.infra.config.providers.drivers.database.psqlpy import PsqlpySettings
-from e_infra.infra.errors import DatabaseError
+from e_infra.infra.errors import DatabaseError, ProviderError
 from e_infra.ports.database import DatabasePort, QueryPort, Vector
 from e_infra.providers.drivers.database.psqlpy import PsqlpyDriver, PsqlpyStatements
 
@@ -113,11 +113,13 @@ async def test_postgres_health_down() -> None:
     """A server nothing listens for: `SELECT 1` never runs, the driver is down — and says so without raising."""
     settings = PsqlpySettings(dsn=Secret("postgresql://postgres:postgres@127.0.0.1:9/none"), pool=2)
     async with PsqlpyDriver(settings) as driver:
-        assert not await driver.health()
+        with pytest.raises(ProviderError):
+            await driver.health()
 
 
 async def test_postgres_unopen_health(pg_settings: PsqlpySettings) -> None:
-    assert not await PsqlpyDriver(pg_settings).health()
+    with pytest.raises(ProviderError):
+        await PsqlpyDriver(pg_settings).health()
 
 
 async def test_postgres_satisfies_port(pg_settings: PsqlpySettings) -> None:

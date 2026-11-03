@@ -257,12 +257,15 @@ class OtelDriver:
         timeout = int(self._settings.timeout.total_seconds() * MS_PER_SECOND)
         match self._provider:
             case None:
-                logger.warning("otel unhealthy", reason="not open")
-                return False
-            case provider:
-                flushed = await asyncio.to_thread(provider.force_flush, timeout)
-                _ = flushed or logger.warning("otel unhealthy", reason="flush timed out")
-                return flushed
+                msg = "OtelDriver is not open"
+                logger.warning("otel unhealthy", error=msg)
+                raise TelemetryError(msg)
+            case provider if not await asyncio.to_thread(provider.force_flush, timeout):
+                msg = f"spans not flushed to the exporter within {self._settings.timeout}"
+                logger.warning("otel unhealthy", error=msg)
+                raise TelemetryError(msg)
+            case _:
+                return True
 
     @contextmanager
     def span(

@@ -8,7 +8,7 @@ import asyncpg
 import pytest
 
 from e_infra.infra.config.providers.drivers.database.asyncpg import AsyncpgSettings
-from e_infra.infra.errors import DatabaseError
+from e_infra.infra.errors import DatabaseError, ProviderError
 from e_infra.ports.database import DatabasePort, Vector
 from e_infra.providers.drivers.database.asyncpg import FOUND, AsyncpgDriver, AsyncpgStatements
 from support.asyncpg import FakeAsyncpgConnection
@@ -75,7 +75,8 @@ async def test_asyncpg_open_refused_is_a_database_error(
     with pytest.raises(DatabaseError):
         await asyncpg_driver.__aenter__()
     assert logs.at("error") == ["asyncpg failed"]
-    assert not await asyncpg_driver.health()
+    with pytest.raises(ProviderError):
+        await asyncpg_driver.health()
 
 
 async def test_asyncpg_open_that_never_answers_times_out(
@@ -119,12 +120,14 @@ async def test_asyncpg_health_false_and_warned_when_the_query_fails(
 ) -> None:
     asyncpg_server.failures["SELECT 1"] = asyncpg.InterfaceError("pool is closing")
     async with asyncpg_driver:
-        assert not await asyncpg_driver.health()
+        with pytest.raises(ProviderError):
+            await asyncpg_driver.health()
     assert "asyncpg unhealthy" in logs.at("warning")
 
 
 async def test_asyncpg_health_false_when_never_opened(asyncpg_driver: AsyncpgDriver) -> None:
-    assert not await asyncpg_driver.health()
+    with pytest.raises(ProviderError):
+        await asyncpg_driver.health()
 
 
 ##### STATEMENTS #####

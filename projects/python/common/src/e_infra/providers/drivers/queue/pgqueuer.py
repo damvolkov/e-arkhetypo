@@ -357,7 +357,7 @@ class PgqueuerDriver:
             await self._common_call(lambda: self._db.fetch("SELECT 1"))
         except ProviderError as error:
             logger.warning("pgqueuer unhealthy", error=str(error))
-            return False
+            raise
         return True
 
     async def __aexit__(self, *exc: object) -> None:

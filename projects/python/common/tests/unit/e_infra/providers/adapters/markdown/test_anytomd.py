@@ -13,7 +13,7 @@ import pytest
 
 from e_infra.infra.config.base import Secret
 from e_infra.infra.config.providers.adapters.markdown.anytomd import AnytomdSettings
-from e_infra.infra.errors import ParseError
+from e_infra.infra.errors import ParseError, ProviderError
 from e_infra.ports.markdown import MarkdownPort, MdConversion
 from e_infra.providers.adapters.markdown import anytomd
 from e_infra.providers.adapters.markdown.anytomd import AnytomdAdapter
@@ -121,7 +121,8 @@ async def test_health(engine: None) -> None:
         assert await a.health()
     assert convert.calls is not None
     assert convert.calls[:2] == (b"ping", "txt")
-    assert not await a.health()
+    with pytest.raises(ProviderError):
+        await a.health()
 
 
 async def test_the_engines_failure_is_a_parse_error(engine: None, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -171,7 +172,8 @@ async def test_the_engines_failure_and_the_lifecycle_are_logged(
     async with a:
         with pytest.raises(ParseError):
             await a.convert(b"x", extension="html")
-        assert not await a.health()
+        with pytest.raises(ProviderError):
+            await a.health()
     assert logs.at("info") == ["anytomd opened", "anytomd closed"]
     assert logs.at("error") == ["anytomd failed"] * 2
     assert logs.at("warning") == ["anytomd unhealthy"]

@@ -76,8 +76,14 @@ class TeiEmbedDriver:
             await self._http.raw(f"{self._conf.url.rstrip('/')}/health", within=self._conf.timeout)
         except ProviderError as error:
             logger.warning("tei embed unhealthy", error=str(error))
-            return False
-        return self._tokenizer is not None
+            raise
+        match self._tokenizer:
+            case None:
+                msg = "tei embed is not open: no tokenizer loaded"
+                logger.warning("tei embed unhealthy", error=msg)
+                raise ModelError(msg)
+            case _:
+                return True
 
     async def embed(self, texts: Sequence[str], *, query: bool = False) -> list[list[float]]:
         """One vector per text, in order; a query carries EMBED_QUERY_PREFIX. No texts, no call (TEI rejects it)."""

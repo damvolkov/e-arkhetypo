@@ -81,7 +81,7 @@ class RedisDriver:
                 await self._common_open().ping()
         except ProviderError as error:
             logger.warning("redis unhealthy", error=str(error))
-            return False
+            raise
         return True
 
     async def get(self, key: str) -> bytes | None:

@@ -7,7 +7,7 @@ import anyio
 import pytest
 
 from e_infra.infra.config.providers.adapters.cache.theine import TheineSettings
-from e_infra.infra.errors import CacheError
+from e_infra.infra.errors import CacheError, ProviderError
 from e_infra.ports.cache import CachePort
 from e_infra.providers.adapters.cache.theine import TheineAdapter
 
@@ -42,20 +42,23 @@ async def test_theine_without_a_ttl_keeps_until_evicted() -> None:
 
 async def test_theine_lifecycle() -> None:
     cache = TheineAdapter[int](TheineSettings(size=10))
-    assert not await cache.health()
+    with pytest.raises(ProviderError):
+        await cache.health()
     with pytest.raises(CacheError, match="not open"):
         await cache.get("a")
     async with cache:
         assert await cache.health()
         await cache.put("a", 1)
-    assert not await cache.health()
+    with pytest.raises(ProviderError):
+        await cache.health()
     async with cache:
         assert await cache.get("a") is None
 
 
 async def test_theine_lifecycle_and_an_unopened_health_are_logged(logs: Logs) -> None:
     cache = TheineAdapter[int](TheineSettings(size=10, ttl=timedelta(minutes=1)))
-    assert not await cache.health()
+    with pytest.raises(ProviderError):
+        await cache.health()
     async with cache:
         await cache.put("a", 1)
         await cache.put_many({"b": 2})

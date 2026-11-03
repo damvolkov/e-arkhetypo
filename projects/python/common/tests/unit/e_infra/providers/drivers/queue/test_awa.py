@@ -12,7 +12,7 @@ from awa import DatabaseError as AwaDatabaseError
 
 from e_infra.infra.background import BackgroundState
 from e_infra.infra.config.providers.drivers.queue.awa import AwaSettings
-from e_infra.infra.errors import QueueError
+from e_infra.infra.errors import ProviderError, QueueError
 from e_infra.ports.queue import QueuePort, SchedulePort
 from e_infra.providers.drivers.queue import awa as awa_module
 from e_infra.providers.drivers.queue.awa import REPORT, SCHEMA, AwaDriver
@@ -58,7 +58,8 @@ async def test_awa_unopened_calls_are_queue_errors(awa_driver: AwaDriver, handle
         await awa_driver.job("1")
     with pytest.raises(QueueError, match="not open"):
         awa_driver.register("k", "q", handler)
-    assert not await awa_driver.health()
+    with pytest.raises(ProviderError):
+        await awa_driver.health()
 
 
 @pytest.mark.parametrize("step", ["migrate", "transaction"])
@@ -98,7 +99,8 @@ async def test_awa_close_that_never_returns_is_a_queue_error(
     with pytest.raises(QueueError, match="close timed out"):
         await driver.__aexit__(None, None, None)
     assert logs.at("error") == ["awa close timed out"]
-    assert not await driver.health()
+    with pytest.raises(ProviderError):
+        await driver.health()
 
 
 ##### HEALTH #####
@@ -113,7 +115,8 @@ async def test_awa_health_false_and_warned_when_the_database_is_gone(
     awa_opened: AwaDriver, awa_clients: list[FakeAwaClient], logs: Logs
 ) -> None:
     awa_clients[0].failures["transaction"] = AwaDatabaseError("server closed the connection")
-    assert not await awa_opened.health()
+    with pytest.raises(ProviderError):
+        await awa_opened.health()
     assert "awa unhealthy" in logs.at("warning")
 
 

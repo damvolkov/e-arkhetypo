@@ -81,7 +81,7 @@ class RtrafilaturaAdapter:
             await self.extract(b"<html><body><p>ping</p></body></html>")
         except ProviderError as error:
             logger.warning("rtrafilatura unhealthy", error=str(error))
-            return False
+            raise
         return True
 
     async def extract(self, html: bytes, *, url: str = "") -> str | None:

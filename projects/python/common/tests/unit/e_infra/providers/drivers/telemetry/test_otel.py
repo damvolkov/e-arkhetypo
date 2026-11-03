@@ -14,7 +14,7 @@ from opentelemetry.trace import StatusCode
 
 from e_infra.infra.config.base import Secret
 from e_infra.infra.config.providers.drivers.telemetry.otel import OtelProtocol, OtelSettings
-from e_infra.infra.errors import TelemetryError
+from e_infra.infra.errors import ProviderError, TelemetryError
 from e_infra.ports.telemetry import SpanKey, SpanKind, SpanPort, SpanRole, SpanStatus, TelemetryPort
 from e_infra.providers.drivers.telemetry.otel import (
     KINDS,
@@ -194,21 +194,25 @@ def test_sample_is_a_share(sample: float) -> None:
 async def test_otel_health(exporter: InMemorySpanExporter, monkeypatch: pytest.MonkeyPatch) -> None:
     """The provider flushes to its exporter; one that cannot flush, or no provider, is down."""
     adapter = OtelDriver(OtelSettings(), exporter)
-    assert not await adapter.health()
+    with pytest.raises(ProviderError):
+        await adapter.health()
     async with adapter:
         assert await adapter.health()
         monkeypatch.setattr(TracerProvider, "force_flush", lambda *_: False)
-        assert not await adapter.health()
+        with pytest.raises(ProviderError):
+            await adapter.health()
 
 
 async def test_otel_lifecycle_and_an_unhealthy_provider_are_logged(
     exporter: InMemorySpanExporter, monkeypatch: pytest.MonkeyPatch, logs: Logs
 ) -> None:
     adapter = OtelDriver(OtelSettings(service="svc"), exporter)
-    assert not await adapter.health()
+    with pytest.raises(ProviderError):
+        await adapter.health()
     async with adapter:
         monkeypatch.setattr(TracerProvider, "force_flush", lambda *_: False)
-        assert not await adapter.health()
+        with pytest.raises(ProviderError):
+            await adapter.health()
         with adapter.span("work", {}):
             pass
     assert logs.at("info") == ["otel opened", "otel closed"]

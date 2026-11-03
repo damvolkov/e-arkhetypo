@@ -32,6 +32,17 @@ touches — `stack`, `systems`, `infra`. Lines under `[Unreleased]` are written 
 
 ### projects
 
+- `common` gains e-gnosis's last two providers and its health contract (TODO_REVERSE steps 11 and 7):
+  - `ports/language` + `providers/adapters/language/lingua` (`LinguaAdapter`: ISO 639-1 over LANGUAGE_LANGUAGES, a
+    20 000-character prefix, a text under 40 characters told by no one, pickled as its settings for worker processes,
+    `annotator` = `lingua@<version>`) and `ports/watch` + `providers/adapters/watch/watchfiles` (`WatchfilesAdapter`:
+    batches of added/modified/deleted over a debounce, a quiet tick, the defaults' ignore patterns plus the caller's,
+    polling on demand); `lingua` and `watchfiles` imported nowhere else (TID251). Every project gains both libraries.
+  - `Provider.health()` answers True or raises its own error, and that error is the reason `/ready` shows
+    (`DatabaseError: connection refused`) — before, a provider answered False and `/ready` said only `unhealthy`. Every
+    provider follows it (a store riding a database raises the database's error); `DispatchEngine.health` in memory
+    raises `QueueError`. `HealthEngine` is unchanged: a raise was already its verdict's reason.
+  - graph locks regenerated with e-taxis main.
 - `common/ops/image`: the square font drew K as H and D as O — K now has a waist and stepped arms, D chamfered
   corners; `test_every_glyph_paints_a_shape_no_other_glyph_paints` gates every letter against every other by the
   pixels it paints (found rendering `e-track`; `e-serde`'s wordmark reads `SEROE`).

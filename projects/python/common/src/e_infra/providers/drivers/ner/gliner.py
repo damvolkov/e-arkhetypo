@@ -194,7 +194,7 @@ class GlinerDriver:
                 response.raise_for_status()
         except ProviderError as error:
             logger.warning("gliner unhealthy", error=str(error))
-            return False
+            raise
         return True
 
     async def refresh(self) -> str:

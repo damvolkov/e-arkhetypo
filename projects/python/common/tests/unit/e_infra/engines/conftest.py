@@ -88,7 +88,12 @@ class FakeQueue:
         """Nothing to release."""
 
     async def health(self) -> bool:
-        return not self.down
+        match self.down:
+            case True:
+                msg = "queue down"
+                raise QueueError(msg)
+            case False:
+                return True
 
     def register(self, kind: str, queue: str, handler: BackgroundHandler) -> None:
         self.handlers[kind] = (queue, handler)

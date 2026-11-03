@@ -12,7 +12,7 @@ from liteparse import LiteParse
 from liteparse import ParseError as LiteparseError
 
 from e_infra.infra.config.processors.doc import DocSignal
-from e_infra.infra.errors import ParseError
+from e_infra.infra.errors import ParseError, ProviderError
 from e_infra.infra.logger import logger
 from e_infra.infra.settings import settings as st
 from e_infra.ports.pages import FastPage, PageBlock
@@ -125,9 +125,12 @@ class LiteparseAdapter:
         logger.info("liteparse closed")
 
     async def health(self) -> bool:
-        opened = self._parser is not None
-        _ = opened or logger.warning("liteparse unhealthy", reason="not open")
-        return opened
+        try:
+            self._common_parser()
+        except ProviderError as error:
+            logger.warning("liteparse unhealthy", error=str(error))
+            raise
+        return True
 
     async def parse(self, data: bytes) -> tuple[FastPage, ...]:
         logger.debug("liteparse parse", size=len(data))

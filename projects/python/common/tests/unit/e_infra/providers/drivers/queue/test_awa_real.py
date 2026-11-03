@@ -9,7 +9,7 @@ from awa import AwaError
 
 from e_infra.infra.background import BackgroundState
 from e_infra.infra.config.base import Secret
-from e_infra.infra.errors import QueueError
+from e_infra.infra.errors import ProviderError, QueueError
 from e_infra.ports.queue import QueuePort, SchedulePort
 from e_infra.providers.drivers.queue.awa import AwaDriver
 from unit.e_infra.conftest import settled
@@ -200,12 +200,14 @@ async def test_awa_health(queue_settings: AwaSettings) -> None:
     adapter = AwaDriver(queue_settings)
     async with adapter:
         assert await adapter.health()
-    assert not await adapter.health()
+    with pytest.raises(ProviderError):
+        await adapter.health()
 
 
 async def test_awa_health_unreachable(queue_settings: AwaSettings) -> None:
     adapter = AwaDriver(queue_settings.model_copy(update={"timeout": timedelta(seconds=1)}))
-    assert not await adapter.health()
+    with pytest.raises(ProviderError):
+        await adapter.health()
 
 
 async def test_awa_keeps_no_clock(awa: AwaDriver) -> None:
@@ -238,4 +240,5 @@ async def test_awa_close_bounded(queue_settings: AwaSettings, queue: str, handle
     await awa.start({queue: 1})
     with anyio.fail_after(10), pytest.raises(QueueError, match=r"^awa close timed out after "):
         await awa.__aexit__(None, None, None)
-    assert not await awa.health()
+    with pytest.raises(ProviderError):
+        await awa.health()

@@ -212,7 +212,7 @@ class AwaDriver:
             await self._common_fetch("SELECT 1")
         except ProviderError as error:
             logger.warning("awa unhealthy", error=str(error))
-            return False
+            raise
         return True
 
     async def __aexit__(self, *exc: object) -> None:

@@ -9,7 +9,7 @@ from e_infra.infra.background import BackgroundState
 from e_infra.infra.config.base import Secret
 from e_infra.infra.config.providers.drivers.database.asyncpg import AsyncpgSettings
 from e_infra.infra.config.providers.drivers.database.psqlpy import PsqlpySettings
-from e_infra.infra.errors import DatabaseError, QueueError
+from e_infra.infra.errors import DatabaseError, ProviderError, QueueError
 from e_infra.ports.queue import QueuePort, SchedulePort
 from e_infra.providers.drivers.database.asyncpg import AsyncpgDriver
 from e_infra.providers.drivers.database.psqlpy import PsqlpyDriver
@@ -137,7 +137,8 @@ async def test_pgqueuer_jobs(port: AwaDriver | PgqueuerDriver, queue: str, handl
 ##### PGQUEUER — its own recovery, without the facade #####
 async def test_pgqueuer_health(engine: PgqueuerDriver) -> None:
     """One query on its pool; not open, it does not answer."""
-    assert not await engine.health()
+    with pytest.raises(ProviderError):
+        await engine.health()
     async with engine:
         assert await engine.health()
 
@@ -186,7 +187,8 @@ async def test_pgqueuer_call_outage(
         monkeypatch.setattr(type(engine._db), "fetch", broken)
         with pytest.raises(QueueError, match=message):
             await engine._common_call(lambda: engine._db.fetch("SELECT 1"))
-        assert not await engine.health()
+        with pytest.raises(ProviderError):
+            await engine.health()
 
 
 async def test_pgqueuer_lost_job(

@@ -33,7 +33,8 @@ async def test_rerank_health(stub: Stub, http: HttpPort) -> None:
         assert await rerank.health()
     stub.routes.clear()
     async with TeiRerankDriver(http, TeiRerankSettings(url=stub.url)) as rerank:
-        assert not await rerank.health()
+        with pytest.raises(ProviderError):
+            await rerank.health()
 
 
 async def test_rerank_lifecycle_requests_and_an_unhealthy_server_are_logged(
@@ -42,7 +43,8 @@ async def test_rerank_lifecycle_requests_and_an_unhealthy_server_are_logged(
     stub.on("POST", "/rerank", lambda _body: (200, msgspec.json.encode([{"index": 0, "score": 0.5}])))
     async with TeiRerankDriver(http, TeiRerankSettings(url=stub.url)) as rerank:
         await rerank.rerank("q", ["a"])
-        assert not await rerank.health()
+        with pytest.raises(ProviderError):
+            await rerank.health()
     assert logs.at("info", "tei") == ["tei rerank opened", "tei rerank closed"]
     assert logs.at("debug", "tei") == ["tei rerank"]
     assert logs.at("warning", "tei") == ["tei rerank unhealthy"]

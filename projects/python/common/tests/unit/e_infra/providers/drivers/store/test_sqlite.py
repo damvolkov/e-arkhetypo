@@ -7,7 +7,7 @@ import aiosqlite
 import pytest
 
 from e_infra.infra.config.providers.drivers.store.sqlite import SqliteSettings
-from e_infra.infra.errors import StoreError
+from e_infra.infra.errors import ProviderError, StoreError
 from e_infra.ports.store import StorePort
 from e_infra.providers.drivers.store.sqlite import SqliteDriver
 from support.kv import KV_CALLS
@@ -63,7 +63,8 @@ async def test_sqlite_health(tmp_path: Path) -> None:
     async with adapter:
         assert isinstance(adapter, StorePort)
         assert await adapter.health()
-    assert not await adapter.health()
+    with pytest.raises(ProviderError):
+        await adapter.health()
 
 
 async def test_sqlite_lifecycle_logs_and_the_busy_timeout_rides_the_connection(
@@ -116,7 +117,8 @@ async def test_sqlite_health_false_and_warned_when_the_file_cannot_answer(
     async with SqliteDriver(SqliteSettings(path=tmp_path / "kv.db")) as adapter:
         assert await adapter.health()
         monkeypatch.setattr(aiosqlite.Connection, "execute", locked)
-        assert not await adapter.health()
+        with pytest.raises(ProviderError):
+            await adapter.health()
     assert "sqlite unhealthy" in logs.at("warning")
 
 

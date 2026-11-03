@@ -7,7 +7,7 @@ import anyio
 import pytest
 
 from e_infra.infra.config.providers.drivers.cache.postgres import CachePostgresSettings
-from e_infra.infra.errors import CacheError
+from e_infra.infra.errors import CacheError, ProviderError
 from e_infra.ports.cache import CachePort
 from e_infra.providers.drivers.cache.postgres import CachePostgresDriver
 from support.cache import cache
@@ -67,7 +67,8 @@ async def test_cache_postgres_health_follows_the_database(db: FakeDatabase, logs
     async with cache(db) as numbers:
         assert await numbers.health()
         db.down = True
-        assert not await numbers.health()
+        with pytest.raises(ProviderError):
+            await numbers.health()
     assert logs.at("warning") == ["cache postgres unhealthy"]
 
 

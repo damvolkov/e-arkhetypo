@@ -12,8 +12,8 @@ from e_infra.infra.config.base import BaseSettings, Secret
 class AsyncpgSettings(BaseSettings):
     """ASYNCPG_DSN — the database, password included (PgQueuer on this driver wants a database of its own:
     `app_background` beside the service's `app`); ASYNCPG_POOL_MIN / ASYNCPG_POOL — connections kept warm and the most
-    held at once, the pool's own: PgQueuer's dedicated connections (one per queue, one for the scheduler) are opened
-    beside it, not from it; ASYNCPG_TIMEOUT — connecting, and one command."""
+    held at once: PgQueuer's managers, scheduler and LISTEN all draw from it, so a queue's database wants at least six;
+    ASYNCPG_TIMEOUT — connecting, and one command."""
 
     model_config = SettingsConfigDict(env_prefix="ASYNCPG_")
 

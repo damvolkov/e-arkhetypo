@@ -138,7 +138,7 @@ def warnings(monkeypatch: pytest.MonkeyPatch) -> Warnings:
 
 
 async def engine(name: str, stack: AsyncExitStack, queues: Queues) -> AwaDriver | PgqueuerDriver:
-    """The durable queue `name` on this worker's database of its own, not yet entered; PgQueuer's asyncpg driver is
+    """The durable queue `name` on this worker's database of its own, not yet entered; PgQueuer's database driver is
     entered on `stack`, as the lifespan would before it."""
     match name:
         case "awa":
@@ -147,7 +147,8 @@ async def engine(name: str, stack: AsyncExitStack, queues: Queues) -> AwaDriver 
             db = AsyncpgDriver(
                 AsyncpgSettings(dsn=Secret(await queues.database()), pool=4, timeout=timedelta(seconds=5))
             )
-            return PgqueuerDriver(await stack.enter_async_context(db), queues.pgqueuer)
+            opened = await stack.enter_async_context(db)
+            return PgqueuerDriver(opened, opened, queues.pgqueuer)
 
 
 def build(durable: QueuePort | None, queue: str, works: Works) -> DispatchEngine:

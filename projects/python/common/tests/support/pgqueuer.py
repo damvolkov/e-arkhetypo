@@ -1,10 +1,10 @@
 """tests/support/pgqueuer: PgQueuer's own in-memory backend, shaped as the `Queries` the driver builds from a connection.
 
 PgQueuer ships `PgQueuer.in_memory()` (pgqueuer 1.6, docs/reference/in-memory.md): `InMemoryQueries` over an
-`InMemoryDriver`, no database. The driver calls `Queries.from_asyncpg_connection(connection)` in five places; patching
-that name to answer one shared `FakePgqueuerQueries` runs the real `QueueManager` and `SchedulerManager` — dequeue,
-heartbeat, retry, cancel, cron — in memory, while the driver's own SQL (the `background.job` book) goes to the fake asyncpg
-pool. `schema_is_installed` is the one method the Postgres `Queries` has and the in-memory one does not."""
+`InMemoryDriver`, no database. The driver builds `Queries(bridge)` over its ports; patching that name to answer one
+shared `FakePgqueuerQueries` runs the real `QueueManager` and `SchedulerManager` — dequeue, heartbeat, retry, cancel,
+cron — in memory, while the driver's own SQL (the `background.job` book) goes to the fake database. `bridges` keeps
+every bridge it was built over, the scope each one rides. `schema_is_installed` is the one method the Postgres `Queries` has and the in-memory one does not."""
 
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -22,12 +22,14 @@ class FakePgqueuerQueries(InMemoryQueries):
 
 
 class FakePgqueuer:
-    """Stands for the `Queries` class: every connection it is asked about leads to the one in-memory backend."""
+    """Stands for the `Queries` class: every bridge it is built over leads to the one in-memory backend."""
 
     def __init__(self) -> None:
         self.queries = FakePgqueuerQueries(driver=InMemoryDriver())
+        self.bridges: list[Any] = []
 
-    def from_asyncpg_connection(self, _connection: Any) -> FakePgqueuerQueries:
+    def __call__(self, bridge: Any) -> FakePgqueuerQueries:
+        self.bridges.append(bridge)
         return self.queries
 
 

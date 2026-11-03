@@ -32,6 +32,16 @@ touches — `stack`, `systems`, `infra`. Lines under `[Unreleased]` are written 
 
 ### projects
 
+- `common`'s PgQueuer rides the ports (TODO_REVERSE step 4): `PgqueuerDriver(database, listen)` takes a `DatabasePort`
+  and a `ListenPort` — e-gnosis's design — and PgQueuer's own `Driver` is met by `PgqueuerBridge` over them (statements
+  on the pool, a transaction or a connection, LISTEN on the database driver's one held connection): no pool and no
+  connection of its own, its schema installed under the session lock on one `connection()`, `jsonb` parameters as
+  Python values, a close bounded by QUEUE_DRAIN + 2 QUEUE_TIMEOUT, `OSError` an outage. `AsyncpgDriver`'s `pool`,
+  `guard` and `dedicated()` — PgQueuer's private door — are gone. Measured: on psqlpy PgQueuer 1.6 cannot open (its
+  schema read returns `name[]`, which psqlpy 0.12–0.13 does not decode), so the queue rides asyncpg and a real test
+  names the refusal. `DispatchEngine` gains `queue(name, slots)`, `kinds`, `schedules` and a registry sealed once it is
+  entered (a late declaration is a `DispatchError`). The span per job and the trace carrier wait for telemetry
+  (step 7). Gates: common 1291, integration 109 (the queue's 67 on the real database), check green in the five.
 - `common`'s two Postgres drivers gain e-gnosis's content (TODO_REVERSE step 3): `DatabasePort` adds `script()` and
   `connection()` (one connection, each statement its own commit), `ListenPort` is new (`listen`/`unlisten`; psqlpy by
   listener generations, asyncpg on one held pooled connection), `DatabaseError` carries `sqlstate` and

@@ -3,15 +3,16 @@
 from typing import TYPE_CHECKING, Any
 
 import anyio
-import asyncpg
 import pytest
 
 from e_infra.infra.background import BackgroundState
 from e_infra.infra.config.base import Secret
 from e_infra.infra.config.providers.drivers.database.asyncpg import AsyncpgSettings
-from e_infra.infra.errors import QueueError
+from e_infra.infra.config.providers.drivers.database.psqlpy import PsqlpySettings
+from e_infra.infra.errors import DatabaseError, QueueError
 from e_infra.ports.queue import QueuePort, SchedulePort
 from e_infra.providers.drivers.database.asyncpg import AsyncpgDriver
+from e_infra.providers.drivers.database.psqlpy import PsqlpyDriver
 from e_infra.providers.drivers.queue.pgqueuer import PgqueuerDriver
 from unit.e_infra.conftest import running, settled, until
 
@@ -19,6 +20,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable
 
     from e_infra.infra.background import BackgroundHandler
+    from e_infra.infra.config.providers.drivers.queue.pgqueuer import PgqueuerSettings
     from e_infra.providers.drivers.queue.awa import AwaDriver
     from unit.e_infra.providers.drivers.queue.conftest import Flaky, Hang
 
@@ -144,16 +146,28 @@ async def test_pgqueuer_satisfies_ports(engine: PgqueuerDriver) -> None:
     assert (isinstance(engine, QueuePort), isinstance(engine, SchedulePort)) == (True, True)
 
 
+async def test_pgqueuer_on_psqlpy_is_refused_by_its_catalog_read(
+    pgqueuer_database: str, pgqueuer_settings: PgqueuerSettings
+) -> None:
+    """PgQueuer 1.6 reads its installed schema through `pg_catalog`, whose index columns come back as `name[]` — a type
+    psqlpy (0.12 to 0.13) does not decode. On psqlpy the queue cannot open, and says so as the queue's outage, never a
+    hang; the day psqlpy decodes it, this test fails and the queue widens to both drivers."""
+    async with PsqlpyDriver(PsqlpySettings(dsn=Secret(pgqueuer_database), pool=6)) as db:
+        with pytest.raises(QueueError, match="_name"):
+            await PgqueuerDriver(db, db, pgqueuer_settings).__aenter__()
+
+
 async def test_pgqueuer_open_unreachable(engine: PgqueuerDriver) -> None:
     """A driver that never opened: PgQueuer cannot install its schema on it, and says so as the queue's outage."""
-    down = PgqueuerDriver(AsyncpgDriver(AsyncpgSettings(dsn=Secret("postgresql://postgres:x@127.0.0.1:9/none"))))
+    never = AsyncpgDriver(AsyncpgSettings(dsn=Secret("postgresql://postgres:x@127.0.0.1:9/none")))
+    down = PgqueuerDriver(never, never)
     with pytest.raises(QueueError):
         await down.__aenter__()
 
 
 @pytest.mark.parametrize(
     ("failure", "message"),
-    [(asyncpg.InterfaceError("pool is closing"), "pool is closing"), (None, "timed out after")],
+    [(DatabaseError("pool is closing"), "pool is closing"), (None, "timed out after")],
     ids=["refused", "slow"],
 )
 async def test_pgqueuer_call_outage(
@@ -169,9 +183,9 @@ async def test_pgqueuer_call_outage(
                 raise error
 
     async with engine:
-        monkeypatch.setattr(asyncpg.Pool, "fetchval", broken)
+        monkeypatch.setattr(type(engine._db), "fetch", broken)
         with pytest.raises(QueueError, match=message):
-            await engine._common_call(lambda pool: pool.fetchval("SELECT 1"))
+            await engine._common_call(lambda: engine._db.fetch("SELECT 1"))
         assert not await engine.health()
 
 

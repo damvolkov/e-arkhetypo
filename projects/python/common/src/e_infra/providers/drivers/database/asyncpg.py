@@ -11,13 +11,10 @@ pins one connection for its whole scope, a connection scope pins one with each s
 one connection of the pool held for it, taken with the first channel. asyncpg's errors carry the server's SQLSTATE and
 constraint: `DatabaseError` keeps both. `provision` creates the database its DSN names when missing, on the server's
 maintenance database; a twin creating it at the same moment is no error. Both Postgres drivers are first-class and the
-project picks one at its root. What a library that owns its client needs — PgQueuer's `Queries` run on an asyncpg
-connection, and its managers each hold one for as long as they live — is on this class and nowhere in the ports:
-`pool` is the pool, `dedicated` a connection opened and closed within a block, `guard` the border that turns
-asyncpg's errors into `DatabaseError`."""
+project picks one at its root; PgQueuer rides either through the ports."""
 
 import json
-from contextlib import asynccontextmanager, contextmanager, suppress
+from contextlib import asynccontextmanager, contextmanager
 from typing import TYPE_CHECKING, Any, ClassVar, Final, Self
 from urllib.parse import urlsplit
 
@@ -67,6 +64,16 @@ class AsyncpgStatements:
         )
 
     @staticmethod
+    @contextmanager
+    def _common_guard() -> Generator[None]:
+        """asyncpg's own errors, and the network's, as the tree's `DatabaseError`."""
+        try:
+            yield
+        except WIRE as error:
+            logger.error("asyncpg failed", error=str(error) or type(error).__name__)
+            raise AsyncpgStatements._common_error(error) from error
+
+    @staticmethod
     def _common_params(params: Sequence[object]) -> list[object]:
         """Parameters as asyncpg takes them: a `Vector` as pgvector's text form."""
         return [
@@ -77,7 +84,7 @@ class AsyncpgStatements:
     @classmethod
     async def _common_call[T](cls, call: Coroutine[Any, Any, T]) -> T:
         """One driver call, its refusal a `DatabaseError`."""
-        with AsyncpgDriver.guard():
+        with cls._common_guard():
             return await call
 
     @staticmethod
@@ -173,10 +180,18 @@ class AsyncpgDriver:
             case _:
                 return False
 
+    def _common_pool(self) -> asyncpg.Pool:
+        match self._pool:
+            case None:
+                msg = "AsyncpgDriver is not open: the lifespan opens it, callers never do"
+                raise DatabaseError(msg)
+            case pool:
+                return pool
+
     @asynccontextmanager
     async def _common_held(self, transactional: bool) -> AsyncGenerator[QueryPort]:  # noqa: FBT001 — two scopes, one body
-        with self.guard():
-            async with self.pool.acquire() as connection:
+        with AsyncpgStatements._common_guard():
+            async with self._common_pool().acquire() as connection:
                 match transactional:
                     case True:
                         async with connection.transaction():
@@ -188,7 +203,7 @@ class AsyncpgDriver:
         """The connection LISTEN holds, taken with the first channel."""
         match self._listener:
             case None:
-                self._listener = await AsyncpgStatements._common_call(self.pool.acquire())
+                self._listener = await AsyncpgStatements._common_call(self._common_pool().acquire())
                 return self._listener
             case listener:
                 return listener
@@ -203,44 +218,10 @@ class AsyncpgDriver:
 
     ##### PUBLIC #####
 
-    @property
-    def pool(self) -> asyncpg.Pool:
-        """The pool, for a library that runs on asyncpg itself; closed, a `DatabaseError`."""
-        match self._pool:
-            case None:
-                msg = "AsyncpgDriver is not open: the lifespan opens it, callers never do"
-                raise DatabaseError(msg)
-            case pool:
-                return pool
-
-    @staticmethod
-    @contextmanager
-    def guard() -> Generator[None]:
-        """asyncpg's own errors, and the network's, as the tree's `DatabaseError`."""
-        try:
-            yield
-        except WIRE as error:
-            logger.error("asyncpg failed", error=str(error) or type(error).__name__)
-            raise AsyncpgStatements._common_error(error) from error
-
-    @asynccontextmanager
-    async def dedicated(self) -> AsyncGenerator[asyncpg.Connection]:
-        """A connection of its own, outside the pool, closed on exit — a LISTEN or a manager lives as long as it."""
-        timeout = self._conf.timeout.total_seconds()
-        with self.guard():
-            connection = await asyncpg.connect(self._conf.dsn.get_secret_value(), timeout=timeout)
-        logger.debug("asyncpg dedicated connection opened")
-        try:
-            yield connection
-        finally:
-            with anyio.CancelScope(shield=True), suppress(Exception):
-                await connection.close(timeout=timeout)
-            logger.debug("asyncpg dedicated connection closed")
-
     async def __aenter__(self) -> Self:
         timeout = self._conf.timeout.total_seconds()
         try:
-            with anyio.fail_after(timeout), self.guard():
+            with anyio.fail_after(timeout), AsyncpgStatements._common_guard():
                 self._pool = self._pool or await asyncpg.create_pool(
                     self._conf.dsn.get_secret_value(),
                     min_size=self._conf.pool_min,

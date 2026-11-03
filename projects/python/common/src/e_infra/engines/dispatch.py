@@ -11,6 +11,10 @@ unreachable on entry, or failing one enqueue sends the work to memory with a war
 reports an outage as `QueueError`; any other error is the caller's and propagates. Ids are strings, a queue's own, so a
 lookup asks memory first, then the durable.
 
+Registration — `queue`, `register`, `schedule` — is open until the engine is entered: every client declares its own
+queues, kinds and schedules first, and once it starts the registry is sealed (a late one is a `DispatchError`, never a
+work that silently never runs). `kinds` and `schedules` read what was declared, whichever client declared it.
+
 A schedule puts a registered kind on a cron: on each tick the engine submits it, coalesced, so a run that has not
 started yet absorbs the next tick; the work itself always runs as a job, with its retries, progress and record. The
 clock belongs to the durable queue when it keeps one (`SchedulePort`: one fire per tick across every process),
@@ -34,7 +38,7 @@ from e_infra.infra.background import (
     BackgroundState,
     BackgroundWork,
 )
-from e_infra.infra.errors import QueueError, ScheduleError, UnknownWorkError
+from e_infra.infra.errors import DispatchError, QueueError, ScheduleError, UnknownWorkError
 from e_infra.infra.logger import logger
 from e_infra.infra.settings import settings as st
 from e_infra.ports.queue import QueuePort, SchedulePort
@@ -64,7 +68,7 @@ class BackgroundSchedule:
 class DispatchEngine:
     """Background work by kind, on the durable queue when it answers, in memory when it does not."""
 
-    __slots__ = ("_durable", "_memory", "_schedules", "_slots", "_stack", "_throttle", "_works")
+    __slots__ = ("_durable", "_memory", "_schedules", "_slots", "_stack", "_started", "_throttle", "_works")
 
     def __init__(
         self,
@@ -83,6 +87,7 @@ class DispatchEngine:
         self._throttle = conf.throttle.total_seconds() if throttle is None else throttle
         self._works: dict[str, tuple[str, BackgroundWork]] = {}
         self._schedules: dict[str, BackgroundSchedule] = {}
+        self._started = False
         self._stack = AsyncExitStack()
 
     ##### PRIVATE #####
@@ -105,6 +110,15 @@ class DispatchEngine:
             )
             return
         logger.info("schedule fired", schedule=schedule.name, kind=schedule.kind, job=job.id, step="SCHEDULE")
+
+    def _common_open(self, what: str) -> None:
+        """Registration is open until the engine is entered; after, the registry is sealed."""
+        match self._started:
+            case True:
+                message = f"{what} after the dispatch started: declare it before the engine is entered"
+                raise DispatchError(message)
+            case False:
+                return
 
     def _common_bind(self, engine: Engine, *, clock: bool) -> None:
         """Every work on the engine; every schedule too when it keeps the clock."""
@@ -185,6 +199,16 @@ class DispatchEngine:
     ##### PUBLIC #####
 
     @property
+    def kinds(self) -> frozenset[str]:
+        """The kinds registered, whichever client registered them."""
+        return frozenset(self._works)
+
+    @property
+    def schedules(self) -> frozenset[str]:
+        """The schedules' names, whichever client put them."""
+        return frozenset(self._schedules)
+
+    @property
     def engine(self) -> str:
         """The queue new jobs go to: the durable one's name, or `memory`."""
         return self._durable.spec.name if self._durable else self._memory.name
@@ -197,13 +221,20 @@ class DispatchEngine:
             case durable:
                 return await durable.health()
 
+    def queue(self, name: str, slots: int) -> None:
+        """Declare a queue and how many of its jobs run at once; a client declares its own."""
+        self._common_open(f"queue {name!r}")
+        self._slots = MappingProxyType({**self._slots, name: slots})
+
     def register(self, kind: str, work: BackgroundWork, *, queue: str = "default") -> None:
         """Bind a kind to its work on a queue; every kind is registered before the engine is entered."""
+        self._common_open(f"kind {kind!r}")
         self._works[kind] = (queue, work)
 
     def schedule(self, name: str, cron: str, kind: str, /, **args: Any) -> None:
         """Put a registered kind on a cron (five fields, or six with seconds first): each tick submits it with `args`,
         coalesced. A name is one schedule; registering it again replaces it."""
+        self._common_open(f"schedule {name!r}")
         match (croniter.is_valid(cron, second_at_beginning=True), kind in self._works):
             case (False, _):
                 message = f"schedule {name!r}: {cron!r} is no cron expression"
@@ -243,6 +274,7 @@ class DispatchEngine:
 
     async def __aenter__(self) -> Self:
         """Enter the durable queue (it keeps the clock when it can), then memory (which keeps it otherwise)."""
+        self._started = True
         self._durable = await self._common_durable()
         await self._common_enter(self._memory, clock=not isinstance(self._durable, SchedulePort))
         return self

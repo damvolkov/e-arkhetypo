@@ -1,5 +1,7 @@
-"""tests/unit/e_infra/providers/drivers/queue/pgqueuer: the PgQueuer driver over an asyncpg driver that holds no
-database and PgQueuer's own in-memory backend — the managers, retries and cron are the real ones."""
+"""tests/unit/e_infra/providers/drivers/queue/pgqueuer: the PgQueuer driver over a database that holds nothing.
+
+The database is the asyncpg driver over its fake server, handed as the `DatabasePort` and the `ListenPort`; PgQueuer's
+own in-memory backend answers its queries — the managers, retries and cron are the real ones."""
 
 import json
 from datetime import UTC, datetime, timedelta
@@ -15,7 +17,7 @@ from e_infra.infra.config.providers.drivers.queue.pgqueuer import PgqueuerSettin
 from e_infra.infra.errors import QueueError
 from e_infra.ports.queue import QueuePort, SchedulePort
 from e_infra.providers.drivers.database.asyncpg import AsyncpgDriver
-from e_infra.providers.drivers.queue.pgqueuer import MANY, ONE, RECORD, REPORT, SCHEMA, PgqueuerDriver
+from e_infra.providers.drivers.queue.pgqueuer import MANY, ONE, RECORD, REPORT, SCHEMA, PgqueuerBridge, PgqueuerDriver
 from support.pgqueuer import book_row
 from unit.e_infra.conftest import until
 
@@ -53,7 +55,8 @@ async def test_pgqueuer_opens_no_pool_of_its_own(
 async def test_pgqueuer_on_a_driver_that_never_opened_is_a_queue_error(
     pgqueuer_memory: FakePgqueuer, pgqueuer_settings: PgqueuerSettings, asyncpg_server: FakeAsyncpgServer
 ) -> None:
-    driver = PgqueuerDriver(AsyncpgDriver(), pgqueuer_settings)
+    closed = AsyncpgDriver()
+    driver = PgqueuerDriver(closed, closed, pgqueuer_settings)
     with pytest.raises(QueueError, match="not open"):
         await driver.__aenter__()
     with pytest.raises(QueueError, match="not open"):
@@ -62,7 +65,7 @@ async def test_pgqueuer_on_a_driver_that_never_opened_is_a_queue_error(
 
 
 async def test_pgqueuer_default_settings_come_from_the_composer(fake_db: AsyncpgDriver) -> None:
-    assert PgqueuerDriver(fake_db)._conf == PgqueuerSettings()
+    assert PgqueuerDriver(fake_db, fake_db)._conf == PgqueuerSettings()
 
 
 async def test_pgqueuer_close_that_cannot_drain_is_a_queue_error(
@@ -137,7 +140,7 @@ async def test_pgqueuer_enqueue_books_the_job_in_the_same_transaction_and_answer
         BackgroundState.AVAILABLE,
         {"sources": ["a"]},
     )
-    assert (RECORD, (1, "reported", "q", json.dumps({"sources": ["a"]}), 3)) in asyncpg_server.statements
+    assert (RECORD, (1, "reported", "q", {"sources": ["a"]}, 3)) in asyncpg_server.statements
     assert asyncpg_server.transactions == ["begin", "commit"]
     assert list(pgqueuer_memory.queries._jobs) == [1]
 
@@ -223,10 +226,10 @@ async def test_pgqueuer_a_started_queue_runs_the_handler_of_the_kind_and_books_p
     await opened.enqueue("reported", {"n": 7}, queue="q", attempts=1)
     await until(lambda: bool(seen) and REPORT in asyncpg_server.sql(), seconds=5)
     assert seen == [{"job": "1", "kind": "reported", "args": {"n": 7}, "state": BackgroundState.RUNNING}]
-    assert (REPORT, (1, json.dumps({"stage": "done"}))) in asyncpg_server.statements
-    assert asyncpg_server.dedicated == 1
+    assert (REPORT, (1, {"stage": "done"})) in asyncpg_server.statements
     await opened.__aexit__(None, None, None)
-    assert asyncpg_server.dedicated == 0
+    ### the managers ride the database's pool: nothing opened beside it, nothing left held.
+    assert (asyncpg_server.dedicated, asyncpg_server.held) == (0, 0)
 
 
 async def test_pgqueuer_a_failing_attempt_with_attempts_left_runs_again(
@@ -371,3 +374,40 @@ async def test_pgqueuer_a_schedule_is_claimed_in_the_backend_and_fires_here(open
 async def test_pgqueuer_dialect(cron: str, dialect: str) -> None:
     """Five fields go as they are; with seconds first, the seconds move to the end, where croniter reads them."""
     assert PgqueuerDriver.dialect(cron) == dialect
+
+
+##### BRIDGE — PgQueuer's own `Driver`, met over the ports #####
+async def test_pgqueuer_bridge_runs_statements_scripts_and_notifies_on_its_scope(
+    fake_db: AsyncpgDriver, asyncpg_server: FakeAsyncpgServer
+) -> None:
+    asyncpg_server.answers["SELECT"] = [{"n": 1}]
+    bridge = PgqueuerBridge(fake_db, fake_db)
+    assert await bridge.fetch("SELECT $1", 1) == [{"n": 1}]
+    assert await bridge.execute("UPDATE t SET n = $1", 2) == ""
+    assert await bridge.execute("CREATE TABLE a (k int); CREATE TABLE b (k int)") == ""
+    await bridge.notify("ch", "hello")
+    assert asyncpg_server.statements == [
+        ("SELECT $1", (1,)),
+        ("UPDATE t SET n = $1", (2,)),
+        ("CREATE TABLE a (k int); CREATE TABLE b (k int)", ()),
+        ("SELECT pg_notify($1, $2)", ("ch", "hello")),
+    ]
+    assert (bridge.shutdown.is_set(), type(bridge.tm).__name__) == (False, "TaskManager")
+
+
+async def test_pgqueuer_bridge_listens_on_the_listen_port_and_unlistens_what_it_heard_on_exit(
+    fake_db: AsyncpgDriver, asyncpg_server: FakeAsyncpgServer
+) -> None:
+    heard: list[str | bytes | bytearray] = []
+
+    def hear(payload: str | bytes | bytearray) -> None:
+        heard.append(payload)
+
+    async with PgqueuerBridge(fake_db, fake_db) as bridge:
+        await bridge.add_listener("a", hear)
+        await bridge.add_listener("b", hear)
+        await bridge.remove_listener("a", hear)
+        (listener,) = asyncpg_server.pools[0].taken
+        listener.notify("b", "x")
+        assert sorted(listener.listeners) == ["b"]
+    assert (heard, listener.listeners) == (["x"], {})

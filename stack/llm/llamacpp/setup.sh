@@ -163,15 +163,15 @@ install_systemd() {
 Description=${SERVICE_NAME} via Docker Compose
 
 [Service]
-Type=simple
+Type=oneshot
+RemainAfterExit=yes
 WorkingDirectory=${SERVICE_DIR}
-ExecStartPre=/bin/sh -c '/usr/bin/docker info >/dev/null 2>&1 && /usr/bin/docker compose pull --quiet'
-ExecStart=/usr/bin/docker compose up --remove-orphans
-ExecStop=/usr/bin/docker compose down
-ExecReload=/usr/bin/docker compose up -d --remove-orphans
+ExecStart=/usr/bin/docker compose up -d --wait --remove-orphans
+ExecStop=/usr/bin/docker compose stop
+ExecReload=/usr/bin/docker compose up -d --wait --remove-orphans
 Restart=on-failure
-RestartSec=10s
-TimeoutStartSec=120
+RestartSec=30s
+TimeoutStartSec=300
 TimeoutStopSec=30
 
 [Install]

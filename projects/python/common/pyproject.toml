@@ -41,6 +41,11 @@ dependencies = [
     "awa-pg>=0.6.9",
     ##### http #####
     "wreq>=0.10",
+    ##### web — litestar carries the auth middleware, guard and MCP routes; mcp is the protocol (infra/mcp/server only) #####
+    "litestar>=2.24",
+    "mcp>=2.3",
+    ### the MCP SDK parses forms through starlette, which needs it.
+    "python-multipart>=0.0.32",
     ##### cache — theine: W-TinyLFU, Rust core #####
     "theine>=2.0",
     ##### queue clock #####
@@ -89,6 +94,8 @@ test = [
     "pytest-httpserver>=1.2.0",
     ### the integration tests create, and take down, their Postgres databases: an admin connection outside any transaction.
     "psqlpy>=0.12",
+    ### the MCP door's tests drive the SDK's own client over an ASGI transport, in process.
+    "httpx2>=2.13",
 ]
 docs = [
     "mkdocstrings[python]>=1.0.7",
@@ -144,6 +151,8 @@ ignore = ["E501", "ISC001", "PLR0913"]
 "scripts/**" = ["T20", "S603", "S607", "PTH"]
 ### NON_SERVICE is an exclusion vocabulary for host tokens, not a socket bind.
 "src/e_infra/ops/compose.py" = ["S104"]
+### the one module that speaks the MCP protocol, and the tests' client and its fake server.
+"src/e_infra/infra/mcp/server.py" = ["TID251"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["e_infra"]
@@ -159,6 +168,9 @@ runtime-evaluated-base-classes = [
 
 [tool.ruff.lint.flake8-tidy-imports]
 ban-relative-imports = "all"
+
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+"mcp.server".msg = "the MCP SDK's server is the engine's protocol (infra/mcp/server): an upgrade touches that one module"
 
 [tool.ruff.format]
 docstring-code-format = true

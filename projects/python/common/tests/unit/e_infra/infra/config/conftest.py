@@ -12,8 +12,8 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 PREFIXES: Final = (
-    "AGENT_", "APP_", "ASYNCPG_", "CACHE_", "CLI_", "DARTS_", "DB_", "DOC_", "DOCLING_", "DOCS_", "EMBED_", "GLINER_",
-    "HTTP_", "LLM_", "MD_", "OTEL_", "PING_", "POSTGRES_", "QUEUE_", "REDIS_", "RERANK_", "THEME_", "UI_",
+    "AGENT_", "APP_", "ASYNCPG_", "AUTH_", "CACHE_", "CLI_", "DARTS_", "DB_", "DOC_", "DOCLING_", "DOCS_", "EMBED_", "GLINER_",
+    "HTTP_", "LLM_", "MCP_", "MD_", "OTEL_", "PING_", "POSTGRES_", "QUEUE_", "REDIS_", "RERANK_", "THEME_", "UI_",
 )  # fmt: skip
 
 

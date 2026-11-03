@@ -100,6 +100,42 @@ class UnknownWorkError(DispatchError, LookupError):
     """A schedule naming a kind no work is registered for."""
 
 
+class AuthError(EngineError):
+    """Root of every refused identity: a key nobody holds, a name that makes no account, a caller short of an access."""
+
+
+class UnknownTokenError(AuthError):
+    """A bearer nobody holds, revoked or expired."""
+
+
+class AuthClosedError(AuthError):
+    """No secret: no account can be made."""
+
+
+class AuthNameError(AuthError):
+    """A name that is not a plain account name."""
+
+
+class RefusedError(AuthError):
+    """A known caller short of what the entry demands."""
+
+
+class AnonymousError(RefusedError):
+    """Nobody, at an entry that takes an account: a key is missing."""
+
+
+class ForbiddenError(RefusedError):
+    """An account, at an entry its role does not reach."""
+
+
+class McpError(EngineError):
+    """The MCP engine refused to start: a route that cannot be a tool."""
+
+
+class McpRegistryError(McpError, ValueError):
+    """A route that cannot be a tool, or a tool declared twice."""
+
+
 ##### PROCESSORS #####
 class ProcessorError(CoreError):
     """A processor refused its input."""

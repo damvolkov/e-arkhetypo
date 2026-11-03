@@ -51,6 +51,52 @@ def _imported(path: Path) -> set[str]:
 
 CASES: Final = [(folder, path) for folder in FORBIDDEN for path in _modules(folder)]
 
+##### OPT-IN MODULES LOOK ONLY DOWN #####
+### the auth and MCP pieces are taken by the services that run a door (api); cli, tui and graph exclude them at
+### materialization. That is safe only while nothing a service always ships imports them.
+OPT_IN: Final = (
+    "e_infra.infra.auth",
+    "e_infra.infra.mcp",
+    "e_infra.ports.auth",
+    "e_infra.engines.auth",
+    "e_infra.providers.drivers.auth",
+    "e_infra.infra.config.engines.auth",
+    "e_infra.infra.config.mcp",
+)
+OPT_IN_FILES: Final = frozenset(
+    {
+        "ports/auth.py",
+        "engines/auth.py",
+        "providers/drivers/auth/postgres.py",
+        "infra/config/engines/auth.py",
+        "infra/config/mcp.py",
+    }
+)
+
+
+def _imported_names(path: Path) -> set[str]:
+    nodes = list(ast.walk(ast.parse(path.read_text("utf-8"))))
+    named = {node.module for node in nodes if isinstance(node, ast.ImportFrom) and node.module}
+    return named | {alias.name for node in nodes if isinstance(node, ast.Import) for alias in node.names}
+
+
+def _is_opt_in(path: Path) -> bool:
+    relative = path.relative_to(PACKAGE).as_posix()
+    return relative in OPT_IN_FILES or relative.startswith(("infra/auth/", "infra/mcp/"))
+
+
+ALWAYS_SHIPPED: Final = [
+    path for path in sorted(PACKAGE.rglob("*.py")) if "__pycache__" not in path.parts and not _is_opt_in(path)
+]
+
+
+@pytest.mark.parametrize("path", ALWAYS_SHIPPED, ids=[str(path.relative_to(PACKAGE)) for path in ALWAYS_SHIPPED])
+def test_taxonomy_nothing_always_shipped_imports_the_opt_in_infra(path: Path) -> None:
+    taken = {name for name in _imported_names(path) if name.startswith(OPT_IN)}
+    assert not taken, (
+        f"{path.relative_to(PACKAGE)} imports {sorted(taken)}: an opt-in package, excluded by cli, tui and graph"
+    )
+
 
 @pytest.mark.parametrize(
     ("folder", "path"), CASES, ids=[f"{folder}:{path.relative_to(PACKAGE)}" for folder, path in CASES]

@@ -3,7 +3,8 @@ database of its own — and the providers the health survey asks.
 
 `durable` is either durable queue, unentered; `background` is the engine over the queue a test is parametrized with,
 unentered, with one queue of the test's own (two slots) and every write of a snapshot unthrottled; `warnings` records
-what the engine warns, in place of its logger. `StubProvider` answers its health after `delay` seconds."""
+what the engine warns, in place of its logger. `StubProvider` answers its health after `delay` seconds. `fake_auth` is
+the store the auth engine is tested over, `auth` the engine over it under the secret `k`."""
 
 import asyncio
 from contextlib import AsyncExitStack
@@ -12,15 +13,18 @@ from typing import TYPE_CHECKING, Any, ClassVar, Self
 
 import pytest
 
+from e_infra.engines.auth import AuthEngine
 from e_infra.engines.dispatch import DispatchEngine
 from e_infra.infra.background import Background, BackgroundJob, BackgroundState
 from e_infra.infra.config.base import Secret
+from e_infra.infra.config.engines.auth import AuthSettings
 from e_infra.infra.config.providers.drivers.database.asyncpg import AsyncpgSettings
 from e_infra.infra.errors import QueueError
 from e_infra.ports.provider import Isolation, Locality, ProviderSpec, Workload
 from e_infra.providers.drivers.database.asyncpg import AsyncpgDriver
 from e_infra.providers.drivers.queue.awa import AwaDriver
 from e_infra.providers.drivers.queue.pgqueuer import PgqueuerDriver
+from support.auth import FakeAuth
 from unit.e_infra.conftest import Queues, Warnings, Works
 
 if TYPE_CHECKING:
@@ -181,3 +185,14 @@ async def background(
                 yield build(None, queue, works)
             case name:
                 yield build(await engine(name, stack, queues), queue, works)
+
+
+##### AUTH #####
+@pytest.fixture
+def fake_auth() -> FakeAuth:
+    return FakeAuth()
+
+
+@pytest.fixture
+def auth(fake_auth: FakeAuth) -> AuthEngine:
+    return AuthEngine(fake_auth, AuthSettings(secret=Secret("k")))

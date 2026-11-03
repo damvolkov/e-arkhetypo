@@ -30,6 +30,34 @@ build.
 | [`e_infra.infra.state`](reference/e_infra/infra/state.md) | the app resource graph — dynamic attribute access all the way down. |
 | [`e_infra.infra.struct`](reference/e_infra/infra/struct.md) | msgspec models validated however they are born — decoded at the edge or built in code. |
 
+#### infra.auth and infra.mcp — the opt-in doors
+
+Two packages of `infra` are taken only by a service that runs a door (api); cli, tui and graph exclude them. They look only
+down: nothing `infra` proper imports them (`tach` spells the edges, and `test_taxonomy` reads the imports again).
+
+| Module | Purpose |
+|---|---|
+| [`e_infra.infra.auth.models`](reference/e_infra/infra/auth/models.md) | who may call, and with what — the vocabulary every auth engine and its doors speak. |
+| [`e_infra.infra.auth.policy`](reference/e_infra/infra/auth/policy.md) | what a caller may do — pure rules, no store, no door. |
+| [`e_infra.infra.auth.resolver`](reference/e_infra/infra/auth/resolver.md) | what the token middleware asks of whoever knows the keys — an `Authorization` header, a caller. |
+| [`e_infra.infra.auth.middleware`](reference/e_infra/infra/auth/middleware.md) | who is asking, resolved once per request before any route runs — the auth package's only door. |
+| [`e_infra.infra.auth.guard`](reference/e_infra/infra/auth/guard.md) | the one check between a request and its route, at both doors — the API's routes and the MCP's tools. |
+| [`e_infra.infra.mcp.models`](reference/e_infra/infra/mcp/models.md) | the vocabulary of the MCP engine — a tool as a route declares it, and a call's answer. |
+| [`e_infra.infra.mcp.registry`](reference/e_infra/infra/mcp/registry.md) | the tools an MCP door declares, read off their routes — explicit, checked once at startup. |
+| [`e_infra.infra.mcp.bridge`](reference/e_infra/infra/mcp/bridge.md) | a tool call as one request to the app itself — in process, through its middleware and guards. |
+| [`e_infra.infra.mcp.guard`](reference/e_infra/infra/mcp/guard.md) | a tool's route answers the MCP engine only — the bridge marks its requests, no client can. |
+| [`e_infra.infra.mcp.mount`](reference/e_infra/infra/mcp/mount.md) | the MCP endpoint as a Litestar mount — the route exists at build, the server only at run. |
+| [`e_infra.infra.mcp.server`](reference/e_infra/infra/mcp/server.md) | the protocol — the official SDK's low-level server and its Streamable HTTP manager. |
+
+**One auth system, two doors.** `TokenMiddleware` resolves the `Authorization` header once per request into a `Caller`
+(`scope["user"]`) through a `CallerResolver` — a one-method `Protocol` `AuthEngine` satisfies, found on the running app by
+the `locate` the composition root hands in, so `infra` never names an engine. A route and a tool declare their access in
+their options (`opt=OPT[Access.USER]`) and the same `guard` admits the caller or raises the refusal it earns (401 for
+nobody, 403 for an account short of it), the same words at both doors. A tool is a Litestar route (`McpTool.route`)
+answering the MCP engine alone (`internal`); the bridge serves each call as an in-process request through the app's
+middleware, guards, dependencies and validation. **Only `infra/mcp/server.py` imports `mcp.server*`**: ruff's TID251
+bans it everywhere else, so an SDK upgrade touches one module.
+
 #### infra.errors — the one root of every error
 
 Every layer imports its exceptions from `infra/errors`; none defines its own (`tests/unit/e_infra/infra/test_errors.py` walks
@@ -46,7 +74,10 @@ CoreError
 │  ├─ AdapterError           a library inside the process failed
 │  │  └─ ParseError
 │  └─ CacheError · DocumentError      both DriverError and AdapterError
-├─ EngineError ─ DispatchError ─ ScheduleError (ValueError) · UnknownWorkError (LookupError)
+├─ EngineError
+│  ├─ DispatchError ─ ScheduleError (ValueError) · UnknownWorkError (LookupError)
+│  ├─ AuthError ─ UnknownTokenError · AuthClosedError · AuthNameError · RefusedError ─ AnonymousError · ForbiddenError
+│  └─ McpError ─ McpRegistryError (ValueError)
 ├─ ProcessorError ─ MDError (RuntimeError) ─ UnsupportedFormatError · InputTooLargeError · ZipBombError
 └─ OpsError ─ ComposeError · RegistryError · FileError · LogoError · CryptoError ─ TokenError
 ```
@@ -80,7 +111,9 @@ read lazily from the composer when absent.
 | `infra/config/crypto.py` | `st.crypto` | the configuration of the crypto engine (`ops/crypto`), loaded from CRYPTO__*. |
 | `infra/config/darts.py` | `st.darts` | the DARTS orchestrator — how much of a section runs at once, how semantic specs fuse (DARTS_*). |
 | `infra/config/docs.py` | `st.docs` | where the OpenAPI pages live, which aliases lead there, which renderers serve (DOCS_*). |
+| `infra/config/engines/auth.py` | `st.engines.auth` | the auth engine — the secret ids are minted under, a key's lifetime, the admin's name. |
 | `infra/config/engines/dispatch.py` | `st.engines.dispatch` | the dispatch engine — which durable queue backs the background, and its write pace. |
+| `infra/config/mcp.py` | `st.mcp` | the MCP door — where the endpoint answers and which Host and Origin the transport accepts (MCP_*). |
 | `infra/config/oauth.py` | `st.oauth` | the OAuth2 identity provider — name, client, secret and metadata URL. |
 | `infra/config/ping.py` | `st.ping` | how long one provider's health check may take — PING_TIMEOUT. |
 | `infra/config/processors/doc.py` | `st.processors.doc` | the document processor — which engine reads which page, and how hard to push (DOC_*). |
@@ -126,6 +159,7 @@ A port is the shape of the plug; it is never instantiated. Every provider port e
 
 | Module | Purpose |
 |---|---|
+| [`e_infra.ports.auth`](reference/e_infra/ports/auth.md) | where accounts and grants are kept — the one contract an auth engine needs of a store. |
 | [`e_infra.ports.cache`](reference/e_infra/ports/cache.md) | values of one type kept by key — a cache may forget, so a miss is never an error. |
 | [`e_infra.ports.database`](reference/e_infra/ports/database.md) | a SQL database — statements with positional `$n` parameters, rows as dicts, a transaction scope. |
 | [`e_infra.ports.documents`](reference/e_infra/ports/documents.md) | document conversion — a URL, raw bytes or a local file in, its structured forms out. |
@@ -159,7 +193,7 @@ groups what is deployed, the providers group contracts, and a new capability ent
 
 | Capability (port module) | Stack category |
 |---|---|
-| `database` | `rdb` |
+| `database`, `auth` | `rdb` |
 | `store`, `cache` | `cdb` |
 | `http` | — transport, composed by other drivers |
 | `queue` | `queue` |
@@ -191,6 +225,7 @@ asyncpg client, so its driver is handed the `AsyncpgDriver`, typed by a small pr
 
 | Module | Purpose |
 |---|---|
+| [`e_infra.providers.drivers.auth.postgres`](reference/e_infra/providers/drivers/auth/postgres.md) | accounts and grants in Postgres — the `AuthPort` over any `DatabasePort`. |
 | [`e_infra.providers.drivers.cache.postgres`](reference/e_infra/providers/drivers/cache/postgres.md) | a durable cache in a Postgres database — it rides a `DatabasePort`, whichever driver. |
 | [`e_infra.providers.drivers.database.asyncpg`](reference/e_infra/providers/drivers/database/asyncpg.md) | the SQL edge over asyncpg — a pooled client, and the pool PgQueuer rides. |
 | [`e_infra.providers.drivers.database.psqlpy`](reference/e_infra/providers/drivers/database/psqlpy.md) | the SQL edge over psqlpy — a Rust (tokio-postgres) pool, pgvector bound natively. |
@@ -221,10 +256,14 @@ An adapter wraps a library with no connection (`Locality.EMBEDDED`): `__aenter__
 ### engines — execution against resources
 
 An engine orchestrates providers received **by port**; it keeps references and configuration, never request state.
-It never meets a concrete provider, a processor or another engine.
+It never meets a concrete provider, a processor or another engine. `AuthEngine` is named by its module (`engines/auth.py`
+→ `AuthEngine`, the surname rule) and not by its technique: it is the engine over `AuthPort` — accounts, keys, the
+verdict on a header — and a different technique (an OAuth2 engine over the same port and records) would be a sibling
+module, not a rename.
 
 | Module | Purpose |
 |---|---|
+| [`e_infra.engines.auth`](reference/e_infra/engines/auth.md) | accounts and long-lived keys over any `AuthPort` — agnostic of store and door. |
 | [`e_infra.engines.cache`](reference/e_infra/engines/cache.md) | a fast cache in front of a durable one — the cache every module takes. |
 | [`e_infra.engines.dispatch`](reference/e_infra/engines/dispatch.md) | background work by kind — on the durable queue when it answers, in memory when it does not. |
 | [`e_infra.engines.health`](reference/e_infra/engines/health.md) | every provider asked how it is, at once — the startup survey and the readiness route's verdicts. |
@@ -271,6 +310,7 @@ and processors over the ports.
 | Module in... | May import | Never imports |
 |---|---|---|
 | `infra` | stdlib, `ops` | ports, providers, engines, processors |
+| `infra.auth`, `infra.mcp` (opt-in) | stdlib, `infra`, `infra.errors`, litestar; `infra.mcp` also `infra.auth` | ports, providers, engines, processors — and nothing in `infra` proper imports them |
 | `infra.errors` | stdlib | everything else — it is the floor |
 | `ops` | stdlib, `infra.errors` | the rest of `infra`, ports, providers, engines, processors |
 | `ports` | stdlib, `infra` | providers, engines, processors |
@@ -312,6 +352,8 @@ e-taxis itself materializes the whole tree (the stack machinery — `ops/compose
 | `ports/ner.py`, `providers/drivers/ner/gliner.py` | none by default — model edges are opt-in |
 | `ports/extract.py`, `providers/adapters/extract/rtrafilatura.py` | none by default — web extraction is opt-in |
 | `processors/*` | api, cli, graph, tui |
+| `infra/auth/*`, `ports/auth.py`, `providers/drivers/auth/postgres.py`, `engines/auth.py`, `infra/config/engines/auth.py` | api — the one auth system of the REST door and the MCP door; cli, tui and graph exclude it (graph for now). It needs `litestar` and, with `providers/drivers/database/psqlpy.py`, a Postgres |
+| `infra/mcp/*`, `infra/config/mcp.py` | api — the MCP engine over the official SDK (`mcp>=2.3`), riding `infra/auth`; cli, tui and graph exclude it (graph for now) |
 
 ## ops — the closed registry of categories
 

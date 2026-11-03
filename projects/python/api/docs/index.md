@@ -22,6 +22,7 @@ edit them there, never here:
 | Module | Layer | Purpose |
 |---|---|---|
 | [`e_api.main`](reference/e_api/main.md) | api | Composition root: explicit registration only, `create_app` for granian |
+| [`e_api.api.router.user`](reference/e_api/api/router/user.md) | api | The user records: read by an account's key, written by the admin's, DTO families out |
 | [`e_api.api.security`](reference/e_api/api/security.md) | api | The OpenAPI contract of the key — who may call is `infra.auth`'s, one system for both doors |
 | [`e_api.api.router.auth`](reference/e_api/api/router/auth.md) | api | Who the key names, and the admin's accounts and keys |
 | [`e_api.api.admin`](reference/e_api/api/admin.md) | api | A fresh admin key minted on the service's database — `python -m e_api admin` |

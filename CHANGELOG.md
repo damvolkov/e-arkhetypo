@@ -8,6 +8,12 @@ touches — `stack`, `systems`, `infra`. Lines under `[Unreleased]` are written 
 
 ### stack
 
+- floating tags resolved to current digests, the ledger's paradedb row on `v0.26.4-pg17` (`stack/resolve-2026-11-02`)
+- `llm/gliner` has a healthcheck: `ghcr.io/edamlabs/gliner:0.1.3` (pinned, the EDamLabs image) ships `gliner probe`,
+  which `GET /ready`s from inside the distroless image — `docker ps` shows `(healthy)` once the model is loaded.
+- `rdb/paradedb` rides `paradedb/paradedb:v0.26.4-pg17` (from `0.26.2-pg17`, Renovate) — the tag is real on Docker Hub
+  (amd64 + arm64, published 2026-10-29), and infra's `full_stack` golden, which pins the merged model of the whole real
+  stack, is re-recorded to follow it: one byte wider, one line different, nothing else moved (`renovate/stack-images`)
 - The LLM slot's default is `llm/vllm` (Gemma 4 26B-A4B AWQ), `llm/strata` its alternative — the final fight on one
   4090 and the same 20.6 GiB, measured 2026-10-28: 175 vs 57-86 tok/s decode, ~10k vs 4.1k prefill, 760 vs 59 tok/s
   at 8 concurrent, prefix reuse 34x vs 2x; strata speaks no logprobs (jev). `llm/vllm` defaults to 0.86 · 131072

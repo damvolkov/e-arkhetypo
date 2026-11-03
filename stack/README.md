@@ -109,7 +109,7 @@ Puerto = default en host (`:container`). GPU = necesita `nvidia` runtime.
 | llm/ellm | damvolkov/e-llm:latest | 80 | ✓ | `config.yaml` |
 | llm/embed | hf/text-embeddings-inference:cpu-latest | 80 | | |
 | llm/reranker | hf/text-embeddings-inference:89-1.9 | 80 | ✓ | cross-encoder (`POST /rerank`), gte-multilingual-reranker-base; ~1 GiB de GPU, en CPU demasiado lento para una consulta |
-| llm/gliner | damvolkov/gliner:latest | 5800 | | NER zero-shot (GLiNER bi-encoder, ONNX, CPU); registro de modelos en el volumen `gliner-models` (`:ro`), relleno a mano: ver su README |
+| llm/gliner | edamlabs/gliner:0.1.3 | 5800 | | NER zero-shot (GLiNER bi-encoder, ONNX, CPU); registro de modelos en el volumen `gliner-models` (`:ro`), relleno a mano: ver su README |
 | speech/evoice | damvolkov/e-voice:latest | 80 | ✓ | `config.yaml` |
 | speech/speaches | speaches-ai/speaches:latest-cuda | 8000 | ✓ | `entrypoint.sh` |
 | speech/fwhisper | fedirz/faster-whisper-server:latest-cuda | 8000 | ✓ | |

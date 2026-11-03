@@ -8,6 +8,8 @@ touches — `stack`, `systems`, `infra`. Lines under `[Unreleased]` are written 
 
 ### stack
 
+- `llm/gliner` has a healthcheck: `ghcr.io/edamlabs/gliner:0.1.3` (pinned, the EDamLabs image) ships `gliner probe`,
+  which `GET /ready`s from inside the distroless image — `docker ps` shows `(healthy)` once the model is loaded.
 - `rdb/paradedb` rides `paradedb/paradedb:v0.26.4-pg17` (from `0.26.2-pg17`, Renovate) — the tag is real on Docker Hub
   (amd64 + arm64, published 2026-10-29), and infra's `full_stack` golden, which pins the merged model of the whole real
   stack, is re-recorded to follow it: one byte wider, one line different, nothing else moved (`renovate/stack-images`)

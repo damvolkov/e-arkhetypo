@@ -91,13 +91,13 @@ images:
   vanished: false
   build: false
   parked: false
-- ref: "ghcr.io/damvolkov/gliner:latest"
+- ref: "ghcr.io/edamlabs/gliner:0.1.3"
   service: "gliner"
   category: "llm"
   registry: "ghcr.io"
-  tag: "latest"
-  digest: "sha256:40531c044d2f6cfe9b0ac3de696d369308536cb98d428be7a98904e9e301a094"
-  floating: true
+  tag: "0.1.3"
+  digest: "sha256:b853bb2a8638efdc993d8898d649a9ea36d9980f8b1650e4f46ceca3ccd2f27d"
+  floating: false
   vanished: false
   build: false
   parked: false

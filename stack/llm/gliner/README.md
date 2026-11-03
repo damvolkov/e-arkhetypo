@@ -1,7 +1,7 @@
 # llm/gliner
 
-[gliner](https://github.com/damvolkov/gliner): zero-shot named entities over HTTP — a GLiNER bi-encoder on ONNX
-Runtime, in Rust, CPU-only. Image `ghcr.io/damvolkov/gliner` (distroless, uid 65532), port `5800`.
+[gliner](https://github.com/edamlabs/gliner): zero-shot named entities over HTTP — a GLiNER bi-encoder on ONNX
+Runtime, in Rust, CPU-only. Image `ghcr.io/edamlabs/gliner` (distroless, uid 65532), port `5800`.
 
 | Route | |
 |---|---|
@@ -58,6 +58,6 @@ curl -s localhost:5800/ner -H 'content-type: application/json' \
 | `GLINER_THREADS` | `8` | ONNX Runtime threads — always explicit: its own default sizes to the host, not the container |
 | `GLINER_CONCURRENCY` | `2` | predictions in flight across all requests |
 
-Any other key of the service's configuration is `GLINER_<SECTION>__<KEY>` (its `gliner.example.toml`). No compose
-healthcheck: a distroless image has no shell to probe with, so readiness is `GET /ready` from outside. Peak memory is
-about 1 GB.
+Any other key of the service's configuration is `GLINER_<SECTION>__<KEY>` (its `gliner.example.toml`). The compose
+healthcheck is `gliner probe` (the image is distroless: no shell, no curl), healthy once `GET /ready` answers 200.
+Peak memory is about 1 GB.

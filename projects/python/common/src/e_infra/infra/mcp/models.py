@@ -3,7 +3,7 @@
 A tool as the registry reads it, a call's answer as the bridge brings it back. No SDK type here: `server` alone speaks
 the protocol.
 
-A tool is a Litestar route whose options carry its `McpTool` under `TOOL`, at its access; `McpTool.route` is that route,
+A tool is a Litestar route whose options carry its `MCPTool` under `TOOL`, at its access; `MCPTool.route` is that route,
 on `PATH/<name>`: POST, out of the OpenAPI spec, its options the access, the tool, and authentication left out — the
 caller rides in from the MCP endpoint's own request, resolved there once."""
 
@@ -30,7 +30,7 @@ TOOL: Final[str] = "mcp"
 PATH: Final[str] = "/mcp/tools"
 
 
-class McpTool(msgspec.Struct, frozen=True, kw_only=True):
+class MCPTool(msgspec.Struct, frozen=True, kw_only=True):
     """What a client is told of a tool: its name, title and description, and the protocol's hints."""
 
     name: str
@@ -62,16 +62,16 @@ class McpTool(msgspec.Struct, frozen=True, kw_only=True):
         )
 
 
-class McpEntry(msgspec.Struct, frozen=True, kw_only=True):
+class MCPEntry(msgspec.Struct, frozen=True, kw_only=True):
     """A tool as the registry holds it: what it is, where its route answers, its arguments' and answer's JSON Schema."""
 
-    tool: McpTool
+    tool: MCPTool
     path: str
     arguments: dict[str, Any]
     answer: dict[str, Any] | None = None
 
 
-class McpAnswer(msgspec.Struct, frozen=True, kw_only=True):
+class MCPAnswer(msgspec.Struct, frozen=True, kw_only=True):
     """A tool's answer: its text, its value when it is an object, or the refusal as the route gave it."""
 
     text: str

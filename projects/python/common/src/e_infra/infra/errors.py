@@ -53,7 +53,7 @@ class QueueError(DriverError):
     """A durable queue that cannot be reached: the work falls back to memory."""
 
 
-class HttpError(DriverError):
+class HTTPError(DriverError):
     """An HTTP exchange that failed: unreachable, a non-2xx answer (its `status`), or a body that is not JSON."""
 
     def __init__(self, message: str, status: int | None = None) -> None:
@@ -61,7 +61,7 @@ class HttpError(DriverError):
         self.status = status
 
 
-class HttpTimeoutError(HttpError, TimeoutError):
+class HTTPTimeoutError(HTTPError, TimeoutError):
     """An HTTP exchange that outlasted its bound, headers or body."""
 
 
@@ -134,11 +134,11 @@ class ForbiddenError(RefusedError):
     """An account, at an entry its role does not reach."""
 
 
-class McpError(EngineError):
+class MCPError(EngineError):
     """The MCP engine refused to start: a route that cannot be a tool."""
 
 
-class McpRegistryError(McpError, ValueError):
+class MCPRegistryError(MCPError, ValueError):
     """A route that cannot be a tool, or a tool declared twice."""
 
 

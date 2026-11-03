@@ -3,11 +3,11 @@ built and run for the app's life by `api/lifespan/mcp`, read by the endpoint's m
 
 from dataclasses import dataclass
 
-from infra.mcp.server import McpServer
+from infra.mcp.server import MCPServer
 
 
 @dataclass(frozen=True, slots=True)
-class McpState:
+class MCPState:
     """The MCP section: the server the endpoint forwards to, its registry the door's tools."""
 
-    server: McpServer
+    server: MCPServer

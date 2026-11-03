@@ -21,7 +21,7 @@ from anytomd import (
 from e_infra.infra.errors import ParseError, ProviderError
 from e_infra.infra.logger import logger
 from e_infra.infra.settings import settings as st
-from e_infra.ports.markdown import MdConversion
+from e_infra.ports.markdown import MDConversion
 from e_infra.ports.provider import Isolation, Locality, ProviderSpec, Workload
 
 if TYPE_CHECKING:
@@ -74,11 +74,11 @@ class AnytomdAdapter:
             prompt=conf.vision_prompt,
         )
 
-    async def _convert_pdf(self, data: bytes) -> MdConversion:
+    async def _convert_pdf(self, data: bytes) -> MDConversion:
         document = await self._common_pdf().convert_bytes_async(data)
-        return MdConversion(markdown=document.markdown, warnings=document.warnings)
+        return MDConversion(markdown=document.markdown, warnings=document.warnings)
 
-    async def _convert_text(self, data: bytes, extension: str) -> MdConversion:
+    async def _convert_text(self, data: bytes, extension: str) -> MDConversion:
         result = await convert_bytes_async(
             data,
             extension,
@@ -87,7 +87,7 @@ class AnytomdAdapter:
             strict=self._conf.strict,
             max_input_bytes=self._conf.max_input_bytes,
         )
-        return MdConversion(markdown=result.markdown, warnings=tuple(w.message for w in result.warnings))
+        return MDConversion(markdown=result.markdown, warnings=tuple(w.message for w in result.warnings))
 
     ############################################################
 
@@ -133,7 +133,7 @@ class AnytomdAdapter:
             case fmt:
                 return fmt
 
-    async def convert(self, data: bytes, *, extension: str) -> MdConversion:
+    async def convert(self, data: bytes, *, extension: str) -> MDConversion:
         """Render bytes of a named format: a PDF through the bundled liteparse, everything else through anytomd."""
         logger.debug("anytomd convert", extension=extension, size=len(data))
         with self._common_guard():

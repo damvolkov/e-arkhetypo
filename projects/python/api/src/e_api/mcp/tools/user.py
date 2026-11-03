@@ -16,28 +16,28 @@ from e_api.mcp.models import NoArgs, UserArgs, UserUpdateArgs
 from e_api.mcp.refusals import REFUSALS
 from e_api.models.user import User, UserCreate, UserUpdate
 from infra.auth.models import Access, Caller
-from infra.mcp.models import McpTool
+from infra.mcp.models import MCPTool
 from infra.state import State
 from ports.store import StorePort
 
 ##### TOOLS — what a client is told #####
-LIST: Final = McpTool(
+LIST: Final = MCPTool(
     name="api_user_list",
     title="List users",
     description="Every user record: id, username, email, birth, quota, created. Needs an account's key.",
 )
-READ: Final = McpTool(
+READ: Final = MCPTool(
     name="api_user_read",
     title="Read a user",
     description="One user record by `user_id`. Needs an account's key.",
 )
-CREATE: Final = McpTool(
+CREATE: Final = MCPTool(
     name="api_user_create",
     title="Create a user",
     description="Create a user record; the password is hashed and never returned. Returns the record. Needs the admin's key.",
     read_only=False,
 )
-UPDATE: Final = McpTool(
+UPDATE: Final = MCPTool(
     name="api_user_update",
     title="Update a user",
     description=(
@@ -46,7 +46,7 @@ UPDATE: Final = McpTool(
     ),
     read_only=False,
 )
-DELETE: Final = McpTool(
+DELETE: Final = MCPTool(
     name="api_user_delete",
     title="Delete a user",
     description="Delete a user record by `user_id`; one already gone is no error. Needs the admin's key.",

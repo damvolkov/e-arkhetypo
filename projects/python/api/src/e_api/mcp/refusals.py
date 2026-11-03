@@ -7,5 +7,5 @@ from typing import Final
 
 from litestar.types import ExceptionHandlersMap
 
-### every tool route's exception handlers, copied by each route (`McpTool.route`): Litestar takes a mutable map.
+### every tool route's exception handlers, copied by each route (`MCPTool.route`): Litestar takes a mutable map.
 REFUSALS: Final[ExceptionHandlersMap] = {}

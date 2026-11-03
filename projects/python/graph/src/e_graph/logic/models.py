@@ -220,7 +220,7 @@ type WikiTerm = Annotated[str, msgspec.Meta(pattern=f"^{WORDS}$")]
 type AnyName = Annotated[str, msgspec.Meta(pattern=ANY_NAME, description="a spec name of any section")]
 
 
-class JsonSchema(dict[str, Any]):
+class JSONSchema(dict[str, Any]):
     """A JSON Schema with an object root, valid against its meta-schema — a checked type: validated by being built.
 
     `validator` is compiled once, here, by jsonschema-rs: every example and every reply is checked against
@@ -300,7 +300,7 @@ class Spec[N: AnyName](CheckedStruct, frozen=True, kw_only=True, forbid_unknown_
     """What every spec says: who it is, what it produces, what it needs, and how it fails over.
 
     A `CheckedStruct`: decoded or built in code, it is validated the same way — each field by its type
-    (`JsonSchema`, the name regex), the fields against each other in `_check`. Built in code, its names
+    (`JSONSchema`, the name regex), the fields against each other in `_check`. Built in code, its names
     are held to any section's prefix (the `AnyName` bound); decoded into a section, to that section's.
     `output` is the JSON Schema of what the spec produces. `depends` and `fallback` name specs of the same
     section; `fallback` runs only when this spec fails. Runners are plugged by reference, one per slot
@@ -312,7 +312,7 @@ class Spec[N: AnyName](CheckedStruct, frozen=True, kw_only=True, forbid_unknown_
 
     name: N
     description: Text
-    output: JsonSchema
+    output: JSONSchema
     depends: tuple[N, ...] = ()
     fallback: N | None = None
     check: RunnerRef | None = None

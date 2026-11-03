@@ -17,7 +17,7 @@ from e_api.api.state import AppState
 from infra.logger import logger
 from ports.auth import AuthPort
 from ports.database import DatabasePort
-from ports.http import HttpPort
+from ports.http import HTTPPort
 from ports.provider import Provider
 from ports.store import StorePort
 from providers.drivers.auth.postgres import AuthPostgresDriver
@@ -38,7 +38,7 @@ class ProvidersState:
 
     store: StorePort
     redis: StorePort
-    http: HttpPort
+    http: HTTPPort
     database: DatabasePort
     auth: AuthPort
 

@@ -20,10 +20,10 @@ from e_graph.instrument.telemetry import InstrumentTelemetry
 from e_graph.logic.orchestrator.core import OrchestratorCore
 from e_graph.logic.state import LogicState
 from e_graph.pipelines.note.graph import NoteGraph
-from infra.config.providers.drivers.telemetry.otel import OtelSettings
+from infra.config.providers.drivers.telemetry.otel import OTelSettings
 from infra.state import State
 from processors.doc import DocProcessor
-from providers.drivers.telemetry.otel import OtelDriver
+from providers.drivers.telemetry.otel import OTelDriver
 from support.docling import GoldenPort
 
 if TYPE_CHECKING:
@@ -49,7 +49,7 @@ CASES: Final[dict[str, dict[str, Any]]] = {
 
 async def read(agent: AgnosticAgent, pages: LiteparseAdapter, note: str) -> tuple[RunStatus, dict[str, Any]]:
     """The whole pipeline over one note: the verdict and the record."""
-    async with OtelDriver(OtelSettings()) as telemetry:
+    async with OTelDriver(OTelSettings()) as telemetry:
         infra = InfraState(
             providers=None,  # ty: ignore[invalid-argument-type]
             engines=None,  # ty: ignore[invalid-argument-type]

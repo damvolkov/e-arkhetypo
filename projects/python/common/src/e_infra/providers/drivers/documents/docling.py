@@ -4,7 +4,7 @@ The service, not the library: docling's models (layout, TableFormer, OCR) live i
 and process, so the app carries no torch. Conversions run as server tasks — submit, long-poll the
 status, fetch the result — because the synchronous endpoint is cut off by the server's wait limit,
 and a hundred-page filing outlives it. docling-serve answers a status poll at once (its `wait` is
-not held), so the driver paces the polls itself. It speaks through an `HttpPort` received by constructor, absolute
+not held), so the driver paces the polls itself. It speaks through an `HTTPPort` received by constructor, absolute
 URLs on DOCLING_URL: the process holds one HTTP pool, not one per service.
 
 A source is a URL (`str`, fetched by the server), raw `bytes` (sent inline, base64) or a local `Path`
@@ -20,7 +20,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, Final, Self
 import anyio
 
 from e_infra.infra.config.providers.drivers.documents.docling import DoclingImages
-from e_infra.infra.errors import DocumentError, HttpTimeoutError, ProviderError
+from e_infra.infra.errors import DocumentError, HTTPTimeoutError, ProviderError
 from e_infra.infra.logger import logger
 from e_infra.infra.settings import settings as st
 from e_infra.ports.documents import DocumentConversion
@@ -30,7 +30,7 @@ if TYPE_CHECKING:
     from collections.abc import Mapping
 
     from e_infra.infra.config.providers.drivers.documents.docling import DoclingSettings
-    from e_infra.ports.http import HttpPort
+    from e_infra.ports.http import HTTPPort
 
 DONE: Final[frozenset[str]] = frozenset({"success", "partial_success"})
 FAILED: Final[frozenset[str]] = frozenset({"failure", "skipped"})
@@ -51,7 +51,7 @@ class DoclingDriver:
         "docling-serve", Locality.REMOTE, Workload.IO_BOUND, Isolation.LOOP, fork_safe=True
     )
 
-    def __init__(self, http: HttpPort, settings: DoclingSettings | None = None) -> None:
+    def __init__(self, http: HTTPPort, settings: DoclingSettings | None = None) -> None:
         ### the default is read on call, not at import: the settings singleton stays lazy.
         self._conf = st.providers.drivers.documents.docling if settings is None else settings
         self._http = http
@@ -144,10 +144,10 @@ class DoclingDriver:
                 if method == "POST"
                 else self._http.get(url, as_=dict[str, Any], within=within)
             )
-        except HttpTimeoutError as error:
+        except HTTPTimeoutError as error:
             msg = f"docling {method} {path} timed out after {within.total_seconds():.1f}s"
             logger.error("docling timed out", method=method, path=path, seconds=within.total_seconds())
-            raise HttpTimeoutError(msg) from error
+            raise HTTPTimeoutError(msg) from error
 
     @staticmethod
     def _common_remaining(deadline: float) -> float:

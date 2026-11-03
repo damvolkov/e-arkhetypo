@@ -11,7 +11,7 @@ from pydantic import BaseModel, ValidationError
 from pydantic_settings import SettingsConfigDict
 
 from e_infra.infra import settings as composer
-from e_infra.infra.config.api import ApiSettings, HttpMethod
+from e_infra.infra.config.api import APISettings, HTTPMethod
 from e_infra.infra.config.app import AppSettings, Env
 from e_infra.infra.config.crypto import CryptoSettings
 from e_infra.infra.config.providers.drivers.database.psqlpy import PsqlpySettings
@@ -147,13 +147,13 @@ async def test_app_env_rejects_a_typo() -> None:
 
 
 async def test_allow_methods_decode_to_typed_verbs() -> None:
-    assert ApiSettings(allow_methods=["GET", "DELETE"]).allow_methods == [HttpMethod.GET, HttpMethod.DELETE]
-    assert set(ApiSettings().allow_methods) <= set(HttpMethod)
+    assert APISettings(allow_methods=["GET", "DELETE"]).allow_methods == [HTTPMethod.GET, HTTPMethod.DELETE]
+    assert set(APISettings().allow_methods) <= set(HTTPMethod)
 
 
 async def test_allow_methods_rejects_a_foreign_verb() -> None:
     with pytest.raises(ValidationError, match="BREW"):
-        ApiSettings(allow_methods=["BREW"])
+        APISettings(allow_methods=["BREW"])
 
 
 ##### LAZY SINGLETON #####
@@ -221,11 +221,11 @@ async def test_composite_is_lazy_at_import() -> None:
 
 
 async def test_shared_dotenv_feeds_each_scope_its_own_keys(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """One .env for every scope: a key one scope owns (CRYPTO__SECRET, HTTP_BASE_URL) never aborts another (ApiSettings)."""
+    """One .env for every scope: a key one scope owns (CRYPTO__SECRET, HTTP_BASE_URL) never aborts another (APISettings)."""
     (tmp_path / ".env").write_text("CRYPTO__SECRET=dotenv-secret-0123456789\nHTTP_BASE_URL=https://dotenv.test\n")
     monkeypatch.chdir(tmp_path)
     monkeypatch.delenv("CRYPTO__SECRET", raising=False)
-    assert ApiSettings().allow_origins
+    assert APISettings().allow_origins
     assert WreqSettings().base_url == "https://dotenv.test"
     assert CryptoSettings().secret is not None
 

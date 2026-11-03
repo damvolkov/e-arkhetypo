@@ -11,7 +11,7 @@ from e_graph.instrument.telemetry import InstrumentTelemetry
 from e_graph.logic import dartsops
 from e_graph.logic.dartsops import MISSING, DartsOps, _dig
 from e_graph.logic.errors import Rule
-from e_graph.logic.models import DeterministicSpec, JsonSchema, Reply, Role, Section, SemanticSpec, Tier
+from e_graph.logic.models import DeterministicSpec, JSONSchema, Reply, Role, Section, SemanticSpec, Tier
 from e_graph.logic.orchestrator.core import OrchestratorCore
 from e_graph.logic.state import LogicState
 from infra.settings import settings as st
@@ -26,8 +26,8 @@ if TYPE_CHECKING:
 
     from support.darts import DartsHarness
 
-from infra.config.providers.drivers.telemetry.otel import OtelSettings
-from providers.drivers.telemetry.otel import OtelDriver
+from infra.config.providers.drivers.telemetry.otel import OTelSettings
+from providers.drivers.telemetry.otel import OTelDriver
 from support.crafter import SpecCrafter
 from support.darts import DartsHarness
 
@@ -37,7 +37,7 @@ HOLDS: dict[str, Any] = {"type": "object", "properties": {"holds": {"type": "boo
 
 @pytest.fixture
 async def darts(resources: Resources, tmp_path: Path, exporter: InMemorySpanExporter) -> AsyncIterator[DartsHarness]:
-    async with OtelDriver(OtelSettings(), exporter) as telemetry:
+    async with OTelDriver(OTelSettings(), exporter) as telemetry:
         yield DartsHarness(SpecCrafter(resources, tmp_path, seed=7), telemetry)
 
 
@@ -102,7 +102,7 @@ def test_the_kinds_carry_their_slots() -> None:
 def test_the_schema_hook_refuses_types_the_mirror_cannot_hold() -> None:
     with pytest.raises(TypeError, match="no contract schema"):
         dartsops._schema_hook(dict)
-    assert dartsops._schema_hook(JsonSchema) == {"type": "object"}
+    assert dartsops._schema_hook(JSONSchema) == {"type": "object"}
 
 
 ##### PROBE #####
@@ -150,13 +150,13 @@ async def test_every_wrong_the_system_knows_becomes_a_signal(darts: DartsHarness
         SemanticSpec(
             name="EXT-covered-read",
             description="the semantic reading.",
-            output=JsonSchema(Y_SCHEMA),
+            output=JSONSchema(Y_SCHEMA),
             instructions="Read the identifier off the page.",
         ),
     )
     darts.crafter.write_spec(
         Section.AUDIT,
-        DeterministicSpec(name="AUD-x", description="an audit.", output=JsonSchema(HOLDS), runner="owned/x"),
+        DeterministicSpec(name="AUD-x", description="an audit.", output=JSONSchema(HOLDS), runner="owned/x"),
     )
     darts.crafter.write_runner(Section.AUDIT, "x", Role.RUN, body='return {"holds": False}', doc="audit run.")
     darts.agent.answers["EXT-covered-read"] = {"y": 7}

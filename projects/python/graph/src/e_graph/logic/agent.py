@@ -58,7 +58,7 @@ from e_graph.logic.models import (
     STRICT,
     Completion,
     Endpoint,
-    JsonSchema,
+    JSONSchema,
     Message,
     Provider,
     Reply,
@@ -137,9 +137,9 @@ def shape_class(output: type) -> Shape[Any]:
 
 
 def shape_schema(output: Schema) -> Shape[dict[str, Any]]:
-    """A raw JSON Schema, checked and compiled once by being a `JsonSchema`; every reply is validated against it."""
+    """A raw JSON Schema, checked and compiled once by being a `JSONSchema`; every reply is validated against it."""
     try:
-        schema = JsonSchema(output)
+        schema = JSONSchema(output)
     except ValueError as error:
         msg = f"invalid output: {error}"
         raise SchemaError(msg) from error

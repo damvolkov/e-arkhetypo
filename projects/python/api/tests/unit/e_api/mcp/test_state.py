@@ -5,8 +5,8 @@ from typing import TYPE_CHECKING
 
 from e_api.mcp.instructions import INSTRUCTIONS
 from e_api.mcp.registry import ROUTES
-from e_api.mcp.state import McpState
-from infra.mcp.server import McpServer
+from e_api.mcp.state import MCPState
+from infra.mcp.server import MCPServer
 
 if TYPE_CHECKING:
     from litestar import Litestar
@@ -18,8 +18,8 @@ async def test_state_section_holds_the_server(client: AsyncTestClient[Litestar])
     section = client.app.state.system.mcp
     assert (type(section).__module__, type(section), type(section.server), len(section.server.registry)) == (
         "e_api.mcp.state",
-        McpState,
-        McpServer,
+        MCPState,
+        MCPServer,
         len(ROUTES),
     )
     assert section.server.instructions == INSTRUCTIONS

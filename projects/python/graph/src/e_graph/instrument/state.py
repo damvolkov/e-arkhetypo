@@ -27,7 +27,7 @@ from e_graph.instrument.models import NodeOutput
 from engines.health import HealthEngine
 from infra.state import State
 from ports.documents import DocumentPort
-from ports.http import HttpPort
+from ports.http import HTTPPort
 from ports.pages import PagesPort
 from ports.provider import Provider
 from ports.store import StorePort
@@ -57,7 +57,7 @@ class ProvidersState:
     store: StorePort
     telemetry: TelemetryPort
     redis: StorePort
-    http: HttpPort
+    http: HTTPPort
     docling: DocumentPort
     pages: PagesPort
 

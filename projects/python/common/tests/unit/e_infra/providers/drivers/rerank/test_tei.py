@@ -5,43 +5,43 @@ from typing import TYPE_CHECKING, Any
 import msgspec
 import pytest
 
-from e_infra.infra.config.providers.drivers.rerank.tei import RerankTeiSettings
+from e_infra.infra.config.providers.drivers.rerank.tei import RerankTEISettings
 from e_infra.infra.errors import ProviderError
 from e_infra.ports.rerank import RerankPort
-from e_infra.providers.drivers.rerank.tei import RerankTeiDriver
+from e_infra.providers.drivers.rerank.tei import RerankTEIDriver
 
 if TYPE_CHECKING:
-    from e_infra.ports.http import HttpPort
+    from e_infra.ports.http import HTTPPort
     from unit.e_infra.conftest import Logs
     from unit.e_infra.providers.drivers.conftest import Stub
 
 
-async def test_rerank_scores_back_in_the_texts_order_by_batch(stub: Stub, http: HttpPort) -> None:
+async def test_rerank_scores_back_in_the_texts_order_by_batch(stub: Stub, http: HTTPPort) -> None:
     """TEI answers best first by index; two requests of two texts, the scores put back in order."""
     answers: list[Any] = [[{"index": 1, "score": 0.9}, {"index": 0, "score": 0.1}], [{"index": 0, "score": 0.5}]]
     stub.on("POST", "/rerank", lambda _body: (200, msgspec.json.encode(answers.pop(0))))
-    async with RerankTeiDriver(http, RerankTeiSettings(url=stub.url, batch=2)) as rerank:
+    async with RerankTEIDriver(http, RerankTEISettings(url=stub.url, batch=2)) as rerank:
         assert isinstance(rerank, RerankPort)
         assert await rerank.rerank("q", ["a", "b", "c"]) == [0.1, 0.9, 0.5]
         assert await rerank.rerank("q", []) == []
     assert len(stub.bodies("/rerank")) == 2
 
 
-async def test_rerank_health(stub: Stub, http: HttpPort) -> None:
+async def test_rerank_health(stub: Stub, http: HTTPPort) -> None:
     stub.on("GET", "/health", lambda _body: (200, b""))
-    async with RerankTeiDriver(http, RerankTeiSettings(url=stub.url)) as rerank:
+    async with RerankTEIDriver(http, RerankTEISettings(url=stub.url)) as rerank:
         assert await rerank.health()
     stub.routes.clear()
-    async with RerankTeiDriver(http, RerankTeiSettings(url=stub.url)) as rerank:
+    async with RerankTEIDriver(http, RerankTEISettings(url=stub.url)) as rerank:
         with pytest.raises(ProviderError):
             await rerank.health()
 
 
 async def test_rerank_lifecycle_requests_and_an_unhealthy_server_are_logged(
-    stub: Stub, http: HttpPort, logs: Logs
+    stub: Stub, http: HTTPPort, logs: Logs
 ) -> None:
     stub.on("POST", "/rerank", lambda _body: (200, msgspec.json.encode([{"index": 0, "score": 0.5}])))
-    async with RerankTeiDriver(http, RerankTeiSettings(url=stub.url)) as rerank:
+    async with RerankTEIDriver(http, RerankTEISettings(url=stub.url)) as rerank:
         await rerank.rerank("q", ["a"])
         with pytest.raises(ProviderError):
             await rerank.health()
@@ -50,6 +50,6 @@ async def test_rerank_lifecycle_requests_and_an_unhealthy_server_are_logged(
     assert logs.at("warning", "tei") == ["tei rerank unhealthy"]
 
 
-async def test_rerank_off_refuses_to_open(http: HttpPort) -> None:
+async def test_rerank_off_refuses_to_open(http: HTTPPort) -> None:
     with pytest.raises(ProviderError, match="RERANK_URL is none"):
-        await RerankTeiDriver(http, RerankTeiSettings(url=None)).__aenter__()
+        await RerankTEIDriver(http, RerankTEISettings(url=None)).__aenter__()

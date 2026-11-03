@@ -21,7 +21,7 @@ from providers.drivers.documents.docling import DoclingDriver
 from providers.drivers.http.wreq import WreqDriver
 from providers.drivers.store.redis import RedisDriver
 from providers.drivers.store.sqlite import SqliteDriver
-from providers.drivers.telemetry.otel import OtelDriver
+from providers.drivers.telemetry.otel import OTelDriver
 
 
 @asynccontextmanager
@@ -31,7 +31,7 @@ async def lifespan(app: Litestar) -> AsyncGenerator[None]:
     async with AsyncExitStack() as stack:
         enter = stack.enter_async_context
         store = await enter(SqliteDriver())
-        telemetry = await enter(OtelDriver())
+        telemetry = await enter(OTelDriver())
         redis = await enter(RedisDriver())
         http = await enter(WreqDriver())
         docling = await enter(DoclingDriver(http))

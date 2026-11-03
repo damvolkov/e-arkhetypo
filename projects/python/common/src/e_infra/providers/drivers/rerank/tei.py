@@ -1,7 +1,7 @@
 """providers/drivers/rerank/tei: reranking on text-embeddings-inference — `POST /rerank`, behind `RerankPort`.
 
 TEI answers best first, by index; the driver hands the scores back in the texts' order, cutting RERANK_BATCH texts a
-request. It speaks through an `HttpPort` received by constructor, absolute URLs."""
+request. It speaks through an `HTTPPort` received by constructor, absolute URLs."""
 
 from typing import TYPE_CHECKING, ClassVar, Self
 
@@ -13,19 +13,19 @@ from e_infra.ports.provider import Isolation, Locality, ProviderSpec, Workload
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from e_infra.infra.config.providers.drivers.rerank.tei import RerankTeiSettings
-    from e_infra.ports.http import HttpPort
+    from e_infra.infra.config.providers.drivers.rerank.tei import RerankTEISettings
+    from e_infra.ports.http import HTTPPort
 
 
 ##### RERANK #####
-class RerankTeiDriver:
+class RerankTEIDriver:
     """TEI's rerank route behind `RerankPort`: it answers best first, by index; scores come back in the texts' order."""
 
     spec: ClassVar[ProviderSpec] = ProviderSpec("tei-rerank", Locality.REMOTE, Workload.IO_BOUND, Isolation.LOOP)
 
     __slots__ = ("_base", "_conf", "_http")
 
-    def __init__(self, http: HttpPort, settings: RerankTeiSettings | None = None) -> None:
+    def __init__(self, http: HTTPPort, settings: RerankTEISettings | None = None) -> None:
         self._conf = st.providers.drivers.rerank.tei if settings is None else settings
         self._http = http
         ### no URL is the reranker off: the root builds no driver; one built anyway refuses to open.

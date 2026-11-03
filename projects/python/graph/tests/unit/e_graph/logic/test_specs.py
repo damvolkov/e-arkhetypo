@@ -9,7 +9,7 @@ import pytest
 from e_graph.logic.models import (
     Bound,
     DeterministicSpec,
-    JsonSchema,
+    JSONSchema,
     Role,
     Runner,
     Scope,
@@ -179,7 +179,7 @@ def test_an_extension_cannot_reshape_inherited_fields() -> None:
     with pytest.raises(TypeError, match=r"redefines inherited spec fields \['instructions', 'output'\]"):
 
         class Broken[N: str](SemanticSpec[N], frozen=True, kw_only=True, tag="broken"):
-            output: JsonSchema
+            output: JSONSchema
             instructions: int
 
 
@@ -199,7 +199,7 @@ def test_built_in_code_holds_checked_values() -> None:
         "output": {"type": "object"},
     }
     spec = SemanticSpec(**fields)
-    assert isinstance(spec.output, JsonSchema)
+    assert isinstance(spec.output, JSONSchema)
     assert spec.output.validator.is_valid({})
 
 
@@ -224,5 +224,5 @@ def test_built_in_code_validated_like_decoded(fields: dict[str, Any], error: str
 
 
 def test_a_raw_dict_never_decodes_without_the_hook() -> None:
-    with pytest.raises(msgspec.ValidationError, match="Expected `JsonSchema`, got `dict`"):
+    with pytest.raises(msgspec.ValidationError, match="Expected `JSONSchema`, got `dict`"):
         msgspec.convert(SEMANTIC, cast("Any", SemanticSpec)[NAME])

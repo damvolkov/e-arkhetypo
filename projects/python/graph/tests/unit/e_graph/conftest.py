@@ -30,11 +30,11 @@ from e_graph.logic.agent import AgnosticAgent
 from e_graph.logic.orchestrator.core import OrchestratorCore
 from e_graph.logic.state import LogicState
 from e_graph.main import create_app
-from infra.config.providers.drivers.telemetry.otel import OtelSettings
+from infra.config.providers.drivers.telemetry.otel import OTelSettings
 from infra.state import State
 from processors.doc import DocProcessor
 from providers.drivers.store import redis as redis_module
-from providers.drivers.telemetry.otel import OtelDriver
+from providers.drivers.telemetry.otel import OTelDriver
 from support.docling import GoldenPort
 
 if TYPE_CHECKING:
@@ -105,7 +105,7 @@ async def system(exporter: InMemorySpanExporter, pages: LiteparseAdapter) -> Asy
     The providers and engines no instrument test touches stay absent; the agent is real but never called here;
     documents read through the golden conversions (`support.docling.GoldenPort`) and the real fast pass."""
     port = GoldenPort()
-    async with OtelDriver(OtelSettings(), exporter) as telemetry, AgnosticAgent() as agent:
+    async with OTelDriver(OTelSettings(), exporter) as telemetry, AgnosticAgent() as agent:
         infra = InfraState(
             providers=ProvidersState(store=None, telemetry=telemetry, redis=None, http=None, docling=port, pages=pages),  # ty: ignore[invalid-argument-type]
             engines=None,  # ty: ignore[invalid-argument-type]

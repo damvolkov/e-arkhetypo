@@ -16,15 +16,15 @@ if TYPE_CHECKING:
 
     from litestar.handlers import ASGIRouteHandler
 
-    from e_infra.infra.mcp.server import McpServer
+    from e_infra.infra.mcp.server import MCPServer
 
 
-class McpMount:
+class MCPMount:
     """The endpoint's route, forwarding every request on its path to the server `locate` finds."""
 
     __slots__ = ("_locate",)
 
-    def __init__(self, locate: Callable[[Litestar], McpServer]) -> None:
+    def __init__(self, locate: Callable[[Litestar], MCPServer]) -> None:
         self._locate = locate
 
     ##### PRIVATE #####

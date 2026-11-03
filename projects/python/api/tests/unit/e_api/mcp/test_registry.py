@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 from e_api.mcp.registry import ROUTES
 from infra.auth.guard import ACCESS
 from infra.mcp.models import TOOL
-from infra.mcp.registry import McpRegistry
+from infra.mcp.registry import MCPRegistry
 
 if TYPE_CHECKING:
     from pytest_resources import Resources
@@ -31,6 +31,6 @@ def test_registry_surface_is_unchanged(resources: Resources) -> None:
             "arguments": sorted(entry.arguments.get("properties", {})),
             "required": sorted(entry.arguments.get("required", [])),
         }
-        for entry in McpRegistry(ROUTES)
+        for entry in MCPRegistry(ROUTES)
     }
     assert now == told

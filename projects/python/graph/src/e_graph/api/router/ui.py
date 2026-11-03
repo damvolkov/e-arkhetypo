@@ -14,7 +14,7 @@ from litestar.handlers import HTTPRouteHandler
 from litestar.router import Router
 from litestar.static_files import create_static_files_router
 
-from e_graph.models.ui import UiView
+from e_graph.models.ui import UIView
 from infra.settings import settings as st
 
 UI: Final[Path] = Path(__file__).resolve().parents[2] / "ui"
@@ -22,9 +22,9 @@ STATIC: Final[Path] = UI / "dist"
 MS_PER_SECOND: Final[int] = 1000
 
 
-async def view() -> UiView:
+async def view() -> UIView:
     """The canvas tunables, in the units it draws with: milliseconds, seconds of pace, pixels."""
-    return UiView(
+    return UIView(
         toast_ms=round(st.ui.toast.total_seconds() * MS_PER_SECOND),
         pace=st.ui.pace.total_seconds(),
         lane_gap=st.ui.lane_gap,

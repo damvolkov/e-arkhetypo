@@ -8,8 +8,8 @@ import msgspec
 import pytest
 
 from e_infra.infra.config.providers.drivers.http.wreq import WreqSettings
-from e_infra.infra.errors import HttpError, HttpTimeoutError, ProviderError
-from e_infra.ports.http import HttpPort
+from e_infra.infra.errors import HTTPError, HTTPTimeoutError, ProviderError
+from e_infra.ports.http import HTTPPort
 from e_infra.providers.drivers.http.wreq import WreqDriver
 
 if TYPE_CHECKING:
@@ -27,8 +27,8 @@ async def test_http_adapter_lifecycle_needs_no_network() -> None:
     """wreq opens a pool, not a connection: the cycle is pure client construction and drop."""
     adapter = WreqDriver(WreqSettings())
     async with adapter:
-        assert isinstance(adapter, HttpPort)
-    with pytest.raises(HttpError, match="not open"):
+        assert isinstance(adapter, HTTPPort)
+    with pytest.raises(HTTPError, match="not open"):
         await adapter.get("/get")
 
 
@@ -38,7 +38,7 @@ async def test_http_roundtrip_and_status_error(http_server: str) -> None:
     async with adapter:
         assert await adapter.get("/ok") == {"hello": "world"}
         assert await adapter.post("/echo", {"ping": 1}) == {"ping": 1}
-        with pytest.raises(HttpError) as caught:
+        with pytest.raises(HTTPError) as caught:
             await adapter.get("/bad")
     assert caught.value.status == 500
     await adapter.__aexit__(None, None, None)  # the stack already closed it: second exit is a no-op, not an error
@@ -62,20 +62,20 @@ async def test_http_raw_headers_and_timeout(http_server: str) -> None:
     """`raw` leaves the body undecoded; headers and a per-request bound travel; a bound passed is a timeout."""
     async with WreqDriver(WreqSettings(base_url=http_server)) as adapter:
         assert await adapter.raw("/ok", headers={"x-test": "1"}) == b'{"hello": "world"}'
-        with pytest.raises(HttpTimeoutError):
+        with pytest.raises(HTTPTimeoutError):
             await adapter.get("/slow", within=timedelta(milliseconds=50))
 
 
 async def test_http_body_shape_mismatch(http_server: str) -> None:
-    """A body that is not the named shape is an `HttpError`, not msgspec's."""
+    """A body that is not the named shape is an `HTTPError`, not msgspec's."""
     async with WreqDriver(WreqSettings(base_url=http_server)) as adapter:
-        with pytest.raises(HttpError, match="not a"):
+        with pytest.raises(HTTPError, match="not a"):
             await adapter.get("/ok", as_=list[int])
 
 
 async def test_http_unreachable() -> None:
     async with WreqDriver(WreqSettings(base_url="http://127.0.0.1:9")) as adapter:
-        with pytest.raises(HttpError):
+        with pytest.raises(HTTPError):
             await adapter.get("/x")
 
 
@@ -98,12 +98,12 @@ async def test_http_a_refused_status_a_timeout_and_a_dead_server_are_logged_wher
     http_server: str, logs: Logs
 ) -> None:
     async with WreqDriver(WreqSettings(base_url=http_server)) as adapter:
-        with pytest.raises(HttpError):
+        with pytest.raises(HTTPError):
             await adapter.get("/boom")
-        with pytest.raises(HttpTimeoutError):
+        with pytest.raises(HTTPTimeoutError):
             await adapter.get("/slow", within=timedelta(milliseconds=50))
     async with WreqDriver(WreqSettings(base_url="http://127.0.0.1:9")) as dead:
-        with pytest.raises(HttpError):
+        with pytest.raises(HTTPError):
             await dead.get("/x")
     assert logs.at("error") == ["wreq refused", "wreq timed out", "wreq failed"]
     assert logs.at("debug") == ["wreq request"] * 3
@@ -168,6 +168,6 @@ async def test_http_delete_answers_its_json_or_none_when_empty(
 async def test_http_delete_refused_is_an_http_error_with_its_status(stub: Stub) -> None:
     stub.on("DELETE", "/items/2", lambda _body: (404, b"{}"))
     async with WreqDriver(WreqSettings(base_url=stub.url)) as http:
-        with pytest.raises(HttpError) as refused:
+        with pytest.raises(HTTPError) as refused:
             await http.delete("/items/2")
     assert refused.value.status == 404

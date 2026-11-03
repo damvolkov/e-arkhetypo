@@ -7,9 +7,9 @@ import pytest
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 
 from e_infra.engines.telemetry import FAILED, TelemetryEngine
-from e_infra.infra.config.providers.drivers.telemetry.otel import OtelSettings
+from e_infra.infra.config.providers.drivers.telemetry.otel import OTelSettings
 from e_infra.ports.telemetry import SpanRole, SpanStatus
-from e_infra.providers.drivers.telemetry.otel import OtelDriver
+from e_infra.providers.drivers.telemetry.otel import OTelDriver
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator, Generator
@@ -44,7 +44,7 @@ def exporter() -> InMemorySpanExporter:
 
 @pytest.fixture
 async def traced(exporter: InMemorySpanExporter) -> AsyncIterator[TelemetryEngine]:
-    async with OtelDriver(OtelSettings(), exporter) as otel:
+    async with OTelDriver(OTelSettings(), exporter) as otel:
         yield TelemetryEngine(otel)
 
 

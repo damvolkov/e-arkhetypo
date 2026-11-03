@@ -9,7 +9,7 @@ if TYPE_CHECKING:
 
 
 @runtime_checkable
-class LlmPort(Provider, Protocol):
+class LLMPort(Provider, Protocol):
     """`model` names the model that answers. A reply cut at the output ceiling raises `TruncatedError`, one outside the
     contract `ModelError`."""
 

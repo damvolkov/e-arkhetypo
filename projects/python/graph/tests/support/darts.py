@@ -19,7 +19,7 @@ from e_graph.logic.models import (
     ROLES,
     DeterministicSpec,
     Endpoint,
-    JsonSchema,
+    JSONSchema,
     Provider,
     Reply,
     Role,
@@ -36,7 +36,7 @@ from support.crafter import plug
 
 if TYPE_CHECKING:
     from e_graph.logic.models import SectionRun
-    from providers.drivers.telemetry.otel import OtelDriver
+    from providers.drivers.telemetry.otel import OTelDriver
     from support.crafter import SpecCrafter
 
 SECTION: Final[Section] = Section.EXTRACT
@@ -80,7 +80,7 @@ class ScriptedAgent:
 class DartsHarness:
     """One pipeline (`doc`) under a crafter's root: write specs and runners, run a section, read the result."""
 
-    def __init__(self, crafter: SpecCrafter, telemetry: OtelDriver, agent: Any = None, **conf: Any) -> None:
+    def __init__(self, crafter: SpecCrafter, telemetry: OTelDriver, agent: Any = None, **conf: Any) -> None:
         self.crafter, self.agent = crafter, ScriptedAgent() if agent is None else agent
         self._telemetry = InstrumentTelemetry(telemetry)
         self.orchestrator = self.configure(**conf)
@@ -96,12 +96,12 @@ class DartsHarness:
 
     def deterministic(self, name: str, output: dict[str, Any] = OBJECT, **fields: Any) -> None:
         values: dict[str, Any] = {"runner": plug(name, Slot.RUNNER), **fields}
-        spec = DeterministicSpec(name=name, description=f"{name}.", output=JsonSchema(output), **values)
+        spec = DeterministicSpec(name=name, description=f"{name}.", output=JSONSchema(output), **values)
         self.crafter.write_spec(SECTION, spec)
 
     def semantic(self, name: str, output: dict[str, Any] = OBJECT, **fields: Any) -> None:
         values: dict[str, Any] = {"instructions": f"Answer {name}.", **fields}
-        spec = SemanticSpec(name=name, description=f"{name}.", output=JsonSchema(output), **values)
+        spec = SemanticSpec(name=name, description=f"{name}.", output=JSONSchema(output), **values)
         self.crafter.write_spec(SECTION, spec)
 
     def runner(self, name: str, imports: str = "", **bodies: str) -> None:

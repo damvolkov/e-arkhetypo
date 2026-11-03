@@ -6,8 +6,8 @@ import msgspec
 import pytest
 
 from e_infra.infra.config.providers.drivers.ner.gliner import GlinerSettings
-from e_infra.infra.errors import HttpError, ModelError, ProviderError
-from e_infra.ports.ner import NerEntity, NerPort
+from e_infra.infra.errors import HTTPError, ModelError, ProviderError
+from e_infra.ports.ner import NEREntity, NERPort
 from e_infra.providers.drivers.ner.gliner import GlinerDriver
 
 if TYPE_CHECKING:
@@ -28,9 +28,9 @@ async def test_gliner_entities_matched_back_by_id_out_of_order(stub: Stub) -> No
         "POST", "/ner/batch", lambda _body: (200, lines({"id": "1", "entities": []}, {"id": "0", "entities": [PERSON]}))
     )
     async with GlinerDriver(GlinerSettings(url=stub.url)) as ner:
-        assert isinstance(ner, NerPort)
+        assert isinstance(ner, NERPort)
         found = await ner.entities(["Ada wrote", "nothing"], labels=["person"], threshold=0.5)
-    assert found == [(NerEntity(**PERSON),), ()]
+    assert found == [(NEREntity(**PERSON),), ()]
     head, first, second = stub.bodies("/ner/batch")[0].splitlines()
     assert msgspec.json.decode(head) == {"labels": ["person"], "threshold": 0.5}
     assert (msgspec.json.decode(first), msgspec.json.decode(second)) == (
@@ -66,7 +66,7 @@ async def test_gliner_a_refusal_or_silence_fails_the_call(stub: Stub, answer: by
 async def test_gliner_server_error_is_an_http_error(stub: Stub) -> None:
     stub.on("POST", "/ner/batch", lambda _body: (503, b"{}"))
     async with GlinerDriver(GlinerSettings(url=stub.url)) as ner:
-        with pytest.raises(HttpError):
+        with pytest.raises(HTTPError):
             await ner.entities(["a"], labels=["x"], threshold=0.1)
 
 
@@ -77,7 +77,7 @@ async def test_gliner_refresh_reads_the_card(stub: Stub) -> None:
         assert await ner.refresh() == "gliner:gliner-x@abc"
         assert ner.annotator == "gliner:gliner-x@abc"
         stub.routes.clear()
-        with pytest.raises(HttpError):
+        with pytest.raises(HTTPError):
             await ner.refresh()
         assert ner.annotator == "gliner:gliner-x@abc"
 
@@ -115,7 +115,7 @@ async def test_gliner_exit_unopen_is_quiet() -> None:
 async def test_gliner_lifecycle_and_every_failure_are_logged(stub: Stub, logs: Logs) -> None:
     stub.on("POST", "/ner/batch", lambda _body: (503, b"{}"))
     async with GlinerDriver(GlinerSettings(url=stub.url)) as ner:
-        with pytest.raises(HttpError):
+        with pytest.raises(HTTPError):
             await ner.entities(["a"], labels=["x"], threshold=0.1)
         with pytest.raises(ProviderError):
             await ner.health()

@@ -24,12 +24,12 @@ from e_infra.infra.errors import (
     EngineError,
     FileError,
     ForbiddenError,
-    HttpError,
-    HttpTimeoutError,
+    HTTPError,
+    HTTPTimeoutError,
     InputTooLargeError,
     LogoError,
-    McpError,
-    McpRegistryError,
+    MCPError,
+    MCPRegistryError,
     MDError,
     ModelError,
     OpsError,
@@ -94,9 +94,9 @@ def test_errors_everything_descends_from_core(name: str) -> None:
         (DatabaseError, DriverError),
         (StoreError, DriverError),
         (QueueError, DriverError),
-        (HttpError, DriverError),
-        (HttpTimeoutError, HttpError),
-        (HttpTimeoutError, TimeoutError),
+        (HTTPError, DriverError),
+        (HTTPTimeoutError, HTTPError),
+        (HTTPTimeoutError, TimeoutError),
         (TelemetryError, DriverError),
         (ModelError, DriverError),
         (TruncatedError, ModelError),
@@ -117,9 +117,9 @@ def test_errors_everything_descends_from_core(name: str) -> None:
         (RefusedError, AuthError),
         (AnonymousError, RefusedError),
         (ForbiddenError, RefusedError),
-        (McpError, EngineError),
-        (McpRegistryError, McpError),
-        (McpRegistryError, ValueError),
+        (MCPError, EngineError),
+        (MCPRegistryError, MCPError),
+        (MCPRegistryError, ValueError),
         (MDError, ProcessorError),
         (MDError, RuntimeError),
         (UnsupportedFormatError, MDError),
@@ -161,7 +161,7 @@ def test_errors_service_is_a_branch_of_the_root() -> None:
 
 
 def test_errors_message_and_status_ride_along() -> None:
-    http = HttpError("down", 503)
+    http = HTTPError("down", 503)
     assert (http.message, http.status) == ("down", 503)
 
 

@@ -16,7 +16,7 @@ from infra.errors import StoreError
 from infra.logger import logger
 from infra.settings import settings as st
 from ports.documents import DocumentPort
-from ports.http import HttpPort
+from ports.http import HTTPPort
 from ports.pages import PagesPort
 from ports.provider import Provider
 from ports.store import StorePort
@@ -60,7 +60,7 @@ def test_providers_section_is_typed_and_ported(client) -> None:
     assert all(isinstance(provider, Provider) for provider in held.named.values())
     assert isinstance(held.store, StorePort)
     assert isinstance(held.redis, StorePort)
-    assert isinstance(held.http, HttpPort)
+    assert isinstance(held.http, HTTPPort)
     assert isinstance(held.docling, DocumentPort)
     assert isinstance(held.pages, PagesPort)
     assert isinstance(held.telemetry, TelemetryPort)

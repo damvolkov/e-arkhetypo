@@ -32,6 +32,10 @@ touches — `stack`, `systems`, `infra`. Lines under `[Unreleased]` are written 
 
 ### projects
 
+- TODO_REVERSE finished: what e-gnosis learned on the house taxonomy, in `common` — the Postgres drivers' contract and
+  LISTEN, PgQueuer over the ports (and its lost cancel), cache TTLs, the bearer, HTTP and telemetry, processors and the
+  file detector, secrets per environment, lingua and watchfiles, a provider's health reason, a project's own scopes
+  (#88–#99).
 - `common`'s composer gives a project room for its own config (TODO_REVERSE step 14, option A): besides `infra/config`
   (materialized, held by `common-check`), it walks `<package>/settings/` of every package beside it under `src` and
   hangs each at `st.<package>` — `e_api/settings/orders.py` is `st.e_api.orders`. Discovery moved to first use (e-gnosis

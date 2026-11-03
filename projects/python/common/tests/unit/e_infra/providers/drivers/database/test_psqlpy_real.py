@@ -6,7 +6,7 @@ from e_infra.infra.config.base import Secret
 from e_infra.infra.config.providers.drivers.database.psqlpy import PsqlpySettings
 from e_infra.infra.errors import DatabaseError
 from e_infra.ports.database import DatabasePort, QueryPort, Vector
-from e_infra.providers.drivers.database.psqlpy import PsqlpyDriver, PsqlpyTransaction
+from e_infra.providers.drivers.database.psqlpy import PsqlpyDriver, PsqlpyStatements
 
 pytestmark = pytest.mark.integration
 
@@ -52,7 +52,7 @@ async def test_postgres_transaction_rollback(pg: PsqlpyDriver) -> None:
 
 async def test_postgres_transaction_nested(pg: PsqlpyDriver) -> None:
     async with pg.transaction() as tx:
-        assert isinstance(tx, PsqlpyTransaction)
+        assert isinstance(tx, PsqlpyStatements)
         async with tx.transaction() as inner:
             assert inner is tx
             assert isinstance(inner, QueryPort)

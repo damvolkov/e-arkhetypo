@@ -36,7 +36,12 @@ class AdapterError(ProviderError):
 
 
 class DatabaseError(DriverError):
-    """A database that cannot be reached, or refuses a statement."""
+    """A database that cannot be reached, or refuses a statement. `sqlstate` and `constraint_name` when the server
+    named them: a unique violation is `23505` and its constraint — the one refusal a caller branches on."""
+
+    def __init__(self, message: str, *, sqlstate: str | None = None, constraint_name: str | None = None) -> None:
+        super().__init__(message)
+        self.sqlstate, self.constraint_name = sqlstate, constraint_name
 
 
 class StoreError(DriverError):

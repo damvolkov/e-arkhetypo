@@ -1,7 +1,7 @@
 """tests/unit/e_infra/providers/drivers/database/asyncpg: the asyncpg asyncpg_driver against a pool that holds no database."""
 
 from datetime import timedelta
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import anyio
 import asyncpg
@@ -10,7 +10,8 @@ import pytest
 from e_infra.infra.config.providers.drivers.database.asyncpg import AsyncpgSettings
 from e_infra.infra.errors import DatabaseError
 from e_infra.ports.database import DatabasePort, Vector
-from e_infra.providers.drivers.database.asyncpg import AsyncpgDriver, AsyncpgTransaction
+from e_infra.providers.drivers.database.asyncpg import FOUND, AsyncpgDriver, AsyncpgStatements
+from support.asyncpg import FakeAsyncpgConnection
 
 if TYPE_CHECKING:
     from support.asyncpg import FakeAsyncpgServer
@@ -31,7 +32,13 @@ async def test_asyncpg_open_builds_the_pool_from_settings_and_close_closes_it(
         pool = asyncpg_server.pools[0]
         assert (pool.dsn, pool.kwargs) == (
             DSN,
-            {"min_size": 2, "max_size": 4, "command_timeout": 3.0, "timeout": 3.0},
+            {
+                "min_size": 2,
+                "max_size": 4,
+                "command_timeout": 3.0,
+                "timeout": 3.0,
+                "init": AsyncpgStatements._common_born,
+            },
         )
         assert asyncpg_driver.pool is pool
     assert pool.closed
@@ -164,7 +171,7 @@ async def test_asyncpg_transaction_commits_on_a_clean_exit(
         assert await tx.fetch("SELECT id FROM t") == [{"id": 1}]
         assert await tx.row("SELECT id FROM t") == {"id": 1}
         await tx.many("INSERT INTO t VALUES ($1)", [[1], [2]])
-        assert isinstance(tx, AsyncpgTransaction)
+        assert isinstance(tx, AsyncpgStatements)
         async with tx.transaction() as nested:
             assert nested is tx
     assert asyncpg_server.transactions == ["begin", "commit"]
@@ -235,7 +242,7 @@ async def test_asyncpg_a_cancelled_call_is_not_swallowed_and_gives_its_connectio
 async def test_asyncpg_dedicated_connection_is_opened_outside_the_pool_and_closed_on_exit(
     asyncpg_driver: AsyncpgDriver, asyncpg_server: FakeAsyncpgServer
 ) -> None:
-    async with asyncpg_driver, asyncpg_driver.connection():
+    async with asyncpg_driver, asyncpg_driver.dedicated():
         opened = asyncpg_server.connections[0]
         assert (opened.dsn, opened.kwargs, asyncpg_server.dedicated) == (DSN, {"timeout": 3.0}, 1)
     assert (opened.closed, asyncpg_server.dedicated) == (True, 0)
@@ -245,7 +252,7 @@ async def test_asyncpg_dedicated_connection_closes_when_its_block_fails(
     asyncpg_driver: AsyncpgDriver, asyncpg_server: FakeAsyncpgServer
 ) -> None:
     async def fails() -> None:
-        async with asyncpg_driver.connection():
+        async with asyncpg_driver.dedicated():
             msg = "block"
             raise ValueError(msg)
 
@@ -259,5 +266,142 @@ async def test_asyncpg_dedicated_connection_refused_is_a_database_error(
 ) -> None:
     asyncpg_server.refuse = OSError("connection refused")
     with pytest.raises(DatabaseError, match="refused"):
-        async with asyncpg_driver.connection():
+        async with asyncpg_driver.dedicated():
             pass
+
+
+##### SHAPES — psqlpy's, on every connection of the pool #####
+async def test_asyncpg_born_connection_takes_json_and_uuid_codecs(asyncpg_server: FakeAsyncpgServer) -> None:
+    connection = FakeAsyncpgConnection(asyncpg_server)
+    await AsyncpgStatements._common_born(cast("asyncpg.Connection", connection))
+    encode = connection.codecs["jsonb"]["encoder"]
+    assert (sorted(connection.codecs), connection.codecs["uuid"]["format"]) == (["json", "jsonb", "uuid"], "text")
+    assert (encode('{"a": 1}'), encode({"a": 1})) == ('{"a": 1}', '{"a": 1}')
+
+
+async def test_asyncpg_vector_components_go_through_float(
+    asyncpg_driver: AsyncpgDriver, asyncpg_server: FakeAsyncpgServer
+) -> None:
+    """numpy 2's scalars print as `np.float32(0.5)`: each component is a float before it is text."""
+
+    class Scalar(float):
+        def __repr__(self) -> str:
+            return f"np.float32({float(self)})"
+
+    async with asyncpg_driver:
+        await asyncpg_driver.execute("INSERT", [Vector((Scalar(0.5), 1))])
+    assert asyncpg_server.statements == [("INSERT", ("[0.5,1.0]",))]
+
+
+##### SCRIPT AND CONNECTION #####
+async def test_asyncpg_script_runs_as_one_batch(
+    asyncpg_driver: AsyncpgDriver, asyncpg_server: FakeAsyncpgServer
+) -> None:
+    async with asyncpg_driver:
+        await asyncpg_driver.script("SELECT 1; SELECT 2")
+    assert asyncpg_server.statements == [("SELECT 1; SELECT 2", ())]
+
+
+async def test_asyncpg_connection_pins_one_without_a_transaction(
+    asyncpg_driver: AsyncpgDriver, asyncpg_server: FakeAsyncpgServer
+) -> None:
+    async with (
+        asyncpg_driver,
+        asyncpg_driver.connection() as held,
+        held.transaction() as inner,
+        inner.connection() as same,
+    ):
+        assert held is inner is same
+        await same.many("INSERT", [[1]])
+        assert asyncpg_server.held == 1
+    assert (asyncpg_server.transactions, asyncpg_server.held) == ([], 0)
+
+
+async def test_asyncpg_refusal_keeps_the_servers_state(
+    asyncpg_driver: AsyncpgDriver, asyncpg_server: FakeAsyncpgServer
+) -> None:
+    unique = asyncpg.UniqueViolationError('duplicate key value violates unique constraint "job_pkey"')
+    ### asyncpg fills it from the server's message fields; ty sees no such attribute on the class.
+    setattr(unique, "constraint_name", "job_pkey")  # noqa: B010
+    asyncpg_server.failures["INSERT"] = unique
+    async with asyncpg_driver:
+        with pytest.raises(DatabaseError) as refused:
+            await asyncpg_driver.execute("INSERT INTO job VALUES (1)")
+    assert (refused.value.sqlstate, refused.value.constraint_name) == ("23505", "job_pkey")
+
+
+async def test_asyncpg_a_command_past_its_timeout_is_a_database_error(
+    asyncpg_driver: AsyncpgDriver, asyncpg_server: FakeAsyncpgServer
+) -> None:
+    asyncpg_server.failures["SELECT"] = TimeoutError()
+    async with asyncpg_driver:
+        with pytest.raises(DatabaseError, match="TimeoutError"):
+            await asyncpg_driver.fetch("SELECT pg_sleep(9)")
+
+
+##### LISTEN #####
+async def test_asyncpg_listen_holds_one_connection_fans_out_and_unlistens(
+    asyncpg_driver: AsyncpgDriver, asyncpg_server: FakeAsyncpgServer
+) -> None:
+    heard: list[tuple[str, str]] = []
+
+    def first(payload: str) -> None:
+        heard.append(("first", payload))
+
+    def second(payload: str) -> None:
+        heard.append(("second", payload))
+
+    async with asyncpg_driver:
+        await asyncpg_driver.listen("jobs", first)
+        await asyncpg_driver.listen("jobs", second)
+        (listener,) = asyncpg_server.pools[0].taken
+        listener.notify("jobs", "both")
+        await asyncpg_driver.unlisten("jobs", first)
+        listener.notify("jobs", "one")
+        await asyncpg_driver.unlisten("jobs", second)
+        await asyncpg_driver.unlisten("jobs", second)
+        assert (listener.listeners, asyncpg_server.held) == ({}, 1)
+    assert heard == [("first", "both"), ("second", "both"), ("second", "one")]
+    assert asyncpg_server.held == 0
+
+
+##### PROVISION #####
+@pytest.mark.parametrize(
+    ("found", "created"), [([], True), ([{"?column?": 1}], False)], ids=["missing", "already-there"]
+)
+async def test_asyncpg_provision_creates_a_missing_database_on_the_maintenance_one(
+    asyncpg_driver: AsyncpgDriver, asyncpg_server: FakeAsyncpgServer, found: list[dict[str, int]], created: bool
+) -> None:
+    asyncpg_server.answers[FOUND] = found
+    assert await asyncpg_driver.provision() is created
+    (admin,) = asyncpg_server.connections
+    assert (admin.dsn, admin.closed, asyncpg_server.statements[0]) == (
+        "postgresql://u:p@db:5432/postgres",
+        True,
+        (FOUND, ("x",)),
+    )
+    assert ('CREATE DATABASE "x"' in asyncpg_server.sql()) is created
+
+
+@pytest.mark.parametrize(("second", "raised"), [([{"?column?": 1}], False), ([], True)], ids=["twin-won", "real"])
+async def test_asyncpg_provision_after_a_failed_create(
+    asyncpg_driver: AsyncpgDriver, asyncpg_server: FakeAsyncpgServer, second: list[dict[str, int]], raised: bool
+) -> None:
+    looks = iter([[], second])
+    asyncpg_server.answers[FOUND] = lambda: next(looks)
+    asyncpg_server.failures["CREATE DATABASE"] = asyncpg.DuplicateDatabaseError("exists")
+    match raised:
+        case True:
+            with pytest.raises(DatabaseError, match="could not be created"):
+                await asyncpg_driver.provision()
+        case False:
+            assert await asyncpg_driver.provision() is False
+
+
+async def test_asyncpg_provision_of_an_unreachable_server_is_a_database_error(
+    asyncpg_driver: AsyncpgDriver, asyncpg_server: FakeAsyncpgServer, logs: Logs
+) -> None:
+    asyncpg_server.refuse = OSError("connection refused")
+    with pytest.raises(DatabaseError, match="unreachable"):
+        await asyncpg_driver.provision()
+    assert logs.at("error") == ["asyncpg provision failed"]

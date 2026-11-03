@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING, Any
 import anyio
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncGenerator
+    from collections.abc import AsyncGenerator, Callable, Generator
 
 type Row = dict[str, Any]
 
@@ -22,7 +22,7 @@ type Row = dict[str, Any]
 class FakeAsyncpgServer:
     """The shared state of every pool and connection built in one test."""
 
-    answers: dict[str, list[Row]] = field(default_factory=dict)
+    answers: dict[str, list[Row] | Callable[[], list[Row]]] = field(default_factory=dict)
     failures: dict[str, BaseException] = field(default_factory=dict)
     statements: list[tuple[str, tuple[object, ...]]] = field(default_factory=list)
     transactions: list[str] = field(default_factory=list)
@@ -43,7 +43,12 @@ class FakeAsyncpgServer:
         for fragment, failure in self.failures.items():
             if fragment in query:
                 raise failure
-        return next((rows for fragment, rows in self.answers.items() if fragment in query), [])
+        answer = next((rows for fragment, rows in self.answers.items() if fragment in query), [])
+        match answer:
+            case list():
+                return answer
+            case produce:
+                return produce()
 
     def sql(self) -> list[str]:
         return [query for query, _ in self.statements]
@@ -76,6 +81,8 @@ class FakeAsyncpgConnection:
         self.dsn = dsn
         self.kwargs = kwargs or {}
         self.closed = False
+        self.codecs: dict[str, dict[str, Any]] = {}
+        self.listeners: dict[str, Callable[..., Any]] = {}
 
     async def execute(self, query: str, *args: object) -> str:
         await self._server.stall(query)
@@ -107,6 +114,19 @@ class FakeAsyncpgConnection:
             raise
         self._server.transactions.append("commit")
 
+    async def set_type_codec(self, kind: str, **kwargs: Any) -> None:
+        self.codecs[kind] = kwargs
+
+    async def add_listener(self, channel: str, callback: Callable[..., Any]) -> None:
+        self.listeners[channel] = callback
+
+    async def remove_listener(self, channel: str, callback: Callable[..., Any]) -> None:
+        _ = self.listeners.get(channel) is callback and self.listeners.pop(channel)
+
+    def notify(self, channel: str, payload: str) -> None:
+        """A NOTIFY on a channel this connection listens on, as asyncpg delivers it."""
+        self.listeners[channel](self, 0, channel, payload)
+
     async def close(self, *, timeout: float | None = None) -> None:  # noqa: ASYNC109 — asyncpg's own signature
         match (self._dedicated, self.closed):
             case (True, False):
@@ -125,14 +145,27 @@ class FakeAsyncpgPool:
         self.kwargs = kwargs
         self.closed = False
         self.terminated = False
+        self.taken: list[FakeAsyncpgConnection] = []
+
+    def acquire(self) -> FakeAsyncpgAcquire:
+        """A connection, in a scope (`async with`) or held until released (`await`), as `asyncpg.Pool.acquire`."""
+        return FakeAsyncpgAcquire(self)
 
     @asynccontextmanager
-    async def acquire(self) -> AsyncGenerator[FakeAsyncpgConnection]:
-        self._server.held += 1
+    async def scoped(self) -> AsyncGenerator[FakeAsyncpgConnection]:
+        connection = self.take()
         try:
-            yield FakeAsyncpgConnection(self._server)
+            yield connection
         finally:
-            self._server.held -= 1
+            await self.release(connection)
+
+    def take(self) -> FakeAsyncpgConnection:
+        self._server.held += 1
+        self.taken.append(FakeAsyncpgConnection(self._server))
+        return self.taken[-1]
+
+    async def release(self, _connection: FakeAsyncpgConnection) -> None:
+        self._server.held -= 1
 
     async def execute(self, query: str, *args: object) -> str:
         async with self.acquire() as connection:
@@ -159,3 +192,23 @@ class FakeAsyncpgPool:
 
     def terminate(self) -> None:
         self.terminated = True
+
+
+class FakeAsyncpgAcquire:
+    """`PoolAcquireContext`: entered as a scope, or awaited for a connection the caller releases."""
+
+    def __init__(self, pool: FakeAsyncpgPool) -> None:
+        self._pool = pool
+        self._scope = pool.scoped()
+
+    def __await__(self) -> Generator[Any, None, FakeAsyncpgConnection]:
+        return self._take().__await__()
+
+    async def _take(self) -> FakeAsyncpgConnection:
+        return self._pool.take()
+
+    async def __aenter__(self) -> FakeAsyncpgConnection:
+        return await self._scope.__aenter__()
+
+    async def __aexit__(self, *exc: Any) -> bool | None:
+        return await self._scope.__aexit__(*exc)

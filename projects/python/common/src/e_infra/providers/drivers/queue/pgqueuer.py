@@ -105,7 +105,7 @@ class PgqueuerHost(Protocol):
     @property
     def pool(self) -> asyncpg.Pool: ...
 
-    def connection(self) -> AbstractAsyncContextManager[asyncpg.Connection]: ...
+    def dedicated(self) -> AbstractAsyncContextManager[asyncpg.Connection]: ...
 
     def guard(self) -> AbstractContextManager[None]: ...
 
@@ -182,7 +182,7 @@ class PgqueuerDriver:
                 await self._closing.wait()
 
     async def _start_manage(self, queue: str, slots: int) -> None:
-        async with self._db.connection() as connection:
+        async with self._db.dedicated() as connection:
             manager = QueueManager(Queries.from_asyncpg_connection(connection))
             manager.entrypoint(queue, concurrency_limit=slots, accepts_context=True)(self._register_run)
             self._managers[queue] = manager
@@ -210,7 +210,7 @@ class PgqueuerDriver:
                 await self._closing.wait()
 
     async def _start_schedule(self) -> None:
-        async with self._db.connection() as connection:
+        async with self._db.dedicated() as connection:
             scheduler = SchedulerManager(Queries.from_asyncpg_connection(connection))
             _ = [
                 scheduler.schedule(name, self.dialect(cron))(partial(self._start_tick, fire))

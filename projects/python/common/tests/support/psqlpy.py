@@ -38,6 +38,7 @@ class FakePsqlpyServer:
     statements: list[tuple[str, list[object]]] = field(default_factory=list)
     transactions: list[str] = field(default_factory=list)
     pools: list[FakePsqlpyPool] = field(default_factory=list)
+    listeners: list[FakePsqlpyListener] = field(default_factory=list)
     held: int = 0
 
     def run(self, query: str, params: Sequence[object] | None) -> list[Row]:
@@ -66,6 +67,16 @@ class FakePsqlpyServer:
     def sql(self) -> list[str]:
         return [query for query, _ in self.statements]
 
+    async def notify(self, channel: str, payload: str) -> None:
+        """A NOTIFY: every started, live listener holding the channel calls its callback, as the server would."""
+        _ = [
+            await callback(None, payload, channel, 0)
+            for listener in self.listeners
+            if listener.started and not listener.stopped
+            for held, callback in listener.callbacks
+            if held == channel
+        ]
+
 
 class FakePsqlpyTransaction:
     """One open transaction: the same statements, on the connection that holds it."""
@@ -83,6 +94,9 @@ class FakePsqlpyTransaction:
 
     async def execute_many(self, query: str, params: Sequence[Sequence[object]] | None = None) -> None:
         _ = [self._server.run(query, each) for each in params or ()]
+
+    async def execute_batch(self, querystring: str) -> None:
+        self._server.run(querystring, None)
 
 
 class FakePsqlpyConnection(FakePsqlpyTransaction):
@@ -117,5 +131,32 @@ class FakePsqlpyPool:
         finally:
             self._server.held -= 1
 
+    def listener(self) -> FakePsqlpyListener:
+        built = FakePsqlpyListener()
+        self._server.listeners.append(built)
+        return built
+
     def close(self) -> None:
         self.closed = True
+
+
+class FakePsqlpyListener:
+    """`Listener`: callbacks registered per channel, then started, listening, and shut down once."""
+
+    def __init__(self) -> None:
+        self.callbacks: list[tuple[str, Callable[..., Any]]] = []
+        self.started = False
+        self.listening = False
+        self.stopped = False
+
+    async def add_callback(self, channel: str, callback: Callable[..., Any]) -> None:
+        self.callbacks.append((channel, callback))
+
+    async def startup(self) -> None:
+        self.started = True
+
+    def listen(self) -> None:
+        self.listening = True
+
+    async def shutdown(self) -> None:
+        self.stopped = True

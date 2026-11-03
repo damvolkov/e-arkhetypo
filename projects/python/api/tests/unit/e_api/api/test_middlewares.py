@@ -1,4 +1,7 @@
-"""tests/unit: api.middlewares — the CORS translation resolves settings at call time, never at import."""
+"""tests/unit/e_api/api/middlewares: the CORS translation resolves settings at call time, never at import; the edge
+transports live — preflight answered, correlation id propagated; the access log, per request."""
+
+from uuid import uuid4
 
 from e_api.api.middlewares import cors_config
 from infra.config.api import ApiSettings, HttpMethod
@@ -27,3 +30,29 @@ def test_access_log_records_a_refused_key_at_its_status(client, request_logs) ->
         401,
         [("/users", 401)],
     )
+
+
+def test_cors_preflight_is_answered(client) -> None:
+    response = client.options(
+        "/users",
+        headers={"origin": "http://elsewhere.test", "access-control-request-method": "POST"},
+    )
+    assert response.status_code in (200, 204)
+    assert response.headers["access-control-allow-origin"] == "*"
+    assert "POST" in response.headers["access-control-allow-methods"]
+
+
+def test_correlation_id_is_unique_per_request(client) -> None:
+    first = client.get("/health").headers["x-request-id"]
+    second = client.get("/health").headers["x-request-id"]
+    assert (bool(first), bool(second), first != second) == (True, True, True)
+
+
+def test_correlation_id_echoes_a_valid_incoming_one(client) -> None:
+    incoming = str(uuid4())
+    assert client.get("/health", headers={"x-request-id": incoming}).headers["x-request-id"] == incoming
+
+
+def test_correlation_id_replaces_garbage(client) -> None:
+    """Garbage in is rejected by the middleware validator: a fresh id comes out instead."""
+    assert client.get("/health", headers={"x-request-id": "not-a-uuid"}).headers["x-request-id"] != "not-a-uuid"

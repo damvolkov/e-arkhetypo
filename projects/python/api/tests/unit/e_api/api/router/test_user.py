@@ -1,4 +1,4 @@
-"""tests/unit: the user CRUD chain end to end — the key's access per route, DTO families out."""
+"""tests/unit/e_api/api/router/user: the user CRUD chain end to end — the key's access per route, DTO families out."""
 
 from uuid import UUID
 
@@ -8,12 +8,6 @@ from e_api.api.deps import USER_KEY
 from e_api.models.user import UserRecord
 
 NEW = {"username": "bob", "email": "bob@example.com", "password": "s3cret-passphrase"}
-
-
-def test_health_answers_without_graph_touching(client) -> None:
-    response = client.get("/health")
-    assert response.status_code == 200
-    assert response.json() == {"status": "ok"}
 
 
 def test_create_returns_read_model_without_credential(client, root_key) -> None:

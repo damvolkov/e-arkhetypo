@@ -22,7 +22,6 @@ class FakeAuth:
     def __init__(self) -> None:
         self.owners: dict[str, Account] = {}
         self.grants: dict[str, Grant] = {}
-        self.lookups = 0
 
     async def __aenter__(self) -> Self:
         return self
@@ -52,7 +51,6 @@ class FakeAuth:
         return len(live)
 
     async def holder(self, digest: str) -> tuple[Account, Grant] | None:
-        self.lookups += 1
         grant = self.grants.get(digest)
         return None if grant is None else (self.owners[grant.owner], grant)
 

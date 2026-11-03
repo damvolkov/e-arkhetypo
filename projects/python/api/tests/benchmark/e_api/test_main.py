@@ -1,4 +1,5 @@
-"""tests/unit: concurrent load on the live app — chains, graph and seal survive a burst; `make stress` soaks it."""
+"""tests/benchmark/e_api/main: concurrent load on the app `create_app` builds — chains, graph and seal survive a burst;
+`make stress` soaks it. Not a unit of one module: every layer answers at once, over the faked services of `tests/conftest`."""
 
 import asyncio
 
@@ -14,7 +15,7 @@ HEALTH_BURST: int = 50
 
 
 @pytest.mark.stress
-async def test_api_survives_concurrent_traffic() -> None:
+async def test_create_app_stress_concurrent_traffic() -> None:
     """Eight actors run the full user flow at once, each key at its access, while health is hammered: no crosstalk."""
 
     async def actor(client: AsyncTestClient, i: int) -> None:

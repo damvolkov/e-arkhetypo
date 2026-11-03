@@ -17,11 +17,11 @@ templates:
             - {file: src/e_api/api/lifespan/providers.py, pattern: '^    redis: StorePort\n'}
             - {file: src/e_api/api/lifespan/providers.py, pattern: '^        redis = await enter\(RedisDriver\(\)\)\n'}
             - {file: src/e_api/api/lifespan/providers.py, pattern: ', redis=redis'}
-            - {file: tests/unit/e_api/api/test_lifespan.py, pattern: '^    assert (isinstance\(section\.redis, StorePort\)|section\.redis\.spec\.name == "redis")\n'}
+            - {file: tests/unit/e_api/api/lifespan/test_providers.py, pattern: '^    assert (isinstance\(section\.redis, StorePort\)|section\.redis\.spec\.name == "redis")\n'}
             - {file: tests/unit/e_api/api/router/test_health.py, pattern: '^from providers\.drivers\.store\.redis import RedisDriver\n'}
-            - {file: tests/unit/e_api/conftest.py, pattern: '^import fakeredis\nimport fakeredis\.aioredis\n'}
-            - {file: tests/unit/e_api/conftest.py, pattern: '^from providers\.drivers\.store import redis as redis_module\n'}
-            - {file: tests/unit/e_api/conftest.py, pattern: '^@pytest\.fixture\(autouse=True\)\ndef redis_server[\s\S]*?(?=^@pytest\.fixture)'}
+            - {file: tests/conftest.py, pattern: '^import fakeredis\nimport fakeredis\.aioredis\n'}
+            - {file: tests/conftest.py, pattern: '^from providers\.drivers\.store import redis as redis_module\n'}
+            - {file: tests/conftest.py, pattern: '^@pytest\.fixture\(autouse=True\)\ndef redis_server[\s\S]*?(?=^@pytest\.fixture)'}
             - {file: tests/unit/e_api/api/router/test_health.py, pattern: '\(RedisDriver, "redis", 200\), '}
             - {file: tests/unit/e_api/api/router/test_health.py, pattern: '"optional-down", '}
             - {file: tests/unit/e_api/api/router/test_health.py, pattern: ' \| RedisDriver'}
@@ -33,8 +33,8 @@ templates:
             - {file: src/e_api/api/lifespan/providers.py, pattern: '^    http: HttpPort\n'}
             - {file: src/e_api/api/lifespan/providers.py, pattern: '^        http = await enter\(WreqDriver\(\)\)\n'}
             - {file: src/e_api/api/lifespan/providers.py, pattern: ', http=http'}
-            - {file: tests/unit/e_api/api/test_lifespan.py, pattern: '^from ports\.http import HttpPort\n'}
-            - {file: tests/unit/e_api/api/test_lifespan.py, pattern: '^    assert (isinstance\(section\.http, HttpPort\)|section\.http\.spec\.name == "wreq")\n'}
+            - {file: tests/unit/e_api/api/lifespan/test_providers.py, pattern: '^from ports\.http import HttpPort\n'}
+            - {file: tests/unit/e_api/api/lifespan/test_providers.py, pattern: '^    assert (isinstance\(section\.http, HttpPort\)|section\.http\.spec\.name == "wreq")\n'}
             - {file: pyproject.toml, pattern: '^    ##### http #####\n    "wreq>=[^"]*",\n'}
     materials: &materials
       - {src: projects/python/common/prek.toml, dst: prek.toml}
@@ -48,14 +48,17 @@ templates:
       - tests/unit/conftest.py
       - tests/unit/test_resources.py
       - tests/resources
+      - tests/conftest.py
       - tests/unit/e_api/conftest.py
       - tests/support/psqlpy.py
       - tests/support/auth.py
-      - tests/unit/e_api/api/test_assembly.py
-      - tests/unit/e_api/api/test_lifespan.py
-      - tests/unit/e_api/api/test_stress.py
-      - tests/unit/e_api/api/test_transport.py
-      - tests/unit/e_api/ops/test_file.py
+      - tests/unit/e_api/test_main.py
+      - tests/benchmark/e_api/test_main.py
+      - tests/unit/e_api/api/test_middlewares.py
+      - tests/unit/e_api/api/lifespan/test_infra.py
+      - tests/unit/e_api/api/lifespan/test_providers.py
+      - tests/unit/e_api/api/lifespan/test_sealed.py
+      - tests/unit/e_api/api/lifespan/test_services.py
 
     ##### CHOICES — grouped by the wizard stage that owns them #####
     choices:
@@ -70,13 +73,13 @@ templates:
           - {file: src/e_api/main.py, pattern: '^    app\.register\(\n        Router\(path="/", route_handlers=list\(telemetry\.ws_routes\(\)\)[^\n]*\n    \)\n'}
           - {file: tach.toml, pattern: ', "e_api\.websockets"'}
           - {file: tach.toml, pattern: '\[\[modules\]\]\npath = "e_api\.websockets"\ndepends_on = \["e_api\.api", "e_api\.models", "infra", "infra\.errors"\]\n\n'}
-          - {file: tests/unit/e_api/api/test_assembly.py, pattern: '^        "/ws/telemetry",\n'}
+          - {file: tests/unit/e_api/test_main.py, pattern: '^        "/ws/telemetry",\n'}
 
       - name: mcp
         group: modules
         label: MCP door (the resources as tools, served at /mcp)
         default: true
-        paths: [src/e_api/mcp, src/e_api/api/lifespan/mcp.py, src/infra/mcp, src/infra/config/mcp.py, tests/unit/e_api/mcp, tests/resources/mcp, tests/support/mcp.py]
+        paths: [src/e_api/mcp, src/e_api/api/lifespan/mcp.py, src/infra/mcp, src/infra/config/mcp.py, tests/unit/e_api/mcp, tests/unit/e_api/api/lifespan/test_mcp.py, tests/resources/mcp, tests/support/mcp.py]
         prunes:
           - {file: src/e_api/main.py, pattern: 'engines, mcp, providers', to: 'engines, providers'}
           - {file: src/e_api/main.py, pattern: '^from e_api\.mcp import mount\n'}
@@ -95,6 +98,8 @@ templates:
           - {file: pyproject.toml, pattern: '^"src/e_api/mcp/\*\*" = [^\n]*\n'}
           - {file: pyproject.toml, pattern: '^### the one module that speaks the MCP protocol[^\n]*\n"src/infra/mcp/server\.py" = [^\n]*\n'}
           - {file: pyproject.toml, pattern: '\n\[tool\.ruff\.lint\.flake8-tidy-imports\.banned-api\]\n"mcp\.server"\.msg = [^\n]*\n'}
+          - {file: tests/unit/e_api/test_main.py, pattern: ', "mcp"\]', to: ']'}
+          - {file: tests/unit/e_api/api/lifespan/test_sealed.py, pattern: ', "mcp"\}', to: '}'}
           - {file: README.md, pattern: ', mcp/ \(the MCP door\)', to: ''}
           - {file: README.md, pattern: ', the MCP client', to: ''}
           - {file: README.md, pattern: '^The MCP door \(`src/e_api/mcp/`\)[^\n]*\n\n'}

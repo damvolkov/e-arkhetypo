@@ -1,6 +1,6 @@
 """tests/unit: logic.rules — every law breached on purpose, each breach named by rule and subject."""
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import pytest
 
@@ -21,7 +21,7 @@ ROLE_NAMES = frozenset(Role)
 def spec(name: str, kind: str = "deterministic", **fields: Any) -> Spec[str]:
     defaults = {"instructions": "Read it."} if kind == "semantic" else {"runner": f"owned/{name[4:].replace('-', '')}"}
     raw = {"kind": kind, "name": name, "description": "d", "output": OUTPUT, **defaults, **fields}
-    return CheckedStruct.convert(raw, DeterministicSpec[NAME] | SemanticSpec[NAME])
+    return CheckedStruct.convert(raw, cast("Any", DeterministicSpec)[NAME] | cast("Any", SemanticSpec)[NAME])
 
 
 def fn(name: str, *, signature: str | None = None, doc: str = "Does it.") -> Function:

@@ -40,6 +40,7 @@ from e_infra.infra.errors import (
     RefusedError,
     RegistryError,
     ScheduleError,
+    ServiceError,
     StoreError,
     TelemetryError,
     TokenError,
@@ -147,10 +148,16 @@ def test_errors_tree_holds(child: type[BaseException], parent: type[BaseExceptio
         (CryptoError, ProviderError),
         (AuthError, ProviderError),
         (AnonymousError, ForbiddenError),
+        (ServiceError, ProviderError),
+        (ServiceError, EngineError),
     ],
 )
 def test_errors_branches_stay_apart(child: type[BaseException], stranger: type[BaseException]) -> None:
     assert not issubclass(child, stranger)
+
+
+def test_errors_service_is_a_branch_of_the_root() -> None:
+    assert ServiceError.__bases__ == (CoreError,)
 
 
 def test_errors_message_and_status_ride_along() -> None:

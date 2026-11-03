@@ -32,6 +32,8 @@ touches — `stack`, `systems`, `infra`. Lines under `[Unreleased]` are written 
 
 ### projects
 
+- `common`'s error tree gains `ServiceError` (TODO_REVERSE step 11), the branch of a project's own business — the one
+  layer that never travels, named by the tree, filled by the project (e-gnosis hangs knowledge's and memory's there).
 - `common`'s config (TODO_REVERSE step 9, e-gnosis's content):
   - secrets: every scope reads `secrets/<APP_ENV>/<var>` (gitignored, one file per key, its variable in lower case:
     `secrets/dev/auth_secret` is AUTH_SECRET) — dev the dev keys, prod the prod ones —; a scope that names its own

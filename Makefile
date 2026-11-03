@@ -24,8 +24,8 @@ install: ## sync every project
 	@for p in $(PROJECTS); do uv sync --project $$p; done
 	@printf "$(GREEN)✓ all projects synced$(RESET)\n"
 
-update: ## re-materialize projects/python/api from its sources (infra/ops + shared root files)
-	@$(MAKE) -C projects/python/api infra
+update: ## re-materialize projects/python/api from projects/python/common (its six sections + shared root files)
+	@$(MAKE) -C projects/python/api common
 	@$(MAKE) -C projects/python/api common-check
 
 stack-versions: ## resolve every floating stack tag to its current digest (the ledger)

@@ -71,6 +71,7 @@ touches — `stack`, `systems`, `infra`. Lines under `[Unreleased]` are written 
 
 ### infra
 
+- the root `make update` materializes through the api's `common` target (it still called the retired `infra`)
 - **CI stops re-proving on main**: quality, test, coverage, ui, ecosystem, repo-gates and snapshots run on pull
   requests only — a push to main re-ran what its PR had just proved (710 of ~1,935 Actions minutes in a month on
   e-gnosis). docs builds on pull requests, and on push only where it deploys (public Pages). test skips its work on a

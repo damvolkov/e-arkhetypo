@@ -21,6 +21,8 @@ services:
     container_name: jsoncrack
     hostname: jsoncrack
     restart: unless-stopped
+    networks:
+      - stack
     ports:
       - "127.0.0.1:${JSONCRACK_PORT:-45840}:8080"
     labels:
@@ -37,5 +39,5 @@ services:
       start_period: 10s
 
 networks:
-  default:
+  stack:
     name: stack

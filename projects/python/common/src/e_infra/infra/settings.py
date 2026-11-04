@@ -7,9 +7,9 @@ processor sit at the top (``st.app.env``). Each scope keeps its own sources (``e
 ``toml_file``, ``secrets_dir``), so adding a scope is just dropping a file in ``infra/config`` — ``base`` is the only
 thing skipped.
 
-A project's own scopes — its services', never materialized — live in ``<package>/settings/`` of any package beside this
-one under ``src``, and hang at ``st.<package>``: ``e_api/settings/orders.py`` is ``st.e_api.orders``. They are found on
-first use, never at import: a project's scope module may import this one, and a discovery at import would meet it
+A project's own scopes — its services', never in the spine's config — live in ``<package>/settings/`` of any package
+under ``src``, the spine's own package included when the spine lives inside it, and hang at ``st.<package>``:
+``e_api/settings/orders.py`` is ``st.e_api.orders``. They are found on first use, never at import: a project's scope module may import this one, and a discovery at import would meet it
 half-built. Consumers import the lazy singleton: ``from e_infra.infra.settings import settings as st`` →
 ``st.crypto.alg`` (env, secrets and config files are read on that first access, never at import)."""
 
@@ -43,8 +43,9 @@ def _found(package: str) -> list[type[BaseSettings]]:
 
 
 def _projects() -> list[str]:
-    """The project's packages that hold scopes of their own: a folder beside this package's with a `settings/` inside."""
-    return sorted(folder.name for folder in _SRC.iterdir() if folder.name != _ROOT and (folder / "settings").is_dir())
+    """The project's packages that hold scopes of their own: any folder of `src` with a `settings/` inside — the spine's own
+    package too, when the spine lives inside it (its config is `infra/config`, never `settings/`)."""
+    return sorted(folder.name for folder in _SRC.iterdir() if (folder / "settings").is_dir())
 
 
 @cache

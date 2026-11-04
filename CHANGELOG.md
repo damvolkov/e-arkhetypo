@@ -19,6 +19,16 @@ touches — `stack`, `systems`, `infra`. Lines under `[Unreleased]` are written 
   commit: no published image, and the v5.0.0 tag's Docker build predates the monorepo fix.
 
 ### Changed
+- `common`: the settings composer finds a project's own `settings/` inside the spine's package too, not only beside it
+  — a project that keeps the spine inside its package (findr-ground) never had its scopes found. Graph locks
+  regenerated with e-taxis.
+- `common` (TODO_doc, reverse from findr-ground `29f43d2`): `DocProcessor` reads a converted docling span once — nodes
+  placed on their page in one pass, markdown split once, the document a stable sort on page — linear where it was
+  quadratic (synthetic span: 64 pages 81 → 6.6 ms, 128 pages 748 → 23 ms, on the event loop). Privates follow the
+  taxonomy (`_process_<what>`). New publics `text`, `tables`, `pictures`, `formulas`, `sections(source)`: `process`
+  narrowed to one `Element` — docling only on the pages it needs (`NEEDS`), no TableFormer without tables, no image
+  export without pictures. `sections` moves to `Document.sections`; a path over `DOC_MAX_INPUT_BYTES` is refused by its
+  size before it is read. common 1417 tests, graph 774 (canvas acceptance needs Chromium).
 - `common`: one document reader. `DocProcessor` absorbs `MDProcessor` (removed with `MDSettings`, `MarkdownFile` and
   their tests) over three providers: the docling driver (optional), the anytomd adapter and the liteparse fast pass.
   A PDF is read page by page (docling on the pages its signals route); any other format whole — by docling when it

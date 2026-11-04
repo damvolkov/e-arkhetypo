@@ -8,12 +8,15 @@ on, so anything extracted from it traces back to where it was read. Labels follo
 
 from dataclasses import dataclass
 from enum import StrEnum, auto
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Final
+
+import polars as pl
 
 if TYPE_CHECKING:
-    import polars as pl
-
     from e_infra.infra.config.processors.doc import DocSignal
+
+HEADINGS: Final[frozenset[str]] = frozenset({"title", "section_header"})
+BODY: Final[frozenset[str]] = frozenset({"text", "list_item", "paragraph"})
 
 
 class Backend(StrEnum):
@@ -22,6 +25,15 @@ class Backend(StrEnum):
     LITEPARSE = auto()
     DOCLING = auto()
     ANYTOMD = auto()
+
+
+class Element(StrEnum):
+    """What a reading is asked for: each decides which pages docling reads and what it runs on them."""
+
+    TEXT = auto()
+    TABLES = auto()
+    PICTURES = auto()
+    FORMULAS = auto()
 
 
 @dataclass(frozen=True, slots=True)
@@ -109,3 +121,22 @@ class Document:
     def deep(self) -> tuple[int, ...]:
         """The pages docling read."""
         return tuple(page.number for page in self.pages if page.backend is Backend.DOCLING)
+
+    @property
+    def sections(self) -> list[Section]:
+        """Every heading with the body text under it, up to the next heading — one pass over the items frame.
+
+        Text before the first heading belongs to no section and is left out."""
+        frame = (
+            self.items.with_columns(section=pl.col("label").is_in(HEADINGS).cum_sum())
+            .filter(pl.col("section") > 0)
+            .group_by("section", maintain_order=True)
+            .agg(
+                ref=pl.col("ref").first(),
+                title=pl.col("text").first(),
+                level=pl.col("level").first().fill_null(1),
+                page=pl.col("page").first(),
+                text=pl.col("text").filter(pl.col("label").is_in(BODY)).str.join("\n"),
+            )
+        )
+        return [Section(**row) for row in frame.drop("section").iter_rows(named=True)]

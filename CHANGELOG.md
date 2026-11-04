@@ -7,6 +7,11 @@ touches — `stack`, `systems`, `infra`. Lines under `[Unreleased]` are written 
 ## [Unreleased]
 
 ### Added
+- `assets/demian-delta-{dark,light}.png`: Demian's delta, 64 px on transparency, black for light themes and light for
+  dark ones — the icon of the house's PR attribution (`#gh-light-mode-only` / `#gh-dark-mode-only`), hosted here because
+  this repository is public.
+
+### Added
 - `stack/agent/hermes`: Hermes Agent (NousResearch, MIT) as the assistant's runtime — Discord gateway, voice, MCP,
   dashboard on loopback :9119; house layer adds libopus; state in the vault (`hermes/` at `/opt/data`, parity mounts);
   `hermes.service` beside it. Pinned by digest, a written exception to `:latest`: near-daily releases and a house

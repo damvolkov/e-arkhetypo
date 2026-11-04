@@ -17,12 +17,15 @@ touches — `stack`, `systems`, `infra`. Lines under `[Unreleased]` are written 
 
 ### stack
 
+- `gdb/spanner`: new — `gcr.io/cloud-spanner-emulator/emulator:latest`, the Cloud Spanner emulator: SQL and Spanner
+  Graph (verified: `CREATE PROPERTY GRAPH` + a GQL `MATCH …->{1,2}` through the Python SDK). In-memory, distroless (no
+  healthcheck); graph algorithms parse but return empty.
 - `storage/gcs`: new — `fsouza/fake-gcs-server:latest`, the Google Cloud Storage emulator (JSON + XML API on
   `:4443`, objects persisted in `gcs-data`, healthy on `/_internal/healthcheck`); verified create · upload · restart · read.
 - `rdb/postgres` rides `pgvector/pgvector:pg15` (from `pg17`): the Postgres major of Cloud SQL; the tag floats on the
   newest pgvector (0.8.7 on 2026-10-31). A `pg17` data volume does not start on `pg15`.
-  infra's `full_stack` golden re-recorded: 40 services, and it catches up with the TEI `--tokenization-workers` caps
-  `stack: one supervisor` left unrecorded. Host plan TODO_GCS (`findr-gcs`, `findr-pgvector` on `0.8.5-pg15`).
+  infra's `full_stack` golden re-recorded: 41 services, and it catches up with the TEI `--tokenization-workers` caps
+  `stack: one supervisor` left unrecorded. Host plan TODO_GCS (`findr-gcs`, `findr-pgvector` on `0.8.5-pg15`, `findr-spanner`).
 - floating tags resolved to current digests, the ledger's paradedb row on `v0.26.4-pg17` (`stack/resolve-2026-11-02`)
 - `llm/gliner` has a healthcheck: `ghcr.io/edamlabs/gliner:0.1.3` (pinned, the EDamLabs image) ships `gliner probe`,
   which `GET /ready`s from inside the distroless image — `docker ps` shows `(healthy)` once the model is loaded.

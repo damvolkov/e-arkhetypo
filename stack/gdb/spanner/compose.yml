@@ -1,0 +1,22 @@
+services:
+  spanner:
+    # Cloud Spanner emulator: SQL + Spanner Graph (property graphs, GQL); the SDKs reach it through
+    # SPANNER_EMULATOR_HOST=spanner:9010. In-memory: instances, schema and data die with the container.
+    # Distroless image — no shell, so no healthcheck; the gateway answers on :9020 once up.
+    image: gcr.io/cloud-spanner-emulator/emulator:latest
+    container_name: spanner
+    hostname: spanner
+    restart: unless-stopped
+    labels:
+      stack.category: "gdb"
+      stack.port: "9010"
+    ports:
+      # default 9010 gRPC / 9020 REST
+      - "${SPANNER_PORT:-9010}:9010"
+      - "${SPANNER_REST_PORT:-9020}:9020"
+    networks:
+      - stack
+
+networks:
+  stack:
+    name: stack

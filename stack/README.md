@@ -25,7 +25,7 @@ Convenciones:
 - Labels `stack.category` y `stack.port`.
 - **Versiones = `:latest`** por defecto, para asegurar siempre la final. Se
   tolera un pin sólo cuando el tag `latest` no existe o el número fija formato
-  (p. ej. `pgvector:pg15`, major de Postgres; `llama.cpp:server-cuda` y
+  (p. ej. `pgvector:pg18`, major de Postgres; `llama.cpp:server-cuda` y
   TEI `cpu-latest` son ya tags flotantes).
 - **Ledger de versiones**: `stack/stack.versions.yml` — escrito sólo por el bot
   (`tools/stack_resolve.py`, workflow `sync-stack` semanal): por imagen, el
@@ -100,7 +100,7 @@ Puerto = default en host (`:container`). GPU = necesita `nvidia` runtime.
 
 | Cat/Servicio | Imagen | Puerto(s) | GPU | Adjuntos |
 |---|---|---|---|---|
-| rdb/postgres | pgvector/pgvector:pg15 | 5432 | | PostgreSQL 15, el major de Cloud SQL; la tag flota sobre la última pgvector (0.8.7 hoy). Un volumen escrito por pg17 no arranca en pg15 |
+| rdb/postgres | pgvector/pgvector:pg18 | 5432 | | PostgreSQL 18, el major de Cloud SQL; la tag flota sobre la última pgvector. Desde 18 el volumen monta `/var/lib/postgresql` (datos en `18/docker`); un volumen de otro major no arranca |
 | rdb/paradedb | paradedb/paradedb:0.26.2-pg17 | 5433 | | Postgres + pg_search (BM25 sobre Tantivy, stemmers es/en) + pgvector; motor por defecto de e-gnosis (medido: scripts/bench.py) |
 | gdb/spanner | gcr.io/cloud-spanner-emulator/emulator:latest | 9010 / 9020 | | emulador oficial de Cloud Spanner: SQL + Spanner Graph (property graphs, GQL); los SDK oficiales lo usan con `SPANNER_EMULATOR_HOST=spanner:9010`. **En memoria**: instancias, schema y datos mueren con el contenedor; algoritmos de grafo validan pero devuelven vacío. Distroless, sin healthcheck |
 | cdb/redis | redis:latest | 6379 | | `redis.conf` |

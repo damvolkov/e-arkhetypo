@@ -17,6 +17,10 @@ touches — `stack`, `systems`, `infra`. Lines under `[Unreleased]` are written 
 
 ### stack
 
+- `rdb/postgres` rides `pgvector/pgvector:pg18` (from `pg15`): findr's Cloud SQL moves to Postgres 18. The 18+ image
+  keeps data in `18/docker` under one mount at `/var/lib/postgresql` (`PGDATA=/var/lib/postgresql/18/docker`, read
+  off the image), so the volume moved from `/var/lib/postgresql/data`; a volume of another major is refused at start,
+  never overwritten — dump and restore, or `pg_upgrade`. `full_stack` golden follows; ledger row left to `sync-stack`.
 - `gdb/spanner`: new — `gcr.io/cloud-spanner-emulator/emulator:latest`, the Cloud Spanner emulator: SQL and Spanner
   Graph (verified: `CREATE PROPERTY GRAPH` + a GQL `MATCH …->{1,2}` through the Python SDK). In-memory, distroless (no
   healthcheck); graph algorithms parse but return empty.

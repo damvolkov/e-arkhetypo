@@ -21,6 +21,7 @@ from infra.state import State
 from processors.doc import DocProcessor
 from support.darts import SECTION, ScriptedAgent
 from support.docling import MARKDOWN, GoldenPort
+from support.root import darts, doc_args
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Mapping
@@ -43,10 +44,10 @@ def tree(graphs: Mapping[str, InstrumentGraph], agent: Any, pages: LiteparseAdap
         infra=InfraState(
             providers=None,  # ty: ignore[invalid-argument-type]
             engines=None,  # ty: ignore[invalid-argument-type]
-            processors=ProcessorsState(doc=DocProcessor(MARKDOWN, pages, GoldenPort())),
+            processors=ProcessorsState(doc=DocProcessor(MARKDOWN, pages, GoldenPort(), **doc_args())),
             graphs=MappingProxyType(dict(graphs)),
         ),
-        logic=LogicState(agent=agent, orchestrator=OrchestratorCore()),
+        logic=LogicState(agent=agent, orchestrator=OrchestratorCore(darts())),
         instrument=InstrumentState(telemetry=InstrumentTelemetry(), contexts=InstrumentContexts()),
     )
     root.seal()
@@ -114,7 +115,7 @@ async def test_a_pipeline_draws_as_its_graph(graphs: Mapping[str, InstrumentGrap
 
 
 async def test_sections_list_what_every_pipeline_mounts(graphs: Mapping[str, InstrumentGraph]) -> None:
-    sections = await SectionLab(OrchestratorCore(), graphs).sections()
+    sections = await SectionLab(OrchestratorCore(darts()), graphs).sections()
     assert [(info.pipeline, info.section) for info in sections if info.pipeline == "filing"] == [
         ("filing", Section.INGEST),
         ("filing", Section.EXTRACT),
@@ -202,7 +203,7 @@ async def test_examples_answer_first(
 async def test_a_tier_without_endpoint_routes_to_its_reason(
     settings: Callable[..., Any], pages: LiteparseAdapter
 ) -> None:
-    async with AgnosticAgent(settings()) as agent:
+    async with AgnosticAgent(**settings()) as agent:
         route = SectionLab.route(tree({}, agent, pages).logic, Tier.HIGH)
     assert route.error.startswith("tier high has no endpoint")
 
@@ -237,7 +238,7 @@ def test_a_pattern_rehearses_to_a_match_the_same_every_time() -> None:
 
 ##### THE NOTE'S MAP #####
 async def test_the_note_extract_map_is_placed_as_the_plan_ranks_it(graphs: Mapping[str, InstrumentGraph]) -> None:
-    mapped = await SectionLab(OrchestratorCore(), graphs).map("note", Section.EXTRACT)
+    mapped = await SectionLab(OrchestratorCore(darts()), graphs).map("note", Section.EXTRACT)
     assert (mapped.pipeline, mapped.section, mapped.ranks) == ("note", Section.EXTRACT, 3)
     places = {point.id: (point.rank, point.lane) for point in mapped.nodes}
     assert (
@@ -268,7 +269,7 @@ async def test_the_note_extract_map_is_placed_as_the_plan_ranks_it(graphs: Mappi
 async def test_the_note_extract_drawing_holds_every_spec_and_the_fallback_style(
     graphs: Mapping[str, InstrumentGraph],
 ) -> None:
-    lab = SectionLab(OrchestratorCore(), graphs)
+    lab = SectionLab(OrchestratorCore(darts()), graphs)
     dot = lab.dot(await lab.map("note", Section.EXTRACT))
     assert 'label="note · extract"' in dot
     assert all(f'label="{name}' in dot for name in ("EXT-payoff", "EXT-terms", "EXT-identifiers-read"))

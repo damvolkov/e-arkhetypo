@@ -30,9 +30,9 @@ from e_graph.logic.models import (
 from e_graph.logic.orchestrator.core import OrchestratorCore
 from e_graph.logic.state import LogicState
 from e_graph.models.section import Section
-from infra.config.darts import DartsSettings
 from infra.state import State
 from support.crafter import plug
+from support.root import darts
 
 if TYPE_CHECKING:
     from e_graph.logic.models import SectionRun
@@ -87,9 +87,7 @@ class DartsHarness:
 
     def configure(self, **conf: Any) -> OrchestratorCore:
         """A fresh orchestrator over the crafter's tree, DARTS settings as given."""
-        self.orchestrator = OrchestratorCore(
-            DartsSettings(**conf), specs=self.crafter.specs, runners=self.crafter.runners
-        )
+        self.orchestrator = OrchestratorCore(darts(**conf), specs=self.crafter.specs, runners=self.crafter.runners)
         return self.orchestrator
 
     ##### WRITING #####

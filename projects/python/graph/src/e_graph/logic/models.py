@@ -151,6 +151,18 @@ class Endpoint(msgspec.Struct, frozen=True, kw_only=True):
         )
 
 
+class Darts(msgspec.Struct, frozen=True, kw_only=True):
+    """The DARTS budgets the root reads (DARTS_*): deterministic specs of one step in flight (`concurrency`), fused agent
+    calls in flight (`calls`), most specs (`fusion_specs`) and estimated tokens (`fusion_tokens`) one fused call carries,
+    and a spec's deadline when its own is unset (`timeout`)."""
+
+    concurrency: int
+    calls: int
+    fusion_specs: int
+    fusion_tokens: int
+    timeout: timedelta
+
+
 class Message(msgspec.Struct, frozen=True):
     """One turn of a conversation."""
 

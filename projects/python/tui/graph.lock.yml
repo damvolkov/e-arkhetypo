@@ -1,4 +1,4 @@
-schema: 1
+schema: 2
 system: tui
 package: e_tui
 source: projects/python/tui
@@ -8,27 +8,27 @@ areas:
 - ops
 - ports
 - processors
-inputs_hash: "97b74fa47b29922686ba987b7a8ae945c6bf1ade3d42120eb4822cf91d21e0e4"
+- providers
+inputs_hash: "5b4304594c9a81da775f780f0c9d975eb4f9a06a5510466e454095f0d9e9681e"
 units:
 - key: engines/health
   area: engines
   name: health
   files:
   - src/engines/health.py
-  package: false
   tests:
   - tests/unit/engines/test_health.py
   deps:
   - infra/logger
-  - infra/settings
   - ports/provider
   dependents: []
   closure:
+  - infra/config/base
+  - infra/config/infra
   - infra/errors
   - infra/logger
   - infra/proxy
-  - infra/settings
-  - ops/file
+  - ops/crypto
   - ports/provider
   level: 4
   locked: false
@@ -38,18 +38,18 @@ units:
   name: telemetry
   files:
   - src/engines/telemetry.py
-  package: false
   tests:
   - tests/unit/engines/test_telemetry.py
   deps:
   - infra/logger
   dependents: []
   closure:
+  - infra/config/base
+  - infra/config/infra
   - infra/errors
   - infra/logger
   - infra/proxy
-  - infra/settings
-  - ops/file
+  - ops/crypto
   level: 4
   locked: false
   detachable: false
@@ -58,7 +58,6 @@ units:
   name: background
   files:
   - src/infra/background.py
-  package: false
   tests:
   - tests/unit/infra/test_background.py
   deps:
@@ -66,20 +65,222 @@ units:
   - infra/logger
   dependents: []
   closure:
+  - infra/config/base
+  - infra/config/infra
   - infra/errors
   - infra/logger
   - infra/proxy
-  - infra/settings
-  - ops/file
+  - ops/crypto
   level: 4
   locked: false
+  detachable: false
+- key: infra/config/agent
+  area: infra
+  name: config/agent
+  files:
+  - src/infra/config/agent.py
+  tests: []
+  deps:
+  - infra/config/base
+  dependents:
+  - infra/settings
+  closure:
+  - infra/config/base
+  level: 1
+  locked: true
+  detachable: false
+- key: infra/config/api
+  area: infra
+  name: config/api
+  files:
+  - src/infra/config/api.py
+  tests: []
+  deps:
+  - infra/config/base
+  dependents:
+  - infra/settings
+  closure:
+  - infra/config/base
+  level: 1
+  locked: true
+  detachable: false
+- key: infra/config/base
+  area: infra
+  name: config/base
+  files:
+  - src/infra/config/base.py
+  tests:
+  - tests/unit/infra/config/test_base.py
+  deps: []
+  dependents:
+  - infra/config/agent
+  - infra/config/api
+  - infra/config/cli
+  - infra/config/darts
+  - infra/config/engines
+  - infra/config/infra
+  - infra/config/mcp
+  - infra/config/processors
+  - infra/config/providers
+  - infra/config/theme
+  - infra/config/ui
+  closure: []
+  level: 0
+  locked: true
+  detachable: false
+- key: infra/config/cli
+  area: infra
+  name: config/cli
+  files:
+  - src/infra/config/cli.py
+  tests: []
+  deps:
+  - infra/config/base
+  dependents:
+  - infra/settings
+  closure:
+  - infra/config/base
+  level: 1
+  locked: true
+  detachable: false
+- key: infra/config/darts
+  area: infra
+  name: config/darts
+  files:
+  - src/infra/config/darts.py
+  tests: []
+  deps:
+  - infra/config/base
+  dependents:
+  - infra/settings
+  closure:
+  - infra/config/base
+  level: 1
+  locked: true
+  detachable: false
+- key: infra/config/engines
+  area: infra
+  name: config/engines
+  files:
+  - src/infra/config/engines.py
+  tests: []
+  deps:
+  - infra/config/base
+  dependents:
+  - infra/settings
+  closure:
+  - infra/config/base
+  level: 1
+  locked: true
+  detachable: false
+- key: infra/config/infra
+  area: infra
+  name: config/infra
+  files:
+  - src/infra/config/infra.py
+  tests: []
+  deps:
+  - infra/config/base
+  - ops/crypto
+  dependents:
+  - infra/logger
+  - infra/settings
+  closure:
+  - infra/config/base
+  - infra/errors
+  - ops/crypto
+  level: 2
+  locked: true
+  detachable: false
+- key: infra/config/mcp
+  area: infra
+  name: config/mcp
+  files:
+  - src/infra/config/mcp.py
+  tests: []
+  deps:
+  - infra/config/base
+  dependents:
+  - infra/settings
+  closure:
+  - infra/config/base
+  level: 1
+  locked: true
+  detachable: false
+- key: infra/config/processors
+  area: infra
+  name: config/processors
+  files:
+  - src/infra/config/processors.py
+  tests: []
+  deps:
+  - infra/config/base
+  - infra/config/providers
+  dependents:
+  - infra/settings
+  - ports/pages
+  - processors/doc
+  - processors/models
+  - providers/adapters/pages/liteparse
+  closure:
+  - infra/config/base
+  - infra/config/providers
+  level: 2
+  locked: true
+  detachable: false
+- key: infra/config/providers
+  area: infra
+  name: config/providers
+  files:
+  - src/infra/config/providers.py
+  tests: []
+  deps:
+  - infra/config/base
+  dependents:
+  - infra/config/processors
+  - infra/settings
+  - processors/doc
+  - providers/drivers/documents/docling
+  closure:
+  - infra/config/base
+  level: 1
+  locked: true
+  detachable: false
+- key: infra/config/theme
+  area: infra
+  name: config/theme
+  files:
+  - src/infra/config/theme.py
+  tests: []
+  deps:
+  - infra/config/base
+  dependents:
+  - infra/settings
+  closure:
+  - infra/config/base
+  level: 1
+  locked: true
+  detachable: false
+- key: infra/config/ui
+  area: infra
+  name: config/ui
+  files:
+  - src/infra/config/ui.py
+  tests: []
+  deps:
+  - infra/config/base
+  dependents:
+  - infra/settings
+  closure:
+  - infra/config/base
+  level: 1
+  locked: true
   detachable: false
 - key: infra/errors
   area: infra
   name: errors
   files:
   - src/infra/errors.py
-  package: false
   tests:
   - tests/unit/infra/test_errors.py
   deps: []
@@ -90,6 +291,12 @@ units:
   - ops/image
   - ops/registry
   - processors/doc
+  - providers/adapters/markdown/anytomd
+  - providers/adapters/pages/liteparse
+  - providers/drivers/documents/docling
+  - providers/drivers/http/wreq
+  - providers/drivers/store/redis
+  - providers/drivers/store/sqlite
   closure: []
   level: 0
   locked: true
@@ -99,18 +306,18 @@ units:
   name: events
   files:
   - src/infra/events.py
-  package: false
   tests:
   - tests/unit/infra/test_events.py
   deps:
   - infra/logger
   dependents: []
   closure:
+  - infra/config/base
+  - infra/config/infra
   - infra/errors
   - infra/logger
   - infra/proxy
-  - infra/settings
-  - ops/file
+  - ops/crypto
   level: 4
   locked: false
   detachable: false
@@ -119,23 +326,31 @@ units:
   name: logger
   files:
   - src/infra/logger.py
-  package: false
   tests:
   - tests/unit/infra/test_logger.py
   deps:
+  - infra/config/infra
   - infra/proxy
-  - infra/settings
   dependents:
   - engines/health
   - engines/telemetry
   - infra/background
   - infra/events
   - processors/doc
+  - providers/adapters/language/lingua
+  - providers/adapters/markdown/anytomd
+  - providers/adapters/pages/liteparse
+  - providers/adapters/watch/watchfiles
+  - providers/drivers/documents/docling
+  - providers/drivers/http/wreq
+  - providers/drivers/store/redis
+  - providers/drivers/store/sqlite
   closure:
+  - infra/config/base
+  - infra/config/infra
   - infra/errors
   - infra/proxy
-  - infra/settings
-  - ops/file
+  - ops/crypto
   level: 3
   locked: false
   detachable: false
@@ -144,37 +359,51 @@ units:
   name: proxy
   files:
   - src/infra/proxy.py
-  package: false
   tests:
   - tests/unit/infra/test_proxy.py
   deps: []
   dependents:
   - infra/logger
-  - infra/settings
   closure: []
   level: 0
-  locked: true
+  locked: false
   detachable: false
 - key: infra/settings
   area: infra
   name: settings
   files:
   - src/infra/settings.py
-  package: false
   tests:
   - tests/unit/infra/test_settings.py
   deps:
-  - infra/proxy
-  - ops/file
-  dependents:
-  - engines/health
-  - infra/logger
-  - processors/doc
+  - infra/config/agent
+  - infra/config/api
+  - infra/config/cli
+  - infra/config/darts
+  - infra/config/engines
+  - infra/config/infra
+  - infra/config/mcp
+  - infra/config/processors
+  - infra/config/providers
+  - infra/config/theme
+  - infra/config/ui
+  dependents: []
   closure:
+  - infra/config/agent
+  - infra/config/api
+  - infra/config/base
+  - infra/config/cli
+  - infra/config/darts
+  - infra/config/engines
+  - infra/config/infra
+  - infra/config/mcp
+  - infra/config/processors
+  - infra/config/providers
+  - infra/config/theme
+  - infra/config/ui
   - infra/errors
-  - infra/proxy
-  - ops/file
-  level: 2
+  - ops/crypto
+  level: 3
   locked: true
   detachable: false
 - key: infra/state
@@ -182,7 +411,6 @@ units:
   name: state
   files:
   - src/infra/state.py
-  package: false
   tests:
   - tests/unit/infra/test_state.py
   deps: []
@@ -196,7 +424,6 @@ units:
   name: struct
   files:
   - src/infra/struct.py
-  package: false
   tests:
   - tests/unit/infra/test_struct.py
   deps: []
@@ -210,9 +437,24 @@ units:
   name: crypto
   files:
   - src/ops/crypto.py
-  package: false
   tests:
   - tests/unit/ops/test_crypto.py
+  deps:
+  - infra/errors
+  dependents:
+  - infra/config/infra
+  closure:
+  - infra/errors
+  level: 1
+  locked: true
+  detachable: false
+- key: ops/file
+  area: ops
+  name: file
+  files:
+  - src/ops/file.py
+  tests:
+  - tests/unit/ops/test_file.py
   deps:
   - infra/errors
   dependents: []
@@ -221,29 +463,11 @@ units:
   level: 1
   locked: false
   detachable: false
-- key: ops/file
-  area: ops
-  name: file
-  files:
-  - src/ops/file.py
-  package: false
-  tests:
-  - tests/unit/ops/test_file.py
-  deps:
-  - infra/errors
-  dependents:
-  - infra/settings
-  closure:
-  - infra/errors
-  level: 1
-  locked: true
-  detachable: false
 - key: ops/hash
   area: ops
   name: hash
   files:
   - src/ops/hash.py
-  package: false
   tests:
   - tests/unit/ops/test_hash.py
   deps: []
@@ -257,7 +481,6 @@ units:
   name: image
   files:
   - src/ops/image.py
-  package: false
   tests:
   - tests/unit/ops/test_image.py
   deps:
@@ -273,7 +496,6 @@ units:
   name: registry
   files:
   - src/ops/registry.py
-  package: false
   tests:
   - tests/unit/ops/test_registry.py
   deps:
@@ -289,7 +511,6 @@ units:
   name: snap
   files:
   - src/ops/snap.py
-  package: false
   tests:
   - tests/unit/ops/test_snap.py
   deps: []
@@ -303,7 +524,6 @@ units:
   name: tui
   files:
   - src/ops/tui.py
-  package: false
   tests:
   - tests/unit/ops/test_tui.py
   deps: []
@@ -317,7 +537,6 @@ units:
   name: wrappers
   files:
   - src/ops/wrappers.py
-  package: false
   tests:
   - tests/unit/ops/test_wrappers.py
   deps: []
@@ -331,12 +550,12 @@ units:
   name: documents
   files:
   - src/ports/documents.py
-  package: false
   tests: []
   deps:
   - ports/provider
   dependents:
   - processors/doc
+  - providers/drivers/documents/docling
   closure:
   - ports/provider
   level: 1
@@ -347,11 +566,11 @@ units:
   name: http
   files:
   - src/ports/http.py
-  package: false
   tests: []
   deps:
   - ports/provider
-  dependents: []
+  dependents:
+  - providers/drivers/documents/docling
   closure:
   - ports/provider
   level: 1
@@ -362,7 +581,6 @@ units:
   name: language
   files:
   - src/ports/language.py
-  package: false
   tests: []
   deps:
   - ports/provider
@@ -377,12 +595,12 @@ units:
   name: markdown
   files:
   - src/ports/markdown.py
-  package: false
   tests: []
   deps:
   - ports/provider
   dependents:
   - processors/doc
+  - providers/adapters/markdown/anytomd
   closure:
   - ports/provider
   level: 1
@@ -393,15 +611,19 @@ units:
   name: pages
   files:
   - src/ports/pages.py
-  package: false
   tests: []
   deps:
+  - infra/config/processors
   - ports/provider
   dependents:
   - processors/doc
+  - providers/adapters/pages/liteparse
   closure:
+  - infra/config/base
+  - infra/config/processors
+  - infra/config/providers
   - ports/provider
-  level: 1
+  level: 3
   locked: false
   detachable: false
 - key: ports/provider
@@ -409,7 +631,6 @@ units:
   name: provider
   files:
   - src/ports/provider.py
-  package: false
   tests:
   - tests/unit/ports/test_provider.py
   deps: []
@@ -422,6 +643,15 @@ units:
   - ports/pages
   - ports/store
   - ports/watch
+  - providers/adapters/language/lingua
+  - providers/adapters/markdown/anytomd
+  - providers/adapters/pages/liteparse
+  - providers/adapters/telemetry/null
+  - providers/adapters/watch/watchfiles
+  - providers/drivers/documents/docling
+  - providers/drivers/http/wreq
+  - providers/drivers/store/redis
+  - providers/drivers/store/sqlite
   closure: []
   level: 0
   locked: false
@@ -431,7 +661,6 @@ units:
   name: store
   files:
   - src/ports/store.py
-  package: false
   tests: []
   deps:
   - ports/provider
@@ -446,11 +675,11 @@ units:
   name: watch
   files:
   - src/ports/watch.py
-  package: false
   tests: []
   deps:
   - ports/provider
-  dependents: []
+  dependents:
+  - providers/adapters/watch/watchfiles
   closure:
   - ports/provider
   level: 1
@@ -461,25 +690,28 @@ units:
   name: doc
   files:
   - src/processors/doc.py
-  package: false
   tests:
   - tests/unit/processors/test_doc.py
   - tests/unit/processors/test_doc_real.py
   deps:
+  - infra/config/processors
+  - infra/config/providers
   - infra/errors
   - infra/logger
-  - infra/settings
   - ports/documents
   - ports/markdown
   - ports/pages
   - processors/models
   dependents: []
   closure:
+  - infra/config/base
+  - infra/config/infra
+  - infra/config/processors
+  - infra/config/providers
   - infra/errors
   - infra/logger
   - infra/proxy
-  - infra/settings
-  - ops/file
+  - ops/crypto
   - ports/documents
   - ports/markdown
   - ports/pages
@@ -493,13 +725,228 @@ units:
   name: models
   files:
   - src/processors/models.py
-  package: false
   tests:
   - tests/unit/processors/test_models.py
-  deps: []
+  deps:
+  - infra/config/processors
   dependents:
   - processors/doc
-  closure: []
-  level: 0
+  closure:
+  - infra/config/base
+  - infra/config/processors
+  - infra/config/providers
+  level: 3
+  locked: false
+  detachable: false
+- key: providers/adapters/language/lingua
+  area: providers
+  name: adapters/language/lingua
+  files:
+  - src/providers/adapters/language/lingua.py
+  tests:
+  - tests/unit/providers/adapters/language/test_lingua.py
+  deps:
+  - infra/logger
+  - ports/provider
+  dependents: []
+  closure:
+  - infra/config/base
+  - infra/config/infra
+  - infra/errors
+  - infra/logger
+  - infra/proxy
+  - ops/crypto
+  - ports/provider
+  level: 4
+  locked: false
+  detachable: false
+- key: providers/adapters/markdown/anytomd
+  area: providers
+  name: adapters/markdown/anytomd
+  files:
+  - src/providers/adapters/markdown/anytomd.py
+  tests:
+  - tests/unit/providers/adapters/markdown/test_anytomd.py
+  deps:
+  - infra/errors
+  - infra/logger
+  - ports/markdown
+  - ports/provider
+  dependents: []
+  closure:
+  - infra/config/base
+  - infra/config/infra
+  - infra/errors
+  - infra/logger
+  - infra/proxy
+  - ops/crypto
+  - ports/markdown
+  - ports/provider
+  level: 4
+  locked: false
+  detachable: false
+- key: providers/adapters/pages/liteparse
+  area: providers
+  name: adapters/pages/liteparse
+  files:
+  - src/providers/adapters/pages/liteparse.py
+  tests:
+  - tests/unit/providers/adapters/pages/test_liteparse.py
+  deps:
+  - infra/config/processors
+  - infra/errors
+  - infra/logger
+  - ports/pages
+  - ports/provider
+  dependents: []
+  closure:
+  - infra/config/base
+  - infra/config/infra
+  - infra/config/processors
+  - infra/config/providers
+  - infra/errors
+  - infra/logger
+  - infra/proxy
+  - ops/crypto
+  - ports/pages
+  - ports/provider
+  level: 4
+  locked: false
+  detachable: false
+- key: providers/adapters/telemetry/null
+  area: providers
+  name: adapters/telemetry/null
+  files:
+  - src/providers/adapters/telemetry/null.py
+  tests:
+  - tests/unit/providers/adapters/telemetry/test_null.py
+  deps:
+  - ports/provider
+  dependents: []
+  closure:
+  - ports/provider
+  level: 1
+  locked: false
+  detachable: false
+- key: providers/adapters/watch/watchfiles
+  area: providers
+  name: adapters/watch/watchfiles
+  files:
+  - src/providers/adapters/watch/watchfiles.py
+  tests:
+  - tests/unit/providers/adapters/watch/test_watchfiles.py
+  deps:
+  - infra/logger
+  - ports/provider
+  - ports/watch
+  dependents: []
+  closure:
+  - infra/config/base
+  - infra/config/infra
+  - infra/errors
+  - infra/logger
+  - infra/proxy
+  - ops/crypto
+  - ports/provider
+  - ports/watch
+  level: 4
+  locked: false
+  detachable: false
+- key: providers/drivers/documents/docling
+  area: providers
+  name: drivers/documents/docling
+  files:
+  - src/providers/drivers/documents/docling.py
+  tests:
+  - tests/unit/providers/drivers/documents/test_docling.py
+  deps:
+  - infra/config/providers
+  - infra/errors
+  - infra/logger
+  - ports/documents
+  - ports/http
+  - ports/provider
+  dependents: []
+  closure:
+  - infra/config/base
+  - infra/config/infra
+  - infra/config/providers
+  - infra/errors
+  - infra/logger
+  - infra/proxy
+  - ops/crypto
+  - ports/documents
+  - ports/http
+  - ports/provider
+  level: 4
+  locked: false
+  detachable: false
+- key: providers/drivers/http/wreq
+  area: providers
+  name: drivers/http/wreq
+  files:
+  - src/providers/drivers/http/wreq.py
+  tests:
+  - tests/unit/providers/drivers/http/test_wreq.py
+  deps:
+  - infra/errors
+  - infra/logger
+  - ports/provider
+  dependents: []
+  closure:
+  - infra/config/base
+  - infra/config/infra
+  - infra/errors
+  - infra/logger
+  - infra/proxy
+  - ops/crypto
+  - ports/provider
+  level: 4
+  locked: false
+  detachable: false
+- key: providers/drivers/store/redis
+  area: providers
+  name: drivers/store/redis
+  files:
+  - src/providers/drivers/store/redis.py
+  tests:
+  - tests/unit/providers/drivers/store/test_redis.py
+  deps:
+  - infra/errors
+  - infra/logger
+  - ports/provider
+  dependents: []
+  closure:
+  - infra/config/base
+  - infra/config/infra
+  - infra/errors
+  - infra/logger
+  - infra/proxy
+  - ops/crypto
+  - ports/provider
+  level: 4
+  locked: false
+  detachable: false
+- key: providers/drivers/store/sqlite
+  area: providers
+  name: drivers/store/sqlite
+  files:
+  - src/providers/drivers/store/sqlite.py
+  tests:
+  - tests/unit/providers/drivers/store/test_sqlite.py
+  deps:
+  - infra/errors
+  - infra/logger
+  - ports/provider
+  dependents: []
+  closure:
+  - infra/config/base
+  - infra/config/infra
+  - infra/errors
+  - infra/logger
+  - infra/proxy
+  - ops/crypto
+  - ports/provider
+  level: 4
   locked: false
   detachable: false

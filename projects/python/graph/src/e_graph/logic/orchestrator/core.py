@@ -46,16 +46,14 @@ from e_graph.logic.models import AgentCall, Bound, Call, SectionRun, SemanticSpe
 from e_graph.logic.orchestrator.fusion import SpecFusion
 from e_graph.logic.orchestrator.plan import DagPlan
 from infra.logger import logger
-from infra.settings import settings as st
 
 if TYPE_CHECKING:
     from collections.abc import Generator, Iterator, Mapping, Sequence
     from pathlib import Path
 
     from e_graph.instrument.state import RunState
-    from e_graph.logic.models import Catalog, Reply, SectionPlan, Spec, SpecNode, Step, Tier
+    from e_graph.logic.models import Catalog, Darts, Reply, SectionPlan, Spec, SpecNode, Step, Tier
     from e_graph.models.section import Section
-    from infra.config.darts import DartsSettings
 
 MS_PER_SECOND: Final[float] = 1000.0
 LOST: Final[frozenset[SpecStatus]] = frozenset({SpecStatus.FAILED, SpecStatus.BLOCKED})
@@ -85,14 +83,13 @@ class OrchestratorCore:
 
     def __init__(
         self,
-        settings: DartsSettings | None = None,
+        darts: Darts,
         *,
         specs: Path = SPECS,
         runners: Path = RUNNERS,
         kinds: tuple[type[Spec], ...] = KINDS,
     ) -> None:
-        ### the default is read on call, not at import: the settings singleton stays lazy.
-        self._conf = st.darts if settings is None else settings
+        self._conf = darts
         self._specs, self._runners, self._kinds = specs, runners, kinds
         self._discovers: dict[str, SpecDiscover] = {}
 
@@ -424,8 +421,8 @@ class OrchestratorCore:
     ##### PUBLIC #####
 
     @property
-    def conf(self) -> DartsSettings:
-        """The DARTS settings the orchestrator plans and runs by."""
+    def conf(self) -> Darts:
+        """The DARTS budgets the orchestrator plans and runs by."""
         return self._conf
 
     async def catalog(self, pipeline: str, section: Section) -> Catalog:

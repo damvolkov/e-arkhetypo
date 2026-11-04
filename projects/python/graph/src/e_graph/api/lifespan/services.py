@@ -8,6 +8,7 @@ the logic mount their own branches, each in its lifespan (`instrument`, `logic`)
 
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
+from typing import TYPE_CHECKING
 
 from litestar import Litestar
 
@@ -16,8 +17,30 @@ from e_graph.instrument.state import REQUIRED, EnginesState, ProcessorsState
 from engines.health import HealthEngine
 from infra.logger import logger
 from infra.settings import settings as st
-from ops.crypto import Crypto
+from ops.crypto import Crypto, CryptoKeys
 from processors.doc import DocProcessor
+
+if TYPE_CHECKING:
+    from ports.documents import DocumentPort
+    from ports.markdown import MarkdownPort
+    from ports.pages import PagesPort
+
+
+##### ROOT #####
+def doc(markdown: MarkdownPort, pages: PagesPort, docling: DocumentPort | None) -> DocProcessor:
+    """The document reader over its three providers, DOC_*."""
+    return DocProcessor(
+        markdown,
+        pages,
+        docling,
+        concurrency=st.DOC_CONCURRENCY,
+        span=st.DOC_SPAN,
+        gap=st.DOC_GAP,
+        mode=st.DOC_MODE,
+        route=st.DOC_ROUTE,
+        tables=st.DOC_TABLES,
+        max_input_bytes=st.DOC_MAX_INPUT_BYTES,
+    )
 
 
 @asynccontextmanager
@@ -25,10 +48,19 @@ async def lifespan(app: Litestar) -> AsyncGenerator[None]:
     """Assemble crypto, the engines and the processors, then log every provider's health once."""
     system = AppState.of(app).system
     providers = system.infra.providers
-    system.crypto = Crypto(st.crypto)
-    system.infra.engines = EnginesState(health=HealthEngine(providers.named, REQUIRED))
+    system.crypto = Crypto(
+        CryptoKeys(
+            secret=st.CRYPTO__SECRET,
+            alg=st.CRYPTO__ALG,
+            enc=st.CRYPTO__ENC,
+            private_key=st.CRYPTO__PRIVATE_KEY.get_secret_value(),
+            hasher=st.CRYPTO__HASHER,
+            bcrypt_rounds=st.CRYPTO__BCRYPT_ROUNDS,
+        )
+    )
+    system.infra.engines = EnginesState(health=HealthEngine(providers.named, REQUIRED, st.PING_TIMEOUT))
     ### readers over the providers: documents through anytomd, liteparse and — when present — the docling driver.
-    system.infra.processors = ProcessorsState(doc=DocProcessor(providers.markdown, providers.pages, providers.docling))
+    system.infra.processors = ProcessorsState(doc=doc(providers.markdown, providers.pages, providers.docling))
     _ = [
         (logger.info if health.ok else logger.warning)(
             "provider health", provider=health.name, ok=health.ok, required=health.required, latency_ms=health.latency,

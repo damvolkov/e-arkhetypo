@@ -17,11 +17,14 @@ unset fails only the call that asks for it."""
 
 from datetime import timedelta
 from types import MappingProxyType
-from typing import Any, Final, Literal
+from typing import TYPE_CHECKING, Any, Final, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, NonNegativeInt, SecretStr
 
 from e_infra.infra.config.base import BaseSettings
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
 
 type EnvNames = tuple[str, ...]
 
@@ -323,3 +326,21 @@ class AgentSettings(BaseSettings):
     ### CUSTOM
     CUSTOM_API_KEY: SecretStr | None = None
     CUSTOM_API_BASE: str | None = None
+
+    ##### VIEWS — what the root hands the agent #####
+
+    def agent_credentials(self) -> Mapping[str, tuple[SecretStr | None, str | None]]:
+        """Every provider's key and base, each the first of its variables that is set."""
+        return MappingProxyType(
+            {
+                provider: (
+                    next((value for name in keys if (value := getattr(self, name)) is not None), None),
+                    next((value for name in bases if (value := getattr(self, name)) is not None), None),
+                )
+                for provider, (keys, bases) in PROVIDERS.items()
+            }
+        )
+
+    def agent_tiers(self) -> Mapping[str, AgentTier | None]:
+        """The declared tiers by name — `high`, `medium`, `low` — each unset as None."""
+        return MappingProxyType({"high": self.AGENT_HIGH, "medium": self.AGENT_MEDIUM, "low": self.AGENT_LOW})

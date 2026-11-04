@@ -25,11 +25,11 @@ if TYPE_CHECKING:
     from pytest_resources import Resources
 
     from support.darts import DartsHarness
-
-from infra.config.providers.drivers.telemetry.otel import OTelSettings
 from providers.drivers.telemetry.otel import OTelDriver
 from support.crafter import SpecCrafter
 from support.darts import DartsHarness
+from support.root import darts as budgets
+from support.root import otel_args
 
 Y_SCHEMA: dict[str, Any] = {"type": "object", "properties": {"y": {"type": "number"}}, "required": ["y"], "additionalProperties": False}  # fmt: skip
 HOLDS: dict[str, Any] = {"type": "object", "properties": {"holds": {"type": "boolean"}}, "required": ["holds"], "additionalProperties": False}  # fmt: skip
@@ -37,7 +37,7 @@ HOLDS: dict[str, Any] = {"type": "object", "properties": {"holds": {"type": "boo
 
 @pytest.fixture
 async def darts(resources: Resources, tmp_path: Path, exporter: InMemorySpanExporter) -> AsyncIterator[DartsHarness]:
-    async with OTelDriver(OTelSettings(), exporter) as telemetry:
+    async with OTelDriver(**otel_args(), exporter=exporter) as telemetry:
         yield DartsHarness(SpecCrafter(resources, tmp_path, seed=7), telemetry)
 
 
@@ -77,24 +77,24 @@ def tree_of(harness: DartsHarness, agent: Any) -> State:
 
 ##### CONTRACT #####
 def test_the_contract_mirrors_grammar_laws_and_budgets() -> None:
-    contract = DartsOps(OrchestratorCore()).contract()
+    contract = DartsOps(OrchestratorCore(budgets())).contract()
     assert sorted(contract) == ["budget", "kinds", "laws", "patterns", "roles", "scopes", "sections", "slots", "tiers"]
     assert {law["rule"] for law in contract["laws"]} == {str(rule) for rule in Rule}
     assert all(law["fix"] and law["scope"] for law in contract["laws"])
     assert (contract["sections"]["extract"], contract["sections"]["report"]) == ("EXT", "REP")
     assert set(contract["roles"]) == {"run", "check", "pre_run", "post_run"}
     assert contract["slots"] == {"runner": "run", "check": "check", "pre": "pre_run", "post": "post_run"}
-    assert contract["budget"]["darts_fusion_specs"] == st.darts.fusion_specs
+    assert contract["budget"]["darts_fusion_specs"] == st.DARTS_FUSION_SPECS
     assert contract["budget"]["darts_timeout"].startswith("PT")
 
 
 def test_the_contract_is_the_same_mirror_twice() -> None:
-    ops = DartsOps(OrchestratorCore())
+    ops = DartsOps(OrchestratorCore(budgets()))
     assert ops.contract() == ops.contract()
 
 
 def test_the_kinds_carry_their_slots() -> None:
-    defs = DartsOps(OrchestratorCore()).contract()["kinds"]["semantic"]["$defs"]
+    defs = DartsOps(OrchestratorCore(budgets())).contract()["kinds"]["semantic"]["$defs"]
     fields = next(value["properties"] for value in defs.values() if value.get("title", "").startswith("SemanticSpec"))
     assert {"pre", "post", "check", "instructions", "tier"} <= set(fields)
 

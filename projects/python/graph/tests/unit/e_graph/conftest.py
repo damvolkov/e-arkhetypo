@@ -1,16 +1,8 @@
-"""tests/unit/e_graph: the live app on the real state — env seeded before the lazy core singletons ever load.
-
-`os.environ` stays untouched at module import (doctrine: no side-effect between imports); the seeding
-rides `pytest_configure`, which pytest runs before collection. Collection matters: pytest probes every
-test-module global for `__test__` (anyio's hook calls `getattr(obj, "__test__", False)`), so a test
-module holding `settings as st` at module level touches the LazyProxy during collection — the earliest
-point any settings access can happen, and the reason a session fixture is already too late."""
+"""tests/unit/e_graph: the live app on the real state — its environment seeded by `tests/conftest.py`, before any
+module here imports the app (`Settings()` reads the environment at import)."""
 
 import os
-import socket
-import tempfile
 import types
-from pathlib import Path
 from types import MappingProxyType
 from typing import TYPE_CHECKING, Any
 from urllib.parse import urlsplit
@@ -30,12 +22,12 @@ from e_graph.logic.agent import AgnosticAgent
 from e_graph.logic.orchestrator.core import OrchestratorCore
 from e_graph.logic.state import LogicState
 from e_graph.main import create_app
-from infra.config.providers.drivers.telemetry.otel import OTelSettings
 from infra.state import State
 from processors.doc import DocProcessor
 from providers.drivers.store import redis as redis_module
 from providers.drivers.telemetry.otel import OTelDriver
 from support.docling import MARKDOWN, GoldenPort
+from support.root import agent_args, darts, doc_args, otel_args
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator, Callable, Iterator
@@ -45,23 +37,10 @@ if TYPE_CHECKING:
     from providers.adapters.pages.liteparse import LiteparseAdapter
 
 
-def pytest_configure() -> None:
-    """Seed SECRET, a private DB_PATH and a test queue database before any collection-time settings touch; external
-    env wins."""
-    ### the db lifespan provisions the queue database on the local ParadeDB: a test one, never the service's.
-    os.environ.setdefault("QUEUE_DSN", "postgresql://postgres:postgres@127.0.0.1:45011/e_graph_test_background")
-    os.environ.setdefault("CRYPTO__SECRET", "unit-test-secret-0123456789")
-    os.environ.setdefault("DB_PATH", str(Path(tempfile.mkdtemp(prefix="e-graph-tests-")) / "test.db"))
-    ### docling-serve is a local HTTP server in the test run, on a free port of its own — never the stack's.
-    with socket.socket() as probe:
-        probe.bind(("127.0.0.1", 0))
-        os.environ["DOCLING_URL"] = f"http://127.0.0.1:{probe.getsockname()[1]}"
-
-
 class FakePsqlpyDriver:
     """The database driver of the db lifespan with no database behind it: every provision creates."""
 
-    def __init__(self, _settings: object) -> None: ...
+    def __init__(self, **_: object) -> None: ...
 
     async def provision(self) -> bool:
         return True
@@ -69,7 +48,7 @@ class FakePsqlpyDriver:
 
 @pytest.fixture(scope="session")
 def httpserver_listen_address() -> tuple[str, int]:
-    """Where the plugin's session server listens: the port `pytest_configure` gave DOCLING_URL."""
+    """Where the plugin's session server listens: the port `tests/conftest.py` gave DOCLING_URL."""
     parts = urlsplit(os.environ["DOCLING_URL"])
     return parts.hostname or "127.0.0.1", parts.port or 0
 
@@ -105,7 +84,7 @@ async def system(exporter: InMemorySpanExporter, pages: LiteparseAdapter) -> Asy
     The providers and engines no instrument test touches stay absent; the agent is real but never called here;
     documents read through the golden conversions (`support.docling.GoldenPort`) and the real fast pass."""
     port = GoldenPort()
-    async with OTelDriver(OTelSettings(), exporter) as telemetry, AgnosticAgent() as agent:
+    async with OTelDriver(**otel_args(), exporter=exporter) as telemetry, AgnosticAgent(**agent_args()) as agent:
         infra = InfraState(
             providers=ProvidersState(
                 store=None,  # ty: ignore[invalid-argument-type]
@@ -117,12 +96,12 @@ async def system(exporter: InMemorySpanExporter, pages: LiteparseAdapter) -> Asy
                 markdown=MARKDOWN,
             ),
             engines=None,  # ty: ignore[invalid-argument-type]
-            processors=ProcessorsState(doc=DocProcessor(MARKDOWN, pages, port)),
+            processors=ProcessorsState(doc=DocProcessor(MARKDOWN, pages, port, **doc_args())),
             graphs=MappingProxyType({"probe": InstrumentGraph(name="probe")}),
         )
         graph = State(
             infra=infra,
-            logic=LogicState(agent=agent, orchestrator=OrchestratorCore()),
+            logic=LogicState(agent=agent, orchestrator=OrchestratorCore(darts())),
             instrument=InstrumentState(telemetry=InstrumentTelemetry(telemetry), contexts=InstrumentContexts()),
         )
         graph.seal()

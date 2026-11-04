@@ -25,6 +25,7 @@ from infra.state import State
 from processors.doc import DocProcessor
 from support.darts import ScriptedAgent
 from support.docling import MARKDOWN, GoldenPort
+from support.root import darts, doc_args
 
 if TYPE_CHECKING:
     from pytest_resources import Resources
@@ -139,7 +140,7 @@ def agent() -> ScriptedAgent:
 
 @pytest.fixture
 def orchestrator() -> OrchestratorCore:
-    return OrchestratorCore()
+    return OrchestratorCore(darts())
 
 
 @pytest.fixture
@@ -147,7 +148,7 @@ def state(agent: ScriptedAgent, orchestrator: OrchestratorCore, pages: Liteparse
     infra = InfraState(
         providers=None,  # ty: ignore[invalid-argument-type]
         engines=None,  # ty: ignore[invalid-argument-type]
-        processors=ProcessorsState(doc=DocProcessor(MARKDOWN, pages, GoldenPort())),
+        processors=ProcessorsState(doc=DocProcessor(MARKDOWN, pages, GoldenPort(), **doc_args())),
         graphs=MappingProxyType({}),
     )
     system = State(

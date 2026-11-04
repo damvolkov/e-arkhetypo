@@ -4,10 +4,10 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from infra.config.providers.drivers.telemetry.otel import OTelSettings
 from providers.drivers.telemetry.otel import OTelDriver
 from support.crafter import SpecCrafter
 from support.darts import DartsHarness
+from support.root import otel_args
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
@@ -20,5 +20,5 @@ if TYPE_CHECKING:
 @pytest.fixture
 async def darts(resources: Resources, tmp_path: Path, exporter: InMemorySpanExporter) -> AsyncIterator[DartsHarness]:
     """A fresh `doc` pipeline under a temporary root, its spans readable in memory."""
-    async with OTelDriver(OTelSettings(), exporter) as telemetry:
+    async with OTelDriver(**otel_args(), exporter=exporter) as telemetry:
         yield DartsHarness(SpecCrafter(resources, tmp_path, seed=7), telemetry)

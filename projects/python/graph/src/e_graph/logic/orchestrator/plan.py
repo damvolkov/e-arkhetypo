@@ -24,8 +24,7 @@ ORDER: Final[Mapping[Tier, int]] = MappingProxyType({tier: position for position
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
 
-    from e_graph.logic.models import Catalog
-    from infra.config.darts import DartsSettings
+    from e_graph.logic.models import Catalog, Darts
 
 
 class DagPlan:
@@ -49,7 +48,7 @@ class DagPlan:
         return [sorted(graph[node] for node in generation) for generation in rx.topological_generations(graph)]
 
     @staticmethod
-    def _build_step(position: int, names: Sequence[str], catalog: Catalog, conf: DartsSettings) -> Step:
+    def _build_step(position: int, names: Sequence[str], catalog: Catalog, conf: Darts) -> Step:
         """One generation as a step: deterministic specs alone, semantic ones fused by tier and packed by budget."""
         nodes = catalog.nodes
         tiers = {name: spec.tier for name in names if isinstance(spec := nodes[name].spec, SemanticSpec)}
@@ -74,7 +73,7 @@ class DagPlan:
     ##### PUBLIC #####
 
     @classmethod
-    def build(cls, catalog: Catalog, conf: DartsSettings) -> SectionPlan:
+    def build(cls, catalog: Catalog, conf: Darts) -> SectionPlan:
         """The section's plan: fallbacks held back for their parents, the rest in steps of topological generations."""
         fallbacks = {
             name: node.spec.fallback for name, node in sorted(catalog.nodes.items()) if node.spec.fallback is not None

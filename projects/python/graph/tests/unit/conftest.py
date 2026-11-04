@@ -13,6 +13,7 @@ import pytest
 from pytest_resources import FileType, eserde_loaders
 
 from providers.adapters.pages.liteparse import LiteparseAdapter
+from support.root import liteparse_args
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
@@ -27,5 +28,5 @@ def pytest_resource_loaders(register) -> None:
 @pytest.fixture(scope="session")
 async def pages() -> AsyncIterator[LiteparseAdapter]:
     """The in-process fast pass the DocProcessor reads every page with, opened once per worker."""
-    async with LiteparseAdapter() as adapter:
+    async with LiteparseAdapter(**liteparse_args()) as adapter:
         yield adapter

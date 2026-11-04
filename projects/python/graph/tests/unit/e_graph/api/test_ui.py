@@ -38,8 +38,8 @@ def test_ui_view_reads_the_settings(client) -> None:
     response = client.get("/api/ui")
     assert response.status_code == 200
     assert response.json() == {
-        "toast_ms": round(st.ui.toast.total_seconds() * 1000),
-        "pace": st.ui.pace.total_seconds(),
-        "lane_gap": st.ui.lane_gap,
-        "rank_gap": st.ui.rank_gap,
+        "toast_ms": round(st.UI_TOAST.total_seconds() * 1000),
+        "pace": st.UI_PACE.total_seconds(),
+        "lane_gap": st.UI_LANE_GAP,
+        "rank_gap": st.UI_RANK_GAP,
     }

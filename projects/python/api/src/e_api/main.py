@@ -31,6 +31,7 @@ from e_api.mcp import registry as tools
 from e_api.websockets import telemetry
 from infra.auth.guard import OPT, guard
 from infra.auth.models import Access
+from infra.logger import ELogger
 from infra.mcp.guard import internal
 from infra.settings import settings as st
 from infra.state import State
@@ -41,6 +42,8 @@ GUARDED: Final = (health.ROUTES, user.ROUTES, auth.ROUTES)
 
 def create_app() -> Litestar:
     """Composition root: granian calls this per worker. Nothing here builds — the lifespans write the system graph."""
+    ### the logger takes APP_ENV from the root, before any line is logged: JSON in prod, flat text elsewhere.
+    ELogger.setup(env=st.APP_ENV)
     ##### APP #####
     app = Litestar(
         route_handlers=[],

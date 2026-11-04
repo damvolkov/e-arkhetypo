@@ -23,12 +23,15 @@ from e_graph.api.lifespan.infra import lifespan as infra_lifespan
 from e_graph.api.middlewares import MIDDLEWARES, cors_config
 from e_graph.api.router import health, pipelines, specs, ui
 from e_graph.api.state import AppState
+from infra.logger import ELogger
 from infra.settings import settings as st
 from infra.state import State
 
 
 def create_app() -> Litestar:
     """Composition root: granian calls this per worker. Nothing here builds — the lifespans write the system graph."""
+    ### the logger takes APP_ENV from the root, before any line is logged: JSON in prod, flat text elsewhere.
+    ELogger.setup(env=st.APP_ENV)
     ##### APP #####
     app = Litestar(
         route_handlers=[],

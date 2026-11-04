@@ -25,8 +25,8 @@ from e_infra.ports.documents import DocumentConversion
 from e_infra.ports.markdown import MDConversion
 from e_infra.ports.pages import FastPage, PageBlock
 from e_infra.ports.provider import Isolation, Locality, ProviderSpec, Workload
-from e_infra.processors.doc import BREAK, DocProcessor
-from e_infra.processors.models import Backend, Document, Section
+from e_infra.processors.doc import BREAK, EVERY, DocProcessor
+from e_infra.processors.models import Backend, Document, Element, Section
 from e_infra.providers.adapters.markdown.anytomd import AnytomdAdapter
 from unit.e_infra.processors.conftest import opened
 
@@ -147,7 +147,7 @@ def without_docling(markdown: FakeMarkdown | None = None, **conf: Any) -> DocPro
 )
 def test_route_follows_mode_and_signals(mode: DocMode, route: tuple[DocSignal, ...], expected: list[int]) -> None:
     signals = {1: (), 2: (), 3: (DocSignal.TABLE, DocSignal.GRAPHICS), 4: (DocSignal.SCANNED,)}
-    assert processor(mode=mode, route=route)._process_route(signals) == expected
+    assert processor(mode=mode, route=route)._process_route(signals, EVERY) == expected
 
 
 @pytest.mark.parametrize(
@@ -184,7 +184,7 @@ def test_spans_merge_gaps_and_balance_lanes(
 def test_a_span_asks_only_what_its_pages_need(
     signals: dict[int, tuple[DocSignal, ...]], ocr: bool, pictures: bool
 ) -> None:
-    options = processor(tables=DoclingTables.FAST)._process_options((3, 4), signals)
+    options = processor(tables=DoclingTables.FAST)._process_options((3, 4), signals, EVERY)
     assert (options["page_range"], options["do_ocr"], options["table_mode"]) == ([3, 4], ocr, "fast")
     assert options["md_page_break_placeholder"] == BREAK
     assert ("image_export_mode" not in options) is pictures
@@ -281,19 +281,19 @@ async def test_a_span_with_unsplittable_markdown_keeps_liteparse_markdown() -> N
 ##### READS — sections and frames #####
 async def test_sections_span_engines() -> None:
     document = await processor().process(FILING)
-    sections = DocProcessor.sections(document)
+    sections = document.sections
     assert all(isinstance(section, Section) for section in sections)
     assert any(section.title.startswith("Item 1") and section.text for section in sections)
     assert [section.page for section in sections] == sorted(section.page for section in sections)
 
 
 def test_header_rows_fold_into_unique_padded_columns() -> None:
-    frame = DocProcessor._common_frame(
+    frame = DocProcessor._process_frame(
         [["Item", "2025", "2025"], ["", "Q1", "Q1"]], [["Sales", "10"], ["Cost", "4", "5"]]
     )
     assert frame.columns == ["Item", "2025 Q1", "2025 Q1_1"]
     assert frame.rows() == [("Sales", "10", ""), ("Cost", "4", "5")]
-    assert DocProcessor._common_frame([], []).shape == (0, 0)
+    assert DocProcessor._process_frame([], []).shape == (0, 0)
 
 
 def test_docling_pictures_decode_and_rank_classes() -> None:
@@ -315,13 +315,20 @@ def test_docling_pictures_decode_and_rank_classes() -> None:
             {"kind": "description"},
         ],
     }
-    assert DocProcessor._deep_image(node) == {"mimetype": "image/png", "data": png, "width": 3, "height": 2}
-    assert DocProcessor._deep_classes(node) == ("chart", "logo")
-    assert DocProcessor._deep_image({}) == {"mimetype": "", "data": b"", "width": 0, "height": 0}
+    picture = DocProcessor._process_picture({}, {**node, "self_ref": "#/pictures/0"}, "docling:", 2)
+    assert (picture.ref, picture.page, picture.mimetype, picture.data) == ("docling:#/pictures/0", 2, "image/png", png)
+    assert (picture.width, picture.height, picture.classes) == (3, 2, ("chart", "logo"))
+    empty = DocProcessor._process_picture({}, {"self_ref": "#/pictures/1"}, "", 1)
+    assert (empty.mimetype, empty.data, empty.width, empty.height, empty.classes) == ("", b"", 0, 0, ())
 
 
-def test_a_node_without_provenance_sits_on_no_page() -> None:
-    assert DocProcessor._common_page({}) == 0
+@pytest.mark.parametrize(
+    ("node", "span", "page"),
+    [({}, (1, 9), 0), ({"prov": [{"page_no": 7}]}, (1, 9), 7), ({"prov": [{"page_no": 7}]}, (8, 9), 0), ({}, None, 1)],
+    ids=["unplaced", "in-span", "off-span", "whole"],
+)
+def test_a_node_is_placed_on_its_page_in_the_span_or_on_none(node: dict[str, Any], span: Any, page: int) -> None:
+    assert DocProcessor._process_place(node, span) == page
 
 
 ##### LABELS — nothing a reader saw is dropped #####
@@ -334,7 +341,7 @@ def test_a_fast_page_keeps_every_block_its_shared_kinds_named_as_docling_names_t
         PageBlock(kind="table", header=("h",), rows=(("v",),)),
     )
     page = FastPage(number=3, markdown="", blocks=blocks, signals=())
-    rows, tables = DocProcessor._lite_read(page, 3)
+    _, (rows, tables, _, _) = DocProcessor._process_fast(page)
     assert [(row["label"], row["group"], row["hyperlink"]) for row in rows] == [
         ("section_header", "", ""),
         ("text", "", ""),
@@ -351,7 +358,8 @@ def test_a_fast_page_keeps_every_block_its_shared_kinds_named_as_docling_names_t
 )
 def test_a_deep_node_names_the_group_it_sits_in(parent: dict[str, str] | None, group: str) -> None:
     document = {"groups": [{"label": "list"}, {"label": "slide"}]}
-    assert DocProcessor._deep_group(document, {"parent": parent}) == group
+    node = {"parent": parent, "self_ref": "#/texts/0", "label": "text"}
+    assert DocProcessor._process_item(document, node, "", 1)["group"] == group
 
 
 ##### ENGINES — docling when present; liteparse and anytomd always #####
@@ -416,7 +424,7 @@ async def test_anytomd_markdown_becomes_items_and_sections() -> None:
         ("anytomd:b2", "section_header", "Sub", 2),
         ("anytomd:b3", "text", "Second,\nstill second.", None),
     ]
-    assert [(s.title, s.level, s.text) for s in DocProcessor.sections(document)] == [
+    assert [(s.title, s.level, s.text) for s in document.sections] == [
         ("Title", 1, "First paragraph."),
         ("Sub", 2, "Second,\nstill second."),
     ]
@@ -445,3 +453,75 @@ async def test_an_oversized_file_is_refused() -> None:
 async def test_bytes_without_a_name_are_named_document_and_detected_by_their_magic() -> None:
     document = await without_docling().process(FILING.read_bytes())
     assert (document.name, document.pages[0].backend) == ("document", Backend.LITEPARSE)
+
+
+##### ELEMENTS — one asked, only its cost paid #####
+@pytest.mark.parametrize(
+    ("elements", "expected"),
+    [
+        ({Element.TEXT}, [4]),
+        ({Element.TABLES}, [2, 4]),
+        ({Element.PICTURES}, [3]),
+        ({Element.FORMULAS}, [2, 3, 4]),
+        (set(Element), [2, 3, 4]),
+    ],
+    ids=["text", "tables", "pictures", "formulas", "every"],
+)
+def test_route_narrows_to_what_the_elements_need(elements: set[Element], expected: list[int]) -> None:
+    signals = {1: (), 2: (DocSignal.TABLE,), 3: (DocSignal.GRAPHICS,), 4: (DocSignal.SCANNED,)}
+    assert processor()._process_route(signals, frozenset(elements)) == expected
+
+
+@pytest.mark.parametrize(
+    ("elements", "structure", "pictures"),
+    [({Element.TABLES}, True, False), ({Element.PICTURES}, False, True), ({Element.TEXT}, False, False)],
+    ids=["tables", "pictures", "text"],
+)
+def test_a_span_runs_no_model_its_elements_do_not_need(elements: set[Element], structure: bool, pictures: bool) -> None:
+    options = processor()._process_options((3, 3), {3: (DocSignal.GRAPHICS,)}, frozenset(elements))
+    assert (options.get("do_table_structure", True), "image_export_mode" not in options) == (structure, pictures)
+
+
+async def test_text_asks_docling_for_the_scan_alone_and_no_table_structure() -> None:
+    port = FakePort()
+    text = await processor(port).text(FILING)
+    assert [call["options"]["page_range"] for call in port.calls] == [[SCAN, SCAN]]
+    assert port.calls[0]["options"]["do_table_structure"] is False
+    assert "full-time equivalent employees" in text
+
+
+async def test_tables_ask_docling_for_table_pages_without_pictures() -> None:
+    port = FakePort()
+    tables = await processor(port).tables(FILING)
+    options = port.calls[0]["options"]
+    assert [call["options"]["page_range"] for call in port.calls] == [[STATEMENT, SCAN]]
+    assert (options["image_export_mode"], "do_table_structure" in options) == ("placeholder", False)
+    assert {table.page for table in tables} == {STATEMENT, SCAN}
+
+
+async def test_pictures_and_formulas_come_from_docling_alone() -> None:
+    assert (await without_docling().pictures(FILING), await without_docling().formulas(FILING)) == ((), ())
+
+
+async def test_sections_read_from_a_source_as_text_reads() -> None:
+    port = FakePort()
+    sections = await processor(port).sections(FILING)
+    assert any(section.title.startswith("Item 1") and section.text for section in sections)
+    assert [call["options"]["page_range"] for call in port.calls] == [[SCAN, SCAN]]
+
+
+async def test_a_whole_document_drops_what_is_not_asked() -> None:
+    port = FakePort()
+    await processor(port).text(DOCX, name="r.docx")
+    assert port.calls[0]["options"] == {
+        "do_table_structure": False,
+        "image_export_mode": "placeholder",
+        "include_images": False,
+    }
+
+
+async def test_an_oversized_path_is_refused_before_it_is_read(tmp_path: Path) -> None:
+    path = tmp_path / "big.pdf"
+    path.write_bytes(FILING.read_bytes())
+    with pytest.raises(InputTooLargeError, match=str(path.stat().st_size)):
+        await processor(max_input_bytes=1024).process(path)

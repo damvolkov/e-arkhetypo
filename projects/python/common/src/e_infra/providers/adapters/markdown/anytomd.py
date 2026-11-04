@@ -1,7 +1,7 @@
 """providers/adapters/markdown/anytomd: anytomd bound to Python — one engine for every format, PDF and images folded in.
 
 `convert_bytes` renders office, markup, tables, notebooks, code and text; a PDF goes through the bundled
-liteparse `PdfConverter`; an image is annotated by the configured OpenAI-compatible vision model. Format
+liteparse `PdfConverter`; an image is annotated by the OpenAI-compatible vision model it is given. Format
 detection, zip-bomb limits and size caps are the engine's own; `detect` names a file's format from its bytes
 and name, an archive as the office format it is. Its failures are `ParseError` from here up, which `DocProcessor`
 lets rise to its caller."""
@@ -20,14 +20,13 @@ from anytomd import (
 
 from e_infra.infra.errors import ParseError, ProviderError
 from e_infra.infra.logger import logger
-from e_infra.infra.settings import settings as st
 from e_infra.ports.markdown import MDConversion
 from e_infra.ports.provider import Isolation, Locality, ProviderSpec, Workload
 
 if TYPE_CHECKING:
     from collections.abc import Generator
 
-    from e_infra.infra.config.providers.adapters.markdown.anytomd import AnytomdSettings
+    from pydantic import HttpUrl, SecretStr
 
 
 ##### ADAPTER #####
@@ -36,11 +35,38 @@ class AnytomdAdapter:
 
     spec: ClassVar[ProviderSpec] = ProviderSpec("anytomd", Locality.EMBEDDED, Workload.MIXED, Isolation.LOOP)
 
-    __slots__ = ("_conf", "_describer", "_pdf")
+    __slots__ = (
+        "_describer",
+        "_extract_comments",
+        "_image_describe",
+        "_max_input_bytes",
+        "_pdf",
+        "_pdf_language",
+        "_pdf_ocr",
+        "_pdf_workers",
+        "_strict",
+        "_vision",
+    )
 
-    def __init__(self, settings: AnytomdSettings | None = None) -> None:
-        ### the default is read on call, not at import: the settings singleton stays lazy.
-        self._conf = st.providers.adapters.markdown.anytomd if settings is None else settings
+    def __init__(
+        self,
+        *,
+        vision_base_url: HttpUrl,
+        vision_api_key: SecretStr | None,
+        vision_model: str,
+        vision_prompt: str,
+        image_describe: bool,
+        max_input_bytes: int,
+        pdf_workers: int,
+        pdf_ocr: bool,
+        pdf_language: str,
+        strict: bool,
+        extract_comments: bool,
+    ) -> None:
+        self._vision = (vision_base_url, vision_api_key, vision_model, vision_prompt)
+        self._image_describe, self._max_input_bytes = image_describe, max_input_bytes
+        self._pdf_workers, self._pdf_ocr, self._pdf_language = pdf_workers, pdf_ocr, pdf_language
+        self._strict, self._extract_comments = strict, extract_comments
         self._pdf: PdfConverter | None = None
         self._describer: AsyncOpenAIDescriber | None = None
 
@@ -65,13 +91,12 @@ class AnytomdAdapter:
                 return pdf
 
     def _common_vision(self) -> AsyncOpenAIDescriber:
-        conf = self._conf
-        key = conf.vision_api_key
+        base, key, model, prompt = self._vision
         return AsyncOpenAIDescriber(
-            model=conf.vision_model,
-            api_base=conf.vision_base_url,
+            model=model,
+            api_base=str(base),
             api_key=key.get_secret_value() if key is not None else None,
-            prompt=conf.vision_prompt,
+            prompt=prompt,
         )
 
     async def _convert_pdf(self, data: bytes) -> MDConversion:
@@ -83,9 +108,9 @@ class AnytomdAdapter:
             data,
             extension,
             async_image_describer=self._describer,
-            extract_comments=self._conf.extract_comments,
-            strict=self._conf.strict,
-            max_input_bytes=self._conf.max_input_bytes,
+            extract_comments=self._extract_comments,
+            strict=self._strict,
+            max_input_bytes=self._max_input_bytes,
         )
         return MDConversion(markdown=result.markdown, warnings=tuple(w.message for w in result.warnings))
 
@@ -94,12 +119,11 @@ class AnytomdAdapter:
     ##### PUBLIC #####
 
     async def __aenter__(self) -> Self:
-        conf = self._conf
-        self._pdf = PdfConverter(ocr=conf.pdf_ocr, language=conf.pdf_language, workers=conf.pdf_workers or None)
+        self._pdf = PdfConverter(ocr=self._pdf_ocr, language=self._pdf_language, workers=self._pdf_workers or None)
         ### vision is best-effort: without a key there is nothing to describe with, so images keep their
         ### bare `![]` reference rather than bricking startup.
-        self._describer = self._common_vision() if conf.image_describe and conf.vision_api_key is not None else None
-        logger.info("anytomd opened", vision=self._describer is not None, pdf_ocr=conf.pdf_ocr)
+        self._describer = self._common_vision() if self._image_describe and self._vision[1] is not None else None
+        logger.info("anytomd opened", vision=self._describer is not None, pdf_ocr=self._pdf_ocr)
         return self
 
     async def __aexit__(self, *exc: object) -> None:

@@ -1,24 +1,24 @@
-"""infra/config/darts: the DARTS orchestrator — how much of a section runs at once, how semantic specs fuse (DARTS_*)."""
+"""infra/config/darts: the DARTS orchestrator — how much of a section runs at once, how semantic specs fuse."""
 
 from datetime import timedelta
+from typing import Annotated
 
-from pydantic import Field
-from pydantic_settings import SettingsConfigDict
+from pydantic import Field, PositiveInt
 
 from e_infra.infra.config.base import BaseSettings
 
 
+##### SETTINGS #####
 class DartsSettings(BaseSettings):
-    """DARTS_CONCURRENCY — deterministic specs of one step in flight; DARTS_CALLS — fused agent calls of one step
-    in flight; DARTS_FUSION_SPECS — most specs one fused call answers; DARTS_FUSION_TOKENS — most estimated
-    tokens (instructions, wiki, examples, material, schema) one fused call carries, a bigger group splits in
-    calls; DARTS_TIMEOUT — a spec's deadline when its own `timeout` is unset (a fused call takes the longest of
-    its specs')."""
+    """DARTS: concurrency of the deterministic specs, fusion of the semantic ones into agent calls."""
 
-    model_config = SettingsConfigDict(env_prefix="DARTS_")
-
-    concurrency: int = Field(default=8, ge=1)
-    calls: int = Field(default=4, ge=1)
-    fusion_specs: int = Field(default=8, ge=1)
-    fusion_tokens: int = Field(default=8000, ge=256)
-    timeout: timedelta = timedelta(seconds=120)
+    ### deterministic specs of one step in flight.
+    DARTS_CONCURRENCY: PositiveInt = 8
+    ### fused agent calls of one step in flight.
+    DARTS_CALLS: PositiveInt = 4
+    ### most specs one fused call answers.
+    DARTS_FUSION_SPECS: PositiveInt = 8
+    ### most estimated tokens (instructions, wiki, examples, material, schema) one fused call carries; a bigger group splits.
+    DARTS_FUSION_TOKENS: Annotated[int, Field(ge=256)] = 8000
+    ### a spec's deadline when its own `timeout` is unset (a fused call takes the longest of its specs').
+    DARTS_TIMEOUT: timedelta = timedelta(seconds=120)

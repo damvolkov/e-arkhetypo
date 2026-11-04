@@ -12,14 +12,11 @@ import pytest
 import pytest_asyncio
 from psqlpy.exceptions import Error as PsqlError
 
-from e_infra.infra.config.base import Secret
-from e_infra.infra.config.providers.drivers.database.asyncpg import AsyncpgSettings
-from e_infra.infra.config.providers.drivers.database.psqlpy import PsqlpySettings
 from e_infra.infra.errors import DatabaseError
 from e_infra.ports.database import DatabasePort, ListenPort, Vector
 from e_infra.providers.drivers.database.asyncpg import AsyncpgDriver
 from e_infra.providers.drivers.database.psqlpy import PsqlpyDriver
-from unit.e_infra.conftest import DSN, create
+from unit.e_infra.conftest import DSN, asyncpg_args, create, psqlpy_args
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
@@ -45,9 +42,9 @@ async def database(worker_id: str) -> str:
 async def db(request: pytest.FixtureRequest, database: str) -> AsyncIterator[PsqlpyDriver | AsyncpgDriver]:
     """Each driver open on the contract's database, its `twin` table dropped before and after."""
     driver = (
-        PsqlpyDriver(PsqlpySettings(dsn=Secret(database), pool=2))
+        PsqlpyDriver(**psqlpy_args(database, pool=2))
         if request.param == "psqlpy"
-        else AsyncpgDriver(AsyncpgSettings(dsn=Secret(database), pool=2))
+        else AsyncpgDriver(**asyncpg_args(database, pool=2))
     )
     async with driver:
         await driver.execute("DROP TABLE IF EXISTS twin")

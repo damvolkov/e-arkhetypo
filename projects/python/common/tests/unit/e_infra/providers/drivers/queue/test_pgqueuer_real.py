@@ -7,21 +7,17 @@ import anyio
 import pytest
 
 from e_infra.infra.background import BackgroundState
-from e_infra.infra.config.base import Secret
-from e_infra.infra.config.providers.drivers.database.asyncpg import AsyncpgSettings
-from e_infra.infra.config.providers.drivers.database.psqlpy import PsqlpySettings
 from e_infra.infra.errors import DatabaseError, ProviderError, QueueError
 from e_infra.ports.queue import QueuePort, SchedulePort
 from e_infra.providers.drivers.database.asyncpg import AsyncpgDriver
 from e_infra.providers.drivers.database.psqlpy import PsqlpyDriver
 from e_infra.providers.drivers.queue.pgqueuer import PgqueuerDriver
-from unit.e_infra.conftest import running, settled, until
+from unit.e_infra.conftest import asyncpg_args, psqlpy_args, running, settled, until
 
 if TYPE_CHECKING:
     from collections.abc import Callable
 
     from e_infra.infra.background import BackgroundHandler
-    from e_infra.infra.config.providers.drivers.queue.pgqueuer import PgqueuerSettings
     from e_infra.providers.drivers.queue.awa import AwaDriver
     from unit.e_infra.providers.drivers.queue.conftest import Flaky, Hang
 
@@ -164,20 +160,20 @@ async def test_pgqueuer_satisfies_ports(engine: PgqueuerDriver) -> None:
 
 
 async def test_pgqueuer_on_psqlpy_is_refused_by_its_catalog_read(
-    pgqueuer_database: str, pgqueuer_settings: PgqueuerSettings
+    pgqueuer_database: str, pgqueuer_conf: dict[str, Any]
 ) -> None:
     """PgQueuer 1.6 reads its installed schema through `pg_catalog`, whose index columns come back as `name[]` — a type
     psqlpy (0.12 to 0.13) does not decode. On psqlpy the queue cannot open, and says so as the queue's outage, never a
     hang; the day psqlpy decodes it, this test fails and the queue widens to both drivers."""
-    async with PsqlpyDriver(PsqlpySettings(dsn=Secret(pgqueuer_database), pool=6)) as db:
+    async with PsqlpyDriver(**psqlpy_args(pgqueuer_database, pool=6)) as db:
         with pytest.raises(QueueError, match="_name"):
-            await PgqueuerDriver(db, db, pgqueuer_settings).__aenter__()
+            await PgqueuerDriver(db, db, **pgqueuer_conf).__aenter__()
 
 
-async def test_pgqueuer_open_unreachable(engine: PgqueuerDriver) -> None:
+async def test_pgqueuer_open_unreachable(engine: PgqueuerDriver, pgqueuer_conf: dict[str, Any]) -> None:
     """A driver that never opened: PgQueuer cannot install its schema on it, and says so as the queue's outage."""
-    never = AsyncpgDriver(AsyncpgSettings(dsn=Secret("postgresql://postgres:x@127.0.0.1:9/none")))
-    down = PgqueuerDriver(never, never)
+    never = AsyncpgDriver(**asyncpg_args("postgresql://postgres:x@127.0.0.1:9/none"))
+    down = PgqueuerDriver(never, never, **pgqueuer_conf)
     with pytest.raises(QueueError):
         await down.__aenter__()
 

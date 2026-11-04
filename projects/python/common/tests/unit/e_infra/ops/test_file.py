@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any, cast
 
 import pytest
 
-from e_infra.infra.config import crypto as crypto_mod
+from e_infra.infra.config import infra as infra_mod
 from e_infra.infra.config.base import BaseSettings
 from e_infra.ops.file import FileDetector, FileError, FileFinder, FileLayer, Kind
 
@@ -34,17 +34,17 @@ def test_classes_and_functions_are_own_symbols_only() -> None:
 
 
 def test_base_selects_subclasses_and_module_target_reads_one_file() -> None:
-    assert {"CryptoSettings", "PingSettings"} <= set(CONFIG.discover(BaseSettings))
+    assert {"InfraSettings", "ProviderSettings"} <= set(CONFIG.discover(BaseSettings))
     ### `base.py` is part of the sweep: the base itself is still never a result.
     assert "BaseSettings" not in CONFIG.discover(BaseSettings)
-    assert set(CONFIG.discover(crypto_mod)) == {"CryptoSettings"}
+    assert set(CONFIG.discover(infra_mod)) == {"Env", "InfraSettings"}
 
 
 def test_predicate_and_pattern_filter_rejects_unknown_target() -> None:
     found = CONFIG.discover(lambda obj: isinstance(obj, type) and obj.__name__.endswith("Settings"))
-    assert "CryptoSettings" in found
-    assert "TokenAlg" not in found
-    assert set(CONFIG.discover(Kind.CLASSES, pattern=re.compile("^Crypto"))) == {"CryptoSettings"}
+    assert "InfraSettings" in found
+    assert "Env" not in found
+    assert set(CONFIG.discover(Kind.CLASSES, pattern=re.compile("^Infra"))) == {"InfraSettings"}
     with pytest.raises(FileError, match="Unsupported discover target"):
         CONFIG.discover(cast("Any", 42))
 
@@ -64,9 +64,9 @@ async def test_adiscover_answers_like_discover() -> None:
 
 
 def test_summary_reads_the_top_description_line() -> None:
-    summary = FileFinder.summary(crypto_mod)
+    summary = FileFinder.summary(infra_mod)
     assert (
-        summary == "infra/config/crypto: the configuration of the crypto engine (`ops/crypto`), loaded from CRYPTO__*."
+        summary == "infra/config/infra: the process — its environment, where it listens, and the crypto it signs with."
     )
     assert "\n" not in summary
 

@@ -3,7 +3,7 @@
 `response_format` with a strict `json_schema` makes the server decode under the schema (vLLM: guided decoding), so the
 answer parses and conforms by construction; a reply that still does not parse is a `ModelError`, never a guess; one cut at
 the output ceiling is a `TruncatedError`. The server is shared, so every call passes two gates: a semaphore
-(LLM_CONCURRENCY in flight) and a token bucket (LLM_RPM a minute). Temperature 0: annotation is extraction, not
+(`concurrency` in flight) and a token bucket (`rpm` a minute). Temperature 0: annotation is extraction, not
 invention. It speaks through an `HTTPPort` received by constructor, the bearer riding every request."""
 
 import asyncio
@@ -14,13 +14,14 @@ import msgspec
 
 from e_infra.infra.errors import ModelError, ProviderError, TruncatedError
 from e_infra.infra.logger import logger
-from e_infra.infra.settings import settings as st
 from e_infra.ports.provider import Isolation, Locality, ProviderSpec, Workload
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
+    from datetime import timedelta
 
-    from e_infra.infra.config.providers.drivers.llm.openai import OpenaiSettings
+    from pydantic import HttpUrl, SecretStr
+
     from e_infra.ports.http import HTTPPort
 
 
@@ -68,33 +69,45 @@ class OpenaiDriver:
 
     spec: ClassVar[ProviderSpec] = ProviderSpec("openai", Locality.REMOTE, Workload.IO_BOUND, Isolation.LOOP)
 
-    __slots__ = ("_bucket", "_conf", "_gate", "_http")
+    __slots__ = ("_bucket", "_extra", "_gate", "_http", "_key", "_max_tokens", "_model", "_timeout", "_url")
 
-    def __init__(self, http: HTTPPort, settings: OpenaiSettings | None = None) -> None:
-        ### the default is read on call, not at import: the settings singleton stays lazy.
-        self._conf = st.providers.drivers.llm.openai if settings is None else settings
+    def __init__(
+        self,
+        http: HTTPPort,
+        *,
+        url: HttpUrl,
+        key: SecretStr | None,
+        timeout: timedelta,
+        concurrency: int,
+        rpm: int,
+        max_tokens: int,
+        model: str,
+        extra: Mapping[str, Any],
+    ) -> None:
         self._http = http
-        self._gate = asyncio.Semaphore(self._conf.concurrency)
-        self._bucket = OpenaiBucket(self._conf.rpm)
+        self._url = str(url).rstrip("/")
+        self._key, self._timeout, self._max_tokens, self._model, self._extra = key, timeout, max_tokens, model, extra
+        self._gate = asyncio.Semaphore(concurrency)
+        self._bucket = OpenaiBucket(rpm)
 
     ##### PRIVATE #####
 
     def _structured_payload(self, system: str, prompt: str, schema: Mapping[str, Any]) -> dict[str, Any]:
-        """The OpenAI chat-completions body, the provider's own fields (LLM_EXTRA) merged over it."""
+        """The OpenAI chat-completions body, the provider's own fields (`extra`) merged over it."""
         return {
-            "model": self._conf.model,
+            "model": self._model,
             "messages": [{"role": "system", "content": system}, {"role": "user", "content": prompt}],
             "temperature": 0,
-            "max_tokens": self._conf.max_tokens,
+            "max_tokens": self._max_tokens,
             "response_format": {
                 "type": "json_schema",
                 "json_schema": {"name": "answer", "schema": dict(schema), "strict": True},
             },
-            **self._conf.extra,
+            **self._extra,
         }
 
     def _common_headers(self) -> dict[str, str]:
-        key = self._conf.key
+        key = self._key
         return {"Authorization": f"Bearer {key.get_secret_value()}"} if key is not None else {}
 
     @staticmethod
@@ -127,11 +140,11 @@ class OpenaiDriver:
     @property
     def model(self) -> str:
         """The served model's name: with the driver's, what a semantic label says read it."""
-        return self._conf.model
+        return self._model
 
     async def __aenter__(self) -> Self:
         """Nothing to open: the HTTP pool is the lifespan's."""
-        logger.info("openai opened", url=self._conf.url, model=self._conf.model)
+        logger.info("openai opened", url=self._url, model=self._model)
         return self
 
     async def __aexit__(self, *exc: object) -> None:
@@ -141,9 +154,7 @@ class OpenaiDriver:
     async def health(self) -> bool:
         """The served models, as any OpenAI-compatible server lists them (`/models`): the key and the server at once."""
         try:
-            await self._http.get(
-                f"{self._conf.url.rstrip('/')}/models", within=self._conf.timeout, headers=self._common_headers()
-            )
+            await self._http.get(f"{self._url}/models", within=self._timeout, headers=self._common_headers())
         except ProviderError as error:
             logger.warning("openai unhealthy", error=str(error))
             raise
@@ -151,15 +162,15 @@ class OpenaiDriver:
 
     async def structured(self, system: str, prompt: str, schema: Mapping[str, Any]) -> Any:
         """The model's answer to `prompt` under `system`, decoded from JSON constrained by `schema`."""
-        url = f"{self._conf.url.rstrip('/')}/chat/completions"
-        logger.debug("openai structured", model=self._conf.model, prompt_chars=len(prompt))
+        url = f"{self._url}/chat/completions"
+        logger.debug("openai structured", model=self._model, prompt_chars=len(prompt))
         ### the rate wait comes first: a call sleeping on the bucket must not hold a concurrency slot.
         await self._bucket.take()
         async with self._gate:
             body = await self._http.post(
                 url,
                 self._structured_payload(system, prompt, schema),
-                within=self._conf.timeout,
+                within=self._timeout,
                 headers=self._common_headers(),
             )
         return self._structured_answer(body)

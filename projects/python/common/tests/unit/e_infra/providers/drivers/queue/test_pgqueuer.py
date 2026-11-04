@@ -13,13 +13,12 @@ import pytest
 from pgqueuer.domain.types import JobId
 
 from e_infra.infra.background import BackgroundState
-from e_infra.infra.config.providers.drivers.queue.pgqueuer import PgqueuerSettings
 from e_infra.infra.errors import ProviderError, QueueError
 from e_infra.ports.queue import QueuePort, SchedulePort
 from e_infra.providers.drivers.database.asyncpg import AsyncpgDriver
 from e_infra.providers.drivers.queue.pgqueuer import MANY, ONE, RECORD, REPORT, SCHEMA, PgqueuerBridge, PgqueuerDriver
 from support.pgqueuer import book_row
-from unit.e_infra.conftest import until
+from unit.e_infra.conftest import asyncpg_args, until
 
 if TYPE_CHECKING:
     from e_infra.infra.background import BackgroundRun
@@ -53,20 +52,16 @@ async def test_pgqueuer_opens_no_pool_of_its_own(
 
 
 async def test_pgqueuer_on_a_driver_that_never_opened_is_a_queue_error(
-    pgqueuer_memory: FakePgqueuer, pgqueuer_settings: PgqueuerSettings, asyncpg_server: FakeAsyncpgServer
+    pgqueuer_memory: FakePgqueuer, pgqueuer_conf: dict[str, Any], asyncpg_server: FakeAsyncpgServer
 ) -> None:
-    closed = AsyncpgDriver()
-    driver = PgqueuerDriver(closed, closed, pgqueuer_settings)
+    closed = AsyncpgDriver(**asyncpg_args("postgresql://u:p@db/q", timeout=timedelta(seconds=1)))
+    driver = PgqueuerDriver(closed, closed, **pgqueuer_conf)
     with pytest.raises(QueueError, match="not open"):
         await driver.__aenter__()
     with pytest.raises(QueueError, match="not open"):
         await driver.start({"q": 1})
     with pytest.raises(ProviderError):
         await driver.health()
-
-
-async def test_pgqueuer_default_settings_come_from_the_composer(fake_db: AsyncpgDriver) -> None:
-    assert PgqueuerDriver(fake_db, fake_db)._conf == PgqueuerSettings()
 
 
 async def test_pgqueuer_close_that_cannot_drain_is_a_queue_error(
@@ -76,9 +71,7 @@ async def test_pgqueuer_close_that_cannot_drain_is_a_queue_error(
         await anyio.sleep_forever()
 
     monkeypatch.setattr(PgqueuerDriver, "_close_drain", never)
-    opened._conf = opened._conf.model_copy(
-        update={"drain": timedelta(milliseconds=20), "timeout": timedelta(milliseconds=20)}
-    )
+    opened._drain, opened._timeout = timedelta(milliseconds=20), timedelta(milliseconds=20)
     with anyio.fail_after(5), pytest.raises(QueueError, match="close timed out"):
         await opened.__aexit__(None, None, None)
     assert logs.at("error") == ["pgqueuer close timed out"]
@@ -124,7 +117,7 @@ async def test_pgqueuer_a_call_past_the_bound_is_a_queue_error(
 ) -> None:
     async with pgqueuer_driver:
         asyncpg_server.hang = ROW_ONE
-        pgqueuer_driver._conf = pgqueuer_driver._conf.model_copy(update={"timeout": timedelta(milliseconds=50)})
+        pgqueuer_driver._timeout = timedelta(milliseconds=50)
         with pytest.raises(QueueError, match="timed out after"):
             await pgqueuer_driver.job("1")
     assert logs.at("error") == ["pgqueuer call timed out"]

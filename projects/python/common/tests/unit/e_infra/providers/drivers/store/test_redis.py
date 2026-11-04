@@ -4,10 +4,8 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from e_infra.infra.config.providers.drivers.store.redis import RedisSettings
 from e_infra.infra.errors import ProviderError, StoreError
 from e_infra.ports.store import StorePort
-from e_infra.providers.drivers.store.redis import RedisDriver
 from support.kv import KV_CALLS
 
 if TYPE_CHECKING:
@@ -15,6 +13,7 @@ if TYPE_CHECKING:
 
     import fakeredis
 
+    from e_infra.providers.drivers.store.redis import RedisDriver
     from unit.e_infra.conftest import Logs
 
 pytestmark = pytest.mark.usefixtures("redis_calls")
@@ -36,11 +35,6 @@ async def test_redis_open_asks_for_its_client_with_the_settings_and_close_is_ide
     ]
     assert logs.at("info") == ["redis opened", "redis closed"]
     assert "hunter2" not in repr(logs.events)
-
-
-async def test_redis_default_settings_come_from_the_composer(redis_calls: list[tuple[str, dict[str, Any]]]) -> None:
-    async with RedisDriver():
-        assert redis_calls[0][1]["max_connections"] == RedisSettings().pool
 
 
 async def test_redis_kv_cycle(driver: RedisDriver) -> None:

@@ -46,7 +46,6 @@ from e_infra.infra.background import (
 )
 from e_infra.infra.errors import DispatchError, QueueError, ScheduleError, UnknownWorkError
 from e_infra.infra.logger import logger
-from e_infra.infra.settings import settings as st
 from e_infra.ports.queue import QueuePort, SchedulePort
 from e_infra.ports.telemetry import SpanKey, SpanRole
 
@@ -54,8 +53,6 @@ if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable, Generator
     from contextlib import AbstractContextManager
     from types import TracebackType
-
-    from e_infra.infra.config.engines.dispatch import DispatchSettings
 
     type Engine = QueuePort | Background
 
@@ -142,17 +139,14 @@ class DispatchEngine:
         memory: Background,
         slots: Mapping[str, int],
         *,
-        throttle: float | None = None,
-        settings: DispatchSettings | None = None,
+        throttle: float,
         telemetry: DispatchTelemetry = UNTRACED,
     ) -> None:
-        ### the default is read on call, not at import: the settings singleton stays lazy.
-        conf = st.engines.dispatch if settings is None else settings
         self._durable = durable
         self._memory = memory
         self._telemetry = telemetry
         self._slots = MappingProxyType(dict(slots))
-        self._throttle = conf.throttle.total_seconds() if throttle is None else throttle
+        self._throttle = throttle
         self._works: dict[str, tuple[str, BackgroundWork]] = {}
         self._schedules: dict[str, BackgroundSchedule] = {}
         self._started = False

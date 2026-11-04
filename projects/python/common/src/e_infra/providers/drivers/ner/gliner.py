@@ -3,7 +3,7 @@
 A request is one header line (the labels and the threshold for every item) and one line per text, its id its index;
 the body is a generator, so the service reads it as it is produced. The answer is one line per text as each completes,
 out of order, matched back by id; a line the service refused (`{"id"|"line", "error"}`) or a text left unanswered fails
-the call with a `ModelError` — never "found nothing". The service bounds its own predictions; GLINER_TIMEOUT bounds the
+the call with a `ModelError` — never "found nothing". The service bounds its own predictions; `timeout` bounds the
 wait for each next line, not the whole stream. Opening calls nothing: a process may start with the service down.
 `refresh` reads the served model card (`GET /models`) — `gliner:<model>@<version>`, the version a digest of the model's
 files — so a promotion there is another annotator here from the next read on.
@@ -20,14 +20,14 @@ import wreq
 
 from e_infra.infra.errors import HTTPError, ModelError, ProviderError
 from e_infra.infra.logger import logger
-from e_infra.infra.settings import settings as st
 from e_infra.ports.ner import NEREntity
 from e_infra.ports.provider import Isolation, Locality, ProviderSpec, Workload
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator, Generator, Iterator, Sequence
+    from datetime import timedelta
 
-    from e_infra.infra.config.providers.drivers.ner.gliner import GlinerSettings
+    from pydantic import HttpUrl
 
 NEWLINE: Final[bytes] = b"\n"
 NDJSON: Final[str] = "application/x-ndjson"
@@ -71,13 +71,11 @@ class GlinerDriver:
 
     __slots__ = ("_annotator", "_batch", "_client", "_timeout", "_url")
 
-    def __init__(self, settings: GlinerSettings | None = None) -> None:
-        ### the default is read on call, not at import: the settings singleton stays lazy.
-        conf = st.providers.drivers.ner.gliner if settings is None else settings
+    def __init__(self, *, url: HttpUrl | None, timeout: timedelta, batch: int) -> None:
         ### no URL is the NER off: the root builds no driver; one built anyway refuses to open.
-        self._url = (conf.url or "").rstrip("/")
-        self._timeout = conf.timeout
-        self._batch = conf.batch
+        self._url = str(url or "").rstrip("/")
+        self._timeout = timeout
+        self._batch = batch
         self._client: wreq.Client | None = None
         self._annotator = ""
 

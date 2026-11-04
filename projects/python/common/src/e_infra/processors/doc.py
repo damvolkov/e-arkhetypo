@@ -42,10 +42,9 @@ from typing import TYPE_CHECKING, Any, Final, NamedTuple
 import anyio
 import polars as pl
 
-from e_infra.infra.config.processors.doc import DocMode, DocSignal
+from e_infra.infra.config.processors import DocMode, DocSignal
 from e_infra.infra.errors import InputTooLargeError, ProviderError, UnsupportedFormatError
 from e_infra.infra.logger import logger
-from e_infra.infra.settings import settings as st
 from e_infra.ports.documents import DocumentConversion
 from e_infra.processors.models import (
     Backend,
@@ -62,7 +61,7 @@ if TYPE_CHECKING:
     from collections.abc import Iterable, Mapping, Sequence
     from pathlib import Path
 
-    from e_infra.infra.config.processors.doc import DocSettings
+    from e_infra.infra.config.providers import DoclingTables
     from e_infra.ports.documents import DocumentPort
     from e_infra.ports.markdown import MarkdownPort
     from e_infra.ports.pages import FastPage, PagesPort
@@ -141,17 +140,35 @@ class DocProcessor:
     """Reads documents: a PDF page by page — liteparse everywhere, docling where present and the page's signals ask for
     it —, any other format whole — docling when present and it reads the format, anytomd otherwise or in its place."""
 
-    __slots__ = ("_conf", "_md", "_pages", "_port")
+    __slots__ = (
+        "_concurrency",
+        "_gap",
+        "_max_input_bytes",
+        "_md",
+        "_mode",
+        "_pages",
+        "_port",
+        "_route",
+        "_span",
+        "_tables",
+    )
 
     def __init__(
         self,
         markdown: MarkdownPort,
         pages: PagesPort,
         port: DocumentPort | None = None,
-        settings: DocSettings | None = None,
+        *,
+        concurrency: int,
+        span: int,
+        gap: int,
+        mode: DocMode,
+        route: tuple[DocSignal, ...],
+        tables: DoclingTables,
+        max_input_bytes: int,
     ) -> None:
-        ### the default is read on call, not at import: the settings singleton stays lazy.
-        self._conf = st.processors.doc if settings is None else settings
+        self._concurrency, self._span, self._gap, self._mode = concurrency, span, gap, mode
+        self._route, self._tables, self._max_input_bytes = route, tables, max_input_bytes
         self._md = markdown
         self._pages = pages
         self._port = port
@@ -161,7 +178,7 @@ class DocProcessor:
     async def _process_read(self, source: bytes | Path, name: str) -> bytes:
         """The source's bytes, refused before they are read when over DOC_MAX_INPUT_BYTES — a path by its size on disk."""
         size = len(source) if isinstance(source, bytes) else (await anyio.Path(source).stat()).st_size
-        match (size > self._conf.max_input_bytes, source):
+        match (size > self._max_input_bytes, source):
             case (True, _):
                 msg = f"{name!r} is {size} bytes, over DOC_MAX_INPUT_BYTES"
                 raise InputTooLargeError(msg)
@@ -175,8 +192,8 @@ class DocProcessor:
     def _process_route(self, signals: Signals, elements: frozenset[Element]) -> list[int]:
         """The pages docling reads, ascending: none (docling absent, or LITE), all, or those whose signals DOC_ROUTE
         names and the asked elements need."""
-        route = set(self._conf.route) & frozenset().union(*(NEEDS[element] for element in elements))
-        match (self._port, self._conf.mode):
+        route = set(self._route) & frozenset().union(*(NEEDS[element] for element in elements))
+        match (self._port, self._mode):
             case (None, _) | (_, DocMode.LITE):
                 return []
             case (_, DocMode.DEEP):
@@ -186,11 +203,9 @@ class DocProcessor:
 
     def _process_spans(self, pages: Sequence[int]) -> list[Span]:
         """Routed pages as page ranges: gaps up to DOC_GAP merged, lanes filled, then capped at DOC_SPAN pages."""
-        cuts = [
-            index for index, (before, after) in enumerate(pairwise(pages), 1) if after - before - 1 > self._conf.gap
-        ]
+        cuts = [index for index, (before, after) in enumerate(pairwise(pages), 1) if after - before - 1 > self._gap]
         runs = [(pages[start], pages[end - 1]) for start, end in pairwise([0, *cuts, len(pages)])] if pages else []
-        cap = self._conf.span
+        cap = self._span
         lanes = self._process_lanes(runs)
         return [(start, min(start + cap - 1, last)) for first, last in lanes for start in range(first, last + 1, cap)]
 
@@ -198,7 +213,7 @@ class DocProcessor:
         """Halve the longest run while there are fewer runs than DOC_CONCURRENCY lanes and both halves keep LANE
         pages — below that, a second request costs more than the parallelism returns."""
         match max(runs, key=lambda run: run[1] - run[0], default=None):
-            case (first, last) as longest if len(runs) < self._conf.concurrency and last - first + 1 >= 2 * LANE:
+            case (first, last) as longest if len(runs) < self._concurrency and last - first + 1 >= 2 * LANE:
                 middle = first + (last - first + 1) // 2
                 return self._process_lanes(
                     sorted([*(run for run in runs if run != longest), (first, middle - 1), (middle, last)])
@@ -215,7 +230,7 @@ class DocProcessor:
             "page_range": list(span),
             "md_page_break_placeholder": BREAK,
             "do_ocr": DocSignal.SCANNED in seen,
-            "table_mode": str(self._conf.tables),
+            "table_mode": str(self._tables),
             **self._process_drops(asked),
         }
 
@@ -228,7 +243,7 @@ class DocProcessor:
         self, raw: bytes, name: str, spans: Sequence[Span], signals: Signals, elements: frozenset[Element]
     ) -> dict[Span, DocumentConversion | str]:
         """Every span through docling, DOC_CONCURRENCY at a time; a span that fails yields its reason, never raises."""
-        gate = anyio.Semaphore(self._conf.concurrency)
+        gate = anyio.Semaphore(self._concurrency)
         outcomes: dict[Span, DocumentConversion | str] = {}
 
         async def convert(span: Span, port: DocumentPort) -> None:
@@ -453,7 +468,7 @@ class DocProcessor:
     async def _process_whole(self, raw: bytes, name: str, fmt: str, elements: frozenset[Element]) -> Document:
         """A non-PDF, whole: docling when it is present, asked and reads the format; anytomd otherwise, and in docling's
         place when docling fails on it."""
-        asked = self._port if self._conf.mode is not DocMode.LITE and fmt in WHOLE else None
+        asked = self._port if self._mode is not DocMode.LITE and fmt in WHOLE else None
         match asked:
             case None:
                 return await self._process_anytomd(raw, name, fmt)
@@ -526,7 +541,7 @@ class DocProcessor:
         of no format a reader takes."""
         name = name or (getattr(source, "name", "") or "document")
         raw = await self._process_read(source, name)
-        logger.debug("doc process", name=name, size=len(raw), mode=str(self._conf.mode), deep=self._port is not None)
+        logger.debug("doc process", name=name, size=len(raw), mode=str(self._mode), deep=self._port is not None)
         match self._md.detect(name, raw):
             case None | "zip":
                 msg = f"{name!r} is not one document of a format a reader takes"

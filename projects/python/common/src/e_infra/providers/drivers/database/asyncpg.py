@@ -23,15 +23,16 @@ import asyncpg
 
 from e_infra.infra.errors import DatabaseError, ProviderError
 from e_infra.infra.logger import logger
-from e_infra.infra.settings import settings as st
 from e_infra.ports.database import Row, Vector
 from e_infra.ports.provider import Isolation, Locality, ProviderSpec, Workload
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, Callable, Coroutine, Generator, Sequence
     from contextlib import AbstractAsyncContextManager
+    from datetime import timedelta
 
-    from e_infra.infra.config.providers.drivers.database.asyncpg import AsyncpgSettings
+    from pydantic import PostgresDsn, Secret
+
     from e_infra.ports.database import Notify, QueryPort
 
 ### the errors that are the driver's own, not the caller's: the server's refusal, a closed connection, the network, a
@@ -143,11 +144,10 @@ class AsyncpgDriver:
         "asyncpg", Locality.REMOTE, Workload.IO_BOUND, Isolation.LOOP, pooled=True
     )
 
-    __slots__ = ("_channels", "_conf", "_fanouts", "_listener", "_pool")
+    __slots__ = ("_channels", "_dsn", "_fanouts", "_listener", "_max", "_min", "_pool", "_timeout")
 
-    def __init__(self, settings: AsyncpgSettings | None = None) -> None:
-        ### the default is read on call, not at import: the settings singleton stays lazy.
-        self._conf = st.providers.drivers.database.asyncpg if settings is None else settings
+    def __init__(self, *, dsn: Secret[PostgresDsn], pool_min: int, pool: int, timeout: timedelta) -> None:
+        self._dsn, self._min, self._max, self._timeout = dsn, pool_min, pool, timeout
         self._pool: asyncpg.Pool | None = None
         self._listener: asyncpg.pool.PoolConnectionProxy | None = None
         self._channels: dict[str, list[Notify]] = {}
@@ -219,22 +219,22 @@ class AsyncpgDriver:
     ##### PUBLIC #####
 
     async def __aenter__(self) -> Self:
-        timeout = self._conf.timeout.total_seconds()
+        timeout = self._timeout.total_seconds()
         try:
             with anyio.fail_after(timeout), AsyncpgStatements._common_guard():
                 self._pool = self._pool or await asyncpg.create_pool(
-                    self._conf.dsn.get_secret_value(),
-                    min_size=self._conf.pool_min,
-                    max_size=self._conf.pool,
+                    str(self._dsn.get_secret_value()),
+                    min_size=self._min,
+                    max_size=self._max,
                     command_timeout=timeout,
                     timeout=timeout,
                     init=AsyncpgStatements._common_born,
                 )
         except TimeoutError as error:
-            msg = f"asyncpg open timed out after {self._conf.timeout}"
-            logger.error("asyncpg open timed out", timeout=str(self._conf.timeout))
+            msg = f"asyncpg open timed out after {self._timeout}"
+            logger.error("asyncpg open timed out", timeout=str(self._timeout))
             raise DatabaseError(msg) from error
-        logger.info("asyncpg opened", pool=self._conf.pool)
+        logger.info("asyncpg opened", pool=self._max)
         return self
 
     async def __aexit__(self, *exc: object) -> None:
@@ -245,13 +245,13 @@ class AsyncpgDriver:
                 return
             case _:
                 try:
-                    with anyio.fail_after(self._conf.timeout.total_seconds()):
+                    with anyio.fail_after(self._timeout.total_seconds()):
                         _ = listener and await pool.release(listener)
                         await pool.close()
                 except TimeoutError as error:
                     pool.terminate()
-                    msg = f"asyncpg close timed out after {self._conf.timeout}"
-                    logger.error("asyncpg close timed out", timeout=str(self._conf.timeout))
+                    msg = f"asyncpg close timed out after {self._timeout}"
+                    logger.error("asyncpg close timed out", timeout=str(self._timeout))
                     raise DatabaseError(msg) from error
                 logger.info("asyncpg closed")
 
@@ -266,11 +266,11 @@ class AsyncpgDriver:
 
     async def provision(self) -> bool:
         """Create the database the DSN names when missing; whether this call created it."""
-        url = urlsplit(self._conf.dsn.get_secret_value())
+        url = urlsplit(str(self._dsn.get_secret_value()))
         name = url.path.removeprefix("/")
         try:
             admin = await asyncpg.connect(
-                url._replace(path=f"/{MAINTENANCE}").geturl(), timeout=self._conf.timeout.total_seconds()
+                url._replace(path=f"/{MAINTENANCE}").geturl(), timeout=self._timeout.total_seconds()
             )
         except WIRE as error:
             msg = f"database {name!r} unreachable: {error}"

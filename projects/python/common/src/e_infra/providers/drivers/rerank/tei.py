@@ -1,19 +1,20 @@
 """providers/drivers/rerank/tei: reranking on text-embeddings-inference — `POST /rerank`, behind `RerankPort`.
 
-TEI answers best first, by index; the driver hands the scores back in the texts' order, cutting RERANK_BATCH texts a
+TEI answers best first, by index; the driver hands the scores back in the texts' order, cutting `batch` texts a
 request. It speaks through an `HTTPPort` received by constructor, absolute URLs."""
 
 from typing import TYPE_CHECKING, ClassVar, Self
 
 from e_infra.infra.errors import ProviderError
 from e_infra.infra.logger import logger
-from e_infra.infra.settings import settings as st
 from e_infra.ports.provider import Isolation, Locality, ProviderSpec, Workload
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
+    from datetime import timedelta
 
-    from e_infra.infra.config.providers.drivers.rerank.tei import TEIRerankSettings
+    from pydantic import HttpUrl
+
     from e_infra.ports.http import HTTPPort
 
 
@@ -23,22 +24,20 @@ class TEIRerankDriver:
 
     spec: ClassVar[ProviderSpec] = ProviderSpec("tei-rerank", Locality.REMOTE, Workload.IO_BOUND, Isolation.LOOP)
 
-    __slots__ = ("_base", "_conf", "_http")
+    __slots__ = ("_base", "_batch", "_http", "_timeout")
 
-    def __init__(self, http: HTTPPort, settings: TEIRerankSettings | None = None) -> None:
-        self._conf = st.providers.drivers.rerank.tei if settings is None else settings
+    def __init__(self, http: HTTPPort, *, url: HttpUrl | None, timeout: timedelta, batch: int) -> None:
         self._http = http
         ### no URL is the reranker off: the root builds no driver; one built anyway refuses to open.
-        self._base = (self._conf.url or "").rstrip("/")
+        self._base = str(url or "").rstrip("/")
+        self._timeout, self._batch = timeout, batch
 
     ##### PRIVATE #####
 
     async def _rerank_post(self, question: str, texts: Sequence[str]) -> list[dict[str, float]]:
         payload = {"query": question, "texts": list(texts), "truncate": True}
         logger.debug("tei rerank", texts=len(texts))
-        return await self._http.post(
-            f"{self._base}/rerank", payload, as_=list[dict[str, float]], within=self._conf.timeout
-        )
+        return await self._http.post(f"{self._base}/rerank", payload, as_=list[dict[str, float]], within=self._timeout)
 
     ############################################################
 
@@ -62,7 +61,7 @@ class TEIRerankDriver:
     async def health(self) -> bool:
         """TEI's own health route: 200 once the model answers."""
         try:
-            await self._http.raw(f"{self._base}/health", within=self._conf.timeout)
+            await self._http.raw(f"{self._base}/health", within=self._timeout)
         except ProviderError as error:
             logger.warning("tei rerank unhealthy", error=str(error))
             raise
@@ -70,7 +69,7 @@ class TEIRerankDriver:
 
     async def rerank(self, question: str, texts: Sequence[str]) -> list[float]:
         """Each text's score against the question, in the texts' order, RERANK_BATCH a request; no texts, no call."""
-        size = self._conf.batch
+        size = self._batch
         answers = [
             (start, await self._rerank_post(question, texts[start : start + size]))
             for start in range(0, len(texts), size)

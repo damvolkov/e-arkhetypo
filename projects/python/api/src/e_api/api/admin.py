@@ -17,10 +17,11 @@ from providers.drivers.database.psqlpy import PsqlpyDriver
 async def mint() -> Issued:
     """The admin's account with one fresh key; the engine refuses (`AuthClosedError`) when no AUTH_SECRET is set."""
     async with AsyncExitStack() as stack:
-        database = PsqlpyDriver()
+        database = PsqlpyDriver(dsn=st.POSTGRES_DSN, pool=st.POSTGRES_POOL, timeout=st.POSTGRES_TIMEOUT)
         await database.provision()
         await stack.enter_async_context(database)
         store = await stack.enter_async_context(PostgresAuthDriver(database))
-        issued = await AuthEngine(store, st.engines.auth).rotate(st.engines.auth.admin)
+        engine = AuthEngine(store, secret=st.AUTH_SECRET, ttl=st.AUTH_TTL, admin=st.AUTH_ADMIN)
+        issued = await engine.rotate(st.AUTH_ADMIN)
     logger.info("admin key minted", owner=issued.owner)
     return issued

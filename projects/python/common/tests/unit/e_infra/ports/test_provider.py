@@ -5,15 +5,13 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from e_infra.infra.config.providers.drivers.http.wreq import WreqSettings
-from e_infra.infra.config.providers.drivers.store.redis import RedisSettings
-from e_infra.infra.config.providers.drivers.store.sqlite import SqliteSettings
 from e_infra.ports.http import HTTPPort
 from e_infra.ports.provider import Isolation, Locality, Provider, ProviderSpec, Workload
 from e_infra.ports.store import StorePort
 from e_infra.providers.drivers.http.wreq import WreqDriver
 from e_infra.providers.drivers.store.redis import RedisDriver
 from e_infra.providers.drivers.store.sqlite import SqliteDriver
+from unit.e_infra.conftest import redis_args, sqlite_args, wreq_args
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -32,16 +30,16 @@ def test_axes_are_string_enums(axis: type[Locality | Workload | Isolation]) -> N
 
 
 async def test_sqlite_satisfies_store(tmp_path: Path) -> None:
-    driver = SqliteDriver(SqliteSettings(path=tmp_path / "kv.db"))
+    driver = SqliteDriver(**sqlite_args(path=tmp_path / "kv.db"))
     assert (isinstance(driver, StorePort), isinstance(driver, Provider)) == (True, True)
 
 
 async def test_redis_satisfies_store() -> None:
-    assert isinstance(RedisDriver(RedisSettings()), StorePort)
+    assert isinstance(RedisDriver(**redis_args()), StorePort)
 
 
 async def test_http_satisfies_client() -> None:
-    assert isinstance(WreqDriver(WreqSettings()), HTTPPort)
+    assert isinstance(WreqDriver(**wreq_args()), HTTPPort)
 
 
 async def test_a_class_without_lifecycle_is_no_provider() -> None:

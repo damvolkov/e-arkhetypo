@@ -52,8 +52,8 @@ class Deps:
 
     async def _resolve_store(self) -> StoreJournal:
         """The local store behind the undo journal: every command write is revertible by construction."""
-        store = await self._stack.enter_async_context(SqliteDriver())
-        journal = StoreJournal(store, command=self._state.session.command, depth=st.cli.history)
+        store = await self._stack.enter_async_context(SqliteDriver(path=st.DB_PATH, timeout=st.DB_TIMEOUT))
+        journal = StoreJournal(store, command=self._state.session.command, depth=st.CLI_HISTORY)
         return await self._stack.enter_async_context(journal)
 
     async def _resolve_projects(self) -> ProjectService:

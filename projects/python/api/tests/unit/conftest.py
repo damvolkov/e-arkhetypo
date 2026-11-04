@@ -1,14 +1,19 @@
-"""tests/unit/conftest: how the template customizes the pytest-resources plugin.
+"""tests/unit/conftest: the services behind the live app, faked (`support.app`), and how the template customizes
+pytest-resources.
 
-The `resources` fixture and the lazy index come from the plugin (auto-loaded via its pytest11
-entry point). A project adds two bindings through the hook: e-serde as the official codec
-table, and any extra canonical loader the table lacks.
+The `resources` fixture and the lazy index come from the plugin (auto-loaded via its
+pytest11 entry point): a project adds two bindings through the hook, e-serde as the official codec table, and any extra
+canonical loader the table lacks.
 """
 
 import csv
 import io
 
 from pytest_resources import FileType, eserde_loaders
+
+from support.app import keys, psqlpy, redis_server
+
+__all__ = ["keys", "psqlpy", "redis_server"]
 
 
 def pytest_resource_loaders(register) -> None:

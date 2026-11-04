@@ -6,17 +6,17 @@ from typing import TYPE_CHECKING
 import anyio
 import pytest
 
-from e_infra.infra.config.providers.adapters.cache.theine import TheineSettings
 from e_infra.infra.errors import CacheError, ProviderError
 from e_infra.ports.cache import CachePort
 from e_infra.providers.adapters.cache.theine import TheineAdapter
+from unit.e_infra.conftest import theine_args
 
 if TYPE_CHECKING:
     from unit.e_infra.conftest import Logs
 
 
 async def test_theine_roundtrip() -> None:
-    async with TheineAdapter[dict[str, int]](TheineSettings(size=10)) as cache:
+    async with TheineAdapter[dict[str, int]](**theine_args(size=10)) as cache:
         assert isinstance(cache, CachePort)
         await cache.put("a", {"n": 1})
         await cache.put_many({"b": {"n": 2}, "c": {"n": 3}})
@@ -26,7 +26,7 @@ async def test_theine_roundtrip() -> None:
 
 
 async def test_theine_ttl() -> None:
-    async with TheineAdapter[int](TheineSettings(size=10, ttl=timedelta(milliseconds=50))) as cache:
+    async with TheineAdapter[int](**theine_args(size=10, ttl=timedelta(milliseconds=50))) as cache:
         await cache.put("a", 1)
         assert await cache.get("a") == 1
         await anyio.sleep(0.15)
@@ -34,14 +34,14 @@ async def test_theine_ttl() -> None:
 
 
 async def test_theine_without_a_ttl_keeps_until_evicted() -> None:
-    async with TheineAdapter[int](TheineSettings(size=10, ttl=None)) as cache:
+    async with TheineAdapter[int](**theine_args(size=10, ttl=None)) as cache:
         await cache.put("a", 1)
         await anyio.sleep(0.1)
         assert await cache.get("a") == 1
 
 
 async def test_theine_lifecycle() -> None:
-    cache = TheineAdapter[int](TheineSettings(size=10))
+    cache = TheineAdapter[int](**theine_args(size=10))
     with pytest.raises(ProviderError):
         await cache.health()
     with pytest.raises(CacheError, match="not open"):
@@ -56,7 +56,7 @@ async def test_theine_lifecycle() -> None:
 
 
 async def test_theine_lifecycle_and_an_unopened_health_are_logged(logs: Logs) -> None:
-    cache = TheineAdapter[int](TheineSettings(size=10, ttl=timedelta(minutes=1)))
+    cache = TheineAdapter[int](**theine_args(size=10, ttl=timedelta(minutes=1)))
     with pytest.raises(ProviderError):
         await cache.health()
     async with cache:

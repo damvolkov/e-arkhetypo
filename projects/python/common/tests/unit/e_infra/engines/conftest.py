@@ -16,16 +16,13 @@ import pytest
 from e_infra.engines.auth import AuthEngine
 from e_infra.engines.dispatch import DispatchEngine
 from e_infra.infra.background import Background, BackgroundJob, BackgroundState
-from e_infra.infra.config.base import Secret
-from e_infra.infra.config.engines.auth import AuthSettings
-from e_infra.infra.config.providers.drivers.database.asyncpg import AsyncpgSettings
 from e_infra.infra.errors import QueueError
 from e_infra.ports.provider import Isolation, Locality, ProviderSpec, Workload
 from e_infra.providers.drivers.database.asyncpg import AsyncpgDriver
 from e_infra.providers.drivers.queue.awa import AwaDriver
 from e_infra.providers.drivers.queue.pgqueuer import PgqueuerDriver
 from support.auth import FakeAuth
-from unit.e_infra.conftest import Queues, Warnings, Works
+from unit.e_infra.conftest import Queues, Warnings, Works, asyncpg_args, auth_args
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator, Mapping
@@ -147,13 +144,11 @@ async def engine(name: str, stack: AsyncExitStack, queues: Queues) -> AwaDriver 
     entered on `stack`, as the lifespan would before it."""
     match name:
         case "awa":
-            return AwaDriver(await queues.awa())
+            return AwaDriver(**await queues.awa())
         case _:
-            db = AsyncpgDriver(
-                AsyncpgSettings(dsn=Secret(await queues.database()), pool=4, timeout=timedelta(seconds=5))
-            )
+            db = AsyncpgDriver(**asyncpg_args(await queues.database(), timeout=timedelta(seconds=5)))
             opened = await stack.enter_async_context(db)
-            return PgqueuerDriver(opened, opened, queues.pgqueuer)
+            return PgqueuerDriver(opened, opened, **queues.pgqueuer)
 
 
 def build(durable: QueuePort | None, queue: str, works: Works) -> DispatchEngine:
@@ -201,4 +196,4 @@ def fake_auth() -> FakeAuth:
 
 @pytest.fixture
 def auth(fake_auth: FakeAuth) -> AuthEngine:
-    return AuthEngine(fake_auth, AuthSettings(secret=Secret("k")))
+    return AuthEngine(fake_auth, **auth_args())

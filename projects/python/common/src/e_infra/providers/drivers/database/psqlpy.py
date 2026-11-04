@@ -25,15 +25,16 @@ from psqlpy.extra_types import PgVector
 
 from e_infra.infra.errors import DatabaseError, ProviderError
 from e_infra.infra.logger import logger
-from e_infra.infra.settings import settings as st
 from e_infra.ports.database import Row, Vector
 from e_infra.ports.provider import Isolation, Locality, ProviderSpec, Workload
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, Callable, Coroutine, Generator, Sequence
     from contextlib import AbstractAsyncContextManager
+    from datetime import timedelta
 
-    from e_infra.infra.config.providers.drivers.database.psqlpy import PsqlpySettings
+    from pydantic import PostgresDsn, Secret
+
     from e_infra.ports.database import Notify, QueryPort
 
 ### psqlpy refuses a pool of one connection.
@@ -126,11 +127,10 @@ class PsqlpyDriver:
         "psqlpy", Locality.REMOTE, Workload.IO_BOUND, Isolation.LOOP, pooled=True
     )
 
-    __slots__ = ("_channels", "_conf", "_generation", "_listener", "_pool")
+    __slots__ = ("_channels", "_dsn", "_generation", "_listener", "_pool", "_size", "_timeout")
 
-    def __init__(self, settings: PsqlpySettings | None = None) -> None:
-        ### the default is read on call, not at import: the settings singleton stays lazy.
-        self._conf = st.providers.drivers.database.psqlpy if settings is None else settings
+    def __init__(self, *, dsn: Secret[PostgresDsn], pool: int, timeout: timedelta) -> None:
+        self._dsn, self._size, self._timeout = dsn, pool, timeout
         self._pool: ConnectionPool | None = None
         self._listener: Listener | None = None
         self._channels: dict[str, list[Notify]] = {}
@@ -211,11 +211,11 @@ class PsqlpyDriver:
 
     async def __aenter__(self) -> Self:
         self._pool = self._pool or ConnectionPool(
-            dsn=self._conf.dsn.get_secret_value(),
-            max_db_pool_size=max(self._conf.pool, FLOOR),
-            connect_timeout_sec=int(self._conf.timeout.total_seconds()),
+            dsn=str(self._dsn.get_secret_value()),
+            max_db_pool_size=max(self._size, FLOOR),
+            connect_timeout_sec=int(self._timeout.total_seconds()),
         )
-        logger.info("psqlpy opened", pool=max(self._conf.pool, FLOOR))
+        logger.info("psqlpy opened", pool=max(self._size, FLOOR))
         return self
 
     async def __aexit__(self, *exc: object) -> None:
@@ -240,12 +240,12 @@ class PsqlpyDriver:
 
     async def provision(self) -> bool:
         """Create the database the DSN names when missing; whether this call created it."""
-        url = urlsplit(self._conf.dsn.get_secret_value())
+        url = urlsplit(str(self._dsn.get_secret_value()))
         name = url.path.removeprefix("/")
         admin = ConnectionPool(
             dsn=url._replace(path=f"/{MAINTENANCE}").geturl(),
             max_db_pool_size=FLOOR,
-            connect_timeout_sec=int(self._conf.timeout.total_seconds()),
+            connect_timeout_sec=int(self._timeout.total_seconds()),
         )
         try:
             async with admin.acquire() as connection:

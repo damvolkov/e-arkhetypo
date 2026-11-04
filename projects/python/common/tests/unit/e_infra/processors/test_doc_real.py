@@ -10,13 +10,12 @@ import struct
 import zlib
 
 import pytest
+from pydantic import SecretStr as Secret
 
-from e_infra.infra.config.base import Secret
-from e_infra.infra.config.processors.doc import DocSettings
-from e_infra.infra.config.providers.adapters.markdown.anytomd import AnytomdSettings
 from e_infra.processors.doc import DocProcessor
 from e_infra.processors.models import Backend
 from e_infra.providers.adapters.markdown.anytomd import AnytomdAdapter
+from unit.e_infra.conftest import anytomd_args, doc_args
 from unit.e_infra.processors.conftest import opened
 
 RESOURCES = pathlib.Path(__file__).resolve().parents[3] / "resources"
@@ -49,8 +48,8 @@ def png(rgb: tuple[int, int, int]) -> bytes:
     ],
 )
 async def test_real_engines_read_each_format(data: bytes, name: str, backend: Backend, snippet: str) -> None:
-    async with AnytomdAdapter(AnytomdSettings()) as anytomd:
-        document = await DocProcessor(anytomd, opened(), None, DocSettings()).process(data, name=name)
+    async with AnytomdAdapter(**anytomd_args()) as anytomd:
+        document = await DocProcessor(anytomd, opened(), None, **doc_args()).process(data, name=name)
     assert {page.backend for page in document.pages} == {backend}
     assert snippet in document.markdown
 
@@ -58,9 +57,9 @@ async def test_real_engines_read_each_format(data: bytes, name: str, backend: Ba
 @needs_vision
 async def test_real_vision_describes_an_image_inline() -> None:
     assert KEY is not None
-    settings = AnytomdSettings(vision_api_key=Secret(KEY))
-    async with AnytomdAdapter(settings) as anytomd:
-        document = await DocProcessor(anytomd, opened(), None, DocSettings()).process(
+    vision = anytomd_args(vision_api_key=Secret(KEY))
+    async with AnytomdAdapter(**vision) as anytomd:
+        document = await DocProcessor(anytomd, opened(), None, **doc_args()).process(
             png((30, 140, 60)), name="square.png"
         )
     alt = document.markdown.split("![", 1)[1].split("](", 1)[0]

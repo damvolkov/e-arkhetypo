@@ -8,7 +8,7 @@ from litestar.status_codes import HTTP_307_TEMPORARY_REDIRECT
 from litestar.testing import TestClient
 
 from e_api.api.docs import RENDERERS, openapi_config, routes
-from infra.config.docs import DocsRenderer, DocsSettings
+from infra.config.api import DocsRenderer
 
 
 @pytest.mark.parametrize("path", ["/docs", "/docs/swagger", "/docs/redoc", "/docs/elements", "/docs/rapidoc"])
@@ -42,21 +42,20 @@ def test_every_renderer_has_a_plugin() -> None:
 
 
 def test_settings_decide_root_renderers_and_aliases() -> None:
-    settings = DocsSettings(path="/api/docs", aliases=["/a", "/b"], renderers=["scalar", "redoc"])
-    config = openapi_config("t", "1", settings=settings)
+    config = openapi_config("t", "1", path="/api/docs", renderers=[DocsRenderer.SCALAR, DocsRenderer.REDOC])
     assert config.path == "/api/docs"
     assert [type(plugin) for plugin in config.render_plugins] == [ScalarRenderPlugin, RedocRenderPlugin]
-    with TestClient(Litestar(list(routes(settings)), openapi_config=config)) as client:
+    with TestClient(Litestar(list(routes(path="/api/docs", aliases=["/a", "/b"])), openapi_config=config)) as client:
         assert client.get("/b/redoc", follow_redirects=False).headers["location"] == "/api/docs/redoc"
         assert client.get("/a").status_code == 200
 
 
 def test_components_pass_through() -> None:
     components = Components(security_schemes={})
-    config = openapi_config("t", "1", components=components, settings=DocsSettings(renderers=["swagger"]))
+    config = openapi_config("t", "1", path="/docs", renderers=[DocsRenderer.SWAGGER], components=components)
     assert config.components is components
     assert [type(plugin) for plugin in config.render_plugins] == [SwaggerRenderPlugin]
 
 
 def test_no_aliases_no_routes() -> None:
-    assert routes(DocsSettings(aliases=[])) == ()
+    assert routes(path="/docs", aliases=[]) == ()

@@ -9,15 +9,16 @@ from cryptography.hazmat.primitives.asymmetric import x25519
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from joserfc import jwe
 from joserfc.jwk import OctKey
+from pydantic import SecretStr
 
-from e_infra.infra.config.crypto import CryptoSettings
-from e_infra.infra.settings import Secret
+from e_infra.infra.config.infra import InfraSettings
 from e_infra.ops import crypto as crypto_module
 from e_infra.ops.crypto import (
     ENC_KEY_SIZES,
     JWE_INFO,
     Crypto,
     CryptoError,
+    CryptoKeys,
     PasswordHasher,
     TokenAlg,
     TokenEnc,
@@ -45,16 +46,16 @@ def test_token_failure_values() -> None:
 
 def test_engine_without_root_refuses() -> None:
     with pytest.raises(CryptoError, match="needs a secret"):
-        Crypto(CryptoSettings(secret=None))
+        Crypto(CryptoKeys(secret=None))
 
 
-SECRET = Secret("d0vn0t-r3ad-me-entropy-entropy-entropy")
+SECRET = SecretStr("d0vn0t-r3ad-me-entropy-entropy-entropy")
 
 
 ##### FIXTURES #####
 def engine(**overrides: Any) -> Crypto:
     overrides.setdefault("secret", SECRET)
-    return Crypto(CryptoSettings(**overrides))
+    return Crypto(CryptoKeys(**overrides))
 
 
 @pytest.fixture
@@ -159,7 +160,7 @@ def test_verify_token_tampered(crypto: Crypto) -> None:
 
 
 def test_verify_token_foreign_signature(crypto: Crypto) -> None:
-    other = engine(secret=Secret("a-completely-different-secret-value-here"))
+    other = engine(secret=SecretStr("a-completely-different-secret-value-here"))
     token = other.create_token({"sub": "u1"}, expires_in=timedelta(minutes=5))
     with pytest.raises(TokenError):
         crypto.verify_token(token)
@@ -179,7 +180,7 @@ def test_verify_token_issuer_audience(crypto: Crypto) -> None:
 
 def test_verify_token_via_public_jwks(ed_crypto: Crypto) -> None:
     token = ed_crypto.create_token({"sub": "u1"}, expires_in=timedelta(minutes=5))
-    listener = Crypto(CryptoSettings(secret=SECRET, alg=TokenAlg.EDDSA), jwks=ed_crypto.public_jwks())
+    listener = Crypto(CryptoKeys(secret=SECRET, alg=TokenAlg.EDDSA), jwks=ed_crypto.public_jwks())
     assert listener.verify_token(token)["sub"] == "u1"
 
 
@@ -250,11 +251,11 @@ def test_decrypt_truncated(crypto: Crypto) -> None:
 ##### EDGES #####
 def test_engine_without_any_key_raises() -> None:
     with pytest.raises(CryptoError):
-        Crypto(CryptoSettings(secret=SECRET, alg=TokenAlg.EDDSA))
+        Crypto(CryptoKeys(secret=SECRET, alg=TokenAlg.EDDSA))
 
 
 def test_listener_cannot_sign(ed_crypto: Crypto) -> None:
-    listener = Crypto(CryptoSettings(secret=SECRET, alg=TokenAlg.EDDSA), jwks=ed_crypto.public_jwks())
+    listener = Crypto(CryptoKeys(secret=SECRET, alg=TokenAlg.EDDSA), jwks=ed_crypto.public_jwks())
     with pytest.raises(CryptoError):
         listener.create_token({"sub": "u"}, expires_in=timedelta(minutes=5))
 
@@ -270,7 +271,7 @@ def test_unsupported_pem_rejected() -> None:
         .decode()
     )
     with pytest.raises(CryptoError):
-        Crypto(CryptoSettings(secret=SECRET, private_key=pem))
+        Crypto(CryptoKeys(secret=SECRET, private_key=pem))
 
 
 def test_jwe_non_json_payload_rejected(crypto: Crypto) -> None:
@@ -297,9 +298,9 @@ def test_needs_rehash_broken_argon2(crypto: Crypto) -> None:
 
 
 def test_settings_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
-    """The engine takes the composite's settings as its config: CRYPTO__* from the environment."""
+    """The root hands the engine CRYPTO__* read from the environment."""
     monkeypatch.setenv("CRYPTO__SECRET", "from-the-environment")
-    crypto = Crypto(CryptoSettings())
+    crypto = Crypto(CryptoKeys(secret=InfraSettings().CRYPTO__SECRET))
     assert crypto.verify_token(crypto.create_token({"sub": "u"}, expires_in=timedelta(60)))["sub"] == "u"
 
 

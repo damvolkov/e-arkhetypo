@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING, Final
 import polars as pl
 
 if TYPE_CHECKING:
-    from e_infra.infra.config.processors.doc import DocSignal
+    from e_infra.infra.config.processors import DocSignal
 
 HEADINGS: Final[frozenset[str]] = frozenset({"title", "section_header"})
 BODY: Final[frozenset[str]] = frozenset({"text", "list_item", "paragraph"})

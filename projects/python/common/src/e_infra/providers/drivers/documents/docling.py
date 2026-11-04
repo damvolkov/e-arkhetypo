@@ -5,27 +5,26 @@ and process, so the app carries no torch. Conversions run as server tasks — su
 status, fetch the result — because the synchronous endpoint is cut off by the server's wait limit,
 and a hundred-page filing outlives it. docling-serve answers a status poll at once (its `wait` is
 not held), so the driver paces the polls itself. It speaks through an `HTTPPort` received by constructor, absolute
-URLs on DOCLING_URL: the process holds one HTTP pool, not one per service.
+URLs on the `url` it is given: the process holds one HTTP pool, not one per service.
 
 A source is a URL (`str`, fetched by the server), raw `bytes` (sent inline, base64) or a local `Path`
-(read here, sent inline). The conversion options come from `DoclingSettings`; `options` overrides
-them per call, in docling-serve's own names. The whole conversion is bounded by DOCLING_DEADLINE, carried as
+(read here, sent inline). The conversion options are the `DoclingOptions` it is built with; `options` overrides
+them per call, in docling-serve's own names. The whole conversion is bounded by `deadline`, carried as
 each request's own timeout (what is left of it), never as a cancellation of a request in flight.
 
 docling is optional to whoever reads documents: `present` is how a composition root opens it — the driver, entered on
-the root's exit stack, when DOCLING_URL names a server that answers; None otherwise, said once and why."""
+the root's exit stack, when `url` names a server that answers; None otherwise, said once and why."""
 
 import base64
 from datetime import timedelta
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, ClassVar, Final, Self
+from typing import TYPE_CHECKING, Any, ClassVar, Final, Self, TypedDict, Unpack
 
 import anyio
 
-from e_infra.infra.config.providers.drivers.documents.docling import DoclingImages
+from e_infra.infra.config.providers import DoclingImages
 from e_infra.infra.errors import DocumentError, HTTPTimeoutError, ProviderError
 from e_infra.infra.logger import logger
-from e_infra.infra.settings import settings as st
 from e_infra.ports.documents import DocumentConversion
 from e_infra.ports.provider import Isolation, Locality, ProviderSpec, Workload
 
@@ -33,7 +32,9 @@ if TYPE_CHECKING:
     from collections.abc import Mapping
     from contextlib import AsyncExitStack
 
-    from e_infra.infra.config.providers.drivers.documents.docling import DoclingSettings
+    from pydantic import HttpUrl
+
+    from e_infra.infra.config.providers import DoclingBackend, DoclingFormat, DoclingTables
     from e_infra.ports.http import HTTPPort
 
 DONE: Final[frozenset[str]] = frozenset({"success", "partial_success"})
@@ -47,6 +48,29 @@ FORMS: Final[Mapping[str, str]] = {
 }
 
 
+##### OPTIONS #####
+class DoclingOptions(TypedDict):
+    """The driver's keyword arguments past its URL: bounds first, then the conversion in the settings' own names."""
+
+    timeout: timedelta
+    deadline: timedelta
+    poll: timedelta
+    page_timeout: timedelta | None
+    formats: tuple[DoclingFormat, ...]
+    images: DoclingImages
+    images_scale: float
+    tables: DoclingTables
+    ocr: bool
+    force_ocr: bool
+    ocr_engine: str
+    ocr_lang: tuple[str, ...]
+    backend: DoclingBackend
+    formulas: bool
+    pictures: bool
+    charts: bool
+    code: bool
+
+
 ##### DRIVER #####
 class DoclingDriver:
     """docling-serve behind `DocumentPort`: conversions as server tasks, options from DoclingSettings."""
@@ -55,16 +79,15 @@ class DoclingDriver:
         "docling-serve", Locality.REMOTE, Workload.IO_BOUND, Isolation.LOOP, fork_safe=True
     )
 
-    def __init__(self, http: HTTPPort, settings: DoclingSettings | None = None) -> None:
-        ### the default is read on call, not at import: the settings singleton stays lazy.
-        self._conf = st.providers.drivers.documents.docling if settings is None else settings
+    def __init__(self, http: HTTPPort, *, url: HttpUrl | None, **options: Unpack[DoclingOptions]) -> None:
         self._http = http
-        match self._conf.url:
+        self._conf = options
+        match url:
             case None:
                 msg = "DOCLING_URL is unset: there is no docling-serve to speak to"
                 raise DocumentError(msg)
-            case url:
-                self._url = url.rstrip("/")
+            case _:
+                self._url = str(url).rstrip("/")
 
     ##### PRIVATE METHODS #####
 
@@ -89,30 +112,30 @@ class DoclingDriver:
     def _convert_options(self, overrides: Mapping[str, object] | None) -> dict[str, Any]:
         """The configured conversion in docling-serve's names, the call's overrides on top."""
         conf = self._conf
-        timeout = conf.page_timeout
+        timeout = conf["page_timeout"]
         configured = {
-            "to_formats": [str(form) for form in conf.formats],
-            "image_export_mode": str(conf.images),
-            "include_images": conf.images is not DoclingImages.PLACEHOLDER,
-            "images_scale": conf.images_scale,
-            "table_mode": str(conf.tables),
-            "do_ocr": conf.ocr,
-            "force_ocr": conf.force_ocr,
-            "ocr_engine": conf.ocr_engine,
-            "pdf_backend": str(conf.backend),
-            "do_formula_enrichment": conf.formulas,
-            "do_picture_classification": conf.pictures,
-            "do_chart_extraction": conf.charts,
-            "do_code_enrichment": conf.code,
+            "to_formats": [str(form) for form in conf["formats"]],
+            "image_export_mode": str(conf["images"]),
+            "include_images": conf["images"] is not DoclingImages.PLACEHOLDER,
+            "images_scale": conf["images_scale"],
+            "table_mode": str(conf["tables"]),
+            "do_ocr": conf["ocr"],
+            "force_ocr": conf["force_ocr"],
+            "ocr_engine": conf["ocr_engine"],
+            "pdf_backend": str(conf["backend"]),
+            "do_formula_enrichment": conf["formulas"],
+            "do_picture_classification": conf["pictures"],
+            "do_chart_extraction": conf["charts"],
+            "do_code_enrichment": conf["code"],
             "document_timeout": timeout.total_seconds() if timeout is not None else None,
-            **({"ocr_lang": list(conf.ocr_lang)} if conf.ocr_lang else {}),
+            **({"ocr_lang": list(conf["ocr_lang"])} if conf["ocr_lang"] else {}),
         }
         return configured | dict(overrides or {})
 
     async def _convert_wait(self, task: str, deadline: float) -> None:
         """Poll the task until it settles, DOCLING_POLL apart (also sent as `wait`, for servers that hold the poll),
         never past the deadline."""
-        interval = self._conf.poll.total_seconds()
+        interval = self._conf["poll"].total_seconds()
         ### a real loop: polling is iteration over time, and recursion here would grow the stack once per poll.
         while True:
             status = await self._common_call("GET", f"/v1/status/poll/{task}?wait={interval}", deadline)
@@ -146,7 +169,7 @@ class DoclingDriver:
         The bound travels as the request's own timeout, never as a cancellation: a Rust future cancelled
         mid-flight surfaces as a bare CancelledError, which would cancel the caller's whole task group."""
         url = f"{self._url}{path}"
-        limit = self._conf.timeout.total_seconds()
+        limit = self._conf["timeout"].total_seconds()
         within = timedelta(seconds=min(limit, self._common_remaining(deadline)) if deadline is not None else limit)
         try:
             return await (
@@ -191,7 +214,7 @@ class DoclingDriver:
             "options": self._convert_options(options),
             "target": {"kind": "inbody"},
         }
-        deadline = anyio.current_time() + self._conf.deadline.total_seconds()
+        deadline = anyio.current_time() + self._conf["deadline"].total_seconds()
         task = (await self._common_call("POST", "/v1/convert/source/async", deadline, request))["task_id"]
         logger.debug("docling submitted", task=task, filename=filename)
         await self._convert_wait(task, deadline)
@@ -199,20 +222,19 @@ class DoclingDriver:
 
     @classmethod
     async def present(
-        cls, stack: AsyncExitStack, http: HTTPPort, settings: DoclingSettings | None = None
+        cls, stack: AsyncExitStack, http: HTTPPort, *, url: HttpUrl | None, **options: Unpack[DoclingOptions]
     ) -> DoclingDriver | None:
         """The driver open on `stack` when DOCLING_URL names a docling-serve that answers its readiness route; None
         otherwise, with one warning that says why — what reads documents then is the caller's, never this driver's."""
-        conf = st.providers.drivers.documents.docling if settings is None else settings
-        match conf.url:
+        match url:
             case None:
                 reason = "DOCLING_URL unset"
-            case url:
-                driver = await stack.enter_async_context(cls(http, conf))
+            case _:
+                driver = await stack.enter_async_context(cls(http, url=url, **options))
                 try:
                     await driver._common_call("GET", "/ready")
                 except ProviderError as error:
-                    reason = f"{url} unanswered: {error}"
+                    reason = f"{str(url).rstrip('/')} unanswered: {error}"
                 else:
                     return driver
         logger.warning("docling absent", reason=reason)

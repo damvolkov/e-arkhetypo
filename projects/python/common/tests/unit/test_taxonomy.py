@@ -53,23 +53,20 @@ CASES: Final = [(folder, path) for folder in FORBIDDEN for path in _modules(fold
 
 ##### OPT-IN MODULES LOOK ONLY DOWN #####
 ### the auth and MCP pieces are taken by the services that run a door (api); cli, tui and graph exclude them at
-### materialization. That is safe only while nothing a service always ships imports them.
+### materialization. That is safe only while nothing a service always ships imports them. Their knobs are no piece:
+### every cluster of `infra/config` ships everywhere, the one `Settings` imports them all.
 OPT_IN: Final = (
     "e_infra.infra.auth",
     "e_infra.infra.mcp",
     "e_infra.ports.auth",
     "e_infra.engines.auth",
     "e_infra.providers.drivers.auth",
-    "e_infra.infra.config.engines.auth",
-    "e_infra.infra.config.mcp",
 )
 OPT_IN_FILES: Final = frozenset(
     {
         "ports/auth.py",
         "engines/auth.py",
         "providers/drivers/auth/postgres.py",
-        "infra/config/engines/auth.py",
-        "infra/config/mcp.py",
     }
 )
 

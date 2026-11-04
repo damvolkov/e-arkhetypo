@@ -68,12 +68,14 @@ async def test_engines_startup_logs_each_verdict(
 def test_engines_startup_makes_the_admin_account_and_no_key(keys: FakeAuth) -> None:
     held = len(keys.grants)
     with TestClient(create_app()):
-        made = keys.owners[Crypto.identify(st.engines.auth.secret.get_secret_value(), "admin")]
+        secret = st.AUTH_SECRET
+        assert secret is not None
+        made = keys.owners[Crypto.identify(secret.get_secret_value(), "admin")]
     assert (made.name, made.role, len(keys.grants)) == ("admin", Role.ADMIN, held)
 
 
 def test_engines_startup_without_a_secret_makes_no_account(monkeypatch: pytest.MonkeyPatch, keys: FakeAuth) -> None:
-    monkeypatch.setattr(engines, "st", Settings.load(engines={"auth": {"secret": None}}))
+    monkeypatch.setattr(engines, "st", Settings(AUTH_SECRET=None))
     before = dict(keys.owners)
     with TestClient(create_app()):
         assert keys.owners == before

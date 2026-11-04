@@ -1,18 +1,16 @@
-"""infra/config/mcp: the MCP door — where the endpoint answers and which Host and Origin the transport accepts (MCP_*)."""
+"""infra/config/mcp: the MCP door — where the endpoint answers and which Host and Origin the transport accepts."""
 
 from pydantic import Field
-from pydantic_settings import SettingsConfigDict
 
 from e_infra.infra.config.base import BaseSettings
 
 
-class MCPSettings(BaseSettings):
-    """MCP_PATH — where the endpoint answers. MCP_HOSTS / MCP_ORIGINS — JSON lists of the `host:port` and the origins
-    the transport accepts, a foreign one refused (421); empty, the composition root derives them from APP_PORT:
-    `127.0.0.1` and `localhost`, and `http://` each of them."""
+##### SETTINGS #####
+class McpSettings(BaseSettings):
+    """The MCP door: a foreign Host or Origin is refused (421)."""
 
-    model_config = SettingsConfigDict(env_prefix="MCP_")
-
-    path: str = "/mcp"
-    hosts: list[str] = Field(default_factory=list)
-    origins: list[str] = Field(default_factory=list)
+    ### where the endpoint answers.
+    MCP_PATH: str = "/mcp"
+    ### JSON lists of `host:port` and origins; empty, the composition root derives them from APP_PORT.
+    MCP_HOSTS: list[str] = Field(default_factory=list)
+    MCP_ORIGINS: list[str] = Field(default_factory=list)

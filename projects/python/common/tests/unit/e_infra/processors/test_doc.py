@@ -17,9 +17,8 @@ import msgspec
 import polars as pl
 import pytest
 
-from e_infra.infra.config.processors.doc import DocMode, DocSettings, DocSignal
-from e_infra.infra.config.providers.adapters.markdown.anytomd import AnytomdSettings
-from e_infra.infra.config.providers.drivers.documents.docling import DoclingTables
+from e_infra.infra.config.processors import DocMode, DocSignal
+from e_infra.infra.config.providers import DoclingTables
 from e_infra.infra.errors import DocumentError, InputTooLargeError, UnsupportedFormatError
 from e_infra.ports.documents import DocumentConversion
 from e_infra.ports.markdown import MDConversion
@@ -28,6 +27,7 @@ from e_infra.ports.provider import Isolation, Locality, ProviderSpec, Workload
 from e_infra.processors.doc import BREAK, EVERY, DocProcessor
 from e_infra.processors.models import Backend, Document, Element, Section
 from e_infra.providers.adapters.markdown.anytomd import AnytomdAdapter
+from unit.e_infra.conftest import anytomd_args, doc_args
 from unit.e_infra.processors.conftest import opened
 
 if TYPE_CHECKING:
@@ -39,7 +39,7 @@ GOLDEN = msgspec.json.decode(
     gzip.decompress((RESOURCES / "conversions" / "filing.json.gz").read_bytes()), type=DocumentConversion
 )
 TEXT, WORKFORCE, STATEMENT, SCAN = 1, 2, 3, 4
-DETECTOR = AnytomdAdapter(AnytomdSettings())
+DETECTOR = AnytomdAdapter(**anytomd_args())
 MARKDOWN = "# Title\n\nFirst paragraph.\n\n## Sub\n\nSecond,\nstill second."
 
 
@@ -126,12 +126,12 @@ DOCX = zipped({"word/document.xml": b"<w/>"})
 
 def processor(port: FakePort | None = None, *, markdown: FakeMarkdown | None = None, **conf: Any) -> DocProcessor:
     """The reader with docling present (a fake one unless given)."""
-    return DocProcessor(markdown or FakeMarkdown(), opened(), port or FakePort(), DocSettings(**conf))
+    return DocProcessor(markdown or FakeMarkdown(), opened(), port or FakePort(), **doc_args(**conf))
 
 
 def without_docling(markdown: FakeMarkdown | None = None, **conf: Any) -> DocProcessor:
     """The reader as the lifespan builds it when DOCLING_URL is unset or docling is down: no deep port."""
-    return DocProcessor(markdown or FakeMarkdown(), opened(), None, DocSettings(**conf))
+    return DocProcessor(markdown or FakeMarkdown(), opened(), None, **doc_args(**conf))
 
 
 ##### SIGNALS AND ROUTING #####

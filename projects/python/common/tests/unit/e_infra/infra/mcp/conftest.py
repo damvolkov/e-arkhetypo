@@ -11,11 +11,10 @@ from litestar.testing import AsyncTestClient
 
 from e_infra.engines.auth import AuthEngine
 from e_infra.infra.auth.models import Role
-from e_infra.infra.config.base import Secret
-from e_infra.infra.config.engines.auth import AuthSettings
 from support.auth import FakeAuth
 from support.mcp import connect
 from support.tools import build
+from unit.e_infra.conftest import auth_args
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
@@ -35,7 +34,7 @@ def keys() -> FakeAuth:
 
 @pytest.fixture
 def app(keys: FakeAuth) -> Litestar:
-    return build(AuthEngine(keys, AuthSettings(secret=Secret("k"))))
+    return build(AuthEngine(keys, **auth_args()))
 
 
 @pytest.fixture

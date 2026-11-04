@@ -9,7 +9,7 @@ theme: background under everything, corporate for frames and static type, ink fo
 
 from dataclasses import dataclass
 from itertools import accumulate, groupby
-from typing import Final, Protocol
+from typing import Final
 
 from rich.segment import Segment
 from rich.style import Style
@@ -34,14 +34,6 @@ _VERTICAL: Final[dict[Axis, bool]] = {Axis.ROW: False, Axis.COLUMN: True, Axis.O
 _BLANK: Final[str] = " "
 
 
-class ThemeSource(Protocol):
-    """The theme fields a `Colors` needs — infra's `ThemeSettings` satisfies it without import."""
-
-    background: str
-    corporate: str
-    ink: str
-
-
 @dataclass(frozen=True, slots=True)
 class Colors:
     """The three-color law, resolved from theme settings: background, corporate, ink."""
@@ -51,13 +43,9 @@ class Colors:
     ink: Color
 
     @classmethod
-    def from_settings(cls, theme: ThemeSource) -> Colors:
-        """Build from any object carrying the three hex fields (duck-typed: no infra import here)."""
-        return cls(
-            background=Color.parse(theme.background),
-            corporate=Color.parse(theme.corporate),
-            ink=Color.parse(theme.ink),
-        )
+    def of(cls, *, background: str, corporate: str, ink: str) -> Colors:
+        """The three hex values the root reads (THEME_BACKGROUND, THEME_CORPORATE, THEME_INK), parsed."""
+        return cls(background=Color.parse(background), corporate=Color.parse(corporate), ink=Color.parse(ink))
 
 
 class BoxFrame(Container):

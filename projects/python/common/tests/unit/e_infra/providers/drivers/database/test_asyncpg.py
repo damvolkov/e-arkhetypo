@@ -7,11 +7,11 @@ import anyio
 import asyncpg
 import pytest
 
-from e_infra.infra.config.providers.drivers.database.asyncpg import AsyncpgSettings
 from e_infra.infra.errors import DatabaseError, ProviderError
 from e_infra.ports.database import DatabasePort, Vector
 from e_infra.providers.drivers.database.asyncpg import FOUND, AsyncpgDriver, AsyncpgStatements
 from support.asyncpg import FakeAsyncpgConnection
+from unit.e_infra.conftest import asyncpg_args
 
 if TYPE_CHECKING:
     from support.asyncpg import FakeAsyncpgServer
@@ -44,11 +44,6 @@ async def test_asyncpg_open_builds_the_pool_from_settings_and_close_closes_it(
     assert pool.closed
     assert logs.at("info") == ["asyncpg opened", "asyncpg closed"]
     await asyncpg_driver.__aexit__(None, None, None)
-
-
-async def test_asyncpg_default_settings_come_from_the_composer(asyncpg_server: FakeAsyncpgServer) -> None:
-    async with AsyncpgDriver():
-        assert asyncpg_server.pools[0].kwargs["max_size"] == AsyncpgSettings().pool
 
 
 async def test_asyncpg_unopened_calls_are_database_errors(asyncpg_driver: AsyncpgDriver) -> None:
@@ -87,7 +82,7 @@ async def test_asyncpg_open_that_never_answers_times_out(
 
     monkeypatch.setattr(asyncpg, "create_pool", never)
     with pytest.raises(DatabaseError, match="open timed out"):
-        await AsyncpgDriver(AsyncpgSettings(timeout=timedelta(milliseconds=50))).__aenter__()
+        await AsyncpgDriver(**asyncpg_args(timeout=timedelta(milliseconds=50))).__aenter__()
     assert logs.at("error") == ["asyncpg open timed out"]
 
 
@@ -97,7 +92,7 @@ async def test_asyncpg_close_that_never_returns_terminates_the_pool(
     async def never() -> None:
         await anyio.sleep_forever()
 
-    slow = AsyncpgDriver(AsyncpgSettings(timeout=timedelta(milliseconds=50)))
+    slow = AsyncpgDriver(**asyncpg_args(timeout=timedelta(milliseconds=50)))
     await slow.__aenter__()
     pool = asyncpg_server.pools[0]
     monkeypatch.setattr(pool, "close", never)

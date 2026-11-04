@@ -9,8 +9,8 @@ from collections.abc import AsyncGenerator, Mapping
 from contextlib import asynccontextmanager
 
 from litestar import Litestar
+from pydantic import PostgresDsn, Secret
 
-from infra.config.providers.drivers.database.psqlpy import PsqlpySettings
 from infra.errors import DatabaseError
 from infra.logger import logger
 from infra.settings import settings as st
@@ -18,15 +18,15 @@ from providers.drivers.database.psqlpy import PsqlpyDriver
 
 
 ##### ROWS #####
-def databases() -> Mapping[str, PsqlpySettings]:
-    """Every database the service needs, by concern; read on call, so the settings stay lazy."""
-    return {"app": st.providers.drivers.database.psqlpy}
+def databases() -> Mapping[str, Secret[PostgresDsn]]:
+    """Every database the service needs, by concern: its DSN."""
+    return {"app": st.POSTGRES_DSN}
 
 
-async def provision(concern: str, settings: PsqlpySettings) -> bool:
+async def provision(concern: str, dsn: Secret[PostgresDsn]) -> bool:
     """Whether the concern's database was created now; a failure is warned of and reads as not created."""
     try:
-        return await PsqlpyDriver(settings).provision()
+        return await PsqlpyDriver(dsn=dsn, pool=st.POSTGRES_POOL, timeout=st.POSTGRES_TIMEOUT).provision()
     except DatabaseError as error:
         logger.warning("database not provisioned", concern=concern, error=str(error), step="START")
         return False
@@ -35,6 +35,6 @@ async def provision(concern: str, settings: PsqlpySettings) -> bool:
 @asynccontextmanager
 async def lifespan(_app: Litestar) -> AsyncGenerator[None]:
     """Provision each database, then hand over: the edges open on databases that exist."""
-    created = [concern for concern, settings in databases().items() if await provision(concern, settings)]
+    created = [concern for concern, dsn in databases().items() if await provision(concern, dsn)]
     logger.info("databases ready", created=created, step="START")
     yield

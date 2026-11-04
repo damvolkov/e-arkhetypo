@@ -29,14 +29,15 @@ from awa import DatabaseError as AwaDatabaseError
 from e_infra.infra.background import BackgroundJob, BackgroundState
 from e_infra.infra.errors import ProviderError, QueueError
 from e_infra.infra.logger import logger
-from e_infra.infra.settings import settings as st
 from e_infra.ports.provider import Isolation, Locality, ProviderSpec, Workload
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable, Mapping
+    from datetime import timedelta
+
+    from pydantic import PostgresDsn, Secret
 
     from e_infra.infra.background import BackgroundHandler
-    from e_infra.infra.config.providers.drivers.queue.awa import AwaSettings
 
 SCHEMA: Final[tuple[str, ...]] = (
     "CREATE SCHEMA IF NOT EXISTS background",
@@ -71,25 +72,26 @@ class AwaDriver:
 
     spec: ClassVar[ProviderSpec] = ProviderSpec("awa", Locality.REMOTE, Workload.IO_BOUND, Isolation.LOOP, pooled=True)
 
-    __slots__ = ("_client", "_conf")
+    __slots__ = ("_client", "_drain", "_dsn", "_poll", "_pool", "_timeout")
 
-    def __init__(self, settings: AwaSettings | None = None) -> None:
-        ### the default is read on call, not at import: the settings singleton stays lazy.
-        self._conf = st.providers.drivers.queue.awa if settings is None else settings
+    def __init__(
+        self, *, dsn: Secret[PostgresDsn], pool: int, timeout: timedelta, poll: timedelta, drain: timedelta
+    ) -> None:
+        self._dsn, self._pool, self._timeout, self._poll, self._drain = dsn, pool, timeout, poll, drain
         self._client: AsyncClient | None = None
 
     ##### PRIVATE #####
 
     async def _enter_client(self) -> AsyncClient:
-        build = partial(AsyncClient, self._conf.dsn.get_secret_value(), max_connections=self._conf.pool)
-        with anyio.fail_after(self._conf.timeout.total_seconds()):
+        build = partial(AsyncClient, str(self._dsn.get_secret_value()), max_connections=self._pool)
+        with anyio.fail_after(self._timeout.total_seconds()):
             return await anyio.to_thread.run_sync(build, abandon_on_cancel=True)
 
     async def _enter_fill(self, client: AsyncClient) -> None:
         """Every connection of the pool opened now, each held until all are: a pool that must grow later stalls the
         runtime (no claim, no shutdown) while the server refuses it a connection, where a refusal now is an outage."""
         async with AsyncExitStack() as stack:
-            _ = [await stack.enter_async_context(await client.transaction()) for _ in range(self._conf.pool)]
+            _ = [await stack.enter_async_context(await client.transaction()) for _ in range(self._pool)]
 
     async def _register_run(self, handler: BackgroundHandler, job: Job[dict[str, Any]]) -> Cancel | None:
         try:
@@ -111,7 +113,7 @@ class AwaDriver:
         scope.cancel()
 
     async def _register_cancelled(self, job: Job[dict[str, Any]]) -> bool:
-        await anyio.sleep(self._conf.poll.total_seconds())
+        await anyio.sleep(self._poll.total_seconds())
         return job.is_cancelled()
 
     async def _common_snapshots(self, ids: list[int]) -> dict[int, dict[str, Any]]:
@@ -138,14 +140,14 @@ class AwaDriver:
         """One call on the client, within QUEUE_TIMEOUT when `bounded`; an outage of the database is the port's
         `QueueError`."""
         try:
-            with anyio.fail_after(self._conf.timeout.total_seconds() if bounded else None):
+            with anyio.fail_after(self._timeout.total_seconds() if bounded else None):
                 return await call(self._common_client())
         except AwaDatabaseError as error:
             logger.error("awa database failed", error=str(error))
             raise QueueError(str(error)) from error
         except TimeoutError as error:
-            msg = f"awa call timed out after {self._conf.timeout}"
-            logger.error("awa call timed out", timeout=str(self._conf.timeout))
+            msg = f"awa call timed out after {self._timeout}"
+            logger.error("awa call timed out", timeout=str(self._timeout))
             raise QueueError(msg) from error
 
     async def _common_found(
@@ -203,7 +205,7 @@ class AwaDriver:
         await self._common_call(lambda client: client.migrate(), bounded=False)
         _ = [await self._common_execute(statement, bounded=False) for statement in SCHEMA]
         await self._common_call(self._enter_fill)
-        logger.info("awa opened", pool=self._conf.pool)
+        logger.info("awa opened", pool=self._pool)
         return self
 
     async def health(self) -> bool:
@@ -221,10 +223,10 @@ class AwaDriver:
                 pass
             case client:
                 ### awa bounds only the drain: its dispatchers, services and pool are awaited without end.
-                limit = self._conf.drain + self._conf.timeout
+                limit = self._drain + self._timeout
                 try:
                     with anyio.fail_after(limit.total_seconds()):
-                        await client.shutdown(int(self._conf.drain.total_seconds() * 1000))
+                        await client.shutdown(int(self._drain.total_seconds() * 1000))
                         await client.close()
                 except TimeoutError as error:
                     msg = f"awa close timed out after {limit}"
@@ -239,7 +241,7 @@ class AwaDriver:
         _ = self._common_client().task(dict, kind=kind, queue=queue)(partial(self._register_run, handler))
 
     async def start(self, slots: Mapping[str, int]) -> None:
-        poll = int(self._conf.poll.total_seconds() * 1000)
+        poll = int(self._poll.total_seconds() * 1000)
         logger.debug("awa start", queues=len(slots))
         await self._common_call(lambda client: client.start(list(slots.items()), poll_interval_ms=poll))
 

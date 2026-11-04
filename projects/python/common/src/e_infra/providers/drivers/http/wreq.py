@@ -15,14 +15,13 @@ import wreq
 
 from e_infra.infra.errors import HTTPError, HTTPTimeoutError, ProviderError
 from e_infra.infra.logger import logger
-from e_infra.infra.settings import settings as st
 from e_infra.ports.provider import Isolation, Locality, ProviderSpec, Workload
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, Awaitable, Callable, Generator, Mapping
     from datetime import timedelta
 
-    from e_infra.infra.config.providers.drivers.http.wreq import WreqSettings
+    from pydantic import HttpUrl
 
 TIMED_OUT: Final = "TimedOut"
 WIRE: Final = (
@@ -40,16 +39,14 @@ WIRE: Final = (
 
 ##### TYPES #####
 class WreqDriver:
-    """One wreq client per process: base_url and timeout come from HTTPSettings, responses leave as data."""
+    """One wreq client per process: base_url and timeout are given, responses leave as data."""
 
     spec: ClassVar[ProviderSpec] = ProviderSpec("wreq", Locality.REMOTE, Workload.IO_BOUND, Isolation.LOOP, pooled=True)
 
-    def __init__(self, settings: WreqSettings | None = None) -> None:
-        ### the default is read on call, not at import: the settings singleton stays lazy.
-        conf = st.providers.drivers.http.wreq if settings is None else settings
-        self._base_url = conf.base_url
-        self._timeout = conf.timeout
-        self._headers = {"User-Agent": conf.agent, **conf.headers}
+    def __init__(self, *, base_url: HttpUrl, timeout: timedelta, agent: str, headers: Mapping[str, str]) -> None:
+        self._base_url = str(base_url)
+        self._timeout = timeout
+        self._headers = {"User-Agent": agent, **headers}
         self._client: wreq.Client | None = None
 
     ##### PRIVATE METHODS #####

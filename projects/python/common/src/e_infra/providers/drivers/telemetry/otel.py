@@ -3,9 +3,9 @@
 A singleton like every provider: one per process, opened by the lifespan, closed by it. It owns its own
 `TracerProvider` — never the process-global one: two apps, two tests, two providers, zero cross-talk.
 The exporter resolves once: an injected `SpanExporter` wins (tests read spans in memory), then
-`OTEL_ENDPOINT` batches to a collector over `OTEL_PROTOCOL`, and with neither the spans are still minted
+the `endpoint` batches to a collector over the `protocol`, and with neither the spans are still minted
 — their ids correlate logs and outputs, they just leave no process. Sampling is parent-based at
-`OTEL_SAMPLE`. Each `span` yields an `OTelSpan` (the `SpanPort`): attributes, events and status may be
+`sample`. Each `span` yields an `OTelSpan` (the `SpanPort`): attributes, events and status may be
 written until the block ends; a clean exit settles OK, a raise settles ERROR with the exception recorded.
 Spans nest through the SDK's contextvars, so a span opened inside another is its child across awaits.
 
@@ -13,7 +13,7 @@ The one place OpenTelemetry is named. A span opened with a `SpanRole` is transla
 words (the conventions Phoenix and its kin read): the role becomes a span kind and an `openinference.span.kind`, a
 `SpanKey` an attribute name — per role where they differ (a model is `llm.model_name` on a call,
 `embedding.model_name` on an embedding) —; any other key passes as written. A carrier is the W3C trace context
-(`traceparent`). The tracer is named by OTEL_SERVICE, the name the traces carry."""
+(`traceparent`). The tracer is named by `service`, the name the traces carry."""
 
 import asyncio
 from contextlib import contextmanager
@@ -30,19 +30,19 @@ from opentelemetry.sdk.trace.sampling import ParentBased, TraceIdRatioBased
 from opentelemetry.trace import Status, StatusCode
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 
-from e_infra.infra.config.providers.drivers.telemetry.otel import OTelProtocol
+from e_infra.infra.config.providers import OTelProtocol
 from e_infra.infra.errors import TelemetryError
 from e_infra.infra.logger import logger
-from e_infra.infra.settings import settings as st
 from e_infra.ports.provider import Isolation, Locality, ProviderSpec, Workload
 from e_infra.ports.telemetry import SpanKey, SpanKind, SpanRole, SpanStatus
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Generator, Mapping
+    from datetime import timedelta
 
     from opentelemetry.trace import Tracer
+    from pydantic import SecretStr
 
-    from e_infra.infra.config.providers.drivers.telemetry.otel import OTelSettings
     from e_infra.ports.telemetry import AttributeValue
 
 TRACES_PATH: Final[str] = "/v1/traces"
@@ -172,9 +172,21 @@ class OTelDriver:
 
     spec: ClassVar[ProviderSpec] = ProviderSpec("otel", Locality.REMOTE, Workload.IO_BOUND, Isolation.LOOP)
 
-    def __init__(self, settings: OTelSettings | None = None, exporter: SpanExporter | None = None) -> None:
-        ### the default is read on call, not at import: the settings singleton stays lazy.
-        self._settings = st.providers.drivers.telemetry.otel if settings is None else settings
+    def __init__(
+        self,
+        *,
+        endpoint: str,
+        protocol: OTelProtocol,
+        headers: Mapping[str, SecretStr],
+        timeout: timedelta,
+        flush: timedelta,
+        service: str,
+        attributes: Mapping[str, str],
+        sample: float,
+        exporter: SpanExporter | None = None,
+    ) -> None:
+        self._endpoint, self._protocol, self._headers, self._timeout = endpoint, protocol, headers, timeout
+        self._flush, self._service, self._attributes, self._sample = flush, service, attributes, sample
         self._exporter = exporter
         self._provider: TracerProvider | None = None
         self._tracer: Tracer | None = None
@@ -183,20 +195,19 @@ class OTelDriver:
 
     def _enter_exporter(self) -> SpanExporter:
         """The OTLP exporter for the configured transport, headers and deadline."""
-        resolved = self._settings
-        headers = {key: secret.get_secret_value() for key, secret in resolved.headers.items()}
-        exporter = EXPORTERS[resolved.protocol]
-        return exporter(resolved.endpoint.rstrip("/"), headers, resolved.timeout.total_seconds())
+        headers = {key: secret.get_secret_value() for key, secret in self._headers.items()}
+        exporter = EXPORTERS[self._protocol]
+        return exporter(self._endpoint.rstrip("/"), headers, self._timeout.total_seconds())
 
     def _enter_processor(self) -> SpanProcessor | None:
-        match (self._exporter, self._settings.endpoint):
+        match (self._exporter, self._endpoint):
             case (None, ""):
                 return None
             case (None, _):
                 return BatchSpanProcessor(
                     self._enter_exporter(),
-                    schedule_delay_millis=self._settings.flush.total_seconds() * MS_PER_SECOND,
-                    export_timeout_millis=self._settings.timeout.total_seconds() * MS_PER_SECOND,
+                    schedule_delay_millis=self._flush.total_seconds() * MS_PER_SECOND,
+                    export_timeout_millis=self._timeout.total_seconds() * MS_PER_SECOND,
                 )
             case (SpanExporter() as exporter, _):
                 return SimpleSpanProcessor(exporter)
@@ -226,18 +237,17 @@ class OTelDriver:
     ##### PUBLIC #####
 
     async def __aenter__(self) -> Self:
-        resolved = self._settings
-        ### the service name is the settings' own field: an attribute of the same key never overrides it.
-        resource = Resource.create({**resolved.attributes, "service.name": resolved.service})
-        provider = TracerProvider(resource=resource, sampler=ParentBased(TraceIdRatioBased(resolved.sample)))
+        ### the service name is the driver's own argument: an attribute of the same key never overrides it.
+        resource = Resource.create({**self._attributes, "service.name": self._service})
+        provider = TracerProvider(resource=resource, sampler=ParentBased(TraceIdRatioBased(self._sample)))
         match self._enter_processor():
             case None:
                 pass
             case processor:
                 provider.add_span_processor(processor)
         self._provider = provider
-        self._tracer = provider.get_tracer(resolved.service)
-        logger.info("otel opened", service=resolved.service, endpoint=resolved.endpoint, sample=resolved.sample)
+        self._tracer = provider.get_tracer(self._service)
+        logger.info("otel opened", service=self._service, endpoint=self._endpoint, sample=self._sample)
         return self
 
     async def __aexit__(self, *exc: object) -> None:
@@ -252,16 +262,16 @@ class OTelDriver:
                 logger.info("otel closed")
 
     async def health(self) -> bool:
-        """The provider is open and flushes what it holds to its exporter within OTEL_TIMEOUT (none set: nothing to
+        """The provider is open and flushes what it holds to its exporter within `timeout` (none set: nothing to
         flush, it answers at once)."""
-        timeout = int(self._settings.timeout.total_seconds() * MS_PER_SECOND)
+        timeout = int(self._timeout.total_seconds() * MS_PER_SECOND)
         match self._provider:
             case None:
                 msg = "OTelDriver is not open"
                 logger.warning("otel unhealthy", error=msg)
                 raise TelemetryError(msg)
             case provider if not await asyncio.to_thread(provider.force_flush, timeout):
-                msg = f"spans not flushed to the exporter within {self._settings.timeout}"
+                msg = f"spans not flushed to the exporter within {self._timeout}"
                 logger.warning("otel unhealthy", error=msg)
                 raise TelemetryError(msg)
             case _:

@@ -7,7 +7,6 @@ from typing import Final
 
 import pytest
 
-from e_infra.infra.config.providers.adapters.language.lingua import LinguaSettings
 from e_infra.ports.language import LanguagePort
 from e_infra.providers.adapters.language.lingua import LinguaAdapter
 
@@ -17,7 +16,7 @@ ES, EN, SHORT_TEXT = ((SAMPLES / f"{name}.md").read_text() for name in ("es", "e
 
 @pytest.fixture(scope="module")
 def lingua() -> LinguaAdapter:
-    return LinguaAdapter(LinguaSettings(languages=("en", "es")))
+    return LinguaAdapter(languages=("en", "es"))
 
 
 async def test_lingua_meets_the_port_and_its_lifecycle(lingua: LinguaAdapter) -> None:
@@ -61,15 +60,15 @@ def test_lingua_document_untold(lingua: LinguaAdapter) -> None:
 
 def test_lingua_restricted() -> None:
     """Only the configured languages are answered: Spanish text read by an English-only detector is English."""
-    assert LinguaAdapter(LinguaSettings(languages=("en",))).each([ES]) == ["en"]
+    assert LinguaAdapter(languages=("en",)).each([ES]) == ["en"]
 
 
 def test_lingua_annotator(lingua: LinguaAdapter) -> None:
     assert lingua.annotator == f"lingua@{version('lingua-language-detector')}"
 
 
-def test_lingua_pickles_as_its_settings(lingua: LinguaAdapter) -> None:
-    """Pickled, the detector travels as its settings and reads the same where it lands."""
+def test_lingua_pickles_as_its_languages(lingua: LinguaAdapter) -> None:
+    """Pickled, the detector travels as its languages and reads the same where it lands."""
     again = pickle.loads(pickle.dumps(lingua))  # noqa: S301 — our own object, round-tripped
     probe = "La reunión trata del presupuesto anual."
     assert (again.annotator, again.detect(probe)) == (lingua.annotator, lingua.detect(probe))

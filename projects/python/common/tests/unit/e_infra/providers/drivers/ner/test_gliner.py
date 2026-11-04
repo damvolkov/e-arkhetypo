@@ -5,10 +5,10 @@ from typing import TYPE_CHECKING, Any, Final
 import msgspec
 import pytest
 
-from e_infra.infra.config.providers.drivers.ner.gliner import GlinerSettings
 from e_infra.infra.errors import HTTPError, ModelError, ProviderError
 from e_infra.ports.ner import NEREntity, NERPort
 from e_infra.providers.drivers.ner.gliner import GlinerDriver
+from unit.e_infra.conftest import gliner_args
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator, Iterator
@@ -27,7 +27,7 @@ async def test_gliner_entities_matched_back_by_id_out_of_order(stub: Stub) -> No
     stub.on(
         "POST", "/ner/batch", lambda _body: (200, lines({"id": "1", "entities": []}, {"id": "0", "entities": [PERSON]}))
     )
-    async with GlinerDriver(GlinerSettings(url=stub.url)) as ner:
+    async with GlinerDriver(**gliner_args(url=stub.url)) as ner:
         assert isinstance(ner, NERPort)
         found = await ner.entities(["Ada wrote", "nothing"], labels=["person"], threshold=0.5)
     assert found == [(NEREntity(**PERSON),), ()]
@@ -45,7 +45,7 @@ async def test_gliner_batches_and_no_text_no_call(stub: Stub) -> None:
         "/ner/batch",
         lambda body: (200, lines(*({"id": str(n), "entities": []} for n in range(body.count(b"text"))))),
     )
-    async with GlinerDriver(GlinerSettings(url=stub.url, batch=2)) as ner:
+    async with GlinerDriver(**gliner_args(url=stub.url, batch=2)) as ner:
         assert await ner.entities(["a", "b", "c"], labels=["x"], threshold=0.1) == [(), (), ()]
         assert await ner.entities([], labels=["x"], threshold=0.1) == []
     assert len(stub.bodies("/ner/batch")) == 2
@@ -58,21 +58,21 @@ async def test_gliner_batches_and_no_text_no_call(stub: Stub) -> None:
 )
 async def test_gliner_a_refusal_or_silence_fails_the_call(stub: Stub, answer: bytes) -> None:
     stub.on("POST", "/ner/batch", lambda _body: (200, answer))
-    async with GlinerDriver(GlinerSettings(url=stub.url)) as ner:
+    async with GlinerDriver(**gliner_args(url=stub.url)) as ner:
         with pytest.raises(ModelError, match="answered"):
             await ner.entities(["a"], labels=["x"], threshold=0.1)
 
 
 async def test_gliner_server_error_is_an_http_error(stub: Stub) -> None:
     stub.on("POST", "/ner/batch", lambda _body: (503, b"{}"))
-    async with GlinerDriver(GlinerSettings(url=stub.url)) as ner:
+    async with GlinerDriver(**gliner_args(url=stub.url)) as ner:
         with pytest.raises(HTTPError):
             await ner.entities(["a"], labels=["x"], threshold=0.1)
 
 
 async def test_gliner_refresh_reads_the_card(stub: Stub) -> None:
     stub.json("GET", "/models", {"model": "gliner-x", "version": "abc"})
-    async with GlinerDriver(GlinerSettings(url=stub.url)) as ner:
+    async with GlinerDriver(**gliner_args(url=stub.url)) as ner:
         assert ner.annotator == ""
         assert await ner.refresh() == "gliner:gliner-x@abc"
         assert ner.annotator == "gliner:gliner-x@abc"
@@ -84,7 +84,7 @@ async def test_gliner_refresh_reads_the_card(stub: Stub) -> None:
 
 async def test_gliner_health_and_unopen(stub: Stub) -> None:
     stub.json("GET", "/ready", {})
-    ner = GlinerDriver(GlinerSettings(url=stub.url))
+    ner = GlinerDriver(**gliner_args(url=stub.url))
     with pytest.raises(ProviderError):
         await ner.health()
     with pytest.raises(ModelError, match="not open"):
@@ -109,18 +109,18 @@ async def test_gliner_lines_cut_across_frames_and_skip_trailers() -> None:
 
 
 async def test_gliner_exit_unopen_is_quiet() -> None:
-    await GlinerDriver(GlinerSettings()).__aexit__(None, None, None)
+    await GlinerDriver(**gliner_args()).__aexit__(None, None, None)
 
 
 async def test_gliner_lifecycle_and_every_failure_are_logged(stub: Stub, logs: Logs) -> None:
     stub.on("POST", "/ner/batch", lambda _body: (503, b"{}"))
-    async with GlinerDriver(GlinerSettings(url=stub.url)) as ner:
+    async with GlinerDriver(**gliner_args(url=stub.url)) as ner:
         with pytest.raises(HTTPError):
             await ner.entities(["a"], labels=["x"], threshold=0.1)
         with pytest.raises(ProviderError):
             await ner.health()
     stub.on("POST", "/ner/batch", lambda _body: (200, b""))
-    async with GlinerDriver(GlinerSettings(url=stub.url)) as ner:
+    async with GlinerDriver(**gliner_args(url=stub.url)) as ner:
         with pytest.raises(ModelError):
             await ner.entities(["a"], labels=["x"], threshold=0.1)
     assert logs.at("info") == ["gliner opened", "gliner closed"] * 2
@@ -135,11 +135,11 @@ async def test_gliner_a_streamed_answer_in_frames_is_read_as_it_arrives(stub: St
         return 200, iter([lines({"id": "1", "entities": []}), lines({"id": "0", "entities": [PERSON]})])
 
     stub.on("POST", "/ner/batch", answer)
-    async with GlinerDriver(GlinerSettings(url=stub.url)) as ner:
+    async with GlinerDriver(**gliner_args(url=stub.url)) as ner:
         found = await ner.entities(["Ada", "none"], labels=["person"], threshold=0.5)
     assert [len(entities) for entities in found] == [1, 0]
 
 
 async def test_gliner_off_refuses_to_open() -> None:
     with pytest.raises(ProviderError, match="GLINER_URL is none"):
-        await GlinerDriver(GlinerSettings(url=None)).__aenter__()
+        await GlinerDriver(**gliner_args(url=None)).__aenter__()

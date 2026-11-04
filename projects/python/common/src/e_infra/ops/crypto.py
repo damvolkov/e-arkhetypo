@@ -138,7 +138,7 @@ JOSE_KEY_TYPES: Final[Mapping[AlgPrefix, Literal["RSA", "EC", "OKP"]]] = Mapping
 )  # alg prefix -> joserfc key_type
 MISSING_PRIVATE_KEY: str = "asymmetric engine needs a private_key PEM to sign tokens"
 NO_VERIFY_KEY: str = "engine needs a signing key or a public jwks set to verify"
-MISSING_ROOT: str = "crypto engine needs a secret: set CRYPTO__SECRET or pass CryptoSettings(secret=...)"
+MISSING_ROOT: str = "crypto engine needs a secret: set CRYPTO__SECRET or pass CryptoKeys(secret=...)"
 UNSUPPORTED_KEY: str = "Unsupported signing key type"
 MALFORMED: str = "Not a JWS (3 parts) or JWE (5 parts) compact token"
 UNKNOWN_HASH: str = "Unrecognized password hash format"

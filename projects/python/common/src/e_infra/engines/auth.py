@@ -16,12 +16,14 @@ from typing import TYPE_CHECKING, Final
 from e_infra.infra.auth.models import ANONYMOUS, Account, Caller, Grant, GrantKind, Issued, Role
 from e_infra.infra.errors import AuthClosedError, AuthNameError, UnknownTokenError
 from e_infra.infra.logger import logger
-from e_infra.infra.settings import settings as st
 from e_infra.ops.crypto import Crypto
 from e_infra.ops.hash import hash_bytes
 
 if TYPE_CHECKING:
-    from e_infra.infra.config.engines.auth import AuthSettings
+    from datetime import timedelta
+
+    from pydantic import SecretStr
+
     from e_infra.ports.auth import AuthPort
 
 ### what any account's name is: plain, the same typed in every harness's config.
@@ -34,13 +36,11 @@ class AuthEngine:
 
     __slots__ = ("_admin", "_port", "_secret", "_ttl")
 
-    def __init__(self, port: AuthPort, settings: AuthSettings | None = None) -> None:
-        ### the default is read on call, not at import: the settings singleton stays lazy.
-        conf = st.engines.auth if settings is None else settings
+    def __init__(self, port: AuthPort, *, secret: SecretStr | None, ttl: timedelta | None, admin: str) -> None:
         self._port = port
-        self._secret = conf.secret.get_secret_value() if conf.secret else ""
-        self._ttl = conf.ttl
-        self._admin = conf.admin
+        self._secret = secret.get_secret_value() if secret else ""
+        self._ttl = ttl
+        self._admin = admin
 
     ##### PRIVATE #####
 

@@ -31,10 +31,6 @@ async def test_survey_empty() -> None:
     assert await HealthEngine({}, REQUIRED, LIMIT).survey() == ()
 
 
-async def test_survey_default_limit_is_the_ping_setting() -> None:
-    assert HealthEngine({})._limit == timedelta(seconds=2)
-
-
 async def test_survey_concurrent() -> None:
     """Three slow providers at once: the whole takes the slowest, not the sum."""
     slow = {name: StubProvider(delay=0.3) for name in ("store", "redis", "http")}

@@ -18,13 +18,13 @@ from litestar.types import ASGIApp
 from e_api.api.state import AppState
 from infra.auth.middleware import TokenMiddleware
 from infra.auth.resolver import CallerResolver
+from infra.config.api import HTTPMethod
 from infra.logger import logger
-from infra.settings import settings as st
 
 if TYPE_CHECKING:
-    from litestar.types import Message, Receive, Scope, Send
+    from collections.abc import Sequence
 
-    from infra.config.api import APISettings
+    from litestar.types import Message, Receive, Scope, Send
 
 
 ##### MIDDLEWARES #####
@@ -68,14 +68,12 @@ class AccessLogMiddleware:
                 await self._app(scope, receive, send)
 
 
-def cors_config(settings: APISettings | None = None) -> CORSConfig:
-    """Translate the settings struct into litestar's config object — data in, behaviour out."""
-    ### the default resolves inside the body: an `st.api` default would freeze at import and defeat the lazy singleton.
-    resolved = st.api if settings is None else settings
+def cors_config(*, origins: Sequence[str], methods: Sequence[HTTPMethod]) -> CORSConfig:
+    """ALLOW_ORIGINS and ALLOW_METHODS, read by the root, as litestar's config object — data in, behaviour out."""
     ### two verb enums, one wire contract: settings own the vocabulary, values cross into litestar's at this edge.
     return CORSConfig(
-        allow_origins=resolved.allow_origins,
-        allow_methods=[LitestarHttpMethod(method.value) for method in resolved.allow_methods],
+        allow_origins=list(origins),
+        allow_methods=[LitestarHttpMethod(method.value) for method in methods],
         allow_headers=["*"],
     )
 

@@ -67,8 +67,6 @@ EXCLUDES: frozenset[str] = frozenset(
         "infra/mcp/mount.py",
         "infra/mcp/registry.py",
         "infra/mcp/server.py",
-        "infra/config/engines/auth.py",
-        "infra/config/mcp.py",
         "ports/auth.py",
         "providers/drivers/auth/postgres.py",
         "engines/auth.py",

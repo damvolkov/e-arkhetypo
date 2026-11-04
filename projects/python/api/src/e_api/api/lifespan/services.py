@@ -12,12 +12,21 @@ from litestar import Litestar
 from e_api.api.state import AppState
 from infra.logger import logger
 from infra.settings import settings as st
-from ops.crypto import Crypto
+from ops.crypto import Crypto, CryptoKeys
 
 
 @asynccontextmanager
 async def lifespan(app: Litestar) -> AsyncGenerator[None]:
     """Assemble the engines that travel with the app: crypto."""
-    AppState.of(app).system.crypto = Crypto(st.crypto)
+    AppState.of(app).system.crypto = Crypto(
+        CryptoKeys(
+            secret=st.CRYPTO__SECRET,
+            alg=st.CRYPTO__ALG,
+            enc=st.CRYPTO__ENC,
+            private_key=st.CRYPTO__PRIVATE_KEY.get_secret_value(),
+            hasher=st.CRYPTO__HASHER,
+            bcrypt_rounds=st.CRYPTO__BCRYPT_ROUNDS,
+        )
+    )
     logger.info("services ready", step="START")
     yield

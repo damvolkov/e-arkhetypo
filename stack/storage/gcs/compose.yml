@@ -1,0 +1,38 @@
+services:
+  gcs:
+    # fake-gcs-server: the GCS JSON/XML API locally; the official SDKs reach it through STORAGE_EMULATOR_HOST.
+    image: fsouza/fake-gcs-server:latest
+    container_name: gcs
+    hostname: gcs
+    restart: unless-stopped
+    labels:
+      stack.category: "storage"
+      stack.port: "4443"
+    ports:
+      # default 4443 — JSON + XML API, plain http
+      - "${GCS_PORT:-4443}:4443"
+    volumes:
+      - gcs-data:/storage
+    # -public-host and -external-url must name the address clients use: upload URLs and XML host matching read them.
+    command:
+      - -scheme=http
+      - -port=4443
+      - -backend=filesystem
+      - -filesystem-root=/storage
+      - -public-host=${GCS_PUBLIC_HOST:-localhost:4443}
+      - -external-url=http://${GCS_PUBLIC_HOST:-localhost:4443}
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:4443/_internal/healthcheck || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - stack
+
+volumes:
+  gcs-data:
+
+networks:
+  stack:
+    name: stack

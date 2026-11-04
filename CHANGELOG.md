@@ -7,6 +7,16 @@ touches — `stack`, `systems`, `infra`. Lines under `[Unreleased]` are written 
 ## [Unreleased]
 
 ### Changed
+- `common`: one document reader. `DocProcessor` absorbs `MDProcessor` (removed with `MDSettings`, `MarkdownFile` and
+  their tests) over three providers: the docling driver (optional), the anytomd adapter and the liteparse fast pass.
+  A PDF is read page by page (docling on the pages its signals route); any other format whole — by docling when it
+  reads it (`WHOLE`: docx, pptx, xlsx, html, csv, image), by anytomd otherwise or in its place when docling fails
+  (`ProviderError`, `TimeoutError`). Fallbacks log at debug; the reason rides on `Page.fallback`. `Backend.ANYTOMD`,
+  `Document.warnings`, `DOC_MAX_INPUT_BYTES`; a ZIP is refused (many documents). `DOCLING_URL` is unset by default and
+  `DoclingDriver.present(stack, http)` is how a root opens it: the driver when the server answers, else None and one
+  warning. `graph`: providers gain `markdown`, `docling` may be None, the CLI rehearsal opens the same way; its docling
+  stand-ins answer as the server does (JSON `/ready`, `DocumentError`). Graph locks regenerated with e-taxis. Lesson
+  from findr-ground (TODO_ONTOLOGIES, step 3).
 - `stack`: one supervisor, Docker — units oneshot `compose up -d --wait`, never `Type=simple` over an attached `up`
   nor a pull in `ExecStartPre` (a Docker restart fired every pull at once and hung containerd, 2026-11-03); llamacpp
   and strata setups follow. TEI embed and reranker cap `--tokenization-workers` (8, 4): one tokenizer per core held

@@ -20,7 +20,7 @@ from e_graph.pipelines.base import PipelineRegistry
 from infra.state import State
 from processors.doc import DocProcessor
 from support.darts import SECTION, ScriptedAgent
-from support.docling import GoldenPort
+from support.docling import MARKDOWN, GoldenPort
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Mapping
@@ -43,7 +43,7 @@ def tree(graphs: Mapping[str, InstrumentGraph], agent: Any, pages: LiteparseAdap
         infra=InfraState(
             providers=None,  # ty: ignore[invalid-argument-type]
             engines=None,  # ty: ignore[invalid-argument-type]
-            processors=ProcessorsState(doc=DocProcessor(GoldenPort(), pages)),
+            processors=ProcessorsState(doc=DocProcessor(MARKDOWN, pages, GoldenPort())),
             graphs=MappingProxyType(dict(graphs)),
         ),
         logic=LogicState(agent=agent, orchestrator=OrchestratorCore()),

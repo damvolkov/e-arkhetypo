@@ -11,17 +11,17 @@ from providers.drivers.store.sqlite import SqliteDriver
 if TYPE_CHECKING:
     import pytest
 
-ROLES: Final[list[str]] = ["store", "telemetry", "redis", "http", "docling", "pages"]
+ROLES: Final[list[str]] = ["store", "telemetry", "redis", "http", "docling", "pages", "markdown"]
 
 
 async def test_services_health_surveys_every_provider(client: TestClient) -> None:
     """In field order, `store` the only required provider; the open sqlite file, the in-process telemetry provider, the
-    open client and the loaded parser always answer."""
+    open client and the loaded readers always answer."""
     verdicts = {each.name: each for each in await client.app.state.system.infra.engines.health.survey()}
     assert list(verdicts) == ROLES
-    assert [verdicts[name].required for name in ROLES] == [True, False, False, False, False, False]
-    assert {name: verdicts[name].ok for name in ("store", "telemetry", "http", "pages")} == dict.fromkeys(
-        ("store", "telemetry", "http", "pages"), True
+    assert [verdicts[name].required for name in ROLES] == [name == "store" for name in ROLES]
+    assert {name: verdicts[name].ok for name in ("store", "telemetry", "http", "pages", "markdown")} == dict.fromkeys(
+        ("store", "telemetry", "http", "pages", "markdown"), True
     )
 
 

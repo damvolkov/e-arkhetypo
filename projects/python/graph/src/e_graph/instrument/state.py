@@ -28,6 +28,7 @@ from engines.health import HealthEngine
 from infra.state import State
 from ports.documents import DocumentPort
 from ports.http import HTTPPort
+from ports.markdown import MarkdownPort
 from ports.pages import PagesPort
 from ports.provider import Provider
 from ports.store import StorePort
@@ -51,20 +52,22 @@ class ProvidersState:
 
     `store` is the KV provider the app's records live on; `telemetry` is the raw provider whose lifecycle the
     exit stack owns — the instrument reaches it only through `instrument.telemetry`; `http` is the one HTTP pool,
-    `docling` converts documents over it and `pages` is the in-process fast pass (the DocProcessor drives both). Any
-    further field is an optional provider the export may drop."""
+    `docling` converts documents over it — None when DOCLING_URL names no server that answers —, `pages` is the
+    in-process fast pass and `markdown` the anytomd reader (the DocProcessor drives all three). Any further field is an
+    optional provider the export may drop."""
 
     store: StorePort
     telemetry: TelemetryPort
     redis: StorePort
     http: HTTPPort
-    docling: DocumentPort
+    docling: DocumentPort | None
     pages: PagesPort
+    markdown: MarkdownPort
 
     @property
     def named(self) -> Mapping[str, Provider]:
-        """Every provider by its role, in field order — what the health engine surveys."""
-        return {each.name: getattr(self, each.name) for each in fields(self)}
+        """Every provider present by its role, in field order — what the health engine surveys."""
+        return {each.name: held for each in fields(self) if (held := getattr(self, each.name)) is not None}
 
 
 @dataclass(frozen=True, slots=True)

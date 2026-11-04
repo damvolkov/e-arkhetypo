@@ -17,6 +17,7 @@ from infra.logger import logger
 from infra.settings import settings as st
 from ports.documents import DocumentPort
 from ports.http import HTTPPort
+from ports.markdown import MarkdownPort
 from ports.pages import PagesPort
 from ports.provider import Provider
 from ports.store import StorePort
@@ -63,6 +64,7 @@ def test_providers_section_is_typed_and_ported(client) -> None:
     assert isinstance(held.http, HTTPPort)
     assert isinstance(held.docling, DocumentPort)
     assert isinstance(held.pages, PagesPort)
+    assert isinstance(held.markdown, MarkdownPort)
     assert isinstance(held.telemetry, TelemetryPort)
     ### the instrument's tracer is handed the very driver the exit stack owns — one provider, one lifecycle.
     assert client.app.state.system.instrument.telemetry.provider is held.telemetry
@@ -73,6 +75,7 @@ def test_providers_section_is_typed_and_ported(client) -> None:
         "http": "wreq",
         "docling": "docling-serve",
         "pages": "liteparse",
+        "markdown": "anytomd",
     }
 
 

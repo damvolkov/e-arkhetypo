@@ -22,7 +22,7 @@ async def test_ready_answers_every_edge(client: TestClient) -> None:
     body = response.json()
     assert (response.status_code, [each["name"] for each in body]) == (
         200,
-        ["store", "telemetry", "redis", "http", "docling", "pages"],
+        ["store", "telemetry", "redis", "http", "docling", "pages", "markdown"],
     )
     assert all(each["latency"] >= 0 and set(each) == {"name", "required", "ok", "latency", "reason"} for each in body)
 

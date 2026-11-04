@@ -1,13 +1,16 @@
-"""tests/unit/e_infra/processors/doc: the hybrid reader — signals, routing, spans, per-span options, merge, fallback.
+"""tests/unit/e_infra/processors/doc: the reader — engines by presence and format, routing, spans, merge, fallback.
 
 The fixture is real: four pages cut from Apple's 10-K FY2025 (Item 1 text, the workforce page, the
 statement of operations, and that statement again as a scan) read by the real liteparse, and a fake
 port that answers each docling span with the real docling conversion of the same file, cut to the span —
-so routing and merging are tested on real engines' output, offline."""
+so routing and merging are tested on real engines' output, offline. Any other format meets a fake `MarkdownPort`
+whose *detection* is the real anytomd binding; docling absent is the processor built without its port."""
 
 import gzip
+import io
+import zipfile
 from pathlib import Path
-from typing import Any, ClassVar, Self
+from typing import TYPE_CHECKING, Any, ClassVar, Self
 
 import anyio
 import msgspec
@@ -15,13 +18,20 @@ import polars as pl
 import pytest
 
 from e_infra.infra.config.processors.doc import DocMode, DocSettings, DocSignal
+from e_infra.infra.config.providers.adapters.markdown.anytomd import AnytomdSettings
 from e_infra.infra.config.providers.drivers.documents.docling import DoclingTables
+from e_infra.infra.errors import DocumentError, InputTooLargeError, UnsupportedFormatError
 from e_infra.ports.documents import DocumentConversion
+from e_infra.ports.markdown import MDConversion
 from e_infra.ports.pages import FastPage, PageBlock
 from e_infra.ports.provider import Isolation, Locality, ProviderSpec, Workload
 from e_infra.processors.doc import BREAK, DocProcessor
 from e_infra.processors.models import Backend, Document, Section
+from e_infra.providers.adapters.markdown.anytomd import AnytomdAdapter
 from unit.e_infra.processors.conftest import opened
+
+if TYPE_CHECKING:
+    from unit.e_infra.conftest import Logs
 
 RESOURCES = Path(__file__).resolve().parents[3] / "resources"
 FILING = RESOURCES / "documents" / "filing.pdf"
@@ -29,6 +39,8 @@ GOLDEN = msgspec.json.decode(
     gzip.decompress((RESOURCES / "conversions" / "filing.json.gz").read_bytes()), type=DocumentConversion
 )
 TEXT, WORKFORCE, STATEMENT, SCAN = 1, 2, 3, 4
+DETECTOR = AnytomdAdapter(AnytomdSettings())
+MARKDOWN = "# Title\n\nFirst paragraph.\n\n## Sub\n\nSecond,\nstill second."
 
 
 class FakePort:
@@ -36,9 +48,9 @@ class FakePort:
 
     spec: ClassVar[ProviderSpec] = ProviderSpec("fake", Locality.REMOTE, Workload.IO_BOUND, Isolation.LOOP)
 
-    def __init__(self, *, fail: frozenset[int] = frozenset(), delay: float = 0.0) -> None:
+    def __init__(self, *, fail: frozenset[int] = frozenset(), refuse: bool = False, delay: float = 0.0) -> None:
         self.calls: list[dict[str, Any]] = []
-        self.fail, self.delay = fail, delay
+        self.fail, self.refuse, self.delay = fail, refuse, delay
         self.flight = self.peak = 0
 
     async def __aenter__(self) -> Self:
@@ -56,19 +68,70 @@ class FakePort:
         self.peak = max(self.peak, self.flight)
         try:
             await anyio.sleep(self.delay)
-            first, last = options["page_range"]
-            if self.fail & set(range(first, last + 1)):
-                msg = f"pages {first}-{last} refused"
-                raise RuntimeError(msg)
-            parts = GOLDEN.markdown.split(BREAK)[first - 1 : last]
-            return msgspec.structs.replace(GOLDEN, markdown=BREAK.join(parts))
+            match (dict(options or {}).get("page_range"), self.refuse):
+                case (None, True):
+                    msg = "docling refused"
+                    raise DocumentError(msg)
+                case (None, False):
+                    return GOLDEN
+                case ((first, last), _) if self.fail & set(range(first, last + 1)):
+                    msg = f"pages {first}-{last} refused"
+                    raise DocumentError(msg)
+                case ((first, last), _):
+                    parts = GOLDEN.markdown.split(BREAK)[first - 1 : last]
+                    return msgspec.structs.replace(GOLDEN, markdown=BREAK.join(parts))
+                case other:
+                    msg = f"no conversion scripted for {other}"
+                    raise AssertionError(msg)
         finally:
             self.flight -= 1
 
 
-def processor(port: FakePort | None = None, **conf: Any) -> DocProcessor:
-    settings = DocSettings(**conf)
-    return DocProcessor(port or FakePort(), opened(), settings)
+class FakeMarkdown:
+    """anytomd as the processor sees it: the real detection, a fixed rendering, its warnings; calls kept."""
+
+    spec: ClassVar[ProviderSpec] = ProviderSpec("fake-md", Locality.EMBEDDED, Workload.MIXED, Isolation.LOOP)
+
+    def __init__(self, markdown: str = MARKDOWN, warnings: tuple[str, ...] = ()) -> None:
+        self.markdown, self.warnings = markdown, warnings
+        self.calls: list[tuple[bytes, str]] = []
+
+    async def __aenter__(self) -> Self:
+        return self
+
+    async def __aexit__(self, *exc: object) -> None:
+        """Nothing to release."""
+
+    async def health(self) -> bool:
+        return True
+
+    def detect(self, name: str, data: bytes) -> str | None:
+        return DETECTOR.detect(name, data)
+
+    async def convert(self, data: bytes, *, extension: str) -> MDConversion:
+        self.calls.append((data, extension))
+        return MDConversion(markdown=self.markdown, warnings=self.warnings)
+
+
+def zipped(files: dict[str, bytes]) -> bytes:
+    """A deterministic ZIP: a frozen date_time keeps the bytes stable."""
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as archive:
+        _ = [archive.writestr(zipfile.ZipInfo(n, date_time=(1980, 1, 1, 0, 0, 0)), raw) for n, raw in files.items()]
+    return buf.getvalue()
+
+
+DOCX = zipped({"word/document.xml": b"<w/>"})
+
+
+def processor(port: FakePort | None = None, *, markdown: FakeMarkdown | None = None, **conf: Any) -> DocProcessor:
+    """The reader with docling present (a fake one unless given)."""
+    return DocProcessor(markdown or FakeMarkdown(), opened(), port or FakePort(), DocSettings(**conf))
+
+
+def without_docling(markdown: FakeMarkdown | None = None, **conf: Any) -> DocProcessor:
+    """The reader as the lifespan builds it when DOCLING_URL is unset or docling is down: no deep port."""
+    return DocProcessor(markdown or FakeMarkdown(), opened(), None, DocSettings(**conf))
 
 
 ##### SIGNALS AND ROUTING #####
@@ -186,13 +249,13 @@ async def test_lite_mode_never_calls_docling_and_reads_tables_itself() -> None:
     assert any(table.page == STATEMENT for table in document.tables)
 
 
-async def test_a_failed_span_falls_back_to_liteparse_with_its_reason() -> None:
+async def test_a_failed_span_falls_back_to_liteparse_with_its_reason_said_nowhere_else(logs: Logs) -> None:
     port = FakePort(fail=frozenset({SCAN}))
     document = await processor(port, span=1).process(FILING)
     pages = {page.number: page for page in document.pages}
     assert (pages[STATEMENT].backend, pages[SCAN].backend) == (Backend.DOCLING, Backend.LITEPARSE)
-    assert pages[SCAN].fallback == "RuntimeError: pages 4-4 refused"
-    assert pages[STATEMENT].fallback == ""
+    assert pages[SCAN].fallback == "DocumentError: pages 4-4 refused"
+    assert (pages[STATEMENT].fallback, logs.at("warning")) == ("", [])
 
 
 async def test_deep_requests_stay_within_the_concurrency_bound() -> None:
@@ -289,3 +352,96 @@ def test_a_fast_page_keeps_every_block_its_shared_kinds_named_as_docling_names_t
 def test_a_deep_node_names_the_group_it_sits_in(parent: dict[str, str] | None, group: str) -> None:
     document = {"groups": [{"label": "list"}, {"label": "slide"}]}
     assert DocProcessor._deep_group(document, {"parent": parent}) == group
+
+
+##### ENGINES — docling when present; liteparse and anytomd always #####
+@pytest.mark.parametrize("mode", [DocMode.HYBRID, DocMode.DEEP])
+async def test_without_docling_every_pdf_page_is_liteparse_whatever_the_mode(mode: DocMode) -> None:
+    document = await without_docling(mode=mode).process(FILING)
+    assert {page.backend for page in document.pages} == {Backend.LITEPARSE}
+    assert (document.deep, {page.fallback for page in document.pages}) == ((), {""})
+    assert any(table.page == STATEMENT for table in document.tables)
+
+
+async def test_a_pdf_never_reaches_anytomd() -> None:
+    markdown = FakeMarkdown()
+    await processor(markdown=markdown).process(FILING)
+    assert markdown.calls == []
+
+
+@pytest.mark.parametrize(("data", "name"), [(b"<h1>x</h1>", "p.html"), (DOCX, "r.docx")])
+async def test_a_format_docling_reads_goes_whole_to_docling(data: bytes, name: str) -> None:
+    port, markdown = FakePort(), FakeMarkdown()
+    document = await processor(port, markdown=markdown).process(data, name=name)
+    assert ([(call["filename"], call["options"]) for call in port.calls], markdown.calls) == ([(name, {})], [])
+    assert [(page.number, page.backend) for page in document.pages] == [(1, Backend.DOCLING)]
+    assert (len(document.tables), len(document.pictures)) == (
+        len(GOLDEN.document["tables"]),
+        len(GOLDEN.document["pictures"]),
+    )
+    assert set(document.items["backend"]) == {Backend.DOCLING}
+    assert "data:" not in document.markdown
+
+
+@pytest.mark.parametrize(("data", "name", "extension"), [(b"# t\n\nbody", "n.md", "md"), (b"print(1)\n", "m.py", "py")])
+async def test_a_format_docling_does_not_read_goes_to_anytomd(data: bytes, name: str, extension: str) -> None:
+    port, markdown = FakePort(), FakeMarkdown()
+    document = await processor(port, markdown=markdown).process(data, name=name)
+    assert (port.calls, markdown.calls) == ([], [(data, extension)])
+    assert [(page.number, page.backend, page.markdown) for page in document.pages] == [(1, Backend.ANYTOMD, MARKDOWN)]
+    assert (document.name, document.tables, document.deep) == (name, (), ())
+
+
+async def test_docling_refusing_a_document_hands_it_to_anytomd_with_its_reason(logs: Logs) -> None:
+    port, markdown = FakePort(refuse=True), FakeMarkdown()
+    document = await processor(port, markdown=markdown).process(DOCX, name="r.docx")
+    assert (len(port.calls), markdown.calls) == (1, [(DOCX, "docx")])
+    assert [(page.backend, page.fallback) for page in document.pages] == [
+        (Backend.ANYTOMD, "DocumentError: docling refused")
+    ]
+    assert logs.at("warning") == []
+
+
+async def test_lite_mode_reads_every_other_format_with_anytomd() -> None:
+    port, markdown = FakePort(), FakeMarkdown()
+    await processor(port, markdown=markdown, mode=DocMode.LITE).process(DOCX, name="r.docx")
+    assert (port.calls, markdown.calls) == ([], [(DOCX, "docx")])
+
+
+async def test_anytomd_markdown_becomes_items_and_sections() -> None:
+    document = await without_docling().process(b"<h1>x</h1>", name="p.html")
+    assert document.items.select("ref", "label", "text", "level").rows() == [
+        ("anytomd:b0", "section_header", "Title", 1),
+        ("anytomd:b1", "text", "First paragraph.", None),
+        ("anytomd:b2", "section_header", "Sub", 2),
+        ("anytomd:b3", "text", "Second,\nstill second.", None),
+    ]
+    assert [(s.title, s.level, s.text) for s in DocProcessor.sections(document)] == [
+        ("Title", 1, "First paragraph."),
+        ("Sub", 2, "Second,\nstill second."),
+    ]
+
+
+async def test_anytomd_warnings_ride_on_the_document() -> None:
+    document = await without_docling(FakeMarkdown(warnings=("image skipped",))).process(b"<p>x</p>", name="p.html")
+    assert document.warnings == ("image skipped",)
+
+
+@pytest.mark.parametrize(
+    "data", [b"\x00\x01\x02\xff" * 8, zipped({"a.txt": b"x", "b.txt": b"y"})], ids=["noise", "zip"]
+)
+async def test_an_unsupported_file_or_an_archive_is_refused_before_any_engine(data: bytes) -> None:
+    port, markdown = FakePort(), FakeMarkdown()
+    with pytest.raises(UnsupportedFormatError):
+        await processor(port, markdown=markdown).process(data, name="blob")
+    assert (port.calls, markdown.calls) == ([], [])
+
+
+async def test_an_oversized_file_is_refused() -> None:
+    with pytest.raises(InputTooLargeError):
+        await processor(max_input_bytes=4).process(b"<h1>too long</h1>", name="p.html")
+
+
+async def test_bytes_without_a_name_are_named_document_and_detected_by_their_magic() -> None:
+    document = await without_docling().process(FILING.read_bytes())
+    assert (document.name, document.pages[0].backend) == ("document", Backend.LITEPARSE)

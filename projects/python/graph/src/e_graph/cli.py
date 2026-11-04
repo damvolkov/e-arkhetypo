@@ -17,7 +17,7 @@ rehearses through `SectionLab`, the same object the API's `/api/specs` routes se
 import io
 import sys
 from collections.abc import AsyncGenerator
-from contextlib import asynccontextmanager
+from contextlib import AsyncExitStack, asynccontextmanager
 from enum import StrEnum, auto
 from importlib.metadata import version
 from pathlib import Path
@@ -52,6 +52,7 @@ from infra.logger import ELogger
 from infra.settings import settings as st
 from infra.state import State
 from processors.doc import DocProcessor
+from providers.adapters.markdown.anytomd import AnytomdAdapter
 from providers.adapters.pages.liteparse import LiteparseAdapter
 from providers.drivers.documents.docling import DoclingDriver
 from providers.drivers.http.wreq import WreqDriver
@@ -223,23 +224,24 @@ class LiveStream(io.TextIOBase):
 
 @asynccontextmanager
 async def system() -> AsyncGenerator[State]:
-    """The system a rehearsal runs on, branch for branch as the app's lifespans mount it: docling, the hybrid processor,
-    the agent. Their logs go to stderr: stdout is the command's answer, JSON included."""
+    """The system a rehearsal runs on, branch for branch as the app's lifespans mount it: the readers (docling when it
+    answers), the document processor, the agent. Their logs go to stderr: stdout is the command's answer, JSON included."""
     ### typeshed's TextIO is io.TextIOBase by alias: it checks nothing, while beartype demands the full
     ### protocol member by member — this class is built for the latter and cannot name it to the former.
     ELogger.setup(env=st.app.env, stream=LiveStream())  # ty: ignore[invalid-argument-type]
     graphs = await PipelineRegistry().build()
-    async with (
-        WreqDriver() as http,
-        DoclingDriver(http) as docling,
-        LiteparseAdapter() as pages,
-        AgnosticAgent() as agent,
-    ):
+    async with AsyncExitStack() as stack:
+        enter = stack.enter_async_context
+        http = await enter(WreqDriver())
+        docling = await DoclingDriver.present(stack, http)
+        pages = await enter(LiteparseAdapter())
+        markdown = await enter(AnytomdAdapter())
+        agent = await enter(AgnosticAgent())
         root = State(
             infra=InfraState(
                 providers=None,  # ty: ignore[invalid-argument-type] — no runner reaches a provider but through a processor
                 engines=None,  # ty: ignore[invalid-argument-type] — no runner surveys health
-                processors=ProcessorsState(doc=DocProcessor(docling, pages)),
+                processors=ProcessorsState(doc=DocProcessor(markdown, pages, docling)),
                 graphs=MappingProxyType(dict(graphs)),
             ),
             logic=LogicState(agent=agent, orchestrator=OrchestratorCore()),

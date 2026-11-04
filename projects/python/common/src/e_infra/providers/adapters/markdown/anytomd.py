@@ -3,8 +3,8 @@
 `convert_bytes` renders office, markup, tables, notebooks, code and text; a PDF goes through the bundled
 liteparse `PdfConverter`; an image is annotated by the configured OpenAI-compatible vision model. Format
 detection, zip-bomb limits and size caps are the engine's own; `detect` names a file's format from its bytes
-and name, an archive as the office format it is. Its failures are `ParseError` from here up, which `MDProcessor`
-records per file rather than letting one bad member abort a batch."""
+and name, an archive as the office format it is. Its failures are `ParseError` from here up, which `DocProcessor`
+lets rise to its caller."""
 
 from contextlib import contextmanager
 from typing import TYPE_CHECKING, ClassVar, Self

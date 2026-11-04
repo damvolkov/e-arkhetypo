@@ -1,4 +1,4 @@
-"""processors/models: what the processors hand out — a document read, or the Markdown a file becomes, both typed.
+"""processors/models: what the processors hand out — a document read, typed.
 
 Interior data built by code: frozen, slotted dataclasses, never a boundary model. Whoever read a page
 (liteparse or docling, see `Page.backend`), its objects look the same: every one keeps its `ref` — the
@@ -17,10 +17,11 @@ if TYPE_CHECKING:
 
 
 class Backend(StrEnum):
-    """The engine that read a page."""
+    """The engine that read a page: liteparse and docling a PDF's, anytomd any other document's, whole."""
 
     LITEPARSE = auto()
     DOCLING = auto()
+    ANYTOMD = auto()
 
 
 @dataclass(frozen=True, slots=True)
@@ -88,7 +89,8 @@ class Section:
 @dataclass(frozen=True, slots=True)
 class Document:
     """A document read page by page: the pages, every text item as one frame in reading order (ref, page,
-    label, text, level, backend), and the tables, pictures and formulas found on them."""
+    label, text, level, backend), the tables, pictures and formulas found on them, and the reader's notes on what it
+    could not read (`warnings`, anytomd's)."""
 
     name: str
     pages: tuple[Page, ...]
@@ -96,6 +98,7 @@ class Document:
     tables: tuple[Table, ...]
     pictures: tuple[Picture, ...]
     formulas: tuple[Formula, ...]
+    warnings: tuple[str, ...] = ()
 
     @property
     def markdown(self) -> str:
@@ -106,19 +109,3 @@ class Document:
     def deep(self) -> tuple[int, ...]:
         """The pages docling read."""
         return tuple(page.number for page in self.pages if page.backend is Backend.DOCLING)
-
-
-##### MARKDOWN #####
-@dataclass(frozen=True, slots=True)
-class MarkdownFile:
-    """One file rendered to Markdown: the name it ships under, the text, and the format it was detected as
-    (`source` is anytomd's own vocabulary — `pdf`, `docx`, `py`, `png`, …). `path` is where it sat inside a ZIP,
-    empty for a file given whole; `warnings` are the engine's notes; `error` names why the engine produced
-    nothing for it (empty on success) — a failed member of an archive never sinks the rest."""
-
-    name: str
-    markdown: str
-    source: str
-    warnings: tuple[str, ...] = ()
-    path: str = ""
-    error: str = ""

@@ -35,7 +35,7 @@ from infra.state import State
 from processors.doc import DocProcessor
 from providers.drivers.store import redis as redis_module
 from providers.drivers.telemetry.otel import OTelDriver
-from support.docling import GoldenPort
+from support.docling import MARKDOWN, GoldenPort
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator, Callable, Iterator
@@ -77,7 +77,7 @@ def httpserver_listen_address() -> tuple[str, int]:
 @pytest.fixture
 def docling(httpserver: HTTPServer) -> HTTPServer:
     """docling-serve answering its readiness route."""
-    httpserver.expect_request("/ready").respond_with_data("ok")
+    httpserver.expect_request("/ready").respond_with_json({"status": "ok"})
     return httpserver
 
 
@@ -107,9 +107,17 @@ async def system(exporter: InMemorySpanExporter, pages: LiteparseAdapter) -> Asy
     port = GoldenPort()
     async with OTelDriver(OTelSettings(), exporter) as telemetry, AgnosticAgent() as agent:
         infra = InfraState(
-            providers=ProvidersState(store=None, telemetry=telemetry, redis=None, http=None, docling=port, pages=pages),  # ty: ignore[invalid-argument-type]
+            providers=ProvidersState(
+                store=None,  # ty: ignore[invalid-argument-type]
+                telemetry=telemetry,
+                redis=None,  # ty: ignore[invalid-argument-type]
+                http=None,  # ty: ignore[invalid-argument-type]
+                docling=port,
+                pages=pages,
+                markdown=MARKDOWN,
+            ),
             engines=None,  # ty: ignore[invalid-argument-type]
-            processors=ProcessorsState(doc=DocProcessor(port, pages)),
+            processors=ProcessorsState(doc=DocProcessor(MARKDOWN, pages, port)),
             graphs=MappingProxyType({"probe": InstrumentGraph(name="probe")}),
         )
         graph = State(

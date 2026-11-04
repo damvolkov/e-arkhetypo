@@ -25,7 +25,7 @@ Convenciones:
 - Labels `stack.category` y `stack.port`.
 - **Versiones = `:latest`** por defecto, para asegurar siempre la final. Se
   tolera un pin sólo cuando el tag `latest` no existe o el número fija formato
-  (p. ej. `pgvector:pg17`, major de Postgres; `llama.cpp:server-cuda` y
+  (p. ej. `pgvector:pg15`, major de Postgres; `llama.cpp:server-cuda` y
   TEI `cpu-latest` son ya tags flotantes).
 - **Ledger de versiones**: `stack/stack.versions.yml` — escrito sólo por el bot
   (`tools/stack_resolve.py`, workflow `sync-stack` semanal): por imagen, el
@@ -58,7 +58,7 @@ Databases, por modelo de datos:
 | `rdb` | relacional | postgres (pgvector), paradedb (pg_search BM25 + pgvector) |
 | `cdb` | cache / KV | redis |
 | `vdb` | vector | qdrant |
-| `gdb` | grafo | — vacío |
+| `gdb` | grafo | spanner (emulador de Spanner Graph) |
 | `ddb` | documento | — vacío |
 | `tdb` | serie temporal | — vacío |
 
@@ -70,7 +70,7 @@ Infra y aplicaciones:
 | `proxy` | reverse proxy, gateway, túneles | — vacío |
 | `auth` | identidad, secretos | — vacío |
 | `watch` | métricas, logs, trazas, monitor de contenedores | otel-collector, jaeger, phoenix, prometheus, loki, grafana, lazydocker |
-| `storage` | objetos/archivos, datalakes | minio |
+| `storage` | objetos/archivos, datalakes | gcs, minio |
 | `llm` | serving de modelos y embeddings | vllm, strata, clef, jev, llamacpp, llama, ikllama, ellm, embed, reranker, gliner |
 | `speech` | STT / TTS | evoice, speaches, fwhisper, wlive, kokoro |
 | `rag` | retrieval: búsqueda, loaders, extracción, pipelines | searxng (+ yacy), docling, playwright, pipelines |
@@ -100,10 +100,12 @@ Puerto = default en host (`:container`). GPU = necesita `nvidia` runtime.
 
 | Cat/Servicio | Imagen | Puerto(s) | GPU | Adjuntos |
 |---|---|---|---|---|
-| rdb/postgres | pgvector/pgvector:pg17 | 5432 | | |
+| rdb/postgres | pgvector/pgvector:pg15 | 5432 | | PostgreSQL 15, el major de Cloud SQL; la tag flota sobre la última pgvector (0.8.7 hoy). Un volumen escrito por pg17 no arranca en pg15 |
 | rdb/paradedb | paradedb/paradedb:0.26.2-pg17 | 5433 | | Postgres + pg_search (BM25 sobre Tantivy, stemmers es/en) + pgvector; motor por defecto de e-gnosis (medido: scripts/bench.py) |
+| gdb/spanner | gcr.io/cloud-spanner-emulator/emulator:latest | 9010 / 9020 | | emulador oficial de Cloud Spanner: SQL + Spanner Graph (property graphs, GQL); los SDK oficiales lo usan con `SPANNER_EMULATOR_HOST=spanner:9010`. **En memoria**: instancias, schema y datos mueren con el contenedor; algoritmos de grafo validan pero devuelven vacío. Distroless, sin healthcheck |
 | cdb/redis | redis:latest | 6379 | | `redis.conf` |
 | vdb/qdrant | qdrant/qdrant:latest | 6333 / 6334 | | `config.yaml` |
+| storage/gcs | fsouza/fake-gcs-server:latest | 4443 | | emulador de Google Cloud Storage (API JSON + XML, http); objetos en el volumen `gcs-data`; los SDK oficiales lo usan con `STORAGE_EMULATOR_HOST=http://gcs:4443`. `GCS_PUBLIC_HOST` = la dirección con que llegan los clientes |
 | storage/minio | minio/minio:latest | 9000 / 9001 | | **aparcado** — imagen muerta aguas arriba, fuera de uso |
 | llm/vllm | vllm/vllm-openai:latest | 8000 | ✓ | el slot por defecto (medido 2026-10-28): Gemma 4, alias `demian-model`; profesor de jev (logprobs) |
 | llm/strata | build `strata:<tag>` (engine en local) | 8000 | ✓ | `setup.sh`; alternativa del slot: uno de {vllm, strata} en la tarjeta, nunca los dos |
@@ -142,7 +144,7 @@ Puerto = default en host (`:container`). GPU = necesita `nvidia` runtime.
 ## URLs entre servicios (red `stack`)
 
 ```
-redis:6379        postgres:5432     qdrant:6333      minio:9000
+redis:6379        postgres:5432     qdrant:6333      minio:9000      gcs:4443      spanner:9010
 llm:8000/v1          clef:8081  jev:45160  llamacpp:8080  llama:8082  ikllama:8083  ellm:80      embed:80/v1  reranker:80  gliner:5800
 kokoro:8880/v1    fwhisper:8000     evoice:80        speaches:8000
 searxng:8080      yacy:8090         docling:5001      playwright:3000  pipelines:9099

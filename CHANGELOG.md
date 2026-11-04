@@ -6,6 +6,12 @@ touches — `stack`, `systems`, `infra`. Lines under `[Unreleased]` are written 
 
 ## [Unreleased]
 
+### Added
+- `stack/agent/hermes`: Hermes Agent (NousResearch, MIT) as the assistant's runtime — Discord gateway, voice, MCP,
+  dashboard on loopback :9119; house layer adds libopus; state in the vault (`hermes/` at `/opt/data`, parity mounts);
+  `hermes.service` beside it. Pinned by digest, a written exception to `:latest`: near-daily releases and a house
+  layer `update.sh` never rebuilds. Replaces `agent/openhuman` (retired on the host 2026-11-04).
+
 ### Changed
 - `common`: one document reader. `DocProcessor` absorbs `MDProcessor` (removed with `MDSettings`, `MarkdownFile` and
   their tests) over three providers: the docling driver (optional), the anytomd adapter and the liteparse fast pass.

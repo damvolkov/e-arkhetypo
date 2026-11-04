@@ -1,0 +1,44 @@
+# stack/agent/hermes — Hermes Agent (NousResearch) as the assistant's runtime: messaging gateway (Discord), voice,
+# MCP client, cron, its web dashboard. The image is stateless; every byte of state lives in the vault under hermes/.
+#
+# The vault (Obsidian + Syncthing) is mounted at its own host path (parity): Hermes reads persona/ wiki/ brain/,
+# writes inbox/ and workflow/, and owns hermes/ (config.yaml, .env, sessions, skills, plugins) mounted at /opt/data.
+# Its endpoints are host loopback (LLMs, e-voice, e-gnosis, docling), hence the host network.
+#
+#   cp .env.example .env                 # HOST_HOME, VAULT_DIR
+#   docker compose up -d --wait           # dashboard: http://127.0.0.1:9119
+#   docker exec hermes hermes <command>   # the CLI, as the runtime user
+#
+# Exception to the stack's `:latest` rule: Hermes ships near-daily releases and a house layer (Dockerfile) sits on
+# top, which `update.sh` would never rebuild — the tag is pinned by digest and moved by hand (bump, build, up).
+name: hermes
+
+services:
+
+  hermes:
+    build:
+      context: .
+      args:
+        HERMES_IMAGE: "nousresearch/hermes-agent:v0.22.7@sha256:e6d81ae52ebf6a43efa529701405509f20054ba818f179ddd748bed4f8af584c"
+    image: hermes-agent:house
+    container_name: hermes
+    hostname: hermes
+    restart: unless-stopped
+    command: ["gateway", "run"]           # the CMD is a heartbeat; s6 supervises the gateway and the dashboard
+    network_mode: host
+    labels:
+      stack.category: "agent"
+      stack.port: "9119"
+    environment:
+      - HERMES_UID=${PUID:-1000}          # s6 remaps the image's user to the vault's owner
+      - HERMES_GID=${PGID:-1000}
+      - TZ=${TZ:-Europe/Madrid}
+      - HERMES_DASHBOARD=1
+      - HERMES_DASHBOARD_HOST=127.0.0.1   # loopback only: the dashboard holds the API keys
+    volumes:
+      - ${VAULT_DIR:-${HOST_HOME:?set HOST_HOME}/.config/memory}/hermes:/opt/data
+      - ${VAULT_DIR:-${HOST_HOME}/.config/memory}/inbox:${VAULT_DIR:-${HOST_HOME}/.config/memory}/inbox
+      - ${VAULT_DIR:-${HOST_HOME}/.config/memory}/workflow:${VAULT_DIR:-${HOST_HOME}/.config/memory}/workflow
+      - ${VAULT_DIR:-${HOST_HOME}/.config/memory}/persona:${VAULT_DIR:-${HOST_HOME}/.config/memory}/persona:ro
+      - ${VAULT_DIR:-${HOST_HOME}/.config/memory}/wiki:${VAULT_DIR:-${HOST_HOME}/.config/memory}/wiki:ro
+      - ${VAULT_DIR:-${HOST_HOME}/.config/memory}/brain:${VAULT_DIR:-${HOST_HOME}/.config/memory}/brain:ro

@@ -3,7 +3,7 @@
 `GoldenPort` satisfies `DocumentPort` by shape — spec, lifecycle and health included. Asked to convert a span of a corpus document (matched by
 file name stem and `page_range`), it answers with what the live docling-serve answered for that very
 span (`tests/resources/conversions`, `make conversions`): its nodes, its tables, its markdown. A span
-never recorded fails as the service would, and the processor falls back to liteparse for it. Every
+never recorded fails as the driver would (`DocumentError`), and the processor falls back to liteparse for it. Every
 call is recorded, so a test sees what was routed."""
 
 import gzip
@@ -12,9 +12,14 @@ from typing import Any, ClassVar, Final, Self
 
 import msgspec
 
+from infra.config.providers.adapters.markdown.anytomd import AnytomdSettings
+from infra.errors import DocumentError
 from ports.documents import DocumentConversion
 from ports.provider import Isolation, Locality, ProviderSpec, Workload
+from providers.adapters.markdown.anytomd import AnytomdAdapter
 
+### the anytomd reader the processor detects formats with: the corpus is PDFs, so it never converts — unopened is enough.
+MARKDOWN: Final[AnytomdAdapter] = AnytomdAdapter(AnytomdSettings())
 CONVERSIONS: Final[Path] = Path(__file__).resolve().parents[1] / "resources" / "conversions"
 
 
@@ -51,6 +56,6 @@ class GoldenPort:
         match self._convert_spans(filename.removesuffix(".pdf")).get(f"{first}-{last}"):
             case None:
                 msg = f"{filename}: span {first}-{last} was never recorded (make conversions)"
-                raise KeyError(msg)
+                raise DocumentError(msg)
             case conversion:
                 return conversion

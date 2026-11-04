@@ -1,4 +1,4 @@
-"""processors/doc: the DocProcessor — every page read by the engine that reads it best, as fast as the pair allows.
+"""processors/doc: the DocProcessor — any document read by the engine that reads it best, among those present.
 
 Hybrid by measurement (10-K and paper corpus, 2026-10-13). liteparse (Rust, in-process) reads a whole
 filing in under a second and matches docling on running text — 98.7% of docling's words — but not on
@@ -12,14 +12,22 @@ are wrong; what it does tell, almost free, is which pages *hold* tables, figures
 3. routed pages become spans: neighbours closer than DOC_GAP pages merge (a request costs more than the
    pages between); a long run halves into DOC_CONCURRENCY lanes when each half still pays off (`LANE`);
 4. each span asks docling only for what its pages need — OCR for scans, pictures for figures, TableFormer in
-   DOC_TABLES mode — and spans convert concurrently, bounded; a failed span falls back to liteparse, said so.
+   DOC_TABLES mode — and spans convert concurrently, bounded; a failed span falls back to liteparse.
 
-The processor holds both ports — the deep reader (`DocumentPort`: docling-serve or the library) and the fast pass,
-singletons both — and no state per document: `process` returns a `Document` whose objects are engine-neutral."""
+Every other format is read whole: by docling when it is one docling reads (`WHOLE`), by anytomd (`MarkdownPort`, our
+binding) otherwise — or in docling's place when docling fails on it. anytomd's Markdown is cut into blocks, headings and
+paragraphs become items, so `sections` reads any document as it reads a PDF.
+
+docling is optional: the composition root hands its driver only when DOCLING_URL is set and the server answers, and
+says so once when it does not; without it every PDF page is liteparse's and every other document anytomd's, whatever
+DOC_MODE asks. A fallback is never logged above debug: its reason rides on the page (`Page.fallback`). The processor
+holds the ports — the anytomd adapter, the liteparse fast pass and, when present, the docling driver, singletons all —
+and no state per document: `process` returns a `Document` whose objects are engine-neutral."""
 
 import base64
 import re
 from itertools import pairwise, takewhile
+from pathlib import PurePath
 from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, Final
 
@@ -27,17 +35,19 @@ import anyio
 import polars as pl
 
 from e_infra.infra.config.processors.doc import DocMode, DocSignal
+from e_infra.infra.errors import InputTooLargeError, ProviderError, UnsupportedFormatError
 from e_infra.infra.logger import logger
 from e_infra.infra.settings import settings as st
 from e_infra.ports.documents import DocumentConversion
 from e_infra.processors.models import Backend, Document, Formula, Page, Picture, Section, Table
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping, Sequence
+    from collections.abc import Callable, Mapping, Sequence
     from pathlib import Path
 
     from e_infra.infra.config.processors.doc import DocSettings
     from e_infra.ports.documents import DocumentPort
+    from e_infra.ports.markdown import MarkdownPort
     from e_infra.ports.pages import FastPage, PagesPort
 
 type Node = dict[str, Any]
@@ -61,6 +71,14 @@ KINDS: Final[Mapping[str, str]] = MappingProxyType(
 )
 ### a fast-pass table becomes a `Table`, never an item; every other block kind is an item, its text or its lines.
 TABLE: Final[str] = "table"
+### the formats docling reads whole, in anytomd's names: docling-serve's `from_formats` met with what anytomd detects
+### (2026-11-04); a PDF is read page by page instead, and anything else (text, code, json, xml) is anytomd's alone.
+WHOLE: Final[frozenset[str]] = frozenset({"docx", "pptx", "xlsx", "html", "csv", "image"})
+### what docling fails with at its border, a deadline included: the document goes on through the other engine.
+FAILURES: Final[tuple[type[Exception], ...]] = (ProviderError, TimeoutError)
+### a Markdown block: blank lines apart; a heading is one to six `#` and its text.
+BLOCKS: Final[re.Pattern[str]] = re.compile(r"\n\s*\n")
+HEADING: Final[re.Pattern[str]] = re.compile(r"^(#{1,6})\s+(.*)$", re.DOTALL)
 ITEMS: Final[Mapping[str, pl.DataType]] = MappingProxyType(
     {
         "ref": pl.String(),
@@ -76,25 +94,34 @@ ITEMS: Final[Mapping[str, pl.DataType]] = MappingProxyType(
 
 
 class DocProcessor:
-    """Reads documents page by page: liteparse everywhere, docling where the page's signals ask for it."""
+    """Reads documents: a PDF page by page — liteparse everywhere, docling where present and the page's signals ask for
+    it —, any other format whole — docling when present and it reads the format, anytomd otherwise or in its place."""
 
-    __slots__ = ("_conf", "_pages", "_port")
+    __slots__ = ("_conf", "_md", "_pages", "_port")
 
-    def __init__(self, port: DocumentPort, pages: PagesPort, settings: DocSettings | None = None) -> None:
+    def __init__(
+        self,
+        markdown: MarkdownPort,
+        pages: PagesPort,
+        port: DocumentPort | None = None,
+        settings: DocSettings | None = None,
+    ) -> None:
         ### the default is read on call, not at import: the settings singleton stays lazy.
         self._conf = st.processors.doc if settings is None else settings
-        self._port = port
+        self._md = markdown
         self._pages = pages
+        self._port = port
 
     ##### PRIVATE — routing #####
 
     def _process_route(self, signals: Mapping[int, tuple[DocSignal, ...]]) -> list[int]:
-        """The pages docling reads, ascending: none, all, or those whose signals DOC_ROUTE names."""
+        """The pages docling reads, ascending: none (docling absent, or LITE), all, or those whose signals DOC_ROUTE
+        names."""
         route = set(self._conf.route)
-        match self._conf.mode:
-            case DocMode.LITE:
+        match (self._port, self._conf.mode):
+            case (None, _) | (_, DocMode.LITE):
                 return []
-            case DocMode.DEEP:
+            case (_, DocMode.DEEP):
                 return sorted(signals)
             case _:
                 return sorted(page for page, seen in signals.items() if route & set(seen))
@@ -139,18 +166,22 @@ class DocProcessor:
         gate = anyio.Semaphore(self._conf.concurrency)
         outcomes: dict[Span, DocumentConversion | str] = {}
 
-        async def convert(span: Span) -> None:
+        async def convert(span: Span, port: DocumentPort) -> None:
             async with gate:
                 try:
                     options = self._process_options(span, signals)
-                    outcomes[span] = await self._port.convert(raw, filename=name, options=options)
-                except Exception as error:  # noqa: BLE001 — a failed span falls back to liteparse, its reason kept
+                    outcomes[span] = await port.convert(raw, filename=name, options=options)
+                except FAILURES as error:
                     outcomes[span] = f"{type(error).__name__}: {error}"
-                    logger.warning("docling span failed", span=span, error=outcomes[span], step="DOC")
+                    logger.debug("docling span failed, liteparse reads it", span=span, error=outcomes[span])
 
-        async with anyio.create_task_group() as group:
-            _ = [group.start_soon(convert, span) for span in spans]
-        return outcomes
+        match self._port:
+            case None:
+                return outcomes
+            case port:
+                async with anyio.create_task_group() as group:
+                    _ = [group.start_soon(convert, span, port) for span in spans]
+                return outcomes
 
     ##### PRIVATE — fast pages #####
 
@@ -192,11 +223,10 @@ class DocProcessor:
 
     @classmethod
     def _deep_read(
-        cls, conversion: DocumentConversion, span: Span, number: int
+        cls, conversion: DocumentConversion, prefix: str, number: int, on_page: Callable[[Node], bool]
     ) -> tuple[Rows, list[Table], list[Picture], list[Formula]]:
-        """A docling span's objects that start on page `number`."""
-        document, prefix = conversion.document, f"docling:{span[0]}-{span[1]}"
-        on_page = lambda node: cls._common_page(node) == number  # noqa: E731 — one predicate, four reads
+        """A docling conversion's objects that `on_page` keeps, placed on page `number`, their refs under `prefix`."""
+        document = conversion.document
         texts = [node for node in document.get("texts") or () if on_page(node)]
         rows = [
             {
@@ -242,10 +272,16 @@ class DocProcessor:
         return rows, tables, pictures, formulas
 
     @staticmethod
-    def _deep_markdown(conversion: DocumentConversion, span: Span) -> dict[int, str]:
+    def _deep_text(conversion: DocumentConversion) -> str:
+        """docling's markdown, every embedded picture left as a marker: its bytes are the document's pictures, never its
+        text."""
+        return EMBEDDED.sub(IMAGE, conversion.markdown)
+
+    @classmethod
+    def _deep_markdown(cls, conversion: DocumentConversion, span: Span) -> dict[int, str]:
         """The span's markdown split back into its pages, when docling wrote one break per page — none when it wrote
-        nothing — every embedded picture left as a marker: its bytes are the document's pictures, never its text."""
-        text = EMBEDDED.sub(IMAGE, conversion.markdown)
+        nothing."""
+        text = cls._deep_text(conversion)
         parts = [part.strip() for part in text.split(BREAK)] if text.strip() else []
         pages = range(span[0], span[1] + 1)
         return dict(zip(pages, parts, strict=True)) if len(parts) == len(pages) else {}
@@ -290,42 +326,10 @@ class DocProcessor:
         ]
         return tuple(item["class_name"] for item in sorted(predicted, key=lambda item: -item.get("confidence", 0.0)))
 
-    ##### PRIVATE — shared #####
+    ##### PRIVATE — the PDF, page by page #####
 
-    @staticmethod
-    def _common_frame(heads: Sequence[Sequence[str]], body: Sequence[Sequence[str]]) -> pl.DataFrame:
-        """Header rows folded into unique column names (a spanning cell's text once per column), the body as text."""
-        width = max((len(row) for row in (*heads, *body)), default=0)
-        titles = [
-            " ".join(dict.fromkeys(filter(None, (row[c] for row in heads if c < len(row))))) or f"column_{c}"
-            for c in range(width)
-        ]
-        names = [
-            f"{title}_{titles[:c].count(title)}" if title in titles[:c] else title for c, title in enumerate(titles)
-        ]
-        padded = [[*row, *[""] * (width - len(row))] for row in body]
-        return pl.DataFrame(padded, schema=dict.fromkeys(names, pl.String()), orient="row")
-
-    @staticmethod
-    def _common_page(node: Node) -> int:
-        """The page a node starts on; 0 when docling gave it no provenance."""
-        return next((prov["page_no"] for prov in node.get("prov") or ()), 0)
-
-    @staticmethod
-    def _common_caption(document: Node, node: Node) -> str:
-        """A node's captions, resolved through their JSON pointers (`#/texts/80`) by index."""
-        refs = (caption["$ref"].split("/") for caption in node.get("captions") or ())
-        return " ".join(document[collection][int(index)]["text"] for _, collection, index in refs)
-
-    ############################################################
-
-    ##### PUBLIC #####
-
-    async def process(self, source: bytes | Path, *, name: str = "") -> Document:
-        """Read a document: liteparse on every page, docling on the pages its signals route, one Document out."""
-        raw = source if isinstance(source, bytes) else await anyio.Path(source).read_bytes()
-        name = name or (getattr(source, "name", "") or "document.pdf")
-        logger.debug("doc process", name=name, size=len(raw), mode=str(self._conf.mode))
+    async def _process_pdf(self, raw: bytes, name: str) -> Document:
+        """A PDF: liteparse on every page, docling — when present — on the pages its signals route, one Document out."""
         pages = {page.number: page for page in await self._pages.parse(raw)}
         numbers = list(pages)
         signals = {number: page.signals for number, page in pages.items()}
@@ -361,7 +365,9 @@ class DocProcessor:
         """One page from the engine that owns it: its docling span when the span converted, liteparse otherwise."""
         match owned:
             case (span, DocumentConversion() as conversion):
-                rows, tables, pictures, formulas = self._deep_read(conversion, span, number)
+                rows, tables, pictures, formulas = self._deep_read(
+                    conversion, f"docling:{span[0]}-{span[1]}", number, lambda node: self._common_page(node) == number
+                )
                 markdown = self._deep_markdown(conversion, span).get(number, page.markdown)
                 read = Page(number=number, backend=Backend.DOCLING, signals=signals, markdown=markdown)
                 return read, rows, tables, pictures, formulas
@@ -379,6 +385,120 @@ class DocProcessor:
                 rows, tables = self._lite_read(page, number)
                 read = Page(number=number, backend=Backend.LITEPARSE, signals=signals, markdown=page.markdown)
                 return read, rows, tables, [], []
+
+    ##### PRIVATE — any other document, whole #####
+
+    async def _process_whole(self, raw: bytes, name: str, fmt: str) -> Document:
+        """A non-PDF, whole: docling when it is present, asked and reads the format; anytomd otherwise, and in docling's
+        place when docling fails on it."""
+        asked = self._port if self._conf.mode is not DocMode.LITE and fmt in WHOLE else None
+        match asked:
+            case None:
+                return await self._whole_markdown(raw, name, fmt)
+            case port:
+                try:
+                    conversion = await port.convert(raw, filename=name)
+                except FAILURES as error:
+                    reason = f"{type(error).__name__}: {error}"
+                    logger.debug("docling document failed, anytomd reads it", name=name, error=reason)
+                    return await self._whole_markdown(raw, name, fmt, fallback=reason)
+                return self._whole_deep(conversion, name)
+
+    @classmethod
+    def _whole_deep(cls, conversion: DocumentConversion, name: str) -> Document:
+        """docling's reading of a whole document: one page, every object on it."""
+        rows, tables, pictures, formulas = cls._deep_read(conversion, "docling:", 1, lambda _node: True)
+        return Document(
+            name=name,
+            pages=(Page(number=1, backend=Backend.DOCLING, signals=(), markdown=cls._deep_text(conversion)),),
+            items=pl.DataFrame(rows, schema=ITEMS),
+            tables=tuple(tables),
+            pictures=tuple(pictures),
+            formulas=tuple(formulas),
+        )
+
+    async def _whole_markdown(self, raw: bytes, name: str, fmt: str, *, fallback: str = "") -> Document:
+        """anytomd's reading of a whole document: one page, its Markdown cut into heading and text items.
+
+        The engine wants the concrete extension — the name's own suffix when it has one, else the detected format."""
+        extension = PurePath(name).suffix.lstrip(".").lower() or fmt
+        conversion = await self._md.convert(raw, extension=extension)
+        page = Page(number=1, backend=Backend.ANYTOMD, signals=(), markdown=conversion.markdown, fallback=fallback)
+        return Document(
+            name=name,
+            pages=(page,),
+            items=pl.DataFrame(self._whole_items(conversion.markdown), schema=ITEMS),
+            tables=(),
+            pictures=(),
+            formulas=(),
+            warnings=conversion.warnings,
+        )
+
+    @staticmethod
+    def _whole_items(markdown: str) -> Rows:
+        """Markdown blocks as items: a heading keeps its level, any other block is text."""
+        blocks = [block.strip() for block in BLOCKS.split(markdown) if block.strip()]
+        return [
+            {
+                "ref": f"anytomd:b{index}",
+                "page": 1,
+                "label": "section_header" if (heading := HEADING.match(block)) else "text",
+                "text": heading.group(2).strip() if heading else block,
+                "level": len(heading.group(1)) if heading else None,
+                "backend": Backend.ANYTOMD,
+                "group": "",
+                "hyperlink": "",
+            }
+            for index, block in enumerate(blocks)
+        ]
+
+    ##### PRIVATE — shared #####
+
+    @staticmethod
+    def _common_frame(heads: Sequence[Sequence[str]], body: Sequence[Sequence[str]]) -> pl.DataFrame:
+        """Header rows folded into unique column names (a spanning cell's text once per column), the body as text."""
+        width = max((len(row) for row in (*heads, *body)), default=0)
+        titles = [
+            " ".join(dict.fromkeys(filter(None, (row[c] for row in heads if c < len(row))))) or f"column_{c}"
+            for c in range(width)
+        ]
+        names = [
+            f"{title}_{titles[:c].count(title)}" if title in titles[:c] else title for c, title in enumerate(titles)
+        ]
+        padded = [[*row, *[""] * (width - len(row))] for row in body]
+        return pl.DataFrame(padded, schema=dict.fromkeys(names, pl.String()), orient="row")
+
+    @staticmethod
+    def _common_page(node: Node) -> int:
+        """The page a node starts on; 0 when docling gave it no provenance."""
+        return next((prov["page_no"] for prov in node.get("prov") or ()), 0)
+
+    @staticmethod
+    def _common_caption(document: Node, node: Node) -> str:
+        """A node's captions, resolved through their JSON pointers (`#/texts/80`) by index."""
+        refs = (caption["$ref"].split("/") for caption in node.get("captions") or ())
+        return " ".join(document[collection][int(index)]["text"] for _, collection, index in refs)
+
+    ############################################################
+
+    ##### PUBLIC #####
+
+    async def process(self, source: bytes | Path, *, name: str = "") -> Document:
+        """Read one document, refused before any engine when too big or of no format a reader takes."""
+        raw = source if isinstance(source, bytes) else await anyio.Path(source).read_bytes()
+        name = name or (getattr(source, "name", "") or "document")
+        logger.debug("doc process", name=name, size=len(raw), mode=str(self._conf.mode), deep=self._port is not None)
+        match (len(raw) > self._conf.max_input_bytes, self._md.detect(name, raw)):
+            case (True, _):
+                msg = f"{name!r} is {len(raw)} bytes, over DOC_MAX_INPUT_BYTES"
+                raise InputTooLargeError(msg)
+            case (_, None | "zip"):
+                msg = f"{name!r} is not one document of a format a reader takes"
+                raise UnsupportedFormatError(msg)
+            case (_, "pdf"):
+                return await self._process_pdf(raw, name)
+            case (_, fmt):
+                return await self._process_whole(raw, name, fmt)
 
     @staticmethod
     def sections(document: Document) -> list[Section]:

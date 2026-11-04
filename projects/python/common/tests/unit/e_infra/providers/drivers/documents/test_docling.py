@@ -1,6 +1,7 @@
 """e_infra/providers/drivers/documents/docling: the task lifecycle, every source kind, options, failure and deadline — offline."""
 
 import base64
+from contextlib import AsyncExitStack
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any
 
@@ -31,8 +32,14 @@ def settings(url: str, **values: Any) -> DoclingSettings:
 
 
 async def test_port_shape(http: HTTPPort) -> None:
-    assert isinstance(DoclingDriver(http, DoclingSettings()), DocumentPort)
+    assert isinstance(DoclingDriver(http, DoclingSettings(url="http://docling:5001")), DocumentPort)
     assert DoclingDriver.spec.name == "docling-serve"
+
+
+async def test_no_url_no_driver(http: HTTPPort) -> None:
+    """DOCLING_URL unset names no docling: the driver refuses to exist, the root never builds one."""
+    with pytest.raises(DocumentError, match="DOCLING_URL"):
+        DoclingDriver(http, DoclingSettings())
 
 
 async def test_url_converted_as_a_task(docling_server: Any, http: HTTPPort) -> None:
@@ -190,3 +197,34 @@ async def test_a_request_past_the_deadline_is_logged_where_it_is_translated(
         with pytest.raises(HTTPTimeoutError):
             await adapter.convert("https://example.org/hang")
     assert logs.at("error", "docling") == ["docling timed out"]
+
+
+##### PRESENCE — the driver a composition root opens only when docling answers #####
+def absent(logs: Logs) -> list[str]:
+    """The reasons docling was said absent, in order."""
+    return [
+        str(fields["reason"]) for level, event, fields in logs.events if (level, event) == ("warning", "docling absent")
+    ]
+
+
+async def test_present_without_a_url_is_none_and_says_why_once(http: HTTPPort, logs: Logs) -> None:
+    async with AsyncExitStack() as stack:
+        assert await DoclingDriver.present(stack, http, DoclingSettings()) is None
+    assert absent(logs) == ["DOCLING_URL unset"]
+
+
+async def test_present_with_a_server_down_is_none_and_says_why_once(http: HTTPPort, logs: Logs) -> None:
+    async with AsyncExitStack() as stack:
+        assert await DoclingDriver.present(stack, http, settings(DOWN)) is None
+    [reason] = absent(logs)
+    assert (reason.startswith(f"{DOWN} unanswered: "), logs.at("warning", "docling")) == (True, ["docling absent"])
+
+
+async def test_present_with_a_server_up_is_the_driver_open_on_the_stack(
+    docling_server: Any, http: HTTPPort, logs: Logs
+) -> None:
+    async with AsyncExitStack() as stack:
+        driver = await DoclingDriver.present(stack, http, settings(docling_server.url))
+        assert isinstance(driver, DoclingDriver)
+        assert await driver.health()
+    assert (absent(logs), logs.at("info", "docling")) == ([], ["docling opened", "docling closed"])

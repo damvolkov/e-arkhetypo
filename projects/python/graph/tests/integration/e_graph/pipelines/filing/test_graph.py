@@ -25,7 +25,7 @@ from infra.config.providers.drivers.telemetry.otel import OTelSettings
 from infra.state import State
 from processors.doc import DocProcessor
 from providers.drivers.telemetry.otel import OTelDriver
-from support.docling import GoldenPort
+from support.docling import MARKDOWN, GoldenPort
 
 if TYPE_CHECKING:
     from e_graph.logic.agent import AgnosticAgent
@@ -53,7 +53,7 @@ async def read(
         infra = InfraState(
             providers=None,  # ty: ignore[invalid-argument-type]
             engines=None,  # ty: ignore[invalid-argument-type]
-            processors=ProcessorsState(doc=DocProcessor(GoldenPort(), pages)),
+            processors=ProcessorsState(doc=DocProcessor(MARKDOWN, pages, GoldenPort())),
             graphs=MappingProxyType({}),
         )
         system = State(

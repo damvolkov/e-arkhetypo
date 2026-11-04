@@ -44,7 +44,8 @@ class DoclingBackend(StrEnum):
 
 ##### SETTINGS #####
 class DoclingSettings(BaseSettings):
-    """DOCLING_URL — the docling-serve base; DOCLING_TIMEOUT — each HTTP call; DOCLING_DEADLINE — a whole conversion,
+    """DOCLING_URL — the docling-serve base, unset for none (documents are then read by liteparse and anytomd alone);
+    DOCLING_TIMEOUT — each HTTP call; DOCLING_DEADLINE — a whole conversion,
     polls included; DOCLING_POLL — the pause between two status polls of a running conversion; DOCLING_FORMATS —
     outputs asked (JSON list); DOCLING_IMAGES — picture export; DOCLING_IMAGES_SCALE — picture resolution;
     DOCLING_TABLES — TableFormer mode; DOCLING_OCR / DOCLING_FORCE_OCR / DOCLING_OCR_ENGINE / DOCLING_OCR_LANG — OCR
@@ -54,7 +55,7 @@ class DoclingSettings(BaseSettings):
 
     model_config = SettingsConfigDict(env_prefix="DOCLING_")
 
-    url: str = "http://localhost:45800"
+    url: str | None = None
     timeout: timedelta = timedelta(seconds=60)
     deadline: timedelta = timedelta(minutes=15)
     poll: timedelta = timedelta(seconds=1)

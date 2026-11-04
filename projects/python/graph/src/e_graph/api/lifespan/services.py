@@ -27,8 +27,8 @@ async def lifespan(app: Litestar) -> AsyncGenerator[None]:
     providers = system.infra.providers
     system.crypto = Crypto(st.crypto)
     system.infra.engines = EnginesState(health=HealthEngine(providers.named, REQUIRED))
-    ### readers over the providers: documents through liteparse and the docling driver, hybrid by page.
-    system.infra.processors = ProcessorsState(doc=DocProcessor(providers.docling, providers.pages))
+    ### readers over the providers: documents through anytomd, liteparse and — when present — the docling driver.
+    system.infra.processors = ProcessorsState(doc=DocProcessor(providers.markdown, providers.pages, providers.docling))
     _ = [
         (logger.info if health.ok else logger.warning)(
             "provider health", provider=health.name, ok=health.ok, required=health.required, latency_ms=health.latency,

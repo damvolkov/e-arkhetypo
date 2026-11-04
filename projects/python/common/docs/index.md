@@ -118,7 +118,6 @@ held by `common-check`) has no room for — live in `<package>/settings/` of any
 | `infra/config/mcp.py` | `st.mcp` | the MCP door — where the endpoint answers and which Host and Origin the transport accepts (MCP_*). |
 | `infra/config/ping.py` | `st.ping` | how long one provider's health check may take — PING_TIMEOUT. |
 | `infra/config/processors/doc.py` | `st.processors.doc` | the document processor — which engine reads which page, and how hard to push (DOC_*). |
-| `infra/config/processors/md.py` | `st.processors.md` | the Markdown processor — input ceiling, ZIP fan-out and its zip-bomb guard (MD_*). |
 | `infra/config/providers/adapters/cache/theine.py` | `st.providers.adapters.cache.theine` | the in-memory cache — how many entries it keeps, for how long (CACHE_*). |
 | `infra/config/providers/adapters/markdown/anytomd.py` | `st.providers.adapters.markdown.anytomd` | the anytomd converter — its PDF reader and the vision model (MD_*). |
 | `infra/config/providers/adapters/pages/liteparse.py` | `st.providers.adapters.pages.liteparse` | liteparse's own Tesseract and page workers (DOC_*). |
@@ -282,9 +281,8 @@ concrete provider or an engine. Whatever library reads a page or detects a forma
 
 | Module | Purpose |
 |---|---|
-| [`e_infra.processors.doc`](reference/e_infra/processors/doc.md) | the DocProcessor — every page read by the engine that reads it best, as fast as the pair allows. |
-| [`e_infra.processors.md`](reference/e_infra/processors/md.md) | the MDProcessor — any file to Markdown, detected and rendered by the engine behind `MarkdownPort`. |
-| [`e_infra.processors.models`](reference/e_infra/processors/models.md) | what the processors hand out — a document read, or the Markdown a file becomes, both typed. |
+| [`e_infra.processors.doc`](reference/e_infra/processors/doc.md) | the DocProcessor — any document read by the engine that reads it best, among those present. |
+| [`e_infra.processors.models`](reference/e_infra/processors/models.md) | what the processors hand out — a document read, typed. |
 
 ### Logging
 
@@ -352,7 +350,7 @@ e-taxis itself materializes the whole tree (the stack machinery — `ops/compose
 | `ports/telemetry.py`, `providers/drivers/telemetry/otel.py` | none by default — tracing is opt-in |
 | `ports/documents.py`, `providers/drivers/documents/docling.py` | api, cli, graph, tui (with `processors/doc`) |
 | `ports/pages.py`, `providers/adapters/pages/liteparse.py` | api, cli, graph, tui (with `processors/doc`) |
-| `ports/markdown.py`, `providers/adapters/markdown/anytomd.py` | api, cli, graph, tui (with `processors/md`) |
+| `ports/markdown.py`, `providers/adapters/markdown/anytomd.py` | api, cli, graph, tui (with `processors/doc`) |
 | `ports/cache.py`, `providers/adapters/cache/theine.py`, `engines/cache.py` | none by default — the cache is opt-in; its durable layer is `PostgresCacheDriver` in `providers/drivers/cache/postgres.py`, over any `DatabasePort` |
 | `ports/embed.py`, `ports/rerank.py`, `providers/drivers/embed/tei.py`, `providers/drivers/rerank/tei.py` | none by default — model edges are opt-in |
 | `ports/llm.py`, `providers/drivers/llm/openai.py` | none by default — model edges are opt-in |

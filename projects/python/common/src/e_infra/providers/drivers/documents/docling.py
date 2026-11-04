@@ -10,7 +10,10 @@ URLs on DOCLING_URL: the process holds one HTTP pool, not one per service.
 A source is a URL (`str`, fetched by the server), raw `bytes` (sent inline, base64) or a local `Path`
 (read here, sent inline). The conversion options come from `DoclingSettings`; `options` overrides
 them per call, in docling-serve's own names. The whole conversion is bounded by DOCLING_DEADLINE, carried as
-each request's own timeout (what is left of it), never as a cancellation of a request in flight."""
+each request's own timeout (what is left of it), never as a cancellation of a request in flight.
+
+docling is optional to whoever reads documents: `present` is how a composition root opens it — the driver, entered on
+the root's exit stack, when DOCLING_URL names a server that answers; None otherwise, said once and why."""
 
 import base64
 from datetime import timedelta
@@ -28,6 +31,7 @@ from e_infra.ports.provider import Isolation, Locality, ProviderSpec, Workload
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
+    from contextlib import AsyncExitStack
 
     from e_infra.infra.config.providers.drivers.documents.docling import DoclingSettings
     from e_infra.ports.http import HTTPPort
@@ -55,6 +59,12 @@ class DoclingDriver:
         ### the default is read on call, not at import: the settings singleton stays lazy.
         self._conf = st.providers.drivers.documents.docling if settings is None else settings
         self._http = http
+        match self._conf.url:
+            case None:
+                msg = "DOCLING_URL is unset: there is no docling-serve to speak to"
+                raise DocumentError(msg)
+            case url:
+                self._url = url.rstrip("/")
 
     ##### PRIVATE METHODS #####
 
@@ -135,7 +145,7 @@ class DoclingDriver:
 
         The bound travels as the request's own timeout, never as a cancellation: a Rust future cancelled
         mid-flight surfaces as a bare CancelledError, which would cancel the caller's whole task group."""
-        url = f"{self._conf.url.rstrip('/')}{path}"
+        url = f"{self._url}{path}"
         limit = self._conf.timeout.total_seconds()
         within = timedelta(seconds=min(limit, self._common_remaining(deadline)) if deadline is not None else limit)
         try:
@@ -165,7 +175,7 @@ class DoclingDriver:
 
     async def __aenter__(self) -> Self:
         """Nothing to open: the HTTP pool is the lifespan's, opened before this driver."""
-        logger.info("docling opened", url=self._conf.url)
+        logger.info("docling opened", url=self._url)
         return self
 
     async def __aexit__(self, *exc: object) -> None:
@@ -186,6 +196,27 @@ class DoclingDriver:
         logger.debug("docling submitted", task=task, filename=filename)
         await self._convert_wait(task, deadline)
         return self._convert_result(await self._common_call("GET", f"/v1/result/{task}", deadline))
+
+    @classmethod
+    async def present(
+        cls, stack: AsyncExitStack, http: HTTPPort, settings: DoclingSettings | None = None
+    ) -> DoclingDriver | None:
+        """The driver open on `stack` when DOCLING_URL names a docling-serve that answers its readiness route; None
+        otherwise, with one warning that says why — what reads documents then is the caller's, never this driver's."""
+        conf = st.providers.drivers.documents.docling if settings is None else settings
+        match conf.url:
+            case None:
+                reason = "DOCLING_URL unset"
+            case url:
+                driver = await stack.enter_async_context(cls(http, conf))
+                try:
+                    await driver._common_call("GET", "/ready")
+                except ProviderError as error:
+                    reason = f"{url} unanswered: {error}"
+                else:
+                    return driver
+        logger.warning("docling absent", reason=reason)
+        return None
 
     async def health(self) -> bool:
         """docling-serve's readiness route."""

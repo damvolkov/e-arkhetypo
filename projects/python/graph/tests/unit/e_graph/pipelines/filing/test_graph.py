@@ -21,7 +21,7 @@ from e_graph.pipelines.filing.graph import FilingGraph
 from infra.state import State
 from processors.doc import DocProcessor
 from support.darts import ScriptedAgent
-from support.docling import GoldenPort
+from support.docling import MARKDOWN, GoldenPort
 
 if TYPE_CHECKING:
     from pytest_resources import Resources
@@ -58,7 +58,7 @@ def state(agent: ScriptedAgent, pages: LiteparseAdapter) -> RunState:
     infra = InfraState(
         providers=None,  # ty: ignore[invalid-argument-type]
         engines=None,  # ty: ignore[invalid-argument-type]
-        processors=ProcessorsState(doc=DocProcessor(GoldenPort(), pages)),
+        processors=ProcessorsState(doc=DocProcessor(MARKDOWN, pages, GoldenPort())),
         graphs=MappingProxyType({}),
     )
     system = State(

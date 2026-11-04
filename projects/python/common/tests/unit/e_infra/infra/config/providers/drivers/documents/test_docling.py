@@ -10,7 +10,8 @@ from e_infra.infra.config.providers.drivers.documents.docling import DoclingForm
 
 def test_docling_default_and_env(monkeypatch: pytest.MonkeyPatch) -> None:
     conf = DoclingSettings()
-    assert (conf.timeout, conf.deadline, conf.tables) == (
+    assert (conf.url, conf.timeout, conf.deadline, conf.tables) == (
+        None,
         timedelta(seconds=60),
         timedelta(minutes=15),
         DoclingTables.ACCURATE,

@@ -38,8 +38,8 @@ class DocSettings(BaseSettings):
     """DOC_MODE — lite | deep | hybrid; DOC_ROUTE — the signals that send a page to docling (JSON list); DOC_GAP — pages
     between two docling spans merged into one request (a request costs more than a page); DOC_SPAN — most pages one
     docling request carries (more spans run in parallel when the server has the workers); DOC_CONCURRENCY — docling
-    requests in flight; DOC_TABLES — TableFormer's mode on routed pages. Defaults measured on the 10-K corpus,
-    2026-10-13."""
+    requests in flight; DOC_TABLES — TableFormer's mode on routed pages; DOC_MAX_INPUT_BYTES — refuse a document before
+    any engine reads it. Defaults measured on the 10-K corpus, 2026-10-13."""
 
     model_config = SettingsConfigDict(env_prefix="DOC_")
 
@@ -49,3 +49,4 @@ class DocSettings(BaseSettings):
     mode: DocMode = DocMode.HYBRID
     route: tuple[DocSignal, ...] = (DocSignal.TABLE, DocSignal.GRAPHICS, DocSignal.SCANNED, DocSignal.IMAGES)
     tables: DoclingTables = DoclingTables.ACCURATE
+    max_input_bytes: int = Field(default=100 * 1024 * 1024, ge=1)

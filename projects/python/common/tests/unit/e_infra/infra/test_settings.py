@@ -175,7 +175,6 @@ async def test_composite_scopes_discovered() -> None:
             (st, "ping"),
             (st.engines, "dispatch"),
             (st.processors, "doc"),
-            (st.processors, "md"),
             (st.providers.drivers.database, "psqlpy"),
             (st.providers.drivers.database, "asyncpg"),
             (st.providers.drivers.store, "redis"),

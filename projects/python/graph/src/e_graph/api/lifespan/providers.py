@@ -6,7 +6,11 @@ graph carries contracts, not classes. This is the composition root's one place t
 provider is a singleton built here, enters the shared `AsyncExitStack` in field order — the HTTP pool before the
 docling driver that rides it — and they close in reverse when the stack unwinds. Every provider is one line per block —
 its import, its field, its construction — so an exported project that drops one loses exactly those lines. Their health
-is surveyed by the engine the services lifespan builds over them."""
+is surveyed by the engine the services lifespan builds over them.
+
+docling is the one optional provider: `DoclingDriver.present` opens it only when DOCLING_URL names a docling-serve
+that answers; when it does not, the section holds None in its place, said once — liteparse and anytomd read every
+document, and nothing more is said per document. The CLI's rehearsal opens it the same way."""
 
 from collections.abc import AsyncGenerator
 from contextlib import AsyncExitStack, asynccontextmanager
@@ -16,6 +20,7 @@ from litestar import Litestar
 from e_graph.api.state import AppState
 from e_graph.instrument.state import ProvidersState
 from infra.logger import logger
+from providers.adapters.markdown.anytomd import AnytomdAdapter
 from providers.adapters.pages.liteparse import LiteparseAdapter
 from providers.drivers.documents.docling import DoclingDriver
 from providers.drivers.http.wreq import WreqDriver
@@ -34,10 +39,11 @@ async def lifespan(app: Litestar) -> AsyncGenerator[None]:
         telemetry = await enter(OTelDriver())
         redis = await enter(RedisDriver())
         http = await enter(WreqDriver())
-        docling = await enter(DoclingDriver(http))
+        docling = await DoclingDriver.present(stack, http)
         pages = await enter(LiteparseAdapter())
+        markdown = await enter(AnytomdAdapter())
         providers = ProvidersState(
-            store=store, telemetry=telemetry, redis=redis, http=http, docling=docling, pages=pages
+            store=store, telemetry=telemetry, redis=redis, http=http, docling=docling, pages=pages, markdown=markdown
         )
         system.infra.providers = providers
         logger.info("providers ready", providers=sorted(providers.named), step="START")

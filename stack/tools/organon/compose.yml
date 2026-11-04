@@ -1,0 +1,67 @@
+# stack/tools/organon — e-organon: the house's canonical deterministic tools (REST, streaming, MCP) and the #tekton
+# bridge to Claude Code. The public image (ghcr.io/damvolkov/e-organon) is stateless; state is three places:
+#
+#   /data                 its own data, one subtree per section (doc/, image/, tekton/…: models/, cache/, the ledger)
+#   <vault>/workflow/organon   the outbox: every file a tool writes, named by content — inside a root, so chainable
+#   the owner's setup     what the tekton bridge needs to drive Claude Code as the owner: ~/.claude, the workspaces,
+#                         the toolchains — at their host paths (parity), so a path is the same inside and out
+#
+#   cp .env.example .env               # HOST_HOME, HOST_USER, ORGANON_ENV_FILE (the secrets live there)
+#   docker compose up -d --wait        # :45190 — /docs, /mcp, POST /<section>/<word>
+name: organon
+
+services:
+
+  organon:
+    image: ghcr.io/damvolkov/e-organon:${ORGANON_TAG:-latest}
+    container_name: eorganon
+    hostname: eorganon
+    restart: unless-stopped
+    user: "${PUID:-1000}:${PGID:-1000}"
+    ### the house's services answer on the host's loopback (paradedb, redis, docling, TEI, gliner): host network.
+    network_mode: host
+    labels:
+      stack.category: "tools"
+      stack.port: "45190"
+    env_file:
+      - path: ${ORGANON_ENV_FILE:?set ORGANON_ENV_FILE}
+        required: true
+    environment:
+      - APP_ENV=prod
+      - APP_HOST=127.0.0.1
+      - APP_PORT=45190
+      - HOME=${HOST_HOME}
+      - PATH=${HOST_HOME}/.local/bin:/usr/local/bin:/usr/bin:/bin
+      - ORGANON_DATA=/data
+      - ORGANON_OUTBOX=${HOST_HOME}/.config/memory/workflow/organon
+      - ORGANON_ROOTS=["${HOST_HOME}/.config/memory","${HOST_HOME}/workspaces"]
+      - TEKTON_PROFILES=/app/profiles.yaml
+      - TEKTON_WORKSPACES=${HOST_HOME}/workspaces
+      ### the remotes say git@github.com; inside, the same repos go over https with the token gh holds.
+      - GIT_CONFIG_COUNT=1
+      - GIT_CONFIG_KEY_0=url.https://github.com/.insteadOf
+      - "GIT_CONFIG_VALUE_0=git@github.com:"
+    volumes:
+      ##### ORGANON #####
+      - ${ORGANON_DATA_DIR:-../data/eorganon}:/data
+      - ${ORGANON_PROFILES:-./profiles.yaml}:/app/profiles.yaml:ro
+      ##### FILES — what a path argument may name, and where outputs land #####
+      - ${HOST_HOME}/.config/memory:${HOST_HOME}/.config/memory:ro
+      - ${HOST_HOME}/.config/memory/workflow:${HOST_HOME}/.config/memory/workflow
+      - ${HOST_HOME}/workspaces:${HOST_HOME}/workspaces
+      ##### TEKTON — the owner's Claude Code setup and toolchains, at their host paths #####
+      - ${HOST_HOME}/.claude:${HOST_HOME}/.claude
+      - ${HOST_HOME}/.claude.json:${HOST_HOME}/.claude.json
+      - ${HOST_HOME}/.autolearn:${HOST_HOME}/.autolearn
+      - ${HOST_HOME}/.local/bin:${HOST_HOME}/.local/bin:ro
+      - ${HOST_HOME}/.local/share/uv:${HOST_HOME}/.local/share/uv:ro
+      - ${HOST_HOME}/.local/share/claude:${HOST_HOME}/.local/share/claude:ro
+      - ${HOST_HOME}/.cargo:${HOST_HOME}/.cargo
+      - ${HOST_HOME}/.rustup:${HOST_HOME}/.rustup:ro
+      - ${HOST_HOME}/.gitconfig:${HOST_HOME}/.gitconfig:ro
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:45190/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s

@@ -1,0 +1,19 @@
+[Unit]
+Description=Hermes Agent via Docker Compose — Discord gateway, voice, MCP, dashboard (loopback :9119)
+After=network-online.target docker.service vllm.service evoice.service egnosis.service docling.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=%h/.config/compose/hermes
+ExecStart=/usr/bin/docker compose up -d --wait --remove-orphans
+ExecStop=/usr/bin/docker compose stop
+ExecReload=/usr/bin/docker compose up -d --wait --remove-orphans
+Restart=on-failure
+RestartSec=30s
+TimeoutStartSec=300
+TimeoutStopSec=60
+
+[Install]
+WantedBy=default.target

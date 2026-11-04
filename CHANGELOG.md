@@ -11,6 +11,10 @@ touches — `stack`, `systems`, `infra`. Lines under `[Unreleased]` are written 
   dashboard on loopback :9119; house layer adds libopus; state in the vault (`hermes/` at `/opt/data`, parity mounts);
   `hermes.service` beside it. Pinned by digest, a written exception to `:latest`: near-daily releases and a house
   layer `update.sh` never rebuilds. Replaces `agent/openhuman` (retired on the host 2026-11-04).
+- `stack/tools/jsoncrack`: JSON Crack (Apache-2.0), formats as interactive graphs, on loopback :45840 with
+  `jsoncrack.service`. Callable: nginx also serves a drop folder at `/data/` and `/editor?json=` loads it from the same
+  origin; the `jsoncrack` CLI drops a file and prints its URL (verified in a browser). Built from a pinned upstream
+  commit: no published image, and the v5.0.0 tag's Docker build predates the monorepo fix.
 
 ### Changed
 - `common`: one document reader. `DocProcessor` absorbs `MDProcessor` (removed with `MDSettings`, `MarkdownFile` and

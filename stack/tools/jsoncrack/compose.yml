@@ -1,0 +1,41 @@
+# stack/tools/jsoncrack — JSON Crack (Apache-2.0): JSON, YAML, XML, CSV as an interactive graph. A static build
+# served by nginx; everything runs in the browser, nothing leaves the host.
+#
+# Callable: a file dropped in the data folder (default <vault>/workflow/jsoncrack) is served at /data/<name>, and
+# /editor?json=<that URL> opens it — same origin, no CORS. `jsoncrack <file>` (beside this compose) does both.
+#
+#   cp .env.example .env
+#   docker compose build && docker compose up -d --wait   # http://127.0.0.1:45840/editor
+#
+# No upstream image: built from a pinned upstream commit (bump JSONCRACK_REF by hand). Not the v5.0.0 tag:
+# its Docker build predates the monorepo fix (d6f042b, 2026-03-23) and fails.
+name: jsoncrack
+
+services:
+
+  jsoncrack:
+    build:
+      context: https://github.com/AykutSarac/jsoncrack.com.git#${JSONCRACK_REF:-a46d0d0adb098e12e577a083e87ead7f61f90098}
+      dockerfile: apps/www/Dockerfile
+    image: jsoncrack:${JSONCRACK_REF:-a46d0d0adb098e12e577a083e87ead7f61f90098}
+    container_name: jsoncrack
+    hostname: jsoncrack
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${JSONCRACK_PORT:-45840}:8080"
+    labels:
+      stack.category: "tools"
+      stack.port: "45840"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ${JSONCRACK_DATA:?set JSONCRACK_DATA}:/data:ro
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8080/editor"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+networks:
+  default:
+    name: stack

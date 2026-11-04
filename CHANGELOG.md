@@ -7,6 +7,9 @@ touches — `stack`, `systems`, `infra`. Lines under `[Unreleased]` are written 
 ## [Unreleased]
 
 ### Changed
+- `common`: the settings composer finds a project's own `settings/` inside the spine's package too, not only beside it
+  — a project that keeps the spine inside its package (findr-ground) never had its scopes found. Graph locks
+  regenerated with e-taxis.
 - `common` (TODO_doc, reverse from findr-ground `29f43d2`): `DocProcessor` reads a converted docling span once — nodes
   placed on their page in one pass, markdown split once, the document a stable sort on page — linear where it was
   quadratic (synthetic span: 64 pages 81 → 6.6 ms, 128 pages 748 → 23 ms, on the event loop). Privates follow the

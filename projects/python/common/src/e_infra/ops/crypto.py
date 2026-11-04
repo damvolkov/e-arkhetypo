@@ -1,8 +1,7 @@
 """ops/crypto: everything that needs a key or entropy — keyed ids, bearer tokens, password hashing, JWS/JWE, AEAD.
 
 Signatures and tokens ride on joserfc over cryptography; hashing without a key is `ops/hash`, and the two never
-overlap. Agnostic: the engine reads its configuration through `CryptoConfig` (what `infra/config/crypto`
-satisfies, or the `CryptoKeys` that `generate_keys` mints), and its errors are `infra/errors`'s.
+overlap. Agnostic: the engine reads its configuration through `CryptoConfig` (the `CryptoKeys` the root builds from CRYPTO__*, or that `generate_keys` mints), and its errors are `infra/errors`'s.
 
 bcrypt is Rust-backed, argon2 the PHC winner; async only where hashing is intentionally slow, everything else is microseconds."""
 

@@ -9,7 +9,8 @@ import json
 import re
 from datetime import timedelta
 from pathlib import Path
-from typing import Any, Final
+from types import UnionType
+from typing import Any, Final, Union, get_args, get_origin
 
 import pytest
 from pydantic import BaseModel, SecretStr, ValidationError
@@ -158,13 +159,18 @@ def test_settings_is_one_instance_of_every_cluster() -> None:
 
 
 ##### GATES — the law, read from the tree #####
+def structured(annotation: object) -> tuple[type[BaseModel], ...]:
+    """The structured types `__` reaches into: the annotation itself, or a member of its union — never a container's."""
+    kinds = get_args(annotation) if get_origin(annotation) in {Union, UnionType} else (annotation,)
+    return tuple(kind for kind in kinds if isinstance(kind, type) and issubclass(kind, BaseModel))
+
+
 def names(model: type[BaseModel]) -> set[str]:
     """The environment names a settings class reads: each field, and `FIELD__KEY` into a structured one."""
     nested = (
         f"{name}__{key.upper()}"
         for name, field in model.model_fields.items()
-        for kind in (field.annotation, *getattr(field.annotation, "__args__", ()))
-        if isinstance(kind, type) and issubclass(kind, BaseModel)
+        for kind in structured(field.annotation)
         for key in kind.model_fields
     )
     return {*model.model_fields, *nested}

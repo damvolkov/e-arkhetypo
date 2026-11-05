@@ -31,7 +31,7 @@ services:
       - APP_HOST=127.0.0.1
       - APP_PORT=45190
       - HOME=${HOST_HOME}
-      - PATH=${HOST_HOME}/.local/bin:/usr/local/bin:/usr/bin:/bin
+      - PATH=/app/.venv/bin:${HOST_HOME}/.local/bin:/usr/local/bin:/usr/bin:/bin
       - ORGANON_DATA=/data
       - ORGANON_OUTBOX=${HOST_HOME}/.config/memory/workflow/organon
       - ORGANON_ROOTS=["${HOST_HOME}/.config/memory","${HOST_HOME}/workspaces"]

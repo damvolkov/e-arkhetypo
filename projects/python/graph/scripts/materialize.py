@@ -11,10 +11,11 @@ import argparse
 import ast
 import filecmp
 import shutil
+import subprocess
 import sys
 import tempfile
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Final
 
 import libcst as cst
 
@@ -60,6 +61,12 @@ EXCLUDES: frozenset[str] = frozenset(
         "engines/auth.py",
     }
 )
+
+
+### the shared homes, under `src`: common lands its clusters and a default `infra/settings.py` there, but a file the
+### project tracks is its own — never written, pruned or flagged as drift; its `infra/settings.py` wins over common's
+### default (e-nous `proj-py-layout/references/settings.md`). Every other path of a section is common's alone.
+SHARED: Final[frozenset[str]] = frozenset({"infra/config", "infra/settings.py"})
 
 
 ##### REWRITE #####
@@ -156,16 +163,35 @@ def _sources(section: str) -> list[Path]:
     ]
 
 
+def _shared(rel: Path) -> bool:
+    """A path under `src` inside a shared home: the project may own files there."""
+    return any(rel.as_posix() == home or rel.as_posix().startswith(f"{home}/") for home in SHARED)
+
+
+def _project(dest_root: Path) -> frozenset[Path]:
+    """What the project owns inside the shared homes: what git tracks there. Common never writes over it."""
+    found = subprocess.run(
+        ["git", "-C", str(dest_root / "src"), "ls-files", "--", *SHARED], capture_output=True, text=True, check=False
+    )
+    return frozenset(rel for line in found.stdout.splitlines() if _shared(rel := Path(line)))
+
+
 def materialize(dest_root: Path) -> None:
-    """Write the rewritten sections under `dest_root/src`, replacing any previous copy."""
+    """Write the rewritten sections under `dest_root/src`, replacing any previous copy — except what the project owns
+    in a shared home, kept byte for byte."""
+    src = dest_root / "src"
+    owned = {rel: (src / rel).read_bytes() for rel in _project(dest_root) if (src / rel).is_file()}
     for section in SECTIONS:
-        shutil.rmtree(dest_root / "src" / section, ignore_errors=True)
+        shutil.rmtree(src / section, ignore_errors=True)
     for section in SECTIONS:
         for path in _sources(section):
             rel = path.relative_to(COMMON_SRC)
-            target = dest_root / "src" / rel
+            target = src / rel
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_text(rewrite_source(path.read_text(), str(rel)))
+    for rel, body in owned.items():
+        (src / rel).parent.mkdir(parents=True, exist_ok=True)
+        (src / rel).write_bytes(body)
 
 
 def _materialized(dest_root: Path) -> set[Path]:
@@ -182,8 +208,9 @@ def check(dest_root: Path) -> int:
     tmp = Path(tempfile.mkdtemp(prefix="e-graph-materialize-"))
     try:
         materialize(tmp)
-        expected = {path.relative_to(COMMON_SRC) for section in SECTIONS for path in _sources(section)}
-        actual = _materialized(dest_root)
+        owned = _project(dest_root)
+        expected = {path.relative_to(COMMON_SRC) for section in SECTIONS for path in _sources(section)} - owned
+        actual = _materialized(dest_root) - owned
         issues = [
             *(f"{rel}: missing" for rel in sorted(expected - actual)),
             *(f"{rel}: extra" for rel in sorted(actual - expected)),

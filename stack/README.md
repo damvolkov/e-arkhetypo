@@ -74,7 +74,7 @@ Infra y aplicaciones:
 | `llm` | serving de modelos y embeddings | vllm, strata, clef, jev, llamacpp, llama, ikllama, ellm, embed, reranker, gliner |
 | `speech` | STT / TTS | evoice, speaches, fwhisper, wlive, kokoro |
 | `rag` | retrieval: búsqueda, loaders, extracción, pipelines | searxng (+ yacy), docling, playwright, pipelines |
-| `mem` | memoria de agentes | cortexdb |
+| `mem` | memoria de agentes | cortexdb, egnosis |
 | `agent` | harnesses de agentes como servicio | hermes; openhuman (+ cortexdb), retirado del host |
 | `front` | UIs y dashboards | openwebui |
 | `media` | WebRTC / tiempo real | livekit, sip |
@@ -128,6 +128,7 @@ Puerto = default en host (`:container`). GPU = necesita `nvidia` runtime.
 | rag/docling | docling-project/docling-serve:latest | 5001 | | |
 | rag/playwright | playwright:latest | 3000 | | |
 | rag/pipelines | open-webui/pipelines:latest | 9099 | | |
+| mem/egnosis | ghcr.io/damvolkov/e-gnosis:latest | 45200 (loopback) | | red `host`; `egnosis.service`; la memoria larga de la casa (REST + MCP); usa `rdb/paradedb`, `llm/embed`, `llm/reranker`, `llm/gliner`, `rag/docling` y el slot LLM |
 | mem/cortexdb | cortexdb/cortexdb:v0.10.4 (pin: formato de datos) + `cortexdb-mirror` (python:3-alpine) | 3141 (loopback) | | `cortex.toml`, `mirror.py` (grafo → markdown de Obsidian en `CORTEXDB_MIRROR_DIR`); usa `llm/embed` (lotes de hasta 512) y el slot LLM (`llm/strata` o `llm/vllm`) |
 | front/openwebui | open-webui/open-webui:latest | 8080 | | `static/` |
 | media/livekit | livekit/livekit-server:latest | 7880 | | `livekit.yaml` |

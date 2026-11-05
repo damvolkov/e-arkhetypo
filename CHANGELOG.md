@@ -6,6 +6,12 @@ touches — `stack`, `systems`, `infra`. Lines under `[Unreleased]` are written 
 
 ## [Unreleased]
 
+### Added
+- stack: `mem/egnosis` — the form e-gnosis lacked (its compose was hand-made in `~/.config/compose/egnosis`, 2026-10-21):
+  the public image `ghcr.io/damvolkov/e-gnosis:latest` (0.10.0, 2026-11-03), host network :45200, `${HOST_HOME}` parity
+  mounts and `EGNOSIS_ENV_FILE` as in `tools/organon`, `egnosis.service` ordering paradedb, embed, reranker, gliner,
+  docling and vllm. Found by the e-nous stack contract gate (TODO_atlas): a service id is its form's path.
+
 ### Fixed
 - systems: the settings law held past common — `api/admin.mint` takes its database and auth values from `__main__`
   (it read `st` below the root); every template (api, graph, cli, tui) gates its own tree with

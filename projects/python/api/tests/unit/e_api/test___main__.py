@@ -32,7 +32,7 @@ class FakeGranian:
 def test_main_admin_prints_the_key_and_serves_nothing(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    async def minted() -> Issued:
+    async def minted(**_: object) -> Issued:
         return Issued(owner="o", name="admin", role=Role.ADMIN, token="the-one-time-key")
 
     monkeypatch.setattr(sys, "argv", ["e_api", "admin"])

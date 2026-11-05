@@ -27,8 +27,8 @@ SNAPSHOT: Final[Path] = RESOURCES / "settings" / "env.json"
 ### the package the spine sits in: `e_infra` here, the project's package or `src` once materialized.
 SOURCE: Final[Path] = Path(composer.__file__).resolve().parents[1]
 CONFIG: Final[Path] = SOURCE / "infra" / "config"
-### the composition root: entrypoints, lifespans, request deps, the cli's runtime.
-ROOT: Final[re.Pattern[str]] = re.compile(r"(^|/)(main|__main__|deps|cli)\.py$|(^|/)lifespan/|(^|/)cli/runtime/")
+### the composition root: entrypoints and the app they build, lifespans, request deps, the cli's runtime.
+ROOT: Final[re.Pattern[str]] = re.compile(r"(^|/)(main|__main__|app|deps|cli|lifespan)\.py$|(^|/)(lifespan|runtime)/")
 
 
 class DB(BaseModel):

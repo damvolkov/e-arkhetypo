@@ -6,6 +6,14 @@ touches — `stack`, `systems`, `infra`. Lines under `[Unreleased]` are written 
 
 ## [Unreleased]
 
+### Fixed
+- systems: the settings law held past common — `api/admin.mint` takes its database and auth values from `__main__`
+  (it read `st` below the root); every template (api, graph, cli, tui) gates its own tree with
+  `tests/unit/test_settings.py` (root-only reads, types-only below), mutation-checked on api. The root pattern names
+  `app.py` and `lifespan.py` (the TUI's app, the cli's runtime) in common's gate too. Graph locks regenerated.
+- systems: common's full-stack snapshot counts `tools/organon` (#110): 44 services, the golden retaken — only organon
+  added, nothing else moved.
+
 ### Added
 - `stack/tools/organon`: e-organon (the house's deterministic tools hub, REST · SSE · MCP, and the #tekton bridge) —
   public image `ghcr.io/damvolkov/e-organon` on the host network at :45190, `/data` one volume with a subtree per

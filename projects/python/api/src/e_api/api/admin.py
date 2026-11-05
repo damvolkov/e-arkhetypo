@@ -5,23 +5,37 @@ own host (`python -m e_api admin`): the database provisioned, the auth tables ma
 the same engine and driver the service runs — every earlier admin key revoked, the new one shown this once."""
 
 from contextlib import AsyncExitStack
+from typing import TYPE_CHECKING
 
 from engines.auth import AuthEngine
 from infra.auth.models import Issued
 from infra.logger import logger
-from infra.settings import settings as st
 from providers.drivers.auth.postgres import PostgresAuthDriver
 from providers.drivers.database.psqlpy import PsqlpyDriver
 
+if TYPE_CHECKING:
+    from datetime import timedelta
 
-async def mint() -> Issued:
-    """The admin's account with one fresh key; the engine refuses (`AuthClosedError`) when no AUTH_SECRET is set."""
+    from pydantic import PostgresDsn, Secret, SecretStr
+
+
+async def mint(
+    *,
+    dsn: Secret[PostgresDsn],
+    pool: int,
+    connect: timedelta,
+    secret: SecretStr | None,
+    ttl: timedelta | None,
+    admin: str,
+) -> Issued:
+    """The admin's account with one fresh key, on the database the root names; the engine refuses (`AuthClosedError`)
+    when no AUTH_SECRET is set."""
     async with AsyncExitStack() as stack:
-        database = PsqlpyDriver(dsn=st.POSTGRES_DSN, pool=st.POSTGRES_POOL, timeout=st.POSTGRES_TIMEOUT)
+        database = PsqlpyDriver(dsn=dsn, pool=pool, timeout=connect)
         await database.provision()
         await stack.enter_async_context(database)
         store = await stack.enter_async_context(PostgresAuthDriver(database))
-        engine = AuthEngine(store, secret=st.AUTH_SECRET, ttl=st.AUTH_TTL, admin=st.AUTH_ADMIN)
-        issued = await engine.rotate(st.AUTH_ADMIN)
+        engine = AuthEngine(store, secret=secret, ttl=ttl, admin=admin)
+        issued = await engine.rotate(admin)
     logger.info("admin key minted", owner=issued.owner)
     return issued

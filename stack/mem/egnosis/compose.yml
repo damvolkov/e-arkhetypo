@@ -1,0 +1,51 @@
+# stack/mem/egnosis — e-gnosis: the house's long-term memory (collections, hybrid retrieval, ingestion) over REST and
+# MCP. The public image (ghcr.io/damvolkov/e-gnosis) is stateless; state is three places:
+#
+#   GNOSIS_DATA           drive mirrors and caches (../data/egnosis)
+#   /app/config           collections, budgets and ontologies of the deployed version (../config/egnosis), reread on restart
+#   the sources           every folder a source may name, read-only at its host path (parity)
+#
+#   cp .env.example .env               # HOST_HOME, EGNOSIS_ENV_FILE (the secrets live there)
+#   docker compose up -d --wait        # :45200 — /health, /mcp
+#
+# Needs on the host's loopback: rdb/paradedb (:45011), llm/embed (:45110), llm/reranker, llm/gliner, rag/docling
+# (:45800) and the LLM slot (llm/vllm :45100) — the unit orders them.
+name: egnosis
+
+services:
+
+  egnosis:
+    image: ghcr.io/damvolkov/e-gnosis:${EGNOSIS_TAG:-latest}
+    container_name: egnosis
+    hostname: egnosis
+    restart: unless-stopped
+    user: "${PUID:-1000}:${PGID:-1000}"
+    ### the stack answers on the host's loopback and e-gnosis serves 127.0.0.1:45200 itself: host network.
+    network_mode: host
+    labels:
+      stack.category: "mem"
+      stack.port: "45200"
+    env_file:
+      - path: ${EGNOSIS_ENV_FILE:?set EGNOSIS_ENV_FILE}
+        required: true
+    environment:
+      - APP_ENV=prod
+      - GNOSIS_DATA=/home/gnosis/.local/share/e-gnosis
+      - SOURCE_MIRROR=/home/gnosis/.local/share/e-gnosis/mirror
+      ### the watched folder: the vault inbox (mounted read-only below), shared memory in `tekton`
+      - WATCH_FOLDER=${HOST_HOME}/.config/memory/inbox/tekton
+      - WATCH_COLLECTION=tekton
+    volumes:
+      ##### EGNOSIS #####
+      - ${EGNOSIS_DATA_DIR:-../data/egnosis}:/home/gnosis/.local/share/e-gnosis
+      - ${EGNOSIS_CONFIG_DIR:-../config/egnosis}:/app/config:ro
+      - ${HOST_HOME}/.config/rclone:/home/gnosis/.config/rclone:ro
+      ##### SOURCES — registered by host path #####
+      - ${HOST_HOME}/workspaces:${HOST_HOME}/workspaces:ro
+      - ${HOST_HOME}/.config/memory:${HOST_HOME}/.config/memory:ro
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:45200/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 40s

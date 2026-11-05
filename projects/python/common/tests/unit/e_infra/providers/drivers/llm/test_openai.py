@@ -6,11 +6,10 @@ from typing import TYPE_CHECKING
 import msgspec
 import pytest
 
-from e_infra.infra.config.base import Secret
-from e_infra.infra.config.providers.drivers.llm.openai import OpenaiSettings
 from e_infra.infra.errors import HTTPError, ModelError, ProviderError, TruncatedError
 from e_infra.ports.llm import LLMPort
 from e_infra.providers.drivers.llm.openai import OpenaiBucket, OpenaiDriver
+from unit.e_infra.conftest import openai_args
 
 if TYPE_CHECKING:
     from e_infra.ports.http import HTTPPort
@@ -24,13 +23,11 @@ def completion(content: str | None, finish: str = "stop") -> dict[str, object]:
     return {"choices": [{"message": {"content": content}, "finish_reason": finish}]}
 
 
-def settings(stub: Stub, **values: object) -> OpenaiSettings:
-    return OpenaiSettings(url=f"{stub.url}/v1", key=Secret("k"), **values)  # ty: ignore[invalid-argument-type]
-
-
 async def test_openai_structured_answer_under_the_schema(stub: Stub, http: HTTPPort) -> None:
     stub.json("POST", "/v1/chat/completions", completion('{"n": 3}'))
-    async with OpenaiDriver(http, settings(stub, model="m", extra={"enable_thinking": False})) as llm:
+    async with OpenaiDriver(
+        http, **openai_args(url=f"{stub.url}/v1", model="m", extra={"enable_thinking": False})
+    ) as llm:
         assert isinstance(llm, LLMPort)
         assert (await llm.structured("sys", "ask", SCHEMA), llm.model) == ({"n": 3}, "m")
     _method, _path, headers, body = stub.sent[0]
@@ -43,7 +40,7 @@ async def test_openai_structured_answer_under_the_schema(stub: Stub, http: HTTPP
 
 async def test_openai_no_key_no_bearer(stub: Stub, http: HTTPPort) -> None:
     stub.json("POST", "/v1/chat/completions", completion("{}"))
-    async with OpenaiDriver(http, OpenaiSettings(url=f"{stub.url}/v1", key=None)) as llm:
+    async with OpenaiDriver(http, **openai_args(url=f"{stub.url}/v1", key=None)) as llm:
         await llm.structured("s", "p", SCHEMA)
     assert "authorization" not in stub.sent[0][2]
 
@@ -63,14 +60,14 @@ async def test_openai_reply_outside_the_contract(
     stub: Stub, http: HTTPPort, payload: object, error: type[Exception], message: str
 ) -> None:
     stub.json("POST", "/v1/chat/completions", payload)
-    async with OpenaiDriver(http, settings(stub)) as llm:
+    async with OpenaiDriver(http, **openai_args(url=f"{stub.url}/v1")) as llm:
         with pytest.raises(error, match=message):
             await llm.structured("s", "p", SCHEMA)
 
 
 async def test_openai_server_error_is_an_http_error(stub: Stub, http: HTTPPort) -> None:
     stub.json("POST", "/v1/chat/completions", {}, status=429)
-    async with OpenaiDriver(http, settings(stub)) as llm:
+    async with OpenaiDriver(http, **openai_args(url=f"{stub.url}/v1")) as llm:
         with pytest.raises(HTTPError) as caught:
             await llm.structured("s", "p", SCHEMA)
     assert caught.value.status == 429
@@ -78,7 +75,7 @@ async def test_openai_server_error_is_an_http_error(stub: Stub, http: HTTPPort) 
 
 async def test_openai_health_lists_the_models(stub: Stub, http: HTTPPort) -> None:
     stub.json("GET", "/v1/models", {"data": []})
-    async with OpenaiDriver(http, settings(stub)) as llm:
+    async with OpenaiDriver(http, **openai_args(url=f"{stub.url}/v1")) as llm:
         assert await llm.health()
         stub.routes.clear()
         with pytest.raises(ProviderError):
@@ -99,7 +96,7 @@ async def test_openai_lifecycle_the_bad_replies_and_an_unhealthy_server_are_logg
     stub: Stub, http: HTTPPort, logs: Logs
 ) -> None:
     stub.json("POST", "/v1/chat/completions", completion("not json", "length"))
-    async with OpenaiDriver(http, settings(stub)) as llm:
+    async with OpenaiDriver(http, **openai_args(url=f"{stub.url}/v1")) as llm:
         with pytest.raises(TruncatedError):
             await llm.structured("s", "p", SCHEMA)
         with pytest.raises(ProviderError):

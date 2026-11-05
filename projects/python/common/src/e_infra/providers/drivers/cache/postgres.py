@@ -12,13 +12,12 @@ import msgspec
 
 from e_infra.infra.errors import CacheError, DatabaseError, ProviderError
 from e_infra.infra.logger import logger
-from e_infra.infra.settings import settings as st
 from e_infra.ports.provider import Isolation, Locality, ProviderSpec, Workload
 
 if TYPE_CHECKING:
     from collections.abc import Generator, Mapping, Sequence
+    from datetime import timedelta
 
-    from e_infra.infra.config.providers.drivers.cache.postgres import PostgresCacheSettings
     from e_infra.ports.database import DatabasePort
 
 CACHE_SCHEMA: Final[str] = (
@@ -37,18 +36,15 @@ CACHE_PUT: Final[str] = (
 ##### DRIVER #####
 class PostgresCacheDriver[T]:
     """Values of type `kind` under `namespace` in the database's `cache` table — durable, shared by every process —,
-    each kept CACHE_TTL (unset: until replaced). A value is msgpack; a row that no longer decodes (the type changed) is a
+    each kept `ttl` (None: until replaced). A value is msgpack; a row that no longer decodes (the type changed) is a
     miss, and a read skips what expired. The table is logged: what it keeps is often a paid answer."""
 
     spec: ClassVar[ProviderSpec] = ProviderSpec("cache-postgres", Locality.REMOTE, Workload.IO_BOUND, Isolation.LOOP)
 
-    __slots__ = ("_conf", "_db", "_decoder", "_encoder", "_namespace")
+    __slots__ = ("_db", "_decoder", "_encoder", "_namespace", "_ttl")
 
-    def __init__(
-        self, db: DatabasePort, namespace: str, kind: type[T], settings: PostgresCacheSettings | None = None
-    ) -> None:
-        ### the default is read on call, not at import: the settings singleton stays lazy.
-        self._conf = st.providers.drivers.cache.postgres if settings is None else settings
+    def __init__(self, db: DatabasePort, namespace: str, kind: type[T], *, ttl: timedelta | None) -> None:
+        self._ttl = ttl
         self._db = db
         self._namespace = namespace
         self._encoder = msgspec.msgpack.Encoder()
@@ -83,7 +79,7 @@ class PostgresCacheDriver[T]:
             return None
 
     def _common_expires(self) -> datetime | None:
-        return datetime.now(UTC) + self._conf.ttl if self._conf.ttl else None
+        return datetime.now(UTC) + self._ttl if self._ttl else None
 
     ############################################################
 

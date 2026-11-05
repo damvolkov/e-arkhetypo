@@ -1,12 +1,12 @@
-"""e-graph entrypoint: assembly by explicit registration only — importing this module does nothing.
+"""e-graph entrypoint: assembly by explicit registration only — importing this module builds nothing.
 
 `create_app` is the composition root and the factory granian calls per worker. Routers enter
 through `register` calls — the include_router shape; middleware, the lifespan
 chain and CORS enter through the constructor, and the order of `lifespan=[...]` is the startup
 order: infra first (every later concern may depend on the loaded singletons), then the providers, the
 services, the instrument's and the logic's branches and the built graphs, sealed last. Dependency chains
-are wired by each endpoint, never here. Nothing loads at import; the infra singletons load on the first
-touch, which the infra lifespan makes.
+are wired by each endpoint, never here. The settings are read once, at import (`infra.settings`); this root
+reads `st` and hands each door its values.
 """
 
 from importlib.metadata import version
@@ -23,11 +23,15 @@ from e_graph.api.lifespan.infra import lifespan as infra_lifespan
 from e_graph.api.middlewares import MIDDLEWARES, cors_config
 from e_graph.api.router import health, pipelines, specs, ui
 from e_graph.api.state import AppState
+from infra.logger import ELogger
+from infra.settings import settings as st
 from infra.state import State
 
 
 def create_app() -> Litestar:
     """Composition root: granian calls this per worker. Nothing here builds — the lifespans write the system graph."""
+    ### the logger takes APP_ENV from the root, before any line is logged: JSON in prod, flat text elsewhere.
+    ELogger.setup(env=st.APP_ENV)
     ##### APP #####
     app = Litestar(
         route_handlers=[],
@@ -46,17 +50,20 @@ def create_app() -> Litestar:
         ### the declared union of middlewares crosses into litestar's looser `Middleware` alias here;
         ### asgi_correlation_id types its scope narrower than the protocol — wiring is exact, upstream typing is not.
         middleware=cast("list[Middleware]", list(MIDDLEWARES)),
-        cors_config=cors_config(),
+        cors_config=cors_config(origins=st.ALLOW_ORIGINS, methods=st.ALLOW_METHODS),
         ### pyproject is the version source of truth: uv-dynamic-versioning stamps it, dev reads 0.0.0.
         ### where the docs live, their aliases and renderers: DOCS_* settings, translated by api.docs.
-        openapi_config=docs.openapi_config(title="e-graph", version=version("e-graph")),
+        openapi_config=docs.openapi_config(
+            title="e-graph", version=version("e-graph"), path=st.DOCS_PATH, renderers=st.DOCS_RENDERERS
+        ),
     )
 
     ##### ROUTERS #####
     app.register(Router(path="/", route_handlers=list(health.ROUTES)))
     app.register(Router(path=pipelines.PREFIX, route_handlers=list(pipelines.ROUTES)))
     app.register(Router(path=specs.PREFIX, route_handlers=list(specs.ROUTES)))
-    app.register(Router(path="/", route_handlers=list(ui.ROUTES)))
-    app.register(Router(path="/", route_handlers=list(docs.routes())))
+    canvas = ui.routes(toast=st.UI_TOAST, pace=st.UI_PACE, lane_gap=st.UI_LANE_GAP, rank_gap=st.UI_RANK_GAP)
+    app.register(Router(path="/", route_handlers=list(canvas)))
+    app.register(Router(path="/", route_handlers=list(docs.routes(path=st.DOCS_PATH, aliases=st.DOCS_ALIASES))))
     app.register(ui.router())
     return app

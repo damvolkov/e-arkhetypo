@@ -3,19 +3,14 @@
 from typing import TYPE_CHECKING, cast
 
 from e_graph.api.middlewares import AccessLogMiddleware, cors_config
-from infra.config.api import APISettings, HTTPMethod
+from infra.config.api import HTTPMethod
 
 if TYPE_CHECKING:
     from litestar.types import Receive, Scope, Send
 
 
-def test_cors_config_reads_the_singleton_when_no_settings_given() -> None:
-    config = cors_config()
-    assert config.allow_origins == ["*"]
-
-
-def test_cors_config_honours_explicit_settings() -> None:
-    config = cors_config(APISettings(allow_origins=["https://eager.test"], allow_methods=[HTTPMethod.GET]))
+def test_cors_config_translates_origins_and_methods() -> None:
+    config = cors_config(origins=["https://eager.test"], methods=[HTTPMethod.GET])
     assert config.allow_origins == ["https://eager.test"]
     assert config.allow_methods == ["GET"]
 

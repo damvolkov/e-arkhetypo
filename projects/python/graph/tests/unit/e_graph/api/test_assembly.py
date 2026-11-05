@@ -12,11 +12,11 @@ def test_importing_main_has_no_side_effects() -> None:
     assert not hasattr(entrypoint, "app"), "the factory must stay lazy: granian builds it per worker"
 
 
-def test_composite_settings_expose_every_scope() -> None:
-    scopes = set(Settings.model_fields)
-    assert {"api", "app", "crypto", "engines", "processors", "providers", "ui"} <= scopes
-    assert st.providers.drivers.store.redis.url.get_secret_value().startswith("redis://")
-    assert st.app.port == 8000
+def test_settings_hold_every_cluster() -> None:
+    fields = set(Settings.model_fields)
+    assert {"ALLOW_ORIGINS", "APP_PORT", "CRYPTO__SECRET", "PING_TIMEOUT", "DOC_MODE", "REDIS_URL", "UI_TOAST"} <= fields
+    assert str(st.REDIS_URL.get_secret_value()).startswith("redis://")
+    assert st.APP_PORT == 8000
 
 
 def test_create_app_registers_every_router(client) -> None:

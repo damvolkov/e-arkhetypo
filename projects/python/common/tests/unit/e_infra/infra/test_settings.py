@@ -1,29 +1,34 @@
-"""e_infra.infra.settings: five layered sources, frozen pydantic models, SecretStr, lazy singleton."""
+"""tests/unit/e_infra/infra/settings: one `Settings` of category clusters — its sources, its types, and the law's gates.
 
-import sys
+The sources are proven on a cluster of the test's own; the gates read the real `Settings` and the source tree: every
+field UPPERCASE, no field in two clusters, the environment names held against the snapshot, `infra.settings` read only
+by the composition root, and nothing but enums and value types taken from `infra.config` below it."""
+
+import ast
+import json
+import re
 from datetime import timedelta
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from types import UnionType
+from typing import Any, Final, Union, get_args, get_origin
 
-import anyio
 import pytest
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, SecretStr, ValidationError
 from pydantic_settings import SettingsConfigDict
 
 from e_infra.infra import settings as composer
-from e_infra.infra.config.api import APISettings, HTTPMethod
-from e_infra.infra.config.app import AppSettings, Env
-from e_infra.infra.config.crypto import CryptoSettings
-from e_infra.infra.config.providers.drivers.database.psqlpy import PsqlpySettings
-from e_infra.infra.config.providers.drivers.http.wreq import WreqSettings
-from e_infra.infra.config.providers.drivers.store.redis import RedisSettings
-from e_infra.infra.config.providers.drivers.store.sqlite import SqliteSettings
-from e_infra.infra.settings import BaseSettings, Secret
-from e_infra.infra.settings import Settings as Composite
-from e_infra.infra.settings import settings as st
+from e_infra.infra.config.api import ApiSettings, HTTPMethod
+from e_infra.infra.config.base import BaseSettings
+from e_infra.infra.config.infra import Env, InfraSettings
+from e_infra.infra.settings import Settings, settings
 
-if TYPE_CHECKING:
-    from collections.abc import Iterator
+RESOURCES: Final[Path] = Path(__file__).resolve().parents[3] / "resources"
+SNAPSHOT: Final[Path] = RESOURCES / "settings" / "env.json"
+### the package the spine sits in: `e_infra` here, the project's package or `src` once materialized.
+SOURCE: Final[Path] = Path(composer.__file__).resolve().parents[1]
+CONFIG: Final[Path] = SOURCE / "infra" / "config"
+### the composition root: entrypoints, lifespans, request deps, the cli's runtime.
+ROOT: Final[re.Pattern[str]] = re.compile(r"(^|/)(main|__main__|deps|cli)\.py$|(^|/)lifespan/|(^|/)cli/runtime/")
 
 
 class DB(BaseModel):
@@ -31,248 +36,194 @@ class DB(BaseModel):
     port: int = 5432
 
 
-class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_prefix="E_", env_file=None)
+class ProbeSettings(BaseSettings):
+    """A cluster of the test's own, no `.env`: a flag, a port, a credential, a structured value."""
 
-    debug: bool = False
-    port: int = 8000
-    token: Secret = Secret("")
-    db: DB = DB()
+    model_config = SettingsConfigDict(env_file=None)
+
+    PROBE_DEBUG: bool = False
+    PROBE_PORT: int = 8000
+    PROBE_TOKEN: SecretStr = SecretStr("")
+    PROBE_DB: DB = DB()
 
 
 def _config(**kw: Any) -> SettingsConfigDict:
-    """The test scope's config with one layer repointed."""
-    return SettingsConfigDict(**{"env_prefix": "E_", "env_file": None, **kw})
+    """The probe's config with one layer repointed."""
+    return SettingsConfigDict(**{"env_file": None, **kw})
 
 
-##### LOAD #####
-async def test_load_env_layers(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("E_PORT", "9000")
-    monkeypatch.setenv("E_DEBUG", "true")
-    monkeypatch.setenv("E_DB__PORT", "6543")
-    settings = Settings()
-    assert (settings.port, settings.debug, settings.db.port) == (9000, True, 6543)
-    assert settings.db.host == "localhost"  # nested partial update keeps untouched defaults
+##### SOURCES #####
+def test_load_env_layers(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("PROBE_PORT", "9000")
+    monkeypatch.setenv("PROBE_DEBUG", "true")
+    monkeypatch.setenv("PROBE_DB__PORT", "6543")
+    probe = ProbeSettings()
+    assert (probe.PROBE_PORT, probe.PROBE_DEBUG, probe.PROBE_DB.port, probe.PROBE_DB.host) == (
+        9000,
+        True,
+        6543,
+        "localhost",
+    )
 
 
-async def test_load_overrides(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("E_PORT", "9000")
-    assert Settings(port=7000).port == 7000
+def test_load_kwargs_beat_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("PROBE_PORT", "9000")
+    assert ProbeSettings(PROBE_PORT=7000).PROBE_PORT == 7000
 
 
 @pytest.mark.parametrize(
     ("name", "body", "attr"),
     [
-        ("c.toml", 'port = 5555\ntoken = "filetok"\n', "toml_file"),
-        ("c.json", '{"port": 4321, "token": "filetok"}', "json_file"),
-        ("c.yaml", "port: 7777\ntoken: filetok\n", "yaml_file"),
+        ("c.toml", 'PROBE_PORT = 5555\nPROBE_TOKEN = "filetok"\n', "toml_file"),
+        ("c.json", '{"PROBE_PORT": 4321, "PROBE_TOKEN": "filetok"}', "json_file"),
+        ("c.yaml", "PROBE_PORT: 7777\nPROBE_TOKEN: filetok\n", "yaml_file"),
     ],
     ids=["toml", "json", "yaml"],
 )
-async def test_load_config_file_under_env(
+def test_load_config_file_under_env(
     name: str, body: str, attr: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     path = tmp_path / name
     path.write_text(body)
-    monkeypatch.setattr(Settings, "model_config", _config(**{attr: path}))
-    monkeypatch.setenv("E_PORT", "6666")
-    settings = Settings()
-    assert (settings.port, settings.token.get_secret_value()) == (6666, "filetok")  # env beats file, file beats default
+    monkeypatch.setattr(ProbeSettings, "model_config", _config(**{attr: path}))
+    monkeypatch.setenv("PROBE_PORT", "6666")
+    probe = ProbeSettings()
+    assert (probe.PROBE_PORT, probe.PROBE_TOKEN.get_secret_value()) == (6666, "filetok")
 
 
-async def test_load_absent_file_is_empty(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(Settings, "model_config", _config(toml_file=tmp_path / "absent.toml"))
-    assert Settings().port == 8000
+def test_load_absent_file_is_empty(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(ProbeSettings, "model_config", _config(toml_file=tmp_path / "absent.toml"))
+    assert ProbeSettings().PROBE_PORT == 8000
 
 
-async def test_load_corrupt_config_file_raises(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_load_corrupt_config_file_raises(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     path = tmp_path / "c.toml"
-    path.write_text("port = = =\n")
-    monkeypatch.setattr(Settings, "model_config", _config(toml_file=path))
+    path.write_text("PROBE_PORT = = =\n")
+    monkeypatch.setattr(ProbeSettings, "model_config", _config(toml_file=path))
     with pytest.raises(Exception, match="Invalid value"):
-        Settings()
+        ProbeSettings()
 
 
-async def test_load_secrets_never_leaks(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    (tmp_path / "E_token").write_text("shh\n")
-    monkeypatch.setattr(Settings, "model_config", _config(secrets_dir=tmp_path))
-    settings = Settings()
-    assert settings.token.get_secret_value() == "shh"
-    assert "shh" not in repr(settings)
+def test_load_dotenv_layers(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    (tmp_path / ".env").write_text("export PROBE_PORT='8123'\nPROBE_DEBUG = true\n# junk\n")
+    monkeypatch.setattr(ProbeSettings, "model_config", _config(env_file=tmp_path / ".env"))
+    probe = ProbeSettings()
+    assert (probe.PROBE_PORT, probe.PROBE_DEBUG) == (8123, True)
 
 
-async def test_load_dotenv_layers(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    (tmp_path / ".env").write_text("export E_PORT='8123'\nE_DEBUG = true\n# junk\n")
-    monkeypatch.setattr(Settings, "model_config", _config(env_file=tmp_path / ".env"))
-    settings = Settings()
-    assert (settings.port, settings.debug) == (8123, True)
-
-
-async def test_env_json_decodes_complex(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("E_DB", '{"host": "fromjson", "port": 1}')
-    assert Settings().db.host == "fromjson"
+def test_env_json_decodes_a_structured_value(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("PROBE_DB", '{"host": "fromjson", "port": 1}')
+    assert ProbeSettings().PROBE_DB.host == "fromjson"
 
 
 ##### TYPES #####
-async def test_secret_never_leaks() -> None:
-    secret = Secret("hunter2")
-    assert "hunter2" not in repr(secret)
-    assert "hunter2" not in f"{secret}"
-    assert secret.get_secret_value() == "hunter2"
+def test_a_credential_never_leaks(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("PROBE_TOKEN", "hunter2")
+    probe = ProbeSettings()
+    assert ("hunter2" not in repr(probe), probe.PROBE_TOKEN.get_secret_value()) == (True, "hunter2")
 
 
-async def test_timedelta_and_path_coerced(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("HTTP_TIMEOUT", "PT12.5S")
-    monkeypatch.setenv("DB_PATH", "/data/app.db")
-    assert WreqSettings().timeout == timedelta(seconds=12.5)
-    assert SqliteSettings().path == Path("/data/app.db")
-
-
-##### FROZEN #####
-async def test_frozen_blocks_mutation() -> None:
+def test_frozen_blocks_mutation() -> None:
     with pytest.raises(ValidationError):
-        Settings().port = 1
+        ProbeSettings().PROBE_PORT = 1
 
 
-##### ENUMS #####
-async def test_app_env_decodes_to_typed_env(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_app_env_decodes_to_typed_env(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("APP_ENV", "local")
-    assert AppSettings().env is Env.LOCAL
-    assert AppSettings(env="dev").env in set(Env)
+    assert InfraSettings().APP_ENV is Env.LOCAL
 
 
-async def test_app_env_rejects_a_typo() -> None:
+def test_app_env_rejects_a_typo() -> None:
     with pytest.raises(ValidationError, match="validation error"):
-        AppSettings(env="deV")
+        InfraSettings(APP_ENV="deV")
 
 
-async def test_allow_methods_decode_to_typed_verbs() -> None:
-    assert APISettings(allow_methods=["GET", "DELETE"]).allow_methods == [HTTPMethod.GET, HTTPMethod.DELETE]
-    assert set(APISettings().allow_methods) <= set(HTTPMethod)
+def test_allow_methods_decode_to_typed_verbs() -> None:
+    assert ApiSettings(ALLOW_METHODS=["GET", "DELETE"]).ALLOW_METHODS == [HTTPMethod.GET, HTTPMethod.DELETE]
 
 
-async def test_allow_methods_rejects_a_foreign_verb() -> None:
+def test_allow_methods_rejects_a_foreign_verb() -> None:
     with pytest.raises(ValidationError, match="BREW"):
-        APISettings(allow_methods=["BREW"])
+        ApiSettings(ALLOW_METHODS=["BREW"])
 
 
-##### LAZY SINGLETON #####
-async def test_settings_proxy_loads_once_per_process() -> None:
-    """The first attribute access builds the composite; later touches reuse the same instance."""
-    assert st.app is st.app
-    assert isinstance(st.app.env, Env)
+def test_timedelta_coerced_from_iso(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("HTTP_TIMEOUT", "PT12.5S")
+    assert timedelta(seconds=12.5) == Settings().HTTP_TIMEOUT
 
 
-async def test_composite_scopes_discovered() -> None:
-    """Every settings module of the config tree became a scope on the composite, nested like the tree."""
-    assert all(
-        hasattr(node, leaf)
-        for node, leaf in (
-            (st, "api"),
-            (st, "app"),
-            (st, "cli"),
-            (st, "crypto"),
-            (st, "ping"),
-            (st.engines, "dispatch"),
-            (st.processors, "doc"),
-            (st.providers.drivers.database, "psqlpy"),
-            (st.providers.drivers.database, "asyncpg"),
-            (st.providers.drivers.store, "redis"),
-            (st.providers.drivers.store, "sqlite"),
-            (st.providers.drivers.http, "wreq"),
-            (st.providers.drivers.queue, "awa"),
-            (st.providers.drivers.queue, "pgqueuer"),
-            (st.providers.drivers.telemetry, "otel"),
-            (st.providers.adapters.cache, "theine"),
-        )
+##### THE ONE SETTINGS #####
+def test_settings_is_one_instance_of_every_cluster() -> None:
+    clusters = [base for base in Settings.__bases__ if issubclass(base, BaseSettings)]
+    assert (isinstance(settings, Settings), len(clusters) == len(Settings.__bases__)) == (True, True)
+
+
+##### GATES — the law, read from the tree #####
+def structured(annotation: object) -> tuple[type[BaseModel], ...]:
+    """The structured types `__` reaches into: the annotation itself, or a member of its union — never a container's."""
+    kinds = get_args(annotation) if get_origin(annotation) in {Union, UnionType} else (annotation,)
+    return tuple(kind for kind in kinds if isinstance(kind, type) and issubclass(kind, BaseModel))
+
+
+def names(model: type[BaseModel]) -> set[str]:
+    """The environment names a settings class reads: each field, and `FIELD__KEY` into a structured one."""
+    nested = (
+        f"{name}__{key.upper()}"
+        for name, field in model.model_fields.items()
+        for kind in structured(field.annotation)
+        for key in kind.model_fields
     )
+    return {*model.model_fields, *nested}
 
 
-async def test_composite_chain_reads_as_the_path() -> None:
-    """`st.providers.drivers.database.psqlpy` is the settings of `providers/drivers/database/psqlpy.py`."""
-    assert isinstance(st.providers.drivers.database.psqlpy, PsqlpySettings)
-    assert isinstance(st.providers.drivers.store.redis, RedisSettings)
-    assert st.providers.drivers.database.psqlpy.pool == PsqlpySettings().pool
+def test_every_field_is_uppercase() -> None:
+    assert [name for name in Settings.model_fields if name != name.upper()] == []
 
 
-async def test_composite_load_overrides_by_path(monkeypatch: pytest.MonkeyPatch) -> None:
-    """A per-scope override nested like the tree beats the scope's own layers, and only that scope's."""
-    monkeypatch.setenv("POSTGRES_POOL", "5")
-    loaded = Composite.load(providers={"drivers": {"database": {"psqlpy": {"pool": 3}}}}, app={"env": "prod"})
-    assert (loaded.providers.drivers.database.psqlpy.pool, loaded.app.env) == (3, Env.PROD)
-    assert loaded.providers.drivers.store.redis.pool == RedisSettings().pool
-    assert Composite.load().providers.drivers.database.psqlpy.pool == 5
+def test_no_field_lives_in_two_clusters() -> None:
+    owners = [name for base in Settings.__bases__ for name in base.__annotations__]
+    assert sorted({name for name in owners if owners.count(name) > 1}) == []
 
 
-async def test_composite_is_frozen_all_the_way_down() -> None:
-    loaded = Composite.load()
-    with pytest.raises(ValidationError):
-        loaded.providers.drivers.database.psqlpy.pool = 1
-    with pytest.raises(ValidationError):
-        loaded.providers = None
+def test_environment_names_are_held() -> None:
+    assert sorted(names(Settings)) == json.loads(SNAPSHOT.read_text())
 
 
-async def test_composite_is_lazy_at_import() -> None:
-    """Importing the composer reads no environment: the proxy builds on its first access, not before."""
-    code = "import os; os.environ['POSTGRES_POOL']='x'; import e_infra.infra.settings as s; print(type(s.settings).__name__)"
-    ran = await anyio.run_process([sys.executable, "-c", code], check=False)
-    assert (ran.returncode, ran.stdout.decode().strip()) == (0, "LazyProxy"), ran.stderr
+def imports(path: Path) -> list[tuple[str, str]]:
+    """Every `from <module> import <name>` of a module."""
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    return [
+        (node.module or "", alias.name)
+        for node in ast.walk(tree)
+        if isinstance(node, ast.ImportFrom)
+        for alias in node.names
+    ]
 
 
-async def test_shared_dotenv_feeds_each_scope_its_own_keys(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """One .env for every scope: a key one scope owns (CRYPTO__SECRET, HTTP_BASE_URL) never aborts another (APISettings)."""
-    (tmp_path / ".env").write_text("CRYPTO__SECRET=dotenv-secret-0123456789\nHTTP_BASE_URL=https://dotenv.test\n")
-    monkeypatch.chdir(tmp_path)
-    monkeypatch.delenv("CRYPTO__SECRET", raising=False)
-    assert APISettings().allow_origins
-    assert WreqSettings().base_url == "https://dotenv.test"
-    assert CryptoSettings().secret is not None
+def below() -> list[Path]:
+    """The modules below the composition root: every source module but the settings, the config and the root."""
+    return [
+        path
+        for path in SOURCE.rglob("*.py")
+        if CONFIG not in path.parents and path.name != "settings.py" and not ROOT.search(str(path.relative_to(SOURCE)))
+    ]
 
 
-##### A PROJECT'S OWN SCOPES — `<package>/settings/` beside the composer, under `st.<package>` #####
-ORDERS = """
-from pydantic_settings import SettingsConfigDict
-
-from e_infra.infra.config.base import BaseSettings
-from e_infra.infra.settings import settings as st
-
-
-class OrdersSettings(BaseSettings):
-    model_config = SettingsConfigDict(env_prefix="ORDERS_")
-
-    size: int = 3
-"""
-BILLING = """
-from e_infra.infra.config.base import BaseSettings
+def test_settings_is_read_by_the_composition_root_alone() -> None:
+    readers = {
+        str(path.relative_to(SOURCE))
+        for path in below()
+        for module, _ in imports(path)
+        if module.endswith("infra.settings")
+    }
+    assert sorted(readers) == []
 
 
-class BillingSettings(BaseSettings):
-    plan: str = "free"
-"""
-
-
-@pytest.fixture
-def project(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Path]:
-    """A `src` of the test's own: a package with scopes (one nested, one importing the composer at its import) and a
-    package with none; the composer pointed at it, its discovery forgotten before and after."""
-    (tmp_path / "probe_shop" / "settings" / "deep").mkdir(parents=True)
-    (tmp_path / "probe_shop" / "settings" / "orders.py").write_text(ORDERS)
-    (tmp_path / "probe_shop" / "settings" / "deep" / "billing.py").write_text(BILLING)
-    (tmp_path / "probe_plain").mkdir()
-    monkeypatch.syspath_prepend(str(tmp_path))
-    monkeypatch.setattr(composer, "_SRC", tmp_path)
-    composer._scopes.cache_clear()
-    composer._model.cache_clear()
-    yield tmp_path
-    composer._scopes.cache_clear()
-    composer._model.cache_clear()
-
-
-async def test_composite_hangs_a_projects_own_scopes_under_its_package(
-    project: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    monkeypatch.setenv("ORDERS_SIZE", "7")
-    loaded = composer.Settings.load()
-    assert (loaded.probe_shop.orders.size, loaded.probe_shop.deep.billing.plan) == (7, "free")
-    assert loaded.app.env == AppSettings().env
-    assert "probe_plain" not in composer.Settings.model_fields
+def test_below_the_root_config_gives_only_types() -> None:
+    clusters = {
+        f"{path.relative_to(SOURCE)!s}:{name}"
+        for path in below()
+        for module, name in imports(path)
+        if ".infra.config" in f".{module}" and name.endswith("Settings")
+    }
+    assert sorted(clusters) == []

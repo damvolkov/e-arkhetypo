@@ -34,7 +34,7 @@ class SharedState:
 @asynccontextmanager
 async def lifespan(session: Session) -> AsyncGenerator[Deps]:
     """The run: configure logging, seal `shared` + `session` into the graph, hand the provider to the launcher."""
-    setup(env=st.app.env, level=logging.DEBUG if session.verbose else logging.WARNING, stream=sys.stderr)
+    setup(env=st.APP_ENV, level=logging.DEBUG if session.verbose else logging.WARNING, stream=sys.stderr)
     state = State(shared=SharedState(settings=st, logger=logger), session=session)
     state.seal()
     logger.debug("run start", command=session.command, step="START")

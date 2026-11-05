@@ -26,8 +26,8 @@ from infra.settings import settings as st
 @asynccontextmanager
 async def lifespan(app: Litestar) -> AsyncGenerator[None]:
     """Build the server over the door's tools, run its session manager, then mount the section under `system.mcp`."""
-    hosts = tuple(st.mcp.hosts) or (f"127.0.0.1:{st.app.port}", f"localhost:{st.app.port}")
-    origins = tuple(st.mcp.origins) or tuple(f"http://{host}" for host in hosts)
+    hosts = tuple(st.MCP_HOSTS) or (f"127.0.0.1:{st.APP_PORT}", f"localhost:{st.APP_PORT}")
+    origins = tuple(st.MCP_ORIGINS) or tuple(f"http://{host}" for host in hosts)
     server = MCPServer(
         MCPRegistry(ROUTES),
         name="e-api",

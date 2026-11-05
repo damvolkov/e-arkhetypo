@@ -14,7 +14,6 @@ from e_graph.main import create_app
 from engines.health import HealthEngine
 from infra.errors import StoreError
 from infra.logger import logger
-from infra.settings import settings as st
 from ports.documents import DocumentPort
 from ports.http import HTTPPort
 from ports.markdown import MarkdownPort
@@ -41,18 +40,13 @@ def test_lifespans_are_declared_not_built() -> None:
     assert list(inspect.signature(create_app).parameters) == []
 
 
-def test_shared_section_holds_the_loaded_singletons(client) -> None:
+def test_shared_section_holds_the_logger_never_the_settings(client) -> None:
     shared = client.app.state.system.shared
-    assert isinstance(shared, SharedState)
-    assert shared.settings is st
-    assert shared.logger is logger
-
-
-def test_singleton_load_is_idempotent(client) -> None:
-    """Two touches, one instance: the LazyProxy cache pins the build for the whole process."""
-    ### the state section is the same object a global import reaches, and a second touch reuses the one build.
-    assert client.app.state.system.shared.settings.app is st.app
-    assert st.app is st.app
+    assert (isinstance(shared, SharedState), shared.logger is logger, hasattr(shared, "settings")) == (
+        True,
+        True,
+        False,
+    )
 
 
 def test_providers_section_is_typed_and_ported(client) -> None:

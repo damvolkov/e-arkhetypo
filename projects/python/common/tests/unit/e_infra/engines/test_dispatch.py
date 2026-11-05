@@ -8,15 +8,11 @@ from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanE
 from e_infra.engines.dispatch import TRACE, DispatchEngine
 from e_infra.engines.telemetry import TelemetryEngine
 from e_infra.infra.background import Background, BackgroundState
-from e_infra.infra.config.base import Secret
-from e_infra.infra.config.engines.dispatch import DispatchSettings
-from e_infra.infra.config.providers.drivers.queue.awa import AwaSettings
-from e_infra.infra.config.providers.drivers.telemetry.otel import OTelSettings
 from e_infra.infra.errors import DispatchError, ProviderError
 from e_infra.ports.telemetry import SpanRole
 from e_infra.providers.drivers.queue.awa import AwaDriver
 from e_infra.providers.drivers.telemetry.otel import OTelDriver
-from unit.e_infra.conftest import Warnings, Works, outage, settled, until
+from unit.e_infra.conftest import Warnings, Works, dsn, otel_args, outage, over, settled, until
 from unit.e_infra.engines.conftest import FakeQueue, build
 
 if TYPE_CHECKING:
@@ -93,12 +89,7 @@ async def test_dispatch_memory_alone(queue: str, works: Works, warnings: Warning
     assert warnings.events == ["background in memory: jobs will not survive a restart"]
 
 
-@pytest.mark.parametrize(
-    "pace",
-    [{"throttle": 60}, {"settings": DispatchSettings(throttle=timedelta(seconds=60))}],
-    ids=["argument", "settings"],
-)
-async def test_dispatch_throttled(queue: str, pace: dict[str, Any]) -> None:
+async def test_dispatch_throttled(queue: str) -> None:
     """Within the throttle only the first snapshot is written; the last one always is, once the work ends."""
     seen: list[Mapping[str, Any] | None] = []
 
@@ -106,7 +97,7 @@ async def test_dispatch_throttled(queue: str, pace: dict[str, Any]) -> None:
         _ = [await report({"n": n}) for n in range(5)]
         seen.append((await dispatch.job(job.id) or job).progress)
 
-    dispatch = DispatchEngine(None, Background(), {queue: 1}, **pace)
+    dispatch = DispatchEngine(None, Background(), {queue: 1}, throttle=60)
     dispatch.register("chatty", chatty, queue=queue)
     async with dispatch:
         job = await dispatch.submit("chatty")
@@ -139,7 +130,7 @@ async def test_dispatch_registry_sealed_after_start(queue: str, works: Works, la
 ##### TRACING — a job is the child of the trace it was submitted in #####
 async def test_dispatch_a_job_is_traced_as_the_child_of_its_submit(queue: str, works: Works) -> None:
     exporter = InMemorySpanExporter()
-    async with OTelDriver(OTelSettings(), exporter) as otel:
+    async with OTelDriver(**otel_args(), exporter=exporter) as otel:
         telemetry = TelemetryEngine(otel)
         dispatch = DispatchEngine(None, Background(), {queue: 2}, throttle=0, telemetry=telemetry)
         dispatch.register("ok", works.ok, queue=queue)
@@ -159,7 +150,7 @@ async def test_dispatch_a_job_is_traced_as_the_child_of_its_submit(queue: str, w
 
 async def test_dispatch_coalescing_ignores_the_trace(queue: str, works: Works) -> None:
     """Two slots held by hanging jobs: a twin submitted in another trace is still the waiting job."""
-    async with OTelDriver(OTelSettings(), InMemorySpanExporter()) as otel:
+    async with OTelDriver(**otel_args(), exporter=InMemorySpanExporter()) as otel:
         telemetry = TelemetryEngine(otel)
         dispatch = DispatchEngine(None, Background(), {queue: 2}, throttle=0, telemetry=telemetry)
         _ = [dispatch.register(kind, getattr(works, kind), queue=queue) for kind in ("ok", "hang")]
@@ -286,17 +277,17 @@ async def test_dispatch_a_durable_queue_that_keeps_a_clock_gets_the_schedules(qu
 
 
 @pytest.mark.integration
-async def test_dispatch_durable(queue_settings: AwaSettings, queue: str, works: Works) -> None:
-    async with build(AwaDriver(queue_settings), queue, works) as dispatch:
+async def test_dispatch_durable(awa_conf: dict[str, Any], queue: str, works: Works) -> None:
+    async with build(AwaDriver(**awa_conf), queue, works) as dispatch:
         job = await dispatch.submit("ok")
         assert (dispatch.engine, job.id.isdecimal()) == ("awa", True)
         assert (await settled(dispatch, job.id)).state is BackgroundState.COMPLETED
 
 
 @pytest.mark.integration
-async def test_dispatch_unreachable(queue_settings: AwaSettings, queue: str, works: Works, warnings: Warnings) -> None:
-    missing = queue_settings.model_copy(update={"dsn": Secret(f"{queue_settings.dsn.get_secret_value()}_missing")})
-    async with build(AwaDriver(missing), queue, works) as dispatch:
+async def test_dispatch_unreachable(awa_conf: dict[str, Any], queue: str, works: Works, warnings: Warnings) -> None:
+    missing = over(awa_conf, dsn=dsn(f"{awa_conf['dsn'].get_secret_value()}_missing"))
+    async with build(AwaDriver(**missing), queue, works) as dispatch:
         job = await dispatch.submit("ok")
         assert (dispatch.engine, job.id.isdecimal()) == ("memory", False)
         assert (await settled(dispatch, job.id)).state is BackgroundState.COMPLETED
@@ -304,12 +295,12 @@ async def test_dispatch_unreachable(queue_settings: AwaSettings, queue: str, wor
 
 
 @pytest.mark.integration
-async def test_dispatch_outage(queue_settings: AwaSettings, queue: str, works: Works, warnings: Warnings) -> None:
+async def test_dispatch_outage(awa_conf: dict[str, Any], queue: str, works: Works, warnings: Warnings) -> None:
     """The durable database down after entry: new work runs in memory, its jobs stay readable, the durable ones read
     as unknown — every fall a warning; once it is back, work goes durable again."""
-    async with build(AwaDriver(queue_settings), queue, works) as dispatch:
+    async with build(AwaDriver(**awa_conf), queue, works) as dispatch:
         durable = await settled(dispatch, (await dispatch.submit("ok")).id)
-        async with outage(queue_settings.dsn.get_secret_value()):
+        async with outage(str(awa_conf["dsn"].get_secret_value())):
             fallen = await dispatch.submit("ok")
             done = await settled(dispatch, fallen.id)
             listed = [job.id for job in await dispatch.jobs()]
@@ -342,9 +333,9 @@ async def test_dispatch_health_durable(durable: AwaDriver | PgqueuerDriver, queu
 
 
 @pytest.mark.parametrize("unreachable", [False, True], ids=["absent", "unreachable"])
-async def test_dispatch_health_memory(queue: str, works: Works, unreachable: bool) -> None:
+async def test_dispatch_health_memory(awa_conf: dict[str, Any], queue: str, works: Works, unreachable: bool) -> None:
     """No durable queue, or one unreachable on entry: memory runs the work, and health says jobs are not durable."""
-    dead = AwaSettings(dsn=Secret("postgresql://u:p@127.0.0.1:1/x"), timeout=timedelta(seconds=1))
-    async with build(AwaDriver(dead) if unreachable else None, queue, works) as dispatch:
+    dead = over(awa_conf, dsn=dsn("postgresql://u:p@127.0.0.1:1/x"), timeout=timedelta(seconds=1))
+    async with build(AwaDriver(**dead) if unreachable else None, queue, works) as dispatch:
         with pytest.raises(ProviderError):
             await dispatch.health()

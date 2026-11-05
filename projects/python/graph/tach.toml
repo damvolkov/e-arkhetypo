@@ -37,7 +37,8 @@ depends_on = []
 [[modules]]
 path = "e_graph.cli"
 layer = "api"
-depends_on = []
+### the cli is a composition root like the api's lifespans: it builds the agent and DARTS through their factories.
+depends_on = ["e_graph.api"]
 
 [[modules]]
 path = "e_graph.pipelines"

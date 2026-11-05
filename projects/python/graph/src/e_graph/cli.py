@@ -33,10 +33,13 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.tree import Tree
 
+from e_graph.api.lifespan.logic import agent as build_agent
+from e_graph.api.lifespan.logic import darts as build_darts
+from e_graph.api.lifespan.providers import anytomd, liteparse, present, wreq
+from e_graph.api.lifespan.services import doc
 from e_graph.instrument.contexts import InstrumentContexts
 from e_graph.instrument.state import InfraState, InstrumentState, ProcessorsState
 from e_graph.instrument.telemetry import InstrumentTelemetry
-from e_graph.logic.agent import AgnosticAgent
 from e_graph.logic.dartsops import DartsOps
 from e_graph.logic.discover import SpecDiscover, SystemDiscover
 from e_graph.logic.errors import CatalogError, Rule, RuleError, Severity
@@ -47,15 +50,9 @@ from e_graph.logic.orchestrator.plan import DagPlan
 from e_graph.logic.state import LogicState
 from e_graph.models.section import Section
 from e_graph.pipelines.base import PipelineRegistry
-from infra.config.darts import DartsSettings
 from infra.logger import ELogger
 from infra.settings import settings as st
 from infra.state import State
-from processors.doc import DocProcessor
-from providers.adapters.markdown.anytomd import AnytomdAdapter
-from providers.adapters.pages.liteparse import LiteparseAdapter
-from providers.drivers.documents.docling import DoclingDriver
-from providers.drivers.http.wreq import WreqDriver
 
 CONSOLE: Final[Console] = Console(soft_wrap=True)
 EXIT: Final[dict[bool, int]] = {True: 0, False: 1}
@@ -228,23 +225,23 @@ async def system() -> AsyncGenerator[State]:
     answers), the document processor, the agent. Their logs go to stderr: stdout is the command's answer, JSON included."""
     ### typeshed's TextIO is io.TextIOBase by alias: it checks nothing, while beartype demands the full
     ### protocol member by member — this class is built for the latter and cannot name it to the former.
-    ELogger.setup(env=st.app.env, stream=LiveStream())  # ty: ignore[invalid-argument-type]
+    ELogger.setup(env=st.APP_ENV, stream=LiveStream())  # ty: ignore[invalid-argument-type]
     graphs = await PipelineRegistry().build()
     async with AsyncExitStack() as stack:
         enter = stack.enter_async_context
-        http = await enter(WreqDriver())
-        docling = await DoclingDriver.present(stack, http)
-        pages = await enter(LiteparseAdapter())
-        markdown = await enter(AnytomdAdapter())
-        agent = await enter(AgnosticAgent())
+        http = await enter(wreq())
+        docling = await present(stack, http)
+        pages = await enter(liteparse())
+        markdown = await enter(anytomd())
+        agent = await enter(build_agent())
         root = State(
             infra=InfraState(
                 providers=None,  # ty: ignore[invalid-argument-type] — no runner reaches a provider but through a processor
                 engines=None,  # ty: ignore[invalid-argument-type] — no runner surveys health
-                processors=ProcessorsState(doc=DocProcessor(markdown, pages, docling)),
+                processors=ProcessorsState(doc=doc(markdown, pages, docling)),
                 graphs=MappingProxyType(dict(graphs)),
             ),
-            logic=LogicState(agent=agent, orchestrator=OrchestratorCore()),
+            logic=LogicState(agent=agent, orchestrator=OrchestratorCore(build_darts())),
             instrument=InstrumentState(telemetry=InstrumentTelemetry(), contexts=InstrumentContexts()),
         )
         root.seal()
@@ -262,7 +259,7 @@ async def mounted(pipeline: str, section: Section | None) -> tuple[SectionLab, s
         if section is not None and section not in known.sections
         else ""
     )
-    return SectionLab(OrchestratorCore(), graphs), reason
+    return SectionLab(OrchestratorCore(build_darts()), graphs), reason
 
 
 ##### COMMANDS #####
@@ -310,7 +307,7 @@ async def plan(pipeline: str, section: Section, *, json: bool = False) -> int:
     try:
         match pipeline in mounts:
             case True:
-                planned = DagPlan.build(await SpecDiscover(pipeline).catalog(section), DartsSettings())
+                planned = DagPlan.build(await SpecDiscover(pipeline).catalog(section), build_darts())
             case _:
                 unknown = RuleError(Rule.PIPELINE, pipeline, f"no graph mounts this pipeline: {sorted(mounts)}")
                 raise CatalogError(pipeline, [unknown])
@@ -341,7 +338,7 @@ async def listing(*, json: bool = False) -> int:
     json
         Print the sections as JSON instead of a table.
     """
-    sections = await SectionLab(OrchestratorCore(), await PipelineRegistry().build()).sections()
+    sections = await SectionLab(OrchestratorCore(build_darts()), await PipelineRegistry().build()).sections()
     table = Table("pipeline", "section", "specs", "steps", "calls", box=None, pad_edge=False)
     _ = [table.add_row(i.pipeline, str(i.section), str(i.specs), str(i.steps), str(i.calls)) for i in sections]
     match json:
@@ -402,7 +399,7 @@ def contract(*, out: Path | None = None) -> int:
     out
         Write the contract to this file instead of the terminal.
     """
-    contract_: dict[str, Any] = DartsOps(OrchestratorCore()).contract()
+    contract_: dict[str, Any] = DartsOps(OrchestratorCore(build_darts())).contract()
     contract_json = msgspec.json.format(msgspec.json.encode(contract_), indent=2).decode()
     match out:
         case None:
@@ -422,8 +419,8 @@ async def probe(*, json: bool = False) -> int:
     json
         Print {tier: ms-or-error} as JSON instead of a table.
     """
-    async with AgnosticAgent() as agent:
-        probes = await DartsOps(OrchestratorCore()).probe(agent)
+    async with build_agent() as agent:
+        probes = await DartsOps(OrchestratorCore(build_darts())).probe(agent)
     match json:
         case True:
             render_json(probes)

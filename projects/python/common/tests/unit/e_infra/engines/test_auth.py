@@ -7,12 +7,11 @@ import pytest
 
 from e_infra.engines.auth import AuthEngine
 from e_infra.infra.auth.models import ANONYMOUS, Role
-from e_infra.infra.config.base import Secret
-from e_infra.infra.config.engines.auth import AuthSettings
 from e_infra.infra.errors import AuthClosedError, AuthNameError, UnknownTokenError
 from e_infra.ops.crypto import Crypto
 from e_infra.ports.auth import AuthPort
 from support.auth import FakeAuth
+from unit.e_infra.conftest import auth_args
 
 if TYPE_CHECKING:
     from unit.e_infra.conftest import Logs
@@ -74,8 +73,8 @@ async def test_auth_revoke(auth: AuthEngine) -> None:
 
 async def test_auth_expires(fake_auth: FakeAuth) -> None:
     """Past AUTH_TTL a key is refused; within it, it holds."""
-    expired = AuthEngine(fake_auth, AuthSettings(secret=Secret("k"), ttl=timedelta(seconds=-1)))
-    held = AuthEngine(FakeAuth(), AuthSettings(secret=Secret("k"), ttl=timedelta(days=1)))
+    expired = AuthEngine(fake_auth, **auth_args(ttl=timedelta(seconds=-1)))
+    held = AuthEngine(FakeAuth(), **auth_args(ttl=timedelta(days=1)))
     gone, kept = await expired.rotate("ana"), await held.rotate("ana")
     with pytest.raises(UnknownTokenError, match="expired"):
         await expired.resolve(bearer(gone.token))
@@ -107,11 +106,7 @@ async def test_auth_unknown(auth: AuthEngine) -> None:
 @pytest.mark.parametrize("call", ["ensure", "rotate", "revoke"])
 async def test_auth_closed(fake_auth: FakeAuth, call: str) -> None:
     """With no secret, no account is made, rotated or revoked."""
-    closed = AuthEngine(fake_auth, AuthSettings())
+    closed = AuthEngine(fake_auth, **auth_args(secret=None))
     arguments = {"ensure": (), "rotate": ("ana",), "revoke": ("ana",)}[call]
     with pytest.raises(AuthClosedError):
         await getattr(closed, call)(*arguments)
-
-
-async def test_auth_default_settings_come_from_the_composer(fake_auth: FakeAuth) -> None:
-    assert AuthEngine(fake_auth).admin == AuthSettings().admin

@@ -41,11 +41,11 @@ async def lifespan(app: Litestar) -> AsyncGenerator[None]:
     """Build the engines over the mounted providers, mount them under `system.engines`, log the startup survey."""
     system = AppState.of(app).system
     providers: ProvidersState = system.providers
-    conf = st.engines.auth
-    engines = EnginesState(auth=AuthEngine(providers.auth, conf), health=HealthEngine(providers.named, REQUIRED))
+    auth = AuthEngine(providers.auth, secret=st.AUTH_SECRET, ttl=st.AUTH_TTL, admin=st.AUTH_ADMIN)
+    engines = EnginesState(auth=auth, health=HealthEngine(providers.named, REQUIRED, st.PING_TIMEOUT))
     system.engines = engines
-    admin = (await engines.auth.ensure()).owner if conf.secret else "closed"
-    logger.info("auth ready", admin=admin, ttl=str(conf.ttl or "never"), step="START")
+    admin = (await engines.auth.ensure()).owner if st.AUTH_SECRET else "closed"
+    logger.info("auth ready", admin=admin, ttl=str(st.AUTH_TTL or "never"), step="START")
     _ = [
         (logger.info if verdict.ok else logger.warning)(
             "provider health", provider=verdict.name, ok=verdict.ok, required=verdict.required,

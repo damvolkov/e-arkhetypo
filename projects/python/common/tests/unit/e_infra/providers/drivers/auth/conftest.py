@@ -8,12 +8,11 @@ from typing import TYPE_CHECKING
 import pytest
 from psqlpy.exceptions import Error as PsqlError
 
-from e_infra.infra.config.base import Secret
-from e_infra.infra.config.providers.drivers.database.psqlpy import PsqlpySettings
 from e_infra.providers.drivers.auth.postgres import PostgresAuthDriver
 from e_infra.providers.drivers.database import psqlpy as psqlpy_module
 from e_infra.providers.drivers.database.psqlpy import PsqlpyDriver
 from support.psqlpy import FakePsqlpyServer
+from unit.e_infra.conftest import psqlpy_args
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
@@ -29,7 +28,7 @@ def psqlpy(monkeypatch: pytest.MonkeyPatch) -> FakePsqlpyServer:
 @pytest.fixture
 async def database(psqlpy: FakePsqlpyServer) -> AsyncIterator[PsqlpyDriver]:
     _ = psqlpy
-    async with PsqlpyDriver(PsqlpySettings(dsn=Secret("postgresql://u:p@db:5432/x"), pool=2)) as opened:
+    async with PsqlpyDriver(**psqlpy_args(pool=2)) as opened:
         yield opened
 
 

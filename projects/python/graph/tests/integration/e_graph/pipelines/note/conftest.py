@@ -10,6 +10,7 @@ from typing import Any, Final
 import pytest
 
 from infra.config.agent import AgentSettings
+from support.root import agent_args
 
 ### the endpoint these cassettes were recorded against; the key never lands here — CUSTOM is a local-server
 ### provider and the agent supplies a dummy, while the header is redacted before the request is written.
@@ -22,6 +23,12 @@ def settings(request: pytest.FixtureRequest) -> Any:
     recording = str(request.config.getoption("--record-mode", "none")).lower() in {"all", "rewrite", "new_episodes"}
     match recording:
         case True:
-            return AgentSettings()
+            declared = AgentSettings()
+            return {
+                "credentials": declared.agent_credentials(),
+                "tiers": declared.agent_tiers(),
+                "timeout": declared.AGENT_TIMEOUT,
+                "retries": declared.AGENT_RETRIES,
+            }
         case _:
-            return AgentSettings(medium=ALIBABA, high=ALIBABA, low=ALIBABA)
+            return agent_args(medium=ALIBABA, high=ALIBABA, low=ALIBABA)

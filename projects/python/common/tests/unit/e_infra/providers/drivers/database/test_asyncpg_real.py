@@ -4,11 +4,10 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from e_infra.infra.config.base import Secret
-from e_infra.infra.config.providers.drivers.database.asyncpg import AsyncpgSettings
 from e_infra.infra.errors import DatabaseError
 from e_infra.ports.database import Vector
 from e_infra.providers.drivers.database.asyncpg import AsyncpgDriver
+from unit.e_infra.conftest import asyncpg_args
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
@@ -19,7 +18,7 @@ pytestmark = pytest.mark.integration
 @pytest.fixture
 async def pg_asyncpg(database: str) -> AsyncIterator[AsyncpgDriver]:
     """An asyncpg driver over a fresh `adapters_asyncpg` schema holding one probe table, dropped after the test."""
-    async with AsyncpgDriver(AsyncpgSettings(dsn=Secret(database), pool=2)) as driver:
+    async with AsyncpgDriver(**asyncpg_args(database, pool=2)) as driver:
         await driver.execute("CREATE EXTENSION IF NOT EXISTS vector")
         await driver.execute("DROP SCHEMA IF EXISTS adapters_asyncpg CASCADE")
         await driver.execute("CREATE SCHEMA adapters_asyncpg")
@@ -59,4 +58,4 @@ async def test_asyncpg_real_errors_are_database_errors(pg_asyncpg: AsyncpgDriver
     with pytest.raises(DatabaseError):
         await pg_asyncpg.fetch("SELECT * FROM adapters_asyncpg.nowhere")
     with pytest.raises(DatabaseError):
-        await AsyncpgDriver(AsyncpgSettings(dsn=Secret("postgresql://postgres:x@127.0.0.1:9/none"))).__aenter__()
+        await AsyncpgDriver(**asyncpg_args("postgresql://postgres:x@127.0.0.1:9/none")).__aenter__()

@@ -8,16 +8,16 @@ from typing import TYPE_CHECKING, Any
 import pytest
 import wreq
 
-from e_infra.infra.config.providers.drivers.documents.docling import (
+from e_infra.infra.config.providers import (
     DoclingBackend,
     DoclingFormat,
     DoclingImages,
-    DoclingSettings,
     DoclingTables,
 )
 from e_infra.infra.errors import DocumentError, HTTPError, HTTPTimeoutError, ProviderError
 from e_infra.ports.documents import DocumentConversion, DocumentPort
 from e_infra.providers.drivers.documents.docling import DoclingDriver
+from unit.e_infra.conftest import docling_args
 from unit.e_infra.providers.drivers.conftest import DOWN
 
 if TYPE_CHECKING:
@@ -27,23 +27,19 @@ if TYPE_CHECKING:
     from unit.e_infra.conftest import Logs
 
 
-def settings(url: str, **values: Any) -> DoclingSettings:
-    return DoclingSettings(url=url, poll=timedelta(milliseconds=5), **values)
-
-
 async def test_port_shape(http: HTTPPort) -> None:
-    assert isinstance(DoclingDriver(http, DoclingSettings(url="http://docling:5001")), DocumentPort)
+    assert isinstance(DoclingDriver(http, **docling_args(url="http://docling:5001")), DocumentPort)
     assert DoclingDriver.spec.name == "docling-serve"
 
 
 async def test_no_url_no_driver(http: HTTPPort) -> None:
     """DOCLING_URL unset names no docling: the driver refuses to exist, the root never builds one."""
     with pytest.raises(DocumentError, match="DOCLING_URL"):
-        DoclingDriver(http, DoclingSettings())
+        DoclingDriver(http, **docling_args())
 
 
 async def test_url_converted_as_a_task(docling_server: Any, http: HTTPPort) -> None:
-    async with DoclingDriver(http, settings(docling_server.url)) as adapter:
+    async with DoclingDriver(http, **docling_args(url=docling_server.url)) as adapter:
         conversion = await adapter.convert("https://example.org/paper")
     assert conversion == DocumentConversion(
         filename="paper.pdf", status="success", markdown="# Title", document={"tables": []}, seconds=1.5
@@ -56,7 +52,7 @@ async def test_url_converted_as_a_task(docling_server: Any, http: HTTPPort) -> N
 async def test_bytes_and_paths_sent_inline(docling_server: Any, tmp_path: Path, http: HTTPPort) -> None:
     file = tmp_path / "report.pdf"
     file.write_bytes(b"%PDF-1.7 report")
-    async with DoclingDriver(http, settings(docling_server.url)) as adapter:
+    async with DoclingDriver(http, **docling_args(url=docling_server.url)) as adapter:
         await adapter.convert(b"%PDF-1.7 raw")
         raw = docling_server.sent["sources"][0]
         await adapter.convert(b"<html/>", filename="page.html")
@@ -73,8 +69,8 @@ async def test_bytes_and_paths_sent_inline(docling_server: Any, tmp_path: Path, 
 
 
 async def test_options_follow_settings_then_the_call(docling_server: Any, http: HTTPPort) -> None:
-    conf = settings(
-        docling_server.url,
+    conf = docling_args(
+        url=docling_server.url,
         formats=(DoclingFormat.JSON, DoclingFormat.TEXT),
         images=DoclingImages.PLACEHOLDER,
         tables=DoclingTables.FAST,
@@ -84,7 +80,7 @@ async def test_options_follow_settings_then_the_call(docling_server: Any, http: 
         formulas=True,
         page_timeout=timedelta(minutes=2),
     )
-    async with DoclingDriver(http, conf) as adapter:
+    async with DoclingDriver(http, **conf) as adapter:
         await adapter.convert("https://example.org/a", options={"table_mode": "accurate", "page_range": [1, 3]})
     options = docling_server.sent["options"]
     assert options["to_formats"] == ["json", "text"]
@@ -98,7 +94,7 @@ async def test_options_follow_settings_then_the_call(docling_server: Any, http: 
 
 
 async def test_defaults_ask_markdown_json_and_embedded_pictures(docling_server: Any, http: HTTPPort) -> None:
-    async with DoclingDriver(http, settings(docling_server.url)) as adapter:
+    async with DoclingDriver(http, **docling_args(url=docling_server.url)) as adapter:
         await adapter.convert("https://example.org/a")
     options = docling_server.sent["options"]
     assert (options["to_formats"], options["image_export_mode"], options["include_images"]) == (
@@ -111,14 +107,16 @@ async def test_defaults_ask_markdown_json_and_embedded_pictures(docling_server: 
 
 
 async def test_a_failed_task_raises_with_its_reason(docling_server: Any, http: HTTPPort) -> None:
-    async with DoclingDriver(http, settings(docling_server.url)) as adapter:
+    async with DoclingDriver(http, **docling_args(url=docling_server.url)) as adapter:
         with pytest.raises(DocumentError, match="docling task fail failure: bad pdf"):
             await adapter.convert("https://example.org/fail")
 
 
 async def test_a_task_past_the_deadline_is_abandoned(docling_server: Any, http: HTTPPort) -> None:
     ### a task that never settles: the deadline, not the server, ends the wait — whatever the load on the machine.
-    async with DoclingDriver(http, settings(docling_server.url, deadline=timedelta(milliseconds=300))) as adapter:
+    async with DoclingDriver(
+        http, **docling_args(url=docling_server.url, deadline=timedelta(milliseconds=300))
+    ) as adapter:
         with pytest.raises(TimeoutError):
             await adapter.convert("https://example.org/slow")
     assert docling_server.sent["sources"] == [{"kind": "http", "url": "https://example.org/slow"}]
@@ -126,7 +124,9 @@ async def test_a_task_past_the_deadline_is_abandoned(docling_server: Any, http: 
 
 async def test_a_body_past_the_deadline_times_out(docling_server: Any, http: HTTPPort) -> None:
     ### headers in time, body too late: the cut lands on the body read and still surfaces as a TimeoutError.
-    async with DoclingDriver(http, settings(docling_server.url, deadline=timedelta(milliseconds=300))) as adapter:
+    async with DoclingDriver(
+        http, **docling_args(url=docling_server.url, deadline=timedelta(milliseconds=300))
+    ) as adapter:
         with pytest.raises(HTTPTimeoutError, match="timed out after"):
             await adapter.convert("https://example.org/stall")
 
@@ -138,7 +138,7 @@ async def test_a_body_error_that_is_no_timeout_stays_an_http_error(
         msg = "is_body error: connection reset"
         raise wreq.BodyError(msg)
 
-    async with DoclingDriver(http, settings(docling_server.url)) as adapter:
+    async with DoclingDriver(http, **docling_args(url=docling_server.url)) as adapter:
         monkeypatch.setattr(wreq.Response, "json", broken)
         with pytest.raises(HTTPError, match="connection reset") as caught:
             await adapter._common_call("GET", "/ready")
@@ -147,38 +147,40 @@ async def test_a_body_error_that_is_no_timeout_stays_an_http_error(
 
 async def test_health_reflects_the_server(docling_server: Any, http: HTTPPort) -> None:
     """docling-serve's readiness route: answered, unready (503), or nobody listening."""
-    async with DoclingDriver(http, settings(docling_server.url)) as adapter:
+    async with DoclingDriver(http, **docling_args(url=docling_server.url)) as adapter:
         assert await adapter.health()
         docling_server.handler.ready = False
         with pytest.raises(ProviderError):
             await adapter.health()
-    async with DoclingDriver(http, settings(DOWN)) as gone:
+    async with DoclingDriver(http, **docling_args(url=DOWN)) as gone:
         with pytest.raises(ProviderError):
             await gone.health()
 
 
 async def test_a_server_error_surfaces_as_an_http_error(docling_server: Any, http: HTTPPort) -> None:
-    async with DoclingDriver(http, settings(docling_server.url)) as adapter:
+    async with DoclingDriver(http, **docling_args(url=docling_server.url)) as adapter:
         with pytest.raises(HTTPError) as caught:
             await adapter._common_call("GET", "/nowhere")
     assert caught.value.status == 404
 
 
 async def test_an_unknown_source_kind_is_refused(docling_server: Any, http: HTTPPort) -> None:
-    async with DoclingDriver(http, settings(docling_server.url)) as adapter:
+    async with DoclingDriver(http, **docling_args(url=docling_server.url)) as adapter:
         with pytest.raises(TypeError, match="not int"):
             await adapter.convert(42)  # ty: ignore[invalid-argument-type]
 
 
 async def test_a_request_past_the_deadline_times_out_never_cancels(docling_server: Any, http: HTTPPort) -> None:
     ### the bound is the request's own timeout: a TimeoutError, never a CancelledError leaking into the caller's group.
-    async with DoclingDriver(http, settings(docling_server.url, deadline=timedelta(milliseconds=300))) as adapter:
+    async with DoclingDriver(
+        http, **docling_args(url=docling_server.url, deadline=timedelta(milliseconds=300))
+    ) as adapter:
         with pytest.raises(TimeoutError, match="timed out after"):
             await adapter.convert("https://example.org/hang")
 
 
 async def test_lifecycle_and_the_failures_are_logged(docling_server: Any, http: HTTPPort, logs: Logs) -> None:
-    async with DoclingDriver(http, settings(docling_server.url)) as adapter:
+    async with DoclingDriver(http, **docling_args(url=docling_server.url)) as adapter:
         with pytest.raises(DocumentError):
             await adapter.convert("https://example.org/fail")
         docling_server.handler.ready = False
@@ -193,7 +195,9 @@ async def test_lifecycle_and_the_failures_are_logged(docling_server: Any, http: 
 async def test_a_request_past_the_deadline_is_logged_where_it_is_translated(
     docling_server: Any, http: HTTPPort, logs: Logs
 ) -> None:
-    async with DoclingDriver(http, settings(docling_server.url, deadline=timedelta(milliseconds=300))) as adapter:
+    async with DoclingDriver(
+        http, **docling_args(url=docling_server.url, deadline=timedelta(milliseconds=300))
+    ) as adapter:
         with pytest.raises(HTTPTimeoutError):
             await adapter.convert("https://example.org/hang")
     assert logs.at("error", "docling") == ["docling timed out"]
@@ -209,13 +213,13 @@ def absent(logs: Logs) -> list[str]:
 
 async def test_present_without_a_url_is_none_and_says_why_once(http: HTTPPort, logs: Logs) -> None:
     async with AsyncExitStack() as stack:
-        assert await DoclingDriver.present(stack, http, DoclingSettings()) is None
+        assert await DoclingDriver.present(stack, http, **docling_args()) is None
     assert absent(logs) == ["DOCLING_URL unset"]
 
 
 async def test_present_with_a_server_down_is_none_and_says_why_once(http: HTTPPort, logs: Logs) -> None:
     async with AsyncExitStack() as stack:
-        assert await DoclingDriver.present(stack, http, settings(DOWN)) is None
+        assert await DoclingDriver.present(stack, http, **docling_args(url=DOWN)) is None
     [reason] = absent(logs)
     assert (reason.startswith(f"{DOWN} unanswered: "), logs.at("warning", "docling")) == (True, ["docling absent"])
 
@@ -224,7 +228,7 @@ async def test_present_with_a_server_up_is_the_driver_open_on_the_stack(
     docling_server: Any, http: HTTPPort, logs: Logs
 ) -> None:
     async with AsyncExitStack() as stack:
-        driver = await DoclingDriver.present(stack, http, settings(docling_server.url))
+        driver = await DoclingDriver.present(stack, http, **docling_args(url=docling_server.url))
         assert isinstance(driver, DoclingDriver)
         assert await driver.health()
     assert (absent(logs), logs.at("info", "docling")) == ([], ["docling opened", "docling closed"])

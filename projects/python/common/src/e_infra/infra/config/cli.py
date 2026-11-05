@@ -1,17 +1,15 @@
-"""infra/config/cli: the command-line edge of this app — CLI_TOKEN, CLI_HISTORY."""
+"""infra/config/cli: the command-line edge of this app — a stored-login-free token, the journal's depth."""
 
-from pydantic_settings import SettingsConfigDict
+from pydantic import NonNegativeInt, SecretStr
 
-from e_infra.infra.config.base import BaseSettings, Secret
-
-##### DEFAULTS #####
-DEFAULT_HISTORY: int = 50
+from e_infra.infra.config.base import BaseSettings
 
 
-class CLISettings(BaseSettings):
-    """CLI_TOKEN authenticates a run without a stored login; CLI_HISTORY caps how many runs the journal keeps."""
+##### SETTINGS #####
+class CliSettings(BaseSettings):
+    """The command line: a run authenticates by token, and the journal keeps the last runs."""
 
-    model_config = SettingsConfigDict(env_prefix="CLI_")
-
-    token: Secret | None = None
-    history: int = DEFAULT_HISTORY
+    ### authenticates a run without a stored login.
+    CLI_TOKEN: SecretStr | None = None
+    ### how many runs the journal keeps.
+    CLI_HISTORY: NonNegativeInt = 50

@@ -20,11 +20,11 @@ from e_graph.instrument.telemetry import InstrumentTelemetry
 from e_graph.logic.orchestrator.core import OrchestratorCore
 from e_graph.logic.state import LogicState
 from e_graph.pipelines.note.graph import NoteGraph
-from infra.config.providers.drivers.telemetry.otel import OTelSettings
 from infra.state import State
 from processors.doc import DocProcessor
 from providers.drivers.telemetry.otel import OTelDriver
 from support.docling import MARKDOWN, GoldenPort
+from support.root import darts, doc_args, otel_args
 
 if TYPE_CHECKING:
     from e_graph.logic.agent import AgnosticAgent
@@ -49,16 +49,16 @@ CASES: Final[dict[str, dict[str, Any]]] = {
 
 async def read(agent: AgnosticAgent, pages: LiteparseAdapter, note: str) -> tuple[RunStatus, dict[str, Any]]:
     """The whole pipeline over one note: the verdict and the record."""
-    async with OTelDriver(OTelSettings()) as telemetry:
+    async with OTelDriver(**otel_args()) as telemetry:
         infra = InfraState(
             providers=None,  # ty: ignore[invalid-argument-type]
             engines=None,  # ty: ignore[invalid-argument-type]
-            processors=ProcessorsState(doc=DocProcessor(MARKDOWN, pages, GoldenPort())),
+            processors=ProcessorsState(doc=DocProcessor(MARKDOWN, pages, GoldenPort(), **doc_args())),
             graphs=MappingProxyType({}),
         )
         system = State(
             infra=infra,
-            logic=LogicState(agent=agent, orchestrator=OrchestratorCore()),
+            logic=LogicState(agent=agent, orchestrator=OrchestratorCore(darts())),
             instrument=InstrumentState(telemetry=InstrumentTelemetry(telemetry), contexts=InstrumentContexts()),
         )
         system.seal()

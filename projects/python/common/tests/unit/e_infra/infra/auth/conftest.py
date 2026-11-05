@@ -18,9 +18,8 @@ from e_infra.engines.auth import AuthEngine
 from e_infra.infra.auth.guard import OPT, guard
 from e_infra.infra.auth.middleware import EXCLUDED, TokenMiddleware
 from e_infra.infra.auth.models import Access, Caller, Role
-from e_infra.infra.config.base import Secret
-from e_infra.infra.config.engines.auth import AuthSettings
 from support.auth import FakeAuth
+from unit.e_infra.conftest import auth_args
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
@@ -61,7 +60,7 @@ def keys() -> FakeAuth:
 
 @pytest.fixture
 def app(keys: FakeAuth) -> Litestar:
-    engine = AuthEngine(keys, AuthSettings(secret=Secret("k")))
+    engine = AuthEngine(keys, **auth_args())
     return Litestar(
         route_handlers=[
             who,

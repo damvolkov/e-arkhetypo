@@ -5,11 +5,11 @@ from typing import TYPE_CHECKING, Final
 
 import pytest
 
-from e_infra.infra.config.processors.doc import DocSignal
-from e_infra.infra.config.providers.adapters.pages.liteparse import LiteparseSettings
+from e_infra.infra.config.processors import DocSignal
 from e_infra.infra.errors import ParseError, ProviderError
 from e_infra.ports.pages import FastPage, PagesPort
 from e_infra.providers.adapters.pages.liteparse import LiteparseAdapter
+from unit.e_infra.conftest import liteparse_args
 
 if TYPE_CHECKING:
     from unit.e_infra.conftest import Logs
@@ -19,7 +19,7 @@ TEXT, WORKFORCE, STATEMENT, SCAN = 1, 2, 3, 4
 
 
 async def test_liteparse_signals_tell_text_tables_and_scans_apart() -> None:
-    async with LiteparseAdapter(LiteparseSettings()) as pages:
+    async with LiteparseAdapter(**liteparse_args()) as pages:
         assert isinstance(pages, PagesPort)
         read = {page.number: page for page in await pages.parse(FILING.read_bytes())}
     assert all(isinstance(page, FastPage) for page in read.values())
@@ -29,7 +29,7 @@ async def test_liteparse_signals_tell_text_tables_and_scans_apart() -> None:
 
 
 async def test_liteparse_blocks_carry_tables_and_headings() -> None:
-    async with LiteparseAdapter(LiteparseSettings()) as pages:
+    async with LiteparseAdapter(**liteparse_args()) as pages:
         read = {page.number: page for page in await pages.parse(FILING.read_bytes())}
     tables = [block for block in read[STATEMENT].blocks if block.kind == "table"]
     assert tables
@@ -39,7 +39,7 @@ async def test_liteparse_blocks_carry_tables_and_headings() -> None:
 
 
 async def test_liteparse_unopen_and_closed() -> None:
-    pages = LiteparseAdapter(LiteparseSettings())
+    pages = LiteparseAdapter(**liteparse_args())
     with pytest.raises(ProviderError):
         await pages.health()
     with pytest.raises(ParseError, match="not open"):
@@ -52,13 +52,13 @@ async def test_liteparse_unopen_and_closed() -> None:
 
 async def test_liteparse_error_translated() -> None:
     """liteparse's own error never leaves the adapter."""
-    async with LiteparseAdapter(LiteparseSettings()) as pages:
+    async with LiteparseAdapter(**liteparse_args()) as pages:
         with pytest.raises(ParseError):
             await pages.parse(b"not a pdf at all")
 
 
 async def test_liteparse_lifecycle_and_its_failures_are_logged(logs: Logs) -> None:
-    pages = LiteparseAdapter(LiteparseSettings())
+    pages = LiteparseAdapter(**liteparse_args())
     with pytest.raises(ProviderError):
         await pages.health()
     async with pages:

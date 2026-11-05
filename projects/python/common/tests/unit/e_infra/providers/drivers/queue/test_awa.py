@@ -11,12 +11,12 @@ from awa import AwaError, Cancel
 from awa import DatabaseError as AwaDatabaseError
 
 from e_infra.infra.background import BackgroundState
-from e_infra.infra.config.providers.drivers.queue.awa import AwaSettings
 from e_infra.infra.errors import ProviderError, QueueError
 from e_infra.ports.queue import QueuePort, SchedulePort
 from e_infra.providers.drivers.queue import awa as awa_module
 from e_infra.providers.drivers.queue.awa import REPORT, SCHEMA, AwaDriver
 from support.awa import FakeAwaJob
+from unit.e_infra.conftest import over
 
 if TYPE_CHECKING:
     from e_infra.infra.background import BackgroundHandler
@@ -30,14 +30,14 @@ async def test_awa_meets_the_queue_port_and_keeps_no_clock(awa_driver: AwaDriver
 
 
 async def test_awa_open_migrates_creates_its_tables_and_fills_the_pool(
-    awa_driver: AwaDriver, awa_clients: list[FakeAwaClient], awa_settings: AwaSettings, logs: Logs
+    awa_driver: AwaDriver, awa_clients: list[FakeAwaClient], awa_unit: dict[str, Any], logs: Logs
 ) -> None:
     async with awa_driver:
         [client] = awa_clients
-        assert (client.dsn, client.max_connections) == (awa_settings.dsn.get_secret_value(), 6)
+        assert (client.dsn, client.max_connections) == (str(awa_unit["dsn"].get_secret_value()), 6)
         assert "migrate" in client.calls
         assert client.sql() == list(SCHEMA)
-        assert client.opened == len(SCHEMA) + awa_settings.pool
+        assert client.opened == len(SCHEMA) + awa_unit["pool"]
     assert (client.drained, client.closed) == (50, True)
     assert logs.at("info") == ["awa opened", "awa closed"]
 
@@ -46,11 +46,6 @@ async def test_awa_closing_twice_is_nothing(awa_driver: AwaDriver) -> None:
     async with awa_driver:
         pass
     await awa_driver.__aexit__(None, None, None)
-
-
-async def test_awa_default_settings_come_from_the_composer(awa_clients: list[FakeAwaClient]) -> None:
-    async with AwaDriver():
-        assert awa_clients[0].max_connections == AwaSettings().pool
 
 
 async def test_awa_unopened_calls_are_queue_errors(awa_driver: AwaDriver, handler: BackgroundHandler) -> None:
@@ -73,7 +68,7 @@ async def test_awa_open_failing_is_a_queue_error_and_logged(
 
 
 async def test_awa_client_that_never_connects_is_a_queue_error(
-    awa_settings: AwaSettings, monkeypatch: pytest.MonkeyPatch, logs: Logs
+    awa_unit: dict[str, Any], monkeypatch: pytest.MonkeyPatch, logs: Logs
 ) -> None:
     """awa's constructor connects synchronously: it runs off the loop and is abandoned at QUEUE_TIMEOUT."""
 
@@ -81,19 +76,19 @@ async def test_awa_client_that_never_connects_is_a_queue_error(
         time.sleep(0.4)
 
     monkeypatch.setattr(awa_module, "AsyncClient", slow)
-    driver = AwaDriver(awa_settings.model_copy(update={"timeout": timedelta(milliseconds=50)}))
+    driver = AwaDriver(**over(awa_unit, timeout=timedelta(milliseconds=50)))
     with pytest.raises(QueueError, match="open timed out"):
         await driver.__aenter__()
     assert logs.at("error") == ["awa open failed"]
 
 
 async def test_awa_close_that_never_returns_is_a_queue_error(
-    awa_clients: list[FakeAwaClient], monkeypatch: pytest.MonkeyPatch, logs: Logs
+    awa_clients: list[FakeAwaClient], awa_unit: dict[str, Any], monkeypatch: pytest.MonkeyPatch, logs: Logs
 ) -> None:
     async def never(timeout_ms: int = 0) -> None:
         await anyio.sleep_forever()
 
-    driver = AwaDriver(AwaSettings(pool=6, drain=timedelta(milliseconds=20), timeout=timedelta(milliseconds=20)))
+    driver = AwaDriver(**over(awa_unit, drain=timedelta(milliseconds=20), timeout=timedelta(milliseconds=20)))
     await driver.__aenter__()
     monkeypatch.setattr(awa_clients[0], "shutdown", never)
     with pytest.raises(QueueError, match="close timed out"):
@@ -215,9 +210,9 @@ async def test_awa_database_failure_is_a_queue_error_and_logged(
 
 
 async def test_awa_call_past_the_bound_is_a_queue_error(
-    awa_settings: AwaSettings, awa_clients: list[FakeAwaClient], monkeypatch: pytest.MonkeyPatch, logs: Logs
+    awa_unit: dict[str, Any], awa_clients: list[FakeAwaClient], monkeypatch: pytest.MonkeyPatch, logs: Logs
 ) -> None:
-    driver = AwaDriver(awa_settings.model_copy(update={"timeout": timedelta(milliseconds=50)}))
+    driver = AwaDriver(**over(awa_unit, timeout=timedelta(milliseconds=50)))
     async with driver:
 
         async def never(*_args: Any, **_kwargs: Any) -> None:

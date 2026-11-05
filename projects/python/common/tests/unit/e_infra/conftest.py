@@ -2,8 +2,8 @@
 
 `queue_database` is this worker's own database beside POSTGRES_TEST_DSN's (default the stack's ParadeDB :45011),
 created on the server's maintenance database when missing; with no server answering, every test that needs it skips
-and says why — the memory engine's tests run regardless. `pgqueuer_database` is PgQueuer's, apart from awa's, so their
-tables never meet. `queue_settings` is the queue at test pace, `queue` a queue name no other test shares. `settled`
+and says why — the memory engine's tests run regardless. `pgqueuer_conf` PgQueuer's; `pgqueuer_database` is its database, apart from awa's, so their
+tables never meet. `awa_conf` is the awa queue's keyword arguments at test pace, `queue` a queue name no other test shares. `settled`
 reads a job until it settles, `running` until a worker runs it, `outage` takes a database down for a block: plain
 helpers, imported by the tests (`pythonpath` holds tests/unit)."""
 
@@ -14,6 +14,7 @@ from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from datetime import timedelta
 from itertools import count
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Final, Protocol
 
 import anyio
@@ -21,12 +22,17 @@ import pytest
 import pytest_asyncio
 from psqlpy import ConnectionPool
 from psqlpy.exceptions import Error as PsqlError
+from pydantic import HttpUrl, PostgresDsn, RedisDsn, Secret, SecretStr
 
 from e_infra.infra.background import SETTLED, BackgroundState
-from e_infra.infra.config.base import Secret
-from e_infra.infra.config.providers.drivers.database.asyncpg import AsyncpgSettings
-from e_infra.infra.config.providers.drivers.queue.awa import AwaSettings
-from e_infra.infra.config.providers.drivers.queue.pgqueuer import PgqueuerSettings
+from e_infra.infra.config.processors import DocMode, DocSignal
+from e_infra.infra.config.providers import (
+    DoclingBackend,
+    DoclingFormat,
+    DoclingImages,
+    DoclingTables,
+    OTelProtocol,
+)
 from e_infra.providers.drivers.database.asyncpg import AsyncpgDriver
 
 if TYPE_CHECKING:
@@ -232,6 +238,178 @@ async def pgqueuer_database(worker_id: str) -> str:
     return await reachable(f"pgqueuer_{worker_id}")
 
 
+def dsn(text: str) -> Secret[PostgresDsn]:
+    """A DSN as the drivers take it: validated, masked."""
+    return Secret(PostgresDsn(text))
+
+
+def psqlpy_args(text: str = "postgresql://u:p@db:5432/x", **over: Any) -> dict[str, Any]:
+    """The keyword arguments of a `PsqlpyDriver` on `text`, a small pool, the overrides on top."""
+    return {"dsn": dsn(text), "pool": 4, "timeout": timedelta(seconds=30)} | over
+
+
+def asyncpg_args(text: str = "postgresql://u:p@db:5432/x", **over: Any) -> dict[str, Any]:
+    """The keyword arguments of an `AsyncpgDriver` on `text`, a small pool, the overrides on top."""
+    return {"dsn": dsn(text), "pool_min": 1, "pool": 4, "timeout": timedelta(seconds=30)} | over
+
+
+def url(text: str | HttpUrl | None) -> HttpUrl | None:
+    """A URL as the drivers take it: validated; None stays None."""
+    return HttpUrl(text) if isinstance(text, str) else text
+
+
+def conf(defaults: dict[str, Any], over: dict[str, Any]) -> dict[str, Any]:
+    """`defaults` with `over` on top, every URL given as text validated."""
+    return {key: url(value) if key in {"url", "base_url"} else value for key, value in (defaults | over).items()}
+
+
+def wreq_args(**over: Any) -> dict[str, Any]:
+    """The keyword arguments of a `WreqDriver`, the overrides on top."""
+    return conf(
+        {"base_url": "https://httpbin.org", "timeout": timedelta(seconds=10), "agent": "e-infra/1", "headers": {}}, over
+    )
+
+
+def embed_args(**over: Any) -> dict[str, Any]:
+    """The keyword arguments of a `TEIEmbedDriver`, the overrides on top."""
+    return conf(
+        {"url": "http://127.0.0.1:45110", "timeout": timedelta(seconds=60), "model": "m", "query_prefix": "Q: "}, over
+    )
+
+
+def rerank_args(**over: Any) -> dict[str, Any]:
+    """The keyword arguments of a `TEIRerankDriver`, the overrides on top."""
+    return conf({"url": "http://127.0.0.1:45111", "timeout": timedelta(seconds=30), "batch": 64}, over)
+
+
+def gliner_args(**over: Any) -> dict[str, Any]:
+    """The keyword arguments of a `GlinerDriver`, the overrides on top."""
+    return conf({"url": "http://127.0.0.1:45120", "timeout": timedelta(seconds=60), "batch": 16}, over)
+
+
+def openai_args(**over: Any) -> dict[str, Any]:
+    """The keyword arguments of an `OpenaiDriver` with a key, the overrides on top."""
+    return conf(
+        {
+            "url": "http://127.0.0.1:45100/v1",
+            "key": SecretStr("k"),
+            "timeout": timedelta(seconds=120),
+            "concurrency": 8,
+            "rpm": 120,
+            "max_tokens": 4096,
+            "model": "demian-model",
+            "extra": {},
+        },
+        over,
+    )
+
+
+def sqlite_args(**over: Any) -> dict[str, Any]:
+    """The keyword arguments of a `SqliteDriver`, the overrides on top."""
+    return {"path": Path("data/app.db"), "timeout": timedelta(seconds=5)} | over
+
+
+def docling_args(**over: Any) -> dict[str, Any]:
+    """The keyword arguments of a `DoclingDriver` at unit pace, the overrides on top."""
+    return conf(
+        {
+            "url": None,
+            "timeout": timedelta(seconds=60),
+            "deadline": timedelta(minutes=15),
+            "poll": timedelta(milliseconds=5),
+            "page_timeout": None,
+            "formats": (DoclingFormat.MD, DoclingFormat.JSON),
+            "images": DoclingImages.EMBEDDED,
+            "images_scale": 2.0,
+            "tables": DoclingTables.ACCURATE,
+            "ocr": True,
+            "force_ocr": False,
+            "ocr_engine": "auto",
+            "ocr_lang": (),
+            "backend": DoclingBackend.DOCLING_PARSE,
+            "formulas": False,
+            "pictures": False,
+            "charts": False,
+            "code": False,
+        },
+        over,
+    )
+
+
+def auth_args(**over: Any) -> dict[str, Any]:
+    """The keyword arguments of an `AuthEngine` with a secret, no expiry, the stock admin, the overrides on top."""
+    return {"secret": SecretStr("k"), "ttl": None, "admin": "admin"} | over
+
+
+def otel_args(**over: Any) -> dict[str, Any]:
+    """The keyword arguments of an `OTelDriver` that exports nowhere, the overrides on top."""
+    return {
+        "endpoint": "",
+        "protocol": OTelProtocol.HTTP,
+        "headers": {},
+        "timeout": timedelta(seconds=10),
+        "flush": timedelta(seconds=5),
+        "service": "e-stack",
+        "attributes": {},
+        "sample": 1.0,
+    } | over
+
+
+def over(conf: dict[str, Any], **changes: Any) -> dict[str, Any]:
+    """A provider's keyword arguments with some changed."""
+    return conf | changes
+
+
+def redis_args(**over: Any) -> dict[str, Any]:
+    """The keyword arguments of a `RedisDriver` on the local server, the overrides on top."""
+    return {"url": Secret(RedisDsn("redis://localhost:6379/0")), "pool": 10, "timeout": timedelta(seconds=5)} | over
+
+
+def theine_args(**over: Any) -> dict[str, Any]:
+    """The keyword arguments of a `TheineAdapter`, the overrides on top."""
+    return {"size": 50_000, "ttl": timedelta(days=1)} | over
+
+
+def lingua_args(**over: Any) -> dict[str, Any]:
+    """The keyword arguments of a `LinguaAdapter`, the overrides on top."""
+    return {"languages": ("en", "es")} | over
+
+
+def liteparse_args(**over: Any) -> dict[str, Any]:
+    """The keyword arguments of a `LiteparseAdapter` without OCR, the overrides on top."""
+    return {"workers": 0, "ocr": False, "tessdata": None, "ocr_language": "eng"} | over
+
+
+def anytomd_args(**over: Any) -> dict[str, Any]:
+    """The keyword arguments of an `AnytomdAdapter` with no vision key, the overrides on top."""
+    return {
+        "vision_base_url": HttpUrl("https://token-plan.ap-southeast-1.maas.aliyuncs.com/compatible-mode/v1"),
+        "vision_api_key": None,
+        "vision_model": "qwen3.8-flash",
+        "vision_prompt": "Describe this image for an AI agent in plain Markdown: what it shows, any text in it.",
+        "image_describe": True,
+        "max_input_bytes": 100 * 1024 * 1024,
+        "pdf_workers": 0,
+        "pdf_ocr": False,
+        "pdf_language": "eng",
+        "strict": False,
+        "extract_comments": False,
+    } | over
+
+
+def doc_args(**over: Any) -> dict[str, Any]:
+    """The keyword arguments of a `DocProcessor`, the measured defaults, the overrides on top."""
+    return {
+        "concurrency": 2,
+        "span": 64,
+        "gap": 1,
+        "mode": DocMode.HYBRID,
+        "route": (DocSignal.TABLE, DocSignal.GRAPHICS, DocSignal.SCANNED, DocSignal.IMAGES),
+        "tables": DoclingTables.ACCURATE,
+        "max_input_bytes": 100 * 1024 * 1024,
+    } | over
+
+
 PACE: Final[dict[str, Any]] = {
     "poll": timedelta(milliseconds=50),
     "drain": timedelta(seconds=1),
@@ -240,24 +418,22 @@ PACE: Final[dict[str, Any]] = {
 
 
 @pytest.fixture
-def queue_settings(queue_database: str) -> AwaSettings:
+def awa_conf(queue_database: str) -> dict[str, Any]:
     """The awa queue at test pace: a short poll and drain, calls that give up within five seconds."""
-    return AwaSettings(dsn=Secret(queue_database), pool=8, **PACE)
+    return {"dsn": dsn(queue_database), "pool": 8, **PACE}
 
 
 @pytest.fixture
-def pgqueuer_settings() -> PgqueuerSettings:
+def pgqueuer_conf() -> dict[str, Any]:
     """PgQueuer at test pace: a short poll, drain and restart, calls that give up within five seconds."""
-    return PgqueuerSettings(restart=timedelta(milliseconds=50), **PACE)
+    return {"restart": timedelta(milliseconds=50), "heartbeat": timedelta(seconds=30), **PACE}
 
 
 @pytest.fixture
 async def pgqueuer_db(pgqueuer_database: str) -> AsyncIterator[AsyncpgDriver]:
     """The asyncpg driver PgQueuer rides, open on this worker's database: six connections, the least that serves
     every manager."""
-    async with AsyncpgDriver(
-        AsyncpgSettings(dsn=Secret(pgqueuer_database), pool=6, timeout=timedelta(seconds=5))
-    ) as db:
+    async with AsyncpgDriver(**asyncpg_args(pgqueuer_database, pool=6, timeout=timedelta(seconds=5))) as db:
         yield db
 
 
@@ -267,18 +443,18 @@ class Queues:
     holds a `Queues` and touches no server."""
 
     worker: str
-    pgqueuer: PgqueuerSettings
+    pgqueuer: dict[str, Any]
 
-    async def awa(self) -> AwaSettings:
-        return AwaSettings(dsn=Secret(await reachable(f"queue_{self.worker}")), pool=8, **PACE)
+    async def awa(self) -> dict[str, Any]:
+        return {"dsn": dsn(await reachable(f"queue_{self.worker}")), "pool": 8, **PACE}
 
     async def database(self) -> str:
         return await reachable(f"pgqueuer_{self.worker}")
 
 
 @pytest.fixture
-def queues(worker_id: str, pgqueuer_settings: PgqueuerSettings) -> Queues:
-    return Queues(worker_id, pgqueuer_settings)
+def queues(worker_id: str, pgqueuer_conf: dict[str, Any]) -> Queues:
+    return Queues(worker_id, pgqueuer_conf)
 
 
 @pytest.fixture

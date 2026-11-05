@@ -8,11 +8,10 @@ import pytest
 from psqlpy.exceptions import Error as PsqlError
 from psqlpy.extra_types import PgVector
 
-from e_infra.infra.config.base import Secret
-from e_infra.infra.config.providers.drivers.database.psqlpy import PsqlpySettings
 from e_infra.infra.errors import DatabaseError, ProviderError
 from e_infra.ports.database import DatabasePort, Vector
 from e_infra.providers.drivers.database.psqlpy import FOUND, PsqlpyDriver, PsqlpyStatements
+from unit.e_infra.conftest import psqlpy_args
 
 if TYPE_CHECKING:
     from support.psqlpy import FakePsqlpyServer
@@ -40,13 +39,8 @@ async def test_psqlpy_open_builds_the_pool_from_settings_and_close_closes_it(
 
 
 async def test_psqlpy_pool_never_drops_below_psqlpys_floor(psqlpy: FakePsqlpyServer) -> None:
-    async with PsqlpyDriver(PsqlpySettings(pool=1)):
+    async with PsqlpyDriver(**psqlpy_args(pool=1)):
         assert psqlpy.pools[0].kwargs["max_db_pool_size"] == 2
-
-
-async def test_psqlpy_default_settings_come_from_the_composer(psqlpy: FakePsqlpyServer) -> None:
-    async with PsqlpyDriver():
-        assert psqlpy.pools[0].kwargs["max_db_pool_size"] == PsqlpySettings().pool
 
 
 async def test_psqlpy_unopened_calls_are_database_errors(driver: PsqlpyDriver) -> None:
@@ -224,7 +218,7 @@ async def test_psqlpy_provision_of_an_unreachable_server_is_a_database_error(
 
 
 async def test_psqlpy_pool_timeout_reaches_the_connect_bound(psqlpy: FakePsqlpyServer) -> None:
-    async with PsqlpyDriver(PsqlpySettings(dsn=Secret("postgresql://h/x"), timeout=timedelta(seconds=7))):
+    async with PsqlpyDriver(**psqlpy_args("postgresql://h/x", timeout=timedelta(seconds=7))):
         assert psqlpy.pools[0].kwargs["connect_timeout_sec"] == 7
 
 

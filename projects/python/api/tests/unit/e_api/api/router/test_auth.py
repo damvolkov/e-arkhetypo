@@ -47,7 +47,7 @@ def test_auth_a_name_that_is_no_name_is_a_400(client: TestClient, root_key: dict
 
 def test_auth_closed_engine_makes_no_account(monkeypatch: pytest.MonkeyPatch, root_key: dict[str, str]) -> None:
     """With no AUTH_SECRET the engine mints nothing: the route says 503, not a 500."""
-    monkeypatch.setattr(engines, "st", Settings.load(engines={"auth": {"secret": None}}))
+    monkeypatch.setattr(engines, "st", Settings(AUTH_SECRET=None))
     with TestClient(create_app()) as client:
         answered = client.post("/auth/accounts/carol/token", headers=root_key)
     assert (answered.status_code, answered.json()["detail"]) == (503, "no secret: set AUTH_SECRET to make accounts")

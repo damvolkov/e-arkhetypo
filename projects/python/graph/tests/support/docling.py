@@ -12,14 +12,14 @@ from typing import Any, ClassVar, Final, Self
 
 import msgspec
 
-from infra.config.providers.adapters.markdown.anytomd import AnytomdSettings
 from infra.errors import DocumentError
 from ports.documents import DocumentConversion
 from ports.provider import Isolation, Locality, ProviderSpec, Workload
 from providers.adapters.markdown.anytomd import AnytomdAdapter
+from support.root import anytomd_args
 
 ### the anytomd reader the processor detects formats with: the corpus is PDFs, so it never converts — unopened is enough.
-MARKDOWN: Final[AnytomdAdapter] = AnytomdAdapter(AnytomdSettings())
+MARKDOWN: Final[AnytomdAdapter] = AnytomdAdapter(**anytomd_args())
 CONVERSIONS: Final[Path] = Path(__file__).resolve().parents[1] / "resources" / "conversions"
 
 

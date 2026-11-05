@@ -5,7 +5,7 @@ from typing import Any, cast
 
 import pytest
 
-from infra.config import crypto as crypto_mod
+from infra.config import infra as infra_mod
 from infra.config.base import BaseSettings
 from ops.file import FileFinder, Kind
 
@@ -30,15 +30,15 @@ def test_classes_and_functions_are_own_symbols_only() -> None:
 
 
 def test_base_selects_subclasses_and_module_target_reads_one_file() -> None:
-    assert {"CryptoSettings", "PingSettings"} <= set(CONFIG.discover(BaseSettings))
-    assert set(CONFIG.discover(crypto_mod)) == {"CryptoSettings"}
+    assert {"InfraSettings", "ProviderSettings"} <= set(CONFIG.discover(BaseSettings))
+    assert set(CONFIG.discover(infra_mod)) == {"Env", "InfraSettings"}
 
 
 def test_predicate_and_pattern_filter_rejects_unknown_target() -> None:
     found = CONFIG.discover(lambda obj: isinstance(obj, type) and obj.__name__.endswith("Settings"))
-    assert "CryptoSettings" in found
-    assert "TokenAlg" not in found
-    assert set(CONFIG.discover(Kind.CLASSES, pattern=re.compile("^Crypto"))) == {"CryptoSettings"}
+    assert "InfraSettings" in found
+    assert "Env" not in found
+    assert set(CONFIG.discover(Kind.CLASSES, pattern=re.compile("^Infra"))) == {"InfraSettings"}
     with pytest.raises(TypeError, match="Unsupported discover target"):
         CONFIG.discover(cast("Any", 42))
 

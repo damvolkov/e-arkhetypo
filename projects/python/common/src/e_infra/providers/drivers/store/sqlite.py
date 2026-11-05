@@ -8,14 +8,12 @@ import anyio
 
 from e_infra.infra.errors import ProviderError, StoreError
 from e_infra.infra.logger import logger
-from e_infra.infra.settings import settings as st
 from e_infra.ports.provider import Isolation, Locality, ProviderSpec, Workload
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator, Generator
+    from datetime import timedelta
     from pathlib import Path
-
-    from e_infra.infra.config.providers.drivers.store.sqlite import SqliteSettings
 
 KV_SCHEMA: Final[str] = "CREATE TABLE IF NOT EXISTS kv (key TEXT PRIMARY KEY, value BLOB NOT NULL)"
 
@@ -26,9 +24,8 @@ class SqliteDriver:
 
     spec: ClassVar[ProviderSpec] = ProviderSpec("sqlite", Locality.FILESYSTEM, Workload.IO_BOUND, Isolation.THREAD)
 
-    def __init__(self, settings: SqliteSettings | None = None) -> None:
-        ### the default is read on call, not at import: the settings singleton stays lazy.
-        self._conf = st.providers.drivers.store.sqlite if settings is None else settings
+    def __init__(self, *, path: Path, timeout: timedelta) -> None:
+        self._path, self._timeout = path, timeout
         self._db: aiosqlite.Connection | None = None
 
     ##### PRIVATE METHODS #####
@@ -62,12 +59,12 @@ class SqliteDriver:
 
     async def __aenter__(self) -> Self:
         ### mkdir is blocking filesystem work inside a coroutine: off-thread or it freezes every task.
-        await anyio.to_thread.run_sync(self._enter_mkdir, self._conf.path)
+        await anyio.to_thread.run_sync(self._enter_mkdir, self._path)
         with self._common_guard():
-            self._db = await aiosqlite.connect(self._conf.path, timeout=self._conf.timeout.total_seconds())
+            self._db = await aiosqlite.connect(self._path, timeout=self._timeout.total_seconds())
             await self._db.executescript(KV_SCHEMA)
             await self._db.commit()
-        logger.info("sqlite opened", path=str(self._conf.path))
+        logger.info("sqlite opened", path=str(self._path))
         return self
 
     async def __aexit__(self, *exc: object) -> None:

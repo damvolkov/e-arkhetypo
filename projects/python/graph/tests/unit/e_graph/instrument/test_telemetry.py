@@ -14,10 +14,10 @@ from e_graph.instrument.state import InfraState, InstrumentState, RunState
 from e_graph.instrument.telemetry import NO_SPAN, InstrumentTelemetry, NullSpan, NullTelemetry, SpanTelemetry
 from e_graph.logic.models import Usage
 from e_graph.logic.state import LogicState
-from infra.config.providers.drivers.telemetry.otel import OTelSettings
 from infra.state import State
 from ports.telemetry import SpanKind, SpanPort, SpanStatus
 from providers.drivers.telemetry.otel import OTelDriver
+from support.root import otel_args
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Generator, Mapping
@@ -67,7 +67,7 @@ async def node_quiet(state: RunState) -> None:
 
 
 def test_providers_and_spans_line_up_by_shape() -> None:
-    assert isinstance(OTelDriver(OTelSettings()), SpanTelemetry)
+    assert isinstance(OTelDriver(**otel_args()), SpanTelemetry)
     assert isinstance(NullTelemetry(), SpanTelemetry)
     assert isinstance(RecordingTelemetry(), SpanTelemetry)
     assert isinstance(NO_SPAN, SpanPort)

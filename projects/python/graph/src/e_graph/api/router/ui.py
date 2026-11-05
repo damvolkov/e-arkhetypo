@@ -6,6 +6,7 @@ into `e_graph/ui/dist/` (generated, never committed, shipped in the wheel) and t
 specificity. No bundle, no page: `/` answers 404 and the API runs untouched. The page is static, so
 its tunables come from the API like everything else it shows: `UI_*` settings, read at call time."""
 
+from datetime import timedelta
 from pathlib import Path
 from typing import Final
 
@@ -15,24 +16,26 @@ from litestar.router import Router
 from litestar.static_files import create_static_files_router
 
 from e_graph.models.ui import UIView
-from infra.settings import settings as st
 
 UI: Final[Path] = Path(__file__).resolve().parents[2] / "ui"
 STATIC: Final[Path] = UI / "dist"
 MS_PER_SECOND: Final[int] = 1000
 
 
-async def view() -> UIView:
-    """The canvas tunables, in the units it draws with: milliseconds, seconds of pace, pixels."""
-    return UIView(
-        toast_ms=round(st.ui.toast.total_seconds() * MS_PER_SECOND),
-        pace=st.ui.pace.total_seconds(),
-        lane_gap=st.ui.lane_gap,
-        rank_gap=st.ui.rank_gap,
+def routes(*, toast: timedelta, pace: timedelta, lane_gap: int, rank_gap: int) -> tuple[HTTPRouteHandler, ...]:
+    """The canvas tunables the root reads (UI_*), served in the units the canvas draws with: milliseconds, seconds of
+    pace, pixels."""
+    canvas = UIView(
+        toast_ms=round(toast.total_seconds() * MS_PER_SECOND),
+        pace=pace.total_seconds(),
+        lane_gap=lane_gap,
+        rank_gap=rank_gap,
     )
 
+    async def view() -> UIView:
+        return canvas
 
-ROUTES: tuple[HTTPRouteHandler, ...] = (get("/api/ui", name="ui.view")(view),)
+    return (get("/api/ui", name="ui.view")(view),)
 
 
 def router(directory: Path = STATIC) -> Router:

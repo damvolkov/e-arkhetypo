@@ -9,9 +9,8 @@ from typing import Any
 import fakeredis
 import fakeredis.aioredis
 import pytest
+from pydantic import RedisDsn, Secret
 
-from e_infra.infra.config.base import Secret
-from e_infra.infra.config.providers.drivers.store.redis import RedisSettings
 from e_infra.providers.drivers.store import redis as redis_module
 from e_infra.providers.drivers.store.redis import RedisDriver
 
@@ -38,4 +37,4 @@ def redis_calls(
 
 @pytest.fixture
 def driver() -> RedisDriver:
-    return RedisDriver(RedisSettings(url=Secret("redis://:hunter2@fake:6379/1"), pool=3, timeout=timedelta(seconds=2)))
+    return RedisDriver(url=Secret(RedisDsn("redis://:hunter2@fake:6379/1")), pool=3, timeout=timedelta(seconds=2))

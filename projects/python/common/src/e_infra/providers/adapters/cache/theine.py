@@ -9,26 +9,23 @@ from theine import Cache
 
 from e_infra.infra.errors import CacheError, ProviderError
 from e_infra.infra.logger import logger
-from e_infra.infra.settings import settings as st
 from e_infra.ports.provider import Isolation, Locality, ProviderSpec, Workload
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
-
-    from e_infra.infra.config.providers.adapters.cache.theine import TheineSettings
+    from datetime import timedelta
 
 
 ##### ADAPTER #####
 class TheineAdapter[T]:
-    """Values of type T in memory, at most CACHE_SIZE, each kept CACHE_TTL (None: until evicted)."""
+    """Values of type T in memory, at most `size`, each kept `ttl` (None: until evicted)."""
 
     spec: ClassVar[ProviderSpec] = ProviderSpec("theine", Locality.EMBEDDED, Workload.CPU_BOUND, Isolation.LOOP)
 
-    __slots__ = ("_conf", "_store")
+    __slots__ = ("_size", "_store", "_ttl")
 
-    def __init__(self, settings: TheineSettings | None = None) -> None:
-        ### the default is read on call, not at import: the settings singleton stays lazy.
-        self._conf = st.providers.adapters.cache.theine if settings is None else settings
+    def __init__(self, *, size: int, ttl: timedelta | None) -> None:
+        self._size, self._ttl = size, ttl
         self._store: Cache[str, T] | None = None
 
     ##### PRIVATE #####
@@ -46,8 +43,8 @@ class TheineAdapter[T]:
     ##### PUBLIC #####
 
     async def __aenter__(self) -> Self:
-        self._store = Cache(self._conf.size)
-        logger.info("theine opened", size=self._conf.size, ttl=str(self._conf.ttl))
+        self._store = Cache(self._size)
+        logger.info("theine opened", size=self._size, ttl=str(self._ttl))
         return self
 
     async def __aexit__(self, *exc: object) -> None:
@@ -76,9 +73,9 @@ class TheineAdapter[T]:
 
     async def put(self, key: str, value: T) -> None:
         logger.debug("theine put", key=key)
-        self._common_open().set(key, value, self._conf.ttl)
+        self._common_open().set(key, value, self._ttl)
 
     async def put_many(self, items: Mapping[str, T]) -> None:
         store = self._common_open()
         logger.debug("theine put many", keys=len(items))
-        _ = [store.set(key, value, self._conf.ttl) for key, value in items.items()]
+        _ = [store.set(key, value, self._ttl) for key, value in items.items()]

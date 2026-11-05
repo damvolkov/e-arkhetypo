@@ -4,8 +4,8 @@ from typing import TYPE_CHECKING
 
 from e_graph.logic.models import FusedCall, SemanticSpec, Step, Tier
 from e_graph.logic.orchestrator.plan import DagPlan
-from infra.config.darts import DartsSettings
 from support.darts import SECTION
+from support.root import darts
 
 if TYPE_CHECKING:
     from support.crafter import SpecCrafter
@@ -53,7 +53,7 @@ async def test_a_group_over_budget_splits_into_calls(darts: DartsHarness) -> Non
 async def test_random_dags_plan_by_their_laws(crafter: SpecCrafter) -> None:
     blueprint = crafter.craft(SECTION, n=14, semantic=0.5, fallbacks=2, density=0.35)
     catalog = await crafter.discover().catalog(SECTION)
-    plan = DagPlan.build(catalog, DartsSettings())
+    plan = DagPlan.build(catalog, darts())
     position = {name: step.index for step in plan.steps for name in step.specs}
     held = set(blueprint.fallbacks.values())
     ### every scheduled spec exactly once; fallbacks never scheduled, held for their parents.
@@ -69,4 +69,4 @@ async def test_random_dags_plan_by_their_laws(crafter: SpecCrafter) -> None:
     ### the kinds land where they belong: semantic specs only in fused calls, deterministic ones only alone.
     fused = {name for step in plan.steps for call in step.fused for name in call.specs}
     assert fused == {name for name in position if isinstance(blueprint.specs[name], SemanticSpec)}
-    assert plan == DagPlan.build(catalog, DartsSettings())
+    assert plan == DagPlan.build(catalog, darts())

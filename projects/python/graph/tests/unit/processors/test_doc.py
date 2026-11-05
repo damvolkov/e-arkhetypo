@@ -11,10 +11,11 @@ from typing import TYPE_CHECKING, Any
 import polars as pl
 import pytest
 
-from infra.config.processors.doc import DocMode, DocSettings, DocSignal
+from infra.config.processors import DocMode, DocSignal
 from processors.doc import DocProcessor
 from processors.models import Backend, Document
 from support.docling import MARKDOWN, GoldenPort
+from support.root import doc_args
 
 if TYPE_CHECKING:
     from pytest_resources import Resources
@@ -54,7 +55,7 @@ async def read(corpus: list[dict[str, Any]], pages: LiteparseAdapter) -> dict[st
     for entry in corpus:
         port = GoldenPort()
         reads[entry["path"].stem] = (
-            await DocProcessor(MARKDOWN, pages, port, DocSettings()).process(entry["path"]),
+            await DocProcessor(MARKDOWN, pages, port, **doc_args()).process(entry["path"]),
             port,
         )
     return reads
@@ -147,6 +148,6 @@ def test_markdown_keeps_pictures_as_markers_never_as_bytes(read: dict[str, tuple
 async def test_lite_mode_reads_a_filing_without_docling(corpus: list[dict[str, Any]], pages: LiteparseAdapter) -> None:
     port = GoldenPort()
     path = next(entry["path"] for entry in corpus if entry["path"].stem == "aapl-10k-2025")
-    document = await DocProcessor(MARKDOWN, pages, port, DocSettings(mode=DocMode.LITE)).process(path)
+    document = await DocProcessor(MARKDOWN, pages, port, **doc_args(mode=DocMode.LITE)).process(path)
     assert (port.calls, document.deep) == ([], ())
     assert any("416,161" in line for line in rows(document))

@@ -12,6 +12,7 @@ from e_graph.logic.agent import AgnosticAgent
 from e_graph.logic.models import Endpoint, Provider, Tier
 from infra.config.agent import AgentSettings
 from providers.adapters.pages.liteparse import LiteparseAdapter
+from support.root import agent_args, liteparse_args
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
@@ -50,12 +51,17 @@ def settings(request: pytest.FixtureRequest) -> Any:
     retarget, and then the cassettes are rewritten to whatever the tiers point at."""
     declared = AgentSettings()
     recording = str(request.config.getoption("--record-mode", "none")).lower() in {"all", "rewrite", "new_episodes"}
-    match declared.medium is not None and recording:
+    match declared.AGENT_MEDIUM is not None and recording:
         case True:
-            return declared
+            return {
+                "credentials": declared.agent_credentials(),
+                "tiers": declared.agent_tiers(),
+                "timeout": declared.AGENT_TIMEOUT,
+                "retries": declared.AGENT_RETRIES,
+            }
         case _:
             local = {"provider": VLLM.provider, "model": VLLM.model, "api_base": VLLM.api_base}
-            return AgentSettings(medium=local, high=local, low=local)
+            return agent_args(medium=local, high=local, low=local)
 
 
 @pytest.fixture
@@ -66,12 +72,12 @@ def endpoint() -> Tier:
 
 @pytest.fixture
 async def agent(settings: Any) -> Any:
-    async with AgnosticAgent(settings) as live:
+    async with AgnosticAgent(**settings) as live:
         yield live
 
 
 @pytest.fixture(scope="session")
 async def pages() -> AsyncIterator[LiteparseAdapter]:
     """The in-process fast pass the DocProcessor reads every page with, opened once per worker."""
-    async with LiteparseAdapter() as adapter:
+    async with LiteparseAdapter(**liteparse_args()) as adapter:
         yield adapter

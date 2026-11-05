@@ -32,7 +32,7 @@ async def test_mcp_hosts_default_to_this_port() -> None:
 
 
 async def test_mcp_hosts_and_origins_follow_the_settings(monkeypatch: pytest.MonkeyPatch) -> None:
-    conf = Settings.load(mcp={"hosts": ["api.example.org"], "origins": ["https://api.example.org"]}, app={"port": 8000})
+    conf = Settings(MCP_HOSTS=["api.example.org"], MCP_ORIGINS=["https://api.example.org"], APP_PORT=8000)
     monkeypatch.setattr(lifespan, "st", conf)
     async with AsyncTestClient(create_app(), base_url=BASE) as client:
         answers = [

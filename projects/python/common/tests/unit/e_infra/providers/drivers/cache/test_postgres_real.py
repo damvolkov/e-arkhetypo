@@ -6,7 +6,6 @@ from typing import TYPE_CHECKING
 import anyio
 import pytest
 
-from e_infra.infra.config.providers.drivers.cache.postgres import PostgresCacheSettings
 from e_infra.providers.drivers.cache.postgres import PostgresCacheDriver
 
 if TYPE_CHECKING:
@@ -17,19 +16,22 @@ pytestmark = pytest.mark.integration
 
 async def test_cache_postgres_roundtrip(pg: PsqlpyDriver) -> None:
     """Typed values by namespace; a row that no longer decodes is a miss; an expired one is skipped."""
-    async with PostgresCacheDriver(pg, "unit", int) as cache, PostgresCacheDriver(pg, "other", str) as other:
+    async with (
+        PostgresCacheDriver(pg, "unit", int, ttl=None) as cache,
+        PostgresCacheDriver(pg, "other", str, ttl=None) as other,
+    ):
         await cache.put_many({"a": 1, "b": 2})
         await other.put("a", "text")
         await cache.put("c", 3)
         assert await cache.many(["a", "b", "z"]) == {"a": 1, "b": 2}
         assert (await cache.get("c"), await cache.get("z"), await cache.many([])) == (3, None, {})
         assert await other.get("a") == "text"
-        assert await PostgresCacheDriver(pg, "other", int).get("a") is None
+        assert await PostgresCacheDriver(pg, "other", int, ttl=None).get("a") is None
         assert await cache.health()
 
 
 async def test_cache_postgres_expires(pg: PsqlpyDriver) -> None:
-    async with PostgresCacheDriver(pg, "ttl", int, PostgresCacheSettings(ttl=timedelta(milliseconds=50))) as cache:
+    async with PostgresCacheDriver(pg, "ttl", int, ttl=timedelta(milliseconds=50)) as cache:
         await cache.put("a", 1)
         await anyio.sleep(0.1)
         assert await cache.get("a") is None

@@ -8,17 +8,15 @@ import pytest
 from awa import AwaError
 
 from e_infra.infra.background import BackgroundState
-from e_infra.infra.config.base import Secret
 from e_infra.infra.errors import ProviderError, QueueError
 from e_infra.ports.queue import QueuePort, SchedulePort
 from e_infra.providers.drivers.queue.awa import AwaDriver
-from unit.e_infra.conftest import settled
+from unit.e_infra.conftest import dsn, over, settled
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
 
     from e_infra.infra.background import BackgroundHandler, BackgroundRun
-    from e_infra.infra.config.providers.drivers.queue.awa import AwaSettings
 
 pytestmark = pytest.mark.integration
 
@@ -117,28 +115,26 @@ async def test_awa_cancel_running(awa: AwaDriver, queue: str) -> None:
     assert (done.state, done.progress) == (BackgroundState.CANCELLED, {"stage": "discover"})
 
 
-async def test_awa_connect_missing(queue_settings: AwaSettings) -> None:
-    missing = queue_settings.model_copy(update={"dsn": Secret(f"{queue_settings.dsn.get_secret_value()}_missing")})
+async def test_awa_connect_missing(awa_conf: dict[str, Any]) -> None:
+    missing = over(awa_conf, dsn=dsn(f"{awa_conf['dsn'].get_secret_value()}_missing"))
     with pytest.raises(QueueError, match="does not exist"):
-        await AwaDriver(missing).__aenter__()
+        await AwaDriver(**missing).__aenter__()
 
 
-async def test_awa_connect_timeout(queue_settings: AwaSettings) -> None:
+async def test_awa_connect_timeout(awa_conf: dict[str, Any]) -> None:
     """A host that never answers: the connect gives up at QUEUE_TIMEOUT, not at the driver's own thirty seconds."""
-    down = queue_settings.model_copy(
-        update={"dsn": Secret("postgresql://postgres:postgres@127.0.0.1:1/x"), "timeout": timedelta(milliseconds=300)}
-    )
+    down = over(awa_conf, dsn=dsn("postgresql://postgres:postgres@127.0.0.1:1/x"), timeout=timedelta(milliseconds=300))
     with anyio.fail_after(5), pytest.raises(QueueError, match="timed out"):
-        await AwaDriver(down).__aenter__()
+        await AwaDriver(**down).__aenter__()
 
 
-async def test_awa_unconnected(queue_settings: AwaSettings) -> None:
+async def test_awa_unconnected(awa_conf: dict[str, Any]) -> None:
     with pytest.raises(QueueError, match="not open"):
-        await AwaDriver(queue_settings).job("1")
+        await AwaDriver(**awa_conf).job("1")
 
 
-async def test_awa_close_twice(queue_settings: AwaSettings, queue: str) -> None:
-    adapter = AwaDriver(queue_settings)
+async def test_awa_close_twice(awa_conf: dict[str, Any], queue: str) -> None:
+    adapter = AwaDriver(**awa_conf)
     await adapter.__aenter__()
     await adapter.__aenter__()
     assert (await adapter.enqueue("annotate", {}, queue=queue, attempts=1)).state == BackgroundState.AVAILABLE
@@ -148,9 +144,9 @@ async def test_awa_close_twice(queue_settings: AwaSettings, queue: str) -> None:
         await adapter.jobs()
 
 
-async def test_awa_outage(queue_settings: AwaSettings, queue: str) -> None:
+async def test_awa_outage(awa_conf: dict[str, Any], queue: str) -> None:
     """The pool gone under the adapter: every call is an outage the facade can fall back from."""
-    adapter = AwaDriver(queue_settings)
+    adapter = AwaDriver(**awa_conf)
     await adapter.__aenter__()
     job = await adapter.enqueue("annotate", {}, queue=queue, attempts=1)
     await adapter._common_client().close()
@@ -175,9 +171,9 @@ async def test_awa_found_propagates(awa: AwaDriver) -> None:
         await awa._common_found(call)
 
 
-async def test_awa_call_timeout(queue_settings: AwaSettings) -> None:
+async def test_awa_call_timeout(awa_conf: dict[str, Any]) -> None:
     """A call that outlasts QUEUE_TIMEOUT is an outage, not a hang."""
-    adapter = AwaDriver(queue_settings.model_copy(update={"timeout": timedelta(milliseconds=100)}))
+    adapter = AwaDriver(**over(awa_conf, timeout=timedelta(milliseconds=100)))
     await adapter.__aenter__()
     try:
         with pytest.raises(QueueError, match="timed out"):
@@ -195,17 +191,17 @@ async def test_awa_found_none(awa: AwaDriver) -> None:
     assert await awa._common_found(call) is None
 
 
-async def test_awa_health(queue_settings: AwaSettings) -> None:
+async def test_awa_health(awa_conf: dict[str, Any]) -> None:
     """One query on the queue's own database; closed, nothing answers."""
-    adapter = AwaDriver(queue_settings)
+    adapter = AwaDriver(**awa_conf)
     async with adapter:
         assert await adapter.health()
     with pytest.raises(ProviderError):
         await adapter.health()
 
 
-async def test_awa_health_unreachable(queue_settings: AwaSettings) -> None:
-    adapter = AwaDriver(queue_settings.model_copy(update={"timeout": timedelta(seconds=1)}))
+async def test_awa_health_unreachable(awa_conf: dict[str, Any]) -> None:
+    adapter = AwaDriver(**over(awa_conf, timeout=timedelta(seconds=1)))
     with pytest.raises(ProviderError):
         await adapter.health()
 
@@ -216,12 +212,12 @@ async def test_awa_keeps_no_clock(awa: AwaDriver) -> None:
 
 
 async def test_awa_pool_held(
-    queue_settings: AwaSettings, queue: str, handler: BackgroundHandler, refuse: Callable[[], Awaitable[None]]
+    awa_conf: dict[str, Any], queue: str, handler: BackgroundHandler, refuse: Callable[[], Awaitable[None]]
 ) -> None:
     """Connected, the pool is whole: a database that then refuses every new connection — a server out of slots — still
     runs a job to its end and lets the engine close."""
     with anyio.fail_after(20):
-        async with AwaDriver(queue_settings) as awa:
+        async with AwaDriver(**awa_conf) as awa:
             await refuse()
             awa.register("reported", queue, handler)
             await awa.start({queue: 1})
@@ -231,10 +227,10 @@ async def test_awa_pool_held(
 
 
 @pytest.mark.usefixtures("stuck")
-async def test_awa_close_bounded(queue_settings: AwaSettings, queue: str, handler: BackgroundHandler) -> None:
+async def test_awa_close_bounded(awa_conf: dict[str, Any], queue: str, handler: BackgroundHandler) -> None:
     """A runtime that never stops does not hold the close: past QUEUE_DRAIN and QUEUE_TIMEOUT it is an outage, and
     the client is let go."""
-    awa = AwaDriver(queue_settings.model_copy(update={"timeout": timedelta(seconds=1)}))
+    awa = AwaDriver(**over(awa_conf, timeout=timedelta(seconds=1)))
     await awa.__aenter__()
     awa.register("reported", queue, handler)
     await awa.start({queue: 1})

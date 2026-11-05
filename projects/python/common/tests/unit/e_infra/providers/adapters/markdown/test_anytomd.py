@@ -10,13 +10,13 @@ from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any
 
 import pytest
+from pydantic import SecretStr as Secret
 
-from e_infra.infra.config.base import Secret
-from e_infra.infra.config.providers.adapters.markdown.anytomd import AnytomdSettings
 from e_infra.infra.errors import ParseError, ProviderError
 from e_infra.ports.markdown import MarkdownPort, MDConversion
 from e_infra.providers.adapters.markdown import anytomd
 from e_infra.providers.adapters.markdown.anytomd import AnytomdAdapter
+from unit.e_infra.conftest import anytomd_args
 
 if TYPE_CHECKING:
     from unit.e_infra.conftest import Logs
@@ -65,7 +65,7 @@ def engine(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def adapter(**conf: Any) -> AnytomdAdapter:
-    return AnytomdAdapter(AnytomdSettings(**conf))
+    return AnytomdAdapter(**anytomd_args(**conf))
 
 
 async def test_a_pdf_goes_through_the_converter(engine: None) -> None:
@@ -95,7 +95,7 @@ async def test_the_vision_describer_is_wired_from_settings(engine: None) -> None
     assert (DESC_KW["model"], DESC_KW["api_key"], DESC_KW["prompt"]) == (
         "qwen3.8-flash",
         "k",
-        AnytomdSettings().vision_prompt,
+        anytomd_args()["vision_prompt"],
     )
     assert (convert.calls or (None, None, {}))[2]["async_image_describer"] is not None
 
@@ -145,7 +145,7 @@ async def test_the_engines_failure_is_a_parse_error(engine: None, monkeypatch: p
 )
 async def test_detect_names_the_format(name: str, data: bytes, expected: str | None) -> None:
     """The real engine's detection, no lifecycle needed: a format, or None outside the spectrum."""
-    assert AnytomdAdapter(AnytomdSettings()).detect(name, data) == expected
+    assert AnytomdAdapter(**anytomd_args()).detect(name, data) == expected
 
 
 @pytest.mark.parametrize(
@@ -157,7 +157,7 @@ async def test_detect_names_an_archive_as_what_it_is(entries: dict[str, bytes], 
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w") as archive:
         _ = [archive.writestr(name, raw) for name, raw in entries.items()]
-    assert AnytomdAdapter(AnytomdSettings()).detect("bundle.zip", buf.getvalue()) == expected
+    assert AnytomdAdapter(**anytomd_args()).detect("bundle.zip", buf.getvalue()) == expected
 
 
 async def test_the_engines_failure_and_the_lifecycle_are_logged(

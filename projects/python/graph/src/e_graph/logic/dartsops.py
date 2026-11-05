@@ -40,7 +40,6 @@ from e_graph.logic.models import (
     Tier,
 )
 from e_graph.models.section import ORDER, PREFIXES, Section
-from infra.settings import settings as st
 from infra.state import State
 
 
@@ -99,7 +98,7 @@ class DartsOps:
     __slots__ = ("_conf", "_orchestrator", "_runners", "_specs")
 
     def __init__(self, orchestrator: OrchestratorCore, *, specs: Path = SPECS, runners: Path = RUNNERS) -> None:
-        self._orchestrator, self._conf = orchestrator, st.darts
+        self._orchestrator, self._conf = orchestrator, orchestrator.conf
         self._specs, self._runners = specs, runners
 
     ##### CONTRACT #####

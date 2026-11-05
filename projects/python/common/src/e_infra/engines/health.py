@@ -13,7 +13,6 @@ from typing import TYPE_CHECKING, Final
 import msgspec
 
 from e_infra.infra.logger import logger
-from e_infra.infra.settings import settings as st
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -43,13 +42,10 @@ class HealthEngine:
 
     __slots__ = ("_limit", "_providers", "_required")
 
-    def __init__(
-        self, providers: Mapping[str, Provider], required: frozenset[str] = frozenset(), limit: timedelta | None = None
-    ) -> None:
-        ### the default is read on call, not at import: the settings singleton stays lazy.
+    def __init__(self, providers: Mapping[str, Provider], required: frozenset[str], limit: timedelta) -> None:
         self._providers = providers
         self._required = required
-        self._limit = st.ping.timeout if limit is None else limit
+        self._limit = limit
 
     ##### PRIVATE #####
 

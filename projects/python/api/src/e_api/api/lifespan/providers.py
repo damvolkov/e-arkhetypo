@@ -15,6 +15,7 @@ from litestar import Litestar
 
 from e_api.api.state import AppState
 from infra.logger import logger
+from infra.settings import settings as st
 from ports.auth import AuthPort
 from ports.database import DatabasePort
 from ports.http import HTTPPort
@@ -54,10 +55,12 @@ async def lifespan(app: Litestar) -> AsyncGenerator[None]:
     system = AppState.of(app).system
     async with AsyncExitStack() as stack:
         enter = stack.enter_async_context
-        store = await enter(SqliteDriver())
-        redis = await enter(RedisDriver())
-        http = await enter(WreqDriver())
-        database = await enter(PsqlpyDriver())
+        store = await enter(SqliteDriver(path=st.DB_PATH, timeout=st.DB_TIMEOUT))
+        redis = await enter(RedisDriver(url=st.REDIS_URL, pool=st.REDIS_POOL, timeout=st.REDIS_TIMEOUT))
+        http = await enter(
+            WreqDriver(base_url=st.HTTP_BASE_URL, timeout=st.HTTP_TIMEOUT, agent=st.HTTP_AGENT, headers=st.HTTP_HEADERS)
+        )
+        database = await enter(PsqlpyDriver(dsn=st.POSTGRES_DSN, pool=st.POSTGRES_POOL, timeout=st.POSTGRES_TIMEOUT))
         auth = await enter(PostgresAuthDriver(database))
         providers = ProvidersState(store=store, redis=redis, http=http, database=database, auth=auth)
         system.providers = providers

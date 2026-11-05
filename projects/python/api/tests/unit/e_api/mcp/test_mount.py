@@ -9,9 +9,9 @@ from litestar.status_codes import HTTP_401_UNAUTHORIZED
 from litestar.testing import AsyncTestClient
 from mcp import types
 
+from e_api import main
 from e_api.main import create_app
 from e_api.mcp import mount
-from infra.config.mcp import MCPSettings
 from infra.settings import Settings
 from support.mcp import BASE
 
@@ -134,7 +134,7 @@ async def test_mount_a_call_off_http_is_refused(client: AsyncTestClient[Litestar
 
 
 async def test_mount_follows_the_path_the_settings_say(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(mount, "st", Settings.load(mcp={"path": "/agents"}))
+    monkeypatch.setattr(main, "st", Settings(MCP_PATH="/agents"))
     async with AsyncTestClient(create_app(), base_url=BASE) as client:
         moved, old = (
             await client.post("/agents", json=INIT, headers=HEADERS),
@@ -143,5 +143,5 @@ async def test_mount_follows_the_path_the_settings_say(monkeypatch: pytest.Monke
     assert (moved.status_code, old.status_code) == (200, 404)
 
 
-def test_mount_routes_default_to_the_settings_singleton() -> None:
-    assert [route.paths for route in mount.routes(MCPSettings(path="/x"))] == [{"/x"}]
+def test_mount_routes_answer_on_the_path_given() -> None:
+    assert [route.paths for route in mount.routes(path="/x")] == [{"/x"}]

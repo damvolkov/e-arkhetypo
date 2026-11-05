@@ -3,7 +3,7 @@
 Every page read at once (`aparse`, off the loop), each page's blocks in order — its kind, its text or its lines, a
 heading's level, a table's header and rows — and its signals: what liteparse's complexity pass saw that a deep reader
 reads better (a table block or a table-like layout, figures or dense graphics, no usable text layer over an image,
-embedded images, more than one column). OCR, its tessdata and language, and the workers come from DOC_*."""
+embedded images, more than one column). OCR, its tessdata and language, and the workers are the adapter's arguments."""
 
 from contextlib import contextmanager
 from typing import TYPE_CHECKING, ClassVar, Final, Self
@@ -11,19 +11,17 @@ from typing import TYPE_CHECKING, ClassVar, Final, Self
 from liteparse import LiteParse
 from liteparse import ParseError as LiteparseError
 
-from e_infra.infra.config.processors.doc import DocSignal
+from e_infra.infra.config.processors import DocSignal
 from e_infra.infra.errors import ParseError, ProviderError
 from e_infra.infra.logger import logger
-from e_infra.infra.settings import settings as st
 from e_infra.ports.pages import FastPage, PageBlock
 from e_infra.ports.provider import Isolation, Locality, ProviderSpec, Workload
 
 if TYPE_CHECKING:
     from collections.abc import Generator
+    from pathlib import Path
 
     from liteparse import ParsedPage
-
-    from e_infra.infra.config.providers.adapters.pages.liteparse import LiteparseSettings
 
 TABLE: Final[str] = "table"
 SCANNED: Final[frozenset[str]] = frozenset({"scanned", "vector-text", "garbled"})
@@ -37,11 +35,10 @@ class LiteparseAdapter:
         "liteparse", Locality.EMBEDDED, Workload.CPU_BOUND, Isolation.THREAD, fork_safe=True
     )
 
-    __slots__ = ("_conf", "_parser")
+    __slots__ = ("_ocr", "_ocr_language", "_parser", "_tessdata", "_workers")
 
-    def __init__(self, settings: LiteparseSettings | None = None) -> None:
-        ### the default is read on call, not at import: the settings singleton stays lazy.
-        self._conf = st.providers.adapters.pages.liteparse if settings is None else settings
+    def __init__(self, *, workers: int, ocr: bool, tessdata: Path | None, ocr_language: str) -> None:
+        self._workers, self._ocr, self._tessdata, self._ocr_language = workers, ocr, tessdata, ocr_language
         self._parser: LiteParse | None = None
 
     ##### PRIVATE #####
@@ -65,12 +62,11 @@ class LiteparseAdapter:
                 return parser
 
     def _enter_parser(self) -> LiteParse:
-        conf = self._conf
         return LiteParse(
-            ocr_enabled=conf.ocr,
-            tessdata_path=str(conf.tessdata) if conf.tessdata is not None else None,
-            ocr_language=conf.ocr_language,
-            num_workers=conf.workers or None,
+            ocr_enabled=self._ocr,
+            tessdata_path=str(self._tessdata) if self._tessdata is not None else None,
+            ocr_language=self._ocr_language,
+            num_workers=self._workers or None,
             extract_blocks=True,
             include_complexity=True,
             output_format="markdown",
@@ -117,7 +113,7 @@ class LiteparseAdapter:
 
     async def __aenter__(self) -> Self:
         self._parser = self._enter_parser()
-        logger.info("liteparse opened", ocr=self._conf.ocr, workers=self._conf.workers)
+        logger.info("liteparse opened", ocr=self._ocr, workers=self._workers)
         return self
 
     async def __aexit__(self, *exc: object) -> None:

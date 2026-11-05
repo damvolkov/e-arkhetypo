@@ -6,15 +6,12 @@
 from dataclasses import dataclass
 from datetime import timedelta
 from functools import partial
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import anyio
 import pytest
 from awa import AsyncClient
 
-from e_infra.infra.config.base import Secret
-from e_infra.infra.config.providers.drivers.database.asyncpg import AsyncpgSettings
-from e_infra.infra.config.providers.drivers.queue.awa import AwaSettings
 from e_infra.providers.drivers.database.asyncpg import AsyncpgDriver
 from e_infra.providers.drivers.queue import awa as awa_module
 from e_infra.providers.drivers.queue import pgqueuer as pgqueuer_module
@@ -22,19 +19,18 @@ from e_infra.providers.drivers.queue.awa import AwaDriver
 from e_infra.providers.drivers.queue.pgqueuer import PgqueuerDriver
 from support.awa import FakeAwaClient
 from support.pgqueuer import FakePgqueuer
-from unit.e_infra.conftest import admin
+from unit.e_infra.conftest import admin, asyncpg_args, dsn
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator, Awaitable, Callable
 
     from e_infra.infra.background import BackgroundHandler, BackgroundRun
-    from e_infra.infra.config.providers.drivers.queue.pgqueuer import PgqueuerSettings
     from support.asyncpg import FakeAsyncpgServer
 
 
 @pytest.fixture
-async def awa(queue_settings: AwaSettings) -> AsyncIterator[AwaDriver]:
-    async with AwaDriver(queue_settings) as adapter:
+async def awa(awa_conf: dict[str, Any]) -> AsyncIterator[AwaDriver]:
+    async with AwaDriver(**awa_conf) as adapter:
         yield adapter
 
 
@@ -82,24 +78,20 @@ def stuck(monkeypatch: pytest.MonkeyPatch) -> None:
 @pytest.fixture(params=["awa", "pgqueuer"])
 async def port(
     request: pytest.FixtureRequest,
-    queue_settings: AwaSettings,
-    pgqueuer_settings: PgqueuerSettings,
+    awa_conf: dict[str, Any],
+    pgqueuer_conf: dict[str, Any],
     pgqueuer_db: AsyncpgDriver,
 ) -> AwaDriver | PgqueuerDriver:
     """The durable engine under test, not yet connected (PgQueuer's database driver is open beneath it)."""
     return (
-        AwaDriver(queue_settings)
-        if request.param == "awa"
-        else PgqueuerDriver(pgqueuer_db, pgqueuer_db, pgqueuer_settings)
+        AwaDriver(**awa_conf) if request.param == "awa" else PgqueuerDriver(pgqueuer_db, pgqueuer_db, **pgqueuer_conf)
     )
 
 
 @pytest.fixture
-def engine(pgqueuer_db: AsyncpgDriver, pgqueuer_settings: PgqueuerSettings) -> PgqueuerDriver:
+def engine(pgqueuer_db: AsyncpgDriver, pgqueuer_conf: dict[str, Any]) -> PgqueuerDriver:
     """A PgQueuer engine on this worker's database, short timeouts, not yet connected."""
-    return PgqueuerDriver(
-        pgqueuer_db, pgqueuer_db, pgqueuer_settings.model_copy(update={"timeout": timedelta(seconds=1)})
-    )
+    return PgqueuerDriver(pgqueuer_db, pgqueuer_db, **{**pgqueuer_conf, "timeout": timedelta(seconds=1)})
 
 
 @dataclass(slots=True)
@@ -166,17 +158,21 @@ def awa_clients(monkeypatch: pytest.MonkeyPatch, awa_script: dict[str, BaseExcep
 
 
 @pytest.fixture
-def awa_settings() -> AwaSettings:
+def awa_unit() -> dict[str, Any]:
     """awa at unit pace: the smallest legal pool, a short drain, calls that give up within a second."""
-    return AwaSettings(
-        pool=6, poll=timedelta(milliseconds=10), drain=timedelta(milliseconds=50), timeout=timedelta(seconds=1)
-    )
+    return {
+        "dsn": dsn("postgresql://postgres:postgres@127.0.0.1:45011/app_background"),
+        "pool": 6,
+        "poll": timedelta(milliseconds=10),
+        "drain": timedelta(milliseconds=50),
+        "timeout": timedelta(seconds=1),
+    }
 
 
 @pytest.fixture
-def awa_driver(awa_clients: list[FakeAwaClient], awa_settings: AwaSettings) -> AwaDriver:
+def awa_driver(awa_clients: list[FakeAwaClient], awa_unit: dict[str, Any]) -> AwaDriver:
     """The awa driver over the fake client, not yet open."""
-    return AwaDriver(awa_settings)
+    return AwaDriver(**awa_unit)
 
 
 ##### PGQUEUER — PgQueuer's in-memory backend over a pool that holds no database #####
@@ -192,16 +188,16 @@ def pgqueuer_memory(monkeypatch: pytest.MonkeyPatch) -> FakePgqueuer:
 async def fake_db(asyncpg_server: FakeAsyncpgServer) -> AsyncIterator[AsyncpgDriver]:
     """The database PgQueuer is handed — the asyncpg driver, a `DatabasePort` and a `ListenPort` —, open over the fake
     server."""
-    async with AsyncpgDriver(AsyncpgSettings(dsn=Secret("postgresql://u:p@db/q"), timeout=timedelta(seconds=1))) as db:
+    async with AsyncpgDriver(**asyncpg_args("postgresql://u:p@db/q", timeout=timedelta(seconds=1))) as db:
         yield db
 
 
 @pytest.fixture
 def pgqueuer_driver(
-    fake_db: AsyncpgDriver, pgqueuer_memory: FakePgqueuer, pgqueuer_settings: PgqueuerSettings
+    fake_db: AsyncpgDriver, pgqueuer_memory: FakePgqueuer, pgqueuer_conf: dict[str, Any]
 ) -> PgqueuerDriver:
     """The PgQueuer driver over the open fake driver and the in-memory backend, not yet open itself."""
-    return PgqueuerDriver(fake_db, fake_db, pgqueuer_settings)
+    return PgqueuerDriver(fake_db, fake_db, **pgqueuer_conf)
 
 
 @pytest.fixture

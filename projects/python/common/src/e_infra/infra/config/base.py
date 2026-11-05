@@ -1,16 +1,15 @@
 """infra/config/base: pydantic-settings — frozen, typed, layered config.
 
-This module wires the five layers every scope shares: config file < secrets < .env < environment <
+This module wires the five layers every cluster shares: config file < secrets < .env < environment <
 kwargs. The secrets are files under `secrets/<APP_ENV>/` (gitignored), one per key, named as its variable in lower case
 (`secrets/dev/auth_secret` is AUTH_SECRET): the process of an environment reads its own — dev the dev keys, prod the
-prod ones —; a scope that names its own `secrets_dir` (`/run/secrets` in a container) reads that instead. `Secret` is
-pydantic's `SecretStr`: masked through repr, str and f-strings, readable only via `.get_secret_value()`. All
-sub-settings inherit from here."""
+prod ones —; a cluster that names its own `secrets_dir` (`/run/secrets` in a container) reads that instead. Credentials
+are pydantic's `SecretStr` or `Secret[T]`: masked through repr, str and f-strings, readable only via
+`.get_secret_value()`. Every cluster inherits from here."""
 
 from pathlib import Path
 from typing import Final
 
-from pydantic import SecretStr
 from pydantic_settings import (
     BaseSettings as SettingsBase,
 )
@@ -22,8 +21,6 @@ from pydantic_settings import (
     TomlConfigSettingsSource,
     YamlConfigSettingsSource,
 )
-
-Secret = SecretStr
 
 ### the root of the secrets folders, one per environment; relative to the working directory, as `.env` is.
 SECRETS: Final[Path] = Path("secrets")
@@ -37,7 +34,7 @@ FILE_SOURCES: Final = (
 
 class SecretsEnv(SettingsBase):
     """The environment whose secrets a process reads: APP_ENV alone, from the environment or `.env` — read apart, before
-    any scope, so choosing the folder never needs the secrets it chooses."""
+    any cluster, so choosing the folder never needs the secrets it chooses."""
 
     model_config = SettingsConfigDict(extra="ignore", env_file=".env")
 
@@ -45,21 +42,21 @@ class SecretsEnv(SettingsBase):
 
 
 class BaseSettings(SettingsBase):
-    """Subclass and declare typed fields; the constructor merges every layer in one pass.
+    """Subclass and declare typed UPPERCASE fields, each the name of its environment variable; the constructor merges
+    every layer in one pass.
 
-    A scope narrows its own sources through ``model_config``: ``env_prefix``, ``env_file``,
-    ``toml_file`` / ``yaml_file`` / ``json_file``, ``secrets_dir`` (set ``/run/secrets`` there when
-    it is containerized; unset, the environment's folder under ``secrets/``, absent folder, absent source). Complex values in env or .env are
-    JSON-decoded; enums, paths and timedeltas validate on load, never at runtime."""
+    A cluster narrows its sources through ``model_config``: ``env_file``, ``toml_file`` / ``yaml_file`` /
+    ``json_file``, ``secrets_dir`` (set ``/run/secrets`` there when it is containerized; unset, the environment's folder
+    under ``secrets/``, absent folder, absent source). Complex values in env or .env are JSON-decoded; enums, paths
+    and timedeltas validate on load, never at runtime."""
 
     model_config = SettingsConfigDict(
         frozen=True,
-        ### every scope reads the one shared .env: each takes its own keys and ignores the others' — forbidding
-        ### extras would make any foreign key (REDIS_URL, SECRET...) abort every other scope at load.
+        ### the one Settings reads the one shared .env: a foreign key in it must not abort the load.
         extra="ignore",
         env_file=".env",
+        ### structured fields (an agent tier, a header map) take FIELD__KEY; no flat field is split on the delimiter.
         env_nested_delimiter="__",
-        nested_model_default_partial_update=True,
     )
 
     @classmethod

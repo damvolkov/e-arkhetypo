@@ -1,8 +1,7 @@
-"""tests/support/cache: a `PostgresCacheDriver` over a database port, its time to live the only setting a test varies."""
+"""tests/support/cache: a `PostgresCacheDriver` over a database port, its time to live the only argument a test varies."""
 
 from typing import TYPE_CHECKING
 
-from e_infra.infra.config.providers.drivers.cache.postgres import PostgresCacheSettings
 from e_infra.providers.drivers.cache.postgres import PostgresCacheDriver
 
 if TYPE_CHECKING:
@@ -14,4 +13,4 @@ if TYPE_CHECKING:
 def cache(
     db: DatabasePort, kind: type = int, namespace: str = "unit", *, ttl: timedelta | None = None
 ) -> PostgresCacheDriver:
-    return PostgresCacheDriver(db, namespace, kind, PostgresCacheSettings(ttl=ttl))
+    return PostgresCacheDriver(db, namespace, kind, ttl=ttl)

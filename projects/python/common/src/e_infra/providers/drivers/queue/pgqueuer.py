@@ -38,7 +38,6 @@ from pgqueuer.domain.types import JobId
 from e_infra.infra.background import BackgroundJob, BackgroundState
 from e_infra.infra.errors import DatabaseError, ProviderError, QueueError
 from e_infra.infra.logger import logger
-from e_infra.infra.settings import settings as st
 from e_infra.ports.provider import Isolation, Locality, ProviderSpec, Workload
 
 if TYPE_CHECKING:
@@ -48,7 +47,6 @@ if TYPE_CHECKING:
     from pgqueuer.ports.driver import NotifyCallback
 
     from e_infra.infra.background import BackgroundFire, BackgroundHandler
-    from e_infra.infra.config.providers.drivers.queue.pgqueuer import PgqueuerSettings
     from e_infra.ports.database import DatabasePort, ListenPort, QueryPort
 
 ### a cron with a seconds field: six fields.
@@ -171,20 +169,39 @@ class PgqueuerDriver:
 
     __slots__ = (
         "_closing",
-        "_conf",
         "_db",
+        "_drain",
         "_handlers",
+        "_heartbeat",
         "_listen",
         "_managers",
         "_open",
+        "_poll",
+        "_restart",
         "_scheduler",
         "_schedules",
         "_supervisors",
+        "_timeout",
     )
 
-    def __init__(self, database: DatabasePort, listen: ListenPort, settings: PgqueuerSettings | None = None) -> None:
-        ### the default is read on call, not at import: the settings singleton stays lazy.
-        self._conf = st.providers.drivers.queue.pgqueuer if settings is None else settings
+    def __init__(
+        self,
+        database: DatabasePort,
+        listen: ListenPort,
+        *,
+        timeout: timedelta,
+        poll: timedelta,
+        drain: timedelta,
+        heartbeat: timedelta,
+        restart: timedelta,
+    ) -> None:
+        self._timeout, self._poll, self._drain, self._heartbeat, self._restart = (
+            timeout,
+            poll,
+            drain,
+            heartbeat,
+            restart,
+        )
         self._db = database
         self._listen = listen
         self._open = False
@@ -219,7 +236,7 @@ class PgqueuerDriver:
                 logger.warning(
                     "pgqueuer manager died, restarting", queue=queue, error=f"{type(error).__name__}: {error}"
                 )
-            with anyio.move_on_after(self._conf.restart.total_seconds()):
+            with anyio.move_on_after(self._restart.total_seconds()):
                 await self._closing.wait()
 
     async def _start_manage(self, queue: str, slots: int) -> None:
@@ -231,9 +248,9 @@ class PgqueuerDriver:
         _ = self._closing.is_set() and manager.shutdown.set()
         try:
             await manager.run(
-                dequeue_timeout=self._conf.poll,
+                dequeue_timeout=self._poll,
                 batch_size=1,
-                heartbeat_timeout=self._conf.heartbeat,
+                heartbeat_timeout=self._heartbeat,
                 shutdown_on_listener_failure=True,
             )
         finally:
@@ -246,7 +263,7 @@ class PgqueuerDriver:
                 await self._start_schedule()
             except Exception as error:  # noqa: BLE001 — a dead scheduler is restarted, never a crash of the engine
                 logger.warning("pgqueuer scheduler died, restarting", error=f"{type(error).__name__}: {error}")
-            with anyio.move_on_after(self._conf.restart.total_seconds()):
+            with anyio.move_on_after(self._restart.total_seconds()):
                 await self._closing.wait()
 
     async def _start_schedule(self) -> None:
@@ -270,7 +287,7 @@ class PgqueuerDriver:
     async def _close_drain(self) -> None:
         """Supervisors given QUEUE_DRAIN to return with their jobs done; past it they are cancelled, jobs with them."""
         tasks, self._supervisors = self._supervisors, set()
-        _, late = await asyncio.wait(tasks, timeout=self._conf.drain.total_seconds()) if tasks else (set(), set())
+        _, late = await asyncio.wait(tasks, timeout=self._drain.total_seconds()) if tasks else (set(), set())
         _ = [task.cancel() for task in late]
         _ = late and await asyncio.wait(late)
 
@@ -323,12 +340,12 @@ class PgqueuerDriver:
     async def _common_call[T](self, call: Callable[[], Awaitable[T]]) -> T:
         """One call within QUEUE_TIMEOUT; a database that fails under it is the port's `QueueError`."""
         try:
-            with anyio.fail_after(self._conf.timeout.total_seconds()):
+            with anyio.fail_after(self._timeout.total_seconds()):
                 return await call()
         ### TimeoutError is an OSError: caught first, or a slow call would read as an empty outage.
         except TimeoutError as error:
-            msg = f"pgqueuer call timed out after {self._conf.timeout}"
-            logger.error("pgqueuer call timed out", timeout=str(self._conf.timeout))
+            msg = f"pgqueuer call timed out after {self._timeout}"
+            logger.error("pgqueuer call timed out", timeout=str(self._timeout))
             raise QueueError(msg) from error
         except (OSError, DatabaseError) as error:
             logger.error("pgqueuer database failed", error=str(error))
@@ -386,7 +403,7 @@ class PgqueuerDriver:
         self._open = False
         _ = [manager.shutdown.set() for manager in tuple(self._managers.values())]
         _ = self._scheduler and self._scheduler.shutdown.set()
-        limit = self._conf.drain + self._conf.timeout * 2
+        limit = self._drain + self._timeout * 2
         try:
             with anyio.fail_after(limit.total_seconds()):
                 await self._close_drain()

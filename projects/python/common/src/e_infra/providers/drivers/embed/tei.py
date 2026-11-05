@@ -13,13 +13,14 @@ from tokenizers import Tokenizer
 
 from e_infra.infra.errors import ModelError, ProviderError
 from e_infra.infra.logger import logger
-from e_infra.infra.settings import settings as st
 from e_infra.ports.provider import Isolation, Locality, ProviderSpec, Workload
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
+    from datetime import timedelta
 
-    from e_infra.infra.config.providers.drivers.embed.tei import TEIEmbedSettings
+    from pydantic import HttpUrl
+
     from e_infra.ports.http import HTTPPort
 
 
@@ -31,11 +32,11 @@ class TEIEmbedDriver:
         "tei-embed", Locality.REMOTE, Workload.IO_BOUND, Isolation.LOOP, warmup=True
     )
 
-    __slots__ = ("_conf", "_http", "_tokenizer")
+    __slots__ = ("_http", "_model", "_prefix", "_timeout", "_tokenizer", "_url")
 
-    def __init__(self, http: HTTPPort, settings: TEIEmbedSettings | None = None) -> None:
-        ### the default is read on call, not at import: the settings singleton stays lazy.
-        self._conf = st.providers.drivers.embed.tei if settings is None else settings
+    def __init__(self, http: HTTPPort, *, url: HttpUrl, timeout: timedelta, model: str, query_prefix: str) -> None:
+        self._url = str(url).rstrip("/")
+        self._timeout, self._model, self._prefix = timeout, model, query_prefix
         self._http = http
         self._tokenizer: Tokenizer | None = None
 
@@ -44,9 +45,7 @@ class TEIEmbedDriver:
     async def _embed_post(self, inputs: list[str]) -> list[list[float]]:
         payload = {"inputs": inputs, "normalize": True, "truncate": True}
         logger.debug("tei embed", texts=len(inputs))
-        return await self._http.post(
-            f"{self._conf.url.rstrip('/')}/embed", payload, as_=list[list[float]], within=self._conf.timeout
-        )
+        return await self._http.post(f"{self._url}/embed", payload, as_=list[list[float]], within=self._timeout)
 
     def _common_tokenizer(self) -> Tokenizer:
         match self._tokenizer:
@@ -62,8 +61,8 @@ class TEIEmbedDriver:
 
     async def __aenter__(self) -> Self:
         ### the Hub lookup and the JSON parse block: a thread, not the loop.
-        self._tokenizer = await anyio.to_thread.run_sync(Tokenizer.from_pretrained, self._conf.model)
-        logger.info("tei embed opened", model=self._conf.model, url=self._conf.url)
+        self._tokenizer = await anyio.to_thread.run_sync(Tokenizer.from_pretrained, self._model)
+        logger.info("tei embed opened", model=self._model, url=self._url)
         return self
 
     async def __aexit__(self, *exc: object) -> None:
@@ -73,7 +72,7 @@ class TEIEmbedDriver:
     async def health(self) -> bool:
         """TEI's own health route: 200 once the model answers."""
         try:
-            await self._http.raw(f"{self._conf.url.rstrip('/')}/health", within=self._conf.timeout)
+            await self._http.raw(f"{self._url}/health", within=self._timeout)
         except ProviderError as error:
             logger.warning("tei embed unhealthy", error=str(error))
             raise
@@ -87,7 +86,7 @@ class TEIEmbedDriver:
 
     async def embed(self, texts: Sequence[str], *, query: bool = False) -> list[list[float]]:
         """One vector per text, in order; a query carries EMBED_QUERY_PREFIX. No texts, no call (TEI rejects it)."""
-        prefix = self._conf.query_prefix if query else ""
+        prefix = self._prefix if query else ""
         match [f"{prefix}{text}" for text in texts]:
             case []:
                 return []

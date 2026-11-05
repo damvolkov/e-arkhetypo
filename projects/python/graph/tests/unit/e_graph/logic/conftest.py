@@ -4,8 +4,9 @@ from typing import TYPE_CHECKING, Any
 
 import pytest
 
-from infra.config.agent import PROVIDERS, AgentSettings
+from infra.config.agent import PROVIDERS
 from support.crafter import SpecCrafter
+from support.root import agent_args
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -27,13 +28,9 @@ def clean(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
 
 
 @pytest.fixture
-def settings(clean: None) -> Callable[..., Any]:
-    """Agent settings from explicit values only."""
-
-    def build(**values: Any) -> Any:
-        return AgentSettings(**values)
-
-    return build
+def settings(clean: None) -> Callable[..., dict[str, Any]]:
+    """The agent's keyword arguments from explicit values only."""
+    return agent_args
 
 
 @pytest.fixture(params=[3, 17, 41], ids=lambda seed: f"seed{seed}")

@@ -17,7 +17,7 @@ viewer is dumb — every move answers a typed `Move` and it simply matches it.
 """
 
 from collections.abc import Callable, Iterable, Mapping
-from typing import TYPE_CHECKING, ClassVar, cast
+from typing import TYPE_CHECKING, ClassVar, Final, cast
 
 from textual.app import App, ComposeResult
 from textual.binding import Binding
@@ -26,9 +26,11 @@ from textual.widgets import Static
 
 from e_tui.flow.walk import Finished, Move, OnPage, Walker
 from e_tui.interact.registry import build
+from e_tui.layout.frame import Colors
 from e_tui.layout.render import SLOT_CLASS, LayoutRender
 from e_tui.models.error import SpecError
 from e_tui.templates.standard import StandardTemplate
+from infra.settings import settings as st
 
 if TYPE_CHECKING:
     from e_tui.flow.graph import Graph
@@ -39,6 +41,10 @@ if TYPE_CHECKING:
 
 ResultView = Callable[[Mapping[str, object]], Iterable[Widget]]
 """What the host wants to see once the walk finishes — the shared state turned into widgets."""
+
+
+### the app is the TUI's composition root: it reads the theme once and hands the render its colors.
+COLORS: Final[Colors] = Colors.of(background=st.THEME_BACKGROUND, corporate=st.THEME_CORPORATE, ink=st.THEME_INK)
 
 
 class LayoutApp(App[None]):
@@ -56,7 +62,7 @@ class LayoutApp(App[None]):
 
     def compose(self) -> ComposeResult:
         """Mount the single compiled root frame; seeds already injected ride inside it."""
-        yield from LayoutRender(self.spec, self._fill).frames()
+        yield from LayoutRender(self.spec, self._fill, colors=COLORS).frames()
 
     def fill(self, slot: str, *widgets: Widget) -> None:
         """Replace a dynamic slot's content idempotently, leaving structural sub-frames (e.g. `steps`) intact."""

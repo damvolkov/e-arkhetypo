@@ -1,9 +1,10 @@
 """providers/adapters/language/lingua: language identification on lingua (Rust), the `LanguagePort`.
 
-Over the configured languages only: what it may answer is a closed set. `annotator` names lingua at its version (an
+Over the given languages only: what it may answer is a closed set. `annotator` names lingua at its version (an
 annotation's version reads it). It reads a prefix of each text, and a text too short is told by no one. Pickled, it
 travels as its languages and builds its detector again where it lands (a worker process)."""
 
+from functools import partial
 from importlib.metadata import version
 from itertools import groupby
 from operator import itemgetter
@@ -12,13 +13,10 @@ from typing import TYPE_CHECKING, ClassVar, Final, Self
 from lingua import IsoCode639_1, Language, LanguageDetector, LanguageDetectorBuilder
 
 from e_infra.infra.logger import logger
-from e_infra.infra.settings import settings as st
 from e_infra.ports.provider import Isolation, Locality, ProviderSpec, Workload
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
-
-    from e_infra.infra.config.providers.adapters.language.lingua import LinguaSettings
 
 ### lingua reads a prefix: past a few pages the verdict no longer moves, the cost still does.
 SAMPLED: Final[int] = 20_000
@@ -32,13 +30,12 @@ class LinguaAdapter:
 
     spec: ClassVar[ProviderSpec] = ProviderSpec("lingua", Locality.EMBEDDED, Workload.CPU_BOUND, Isolation.THREAD)
 
-    __slots__ = ("_conf", "_detector", "annotator")
+    __slots__ = ("_detector", "_languages", "annotator")
 
-    def __init__(self, settings: LinguaSettings | None = None) -> None:
-        ### the default is read on call, not at import: the settings singleton stays lazy.
-        self._conf = st.providers.adapters.language.lingua if settings is None else settings
+    def __init__(self, *, languages: Sequence[str]) -> None:
+        self._languages = tuple(languages)
         self._detector: LanguageDetector = LanguageDetectorBuilder.from_languages(
-            *(Language.from_iso_code_639_1(IsoCode639_1.from_str(code)) for code in self._conf.languages)
+            *(Language.from_iso_code_639_1(IsoCode639_1.from_str(code)) for code in self._languages)
         ).build()
         self.annotator = f"lingua@{version('lingua-language-detector')}"
 
@@ -52,12 +49,12 @@ class LinguaAdapter:
 
     ##### PUBLIC #####
 
-    def __reduce__(self) -> tuple[type[LinguaAdapter], tuple[LinguaSettings]]:
-        """Pickled as its settings: the detector (a Rust object) is built again where it lands."""
-        return type(self), (self._conf,)
+    def __reduce__(self) -> tuple[partial[LinguaAdapter], tuple[()]]:
+        """Pickled as its languages: the detector (a Rust object) is built again where it lands."""
+        return partial(type(self), languages=self._languages), ()
 
     async def __aenter__(self) -> Self:
-        logger.info("lingua opened", languages=list(self._conf.languages), annotator=self.annotator)
+        logger.info("lingua opened", languages=list(self._languages), annotator=self.annotator)
         return self
 
     async def __aexit__(self, *exc: object) -> None:

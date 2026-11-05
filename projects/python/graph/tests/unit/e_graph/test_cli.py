@@ -62,7 +62,7 @@ def stub_agent(monkeypatch: pytest.MonkeyPatch) -> dict[str, Any]:
                 case _:
                     return None
 
-    monkeypatch.setattr(cli, "AgnosticAgent", Stub)
+    monkeypatch.setattr(cli, "build_agent", Stub)
     return state
 
 

@@ -5,13 +5,10 @@ who, each tool admits them at its own access."""
 from litestar.handlers import ASGIRouteHandler
 
 from e_api.api.state import AppState
-from infra.config.mcp import MCPSettings
 from infra.mcp.mount import MCPMount
-from infra.settings import settings as st
 
 
-def routes(settings: MCPSettings | None = None) -> tuple[ASGIRouteHandler, ...]:
-    """The endpoint's route on the path the settings say, read when the app is built; the server it forwards to is the
-    MCP lifespan's, found on the sealed graph on each request."""
-    path = (st.mcp if settings is None else settings).path
+def routes(*, path: str) -> tuple[ASGIRouteHandler, ...]:
+    """The endpoint's route on `path` (MCP_PATH, read by the root); the server it forwards to is the MCP lifespan's,
+    found on the sealed graph on each request."""
     return (MCPMount(lambda app: AppState.of(app).system.mcp.server).route(path),)

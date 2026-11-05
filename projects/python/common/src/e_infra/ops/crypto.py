@@ -1,8 +1,7 @@
 """ops/crypto: everything that needs a key or entropy — keyed ids, bearer tokens, password hashing, JWS/JWE, AEAD.
 
 Signatures and tokens ride on joserfc over cryptography; hashing without a key is `ops/hash`, and the two never
-overlap. Agnostic: the engine reads its configuration through `CryptoConfig` (what `infra/config/crypto`
-satisfies, or the `CryptoKeys` that `generate_keys` mints), and its errors are `infra/errors`'s.
+overlap. Agnostic: the engine reads its configuration through `CryptoConfig` (the `CryptoKeys` the root builds from CRYPTO__*, or that `generate_keys` mints), and its errors are `infra/errors`'s.
 
 bcrypt is Rust-backed, argon2 the PHC winner; async only where hashing is intentionally slow, everything else is microseconds."""
 
@@ -138,7 +137,7 @@ JOSE_KEY_TYPES: Final[Mapping[AlgPrefix, Literal["RSA", "EC", "OKP"]]] = Mapping
 )  # alg prefix -> joserfc key_type
 MISSING_PRIVATE_KEY: str = "asymmetric engine needs a private_key PEM to sign tokens"
 NO_VERIFY_KEY: str = "engine needs a signing key or a public jwks set to verify"
-MISSING_ROOT: str = "crypto engine needs a secret: set CRYPTO__SECRET or pass CryptoSettings(secret=...)"
+MISSING_ROOT: str = "crypto engine needs a secret: set CRYPTO__SECRET or pass CryptoKeys(secret=...)"
 UNSUPPORTED_KEY: str = "Unsupported signing key type"
 MALFORMED: str = "Not a JWS (3 parts) or JWE (5 parts) compact token"
 UNKNOWN_HASH: str = "Unrecognized password hash format"

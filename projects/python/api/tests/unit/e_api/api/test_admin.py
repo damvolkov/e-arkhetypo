@@ -27,6 +27,6 @@ async def test_mint_rotates_the_admins_key(
 
 async def test_mint_without_a_secret_is_refused(keys: FakeAuth, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(admin, "PostgresAuthDriver", lambda _database: keys)
-    monkeypatch.setattr(admin, "st", Settings.load(engines={"auth": {"secret": None}}))
+    monkeypatch.setattr(admin, "st", Settings(AUTH_SECRET=None))
     with pytest.raises(AuthClosedError):
         await admin.mint()

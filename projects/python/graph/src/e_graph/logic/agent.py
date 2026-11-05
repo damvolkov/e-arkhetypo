@@ -67,11 +67,15 @@ from e_graph.logic.models import (
     Tier,
     Usage,
 )
-from infra.settings import settings as st
 
 if TYPE_CHECKING:
+    from datetime import timedelta
+
     from _typeshed import DataclassInstance
     from any_llm.types.completion import ChatCompletionMessage
+    from pydantic import SecretStr
+
+    from infra.config.agent import AgentTier
 
 type Prompt = str | Sequence[Message]
 ### an output model: validated by pydantic when it is one, by msgspec otherwise.
@@ -200,11 +204,17 @@ class UsageMeter:
 class AgnosticAgent:
     """One structured async call to any provider, with our own models; a singleton in `logic.agent`."""
 
-    __slots__ = ("_pool", "_settings")
+    __slots__ = ("_credentials", "_pool", "_retries", "_tiers", "_timeout")
 
-    def __init__(self, settings: Any = None) -> None:
-        ### the default is read on call, not at import: the settings singleton stays lazy.
-        self._settings = st.agent if settings is None else settings
+    def __init__(
+        self,
+        *,
+        credentials: Mapping[str, tuple[SecretStr | None, str | None]],
+        tiers: Mapping[str, AgentTier | None],
+        timeout: timedelta,
+        retries: int,
+    ) -> None:
+        self._credentials, self._tiers, self._timeout, self._retries = credentials, tiers, timeout, retries
         self._pool: dict[PoolKey, AnyLLM] = {}
 
     async def __aenter__(self) -> Self:
@@ -219,8 +229,8 @@ class AgnosticAgent:
         """The endpoint to call, every connection field resolved: run argument → endpoint → settings → dummy."""
         endpoint = self._run_tier(target) if isinstance(target, Tier) else target
         provider = endpoint.provider
-        base = api_base or endpoint.api_base or getattr(self._settings, f"{provider}_api_base", None) or ""
-        secret = getattr(self._settings, f"{provider}_api_key", None)
+        secret, configured_base = self._credentials.get(provider, (None, None))
+        base = api_base or endpoint.api_base or configured_base or ""
         configured = secret.get_secret_value() if secret is not None else ""
         key = api_key or endpoint.api_key or configured or (DUMMY_KEY if provider in LOCAL else "")
         match (provider, base):
@@ -232,7 +242,7 @@ class AgnosticAgent:
 
     def _run_tier(self, tier: Tier) -> Endpoint:
         """The tier's endpoint from its sub-settings, already validated at load: only its absence is left to catch."""
-        match getattr(self._settings, TIERS[tier]):
+        match self._tiers.get(TIERS[tier]):
             case None:
                 prefix = TIERS[tier].upper()
                 msg = f"tier {tier} has no endpoint: set {prefix}__PROVIDER and {prefix}__MODEL"
@@ -320,7 +330,7 @@ class AgnosticAgent:
                 messages=cast("list[dict[str, Any] | ChatCompletionMessage]", messages),
                 response_format=request,
                 stream=False,
-                timeout=self._settings.timeout.total_seconds(),
+                timeout=self._timeout.total_seconds(),
                 **options,
             )
         except Exception as error:
@@ -439,7 +449,7 @@ class AgnosticAgent:
         request = self._run_format(shape, resolved.provider)
         messages = self._run_messages(instructions, prompt)
         started, spent, attempts = time.perf_counter(), Usage(), 0
-        retries = self._settings.retries
+        retries = self._retries
         while True:
             attempts += 1
             done = await self._run_call(client, resolved, messages, request, options)

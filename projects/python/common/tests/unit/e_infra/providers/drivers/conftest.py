@@ -10,7 +10,7 @@ import re
 import time
 from collections.abc import Iterable
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Final
+from typing import TYPE_CHECKING, Any, Final
 
 import asyncpg
 import pytest
@@ -19,12 +19,10 @@ from psqlpy.exceptions import Error as PsqlError
 from pytest_httpserver import HTTPServer, RequestHandler
 from werkzeug import Request, Response
 
-from e_infra.infra.config.base import Secret
-from e_infra.infra.config.providers.drivers.database.psqlpy import PsqlpySettings
 from e_infra.providers.drivers.database.psqlpy import PsqlpyDriver
 from e_infra.providers.drivers.http.wreq import WreqDriver
 from support.asyncpg import FakeAsyncpgServer
-from unit.e_infra.conftest import DSN, create
+from unit.e_infra.conftest import DSN, create, psqlpy_args, wreq_args
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator, Callable, Iterator
@@ -196,7 +194,7 @@ DOWN: Final[str] = "http://127.0.0.1:9"
 @pytest.fixture
 async def http() -> AsyncIterator[HTTPPort]:
     """The process's HTTP driver, open, with no base: the drivers that ride it name absolute URLs."""
-    async with WreqDriver() as driver:
+    async with WreqDriver(**wreq_args()) as driver:
         yield driver
 
 
@@ -221,14 +219,14 @@ async def database(worker_id: str) -> str:
 
 
 @pytest.fixture
-def pg_settings(database: str) -> PsqlpySettings:
-    return PsqlpySettings(dsn=Secret(database), pool=2)
+def pg_conf(database: str) -> dict[str, Any]:
+    return psqlpy_args(database, pool=2)
 
 
 @pytest.fixture
-async def pg(pg_settings: PsqlpySettings) -> AsyncIterator[PsqlpyDriver]:
+async def pg(pg_conf: dict[str, Any]) -> AsyncIterator[PsqlpyDriver]:
     """A connected adapter over a fresh `adapters` schema holding one probe table, dropped after the test."""
-    async with PsqlpyDriver(pg_settings) as adapter:
+    async with PsqlpyDriver(**pg_conf) as adapter:
         await adapter.execute("CREATE EXTENSION IF NOT EXISTS vector")
         await adapter.execute("DROP SCHEMA IF EXISTS adapters CASCADE")
         await adapter.execute("CREATE SCHEMA adapters")

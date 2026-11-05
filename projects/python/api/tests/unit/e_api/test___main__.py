@@ -51,7 +51,7 @@ def test_main_serves_the_app_factory(monkeypatch: pytest.MonkeyPatch) -> None:
     (built,) = FakeGranian.built
     module, _, factory = built["target"].partition(":")
     assert getattr(import_module(module), factory) is create_app
-    assert (built["factory"], built["port"], built["address"]) == (True, st.app.port, st.app.host)
+    assert (built["factory"], built["port"], built["address"]) == (True, st.APP_PORT, st.APP_HOST)
 
 
 def test_main_imported_serves_nothing(monkeypatch: pytest.MonkeyPatch) -> None:

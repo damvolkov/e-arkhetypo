@@ -3,6 +3,7 @@
 from typing import TYPE_CHECKING
 
 from e_api.api.lifespan.infra import SharedState
+from infra import settings as settings_module
 from infra.logger import logger
 from infra.settings import settings as st
 
@@ -10,14 +11,15 @@ if TYPE_CHECKING:
     from litestar.testing import TestClient
 
 
-def test_infra_shared_section_holds_the_loaded_singletons(client: TestClient) -> None:
+def test_infra_shared_section_holds_the_logger_never_the_settings(client: TestClient) -> None:
     shared = client.app.state.system.shared
-    assert isinstance(shared, SharedState)
-    assert shared.settings is st
-    assert shared.logger is logger
+    assert (isinstance(shared, SharedState), shared.logger is logger, hasattr(shared, "settings")) == (
+        True,
+        True,
+        False,
+    )
 
 
-def test_infra_singleton_load_is_idempotent(client: TestClient) -> None:
-    """Two touches, one instance: the LazyProxy cache pins the build for the whole process."""
-    assert client.app.state.system.shared.settings.app is st.app
-    assert st.app is st.app
+def test_infra_settings_are_one_instance(client: TestClient) -> None:
+    """Read once, at import: the module's instance is the one every reader shares."""
+    assert settings_module.settings is st

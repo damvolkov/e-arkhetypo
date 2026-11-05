@@ -8,13 +8,13 @@ from redis.exceptions import RedisError
 
 from e_infra.infra.errors import ProviderError, StoreError
 from e_infra.infra.logger import logger
-from e_infra.infra.settings import settings as st
 from e_infra.ports.provider import Isolation, Locality, ProviderSpec, Workload
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator, Generator
+    from datetime import timedelta
 
-    from e_infra.infra.config.providers.drivers.store.redis import RedisSettings
+    from pydantic import RedisDsn, Secret
 
 
 ##### TYPES #####
@@ -25,9 +25,8 @@ class RedisDriver:
         "redis", Locality.REMOTE, Workload.IO_BOUND, Isolation.LOOP, pooled=True
     )
 
-    def __init__(self, settings: RedisSettings | None = None) -> None:
-        ### the default is read on call, not at import: the settings singleton stays lazy.
-        self._conf = st.providers.drivers.store.redis if settings is None else settings
+    def __init__(self, *, url: Secret[RedisDsn], pool: int, timeout: timedelta) -> None:
+        self._url, self._pool, self._timeout = url, pool, timeout
         self._client: redis.Redis | None = None
 
     ##### PRIVATE METHODS #####
@@ -55,14 +54,14 @@ class RedisDriver:
     ##### PUBLIC #####
 
     async def __aenter__(self) -> Self:
-        timeout = self._conf.timeout.total_seconds()
+        timeout = self._timeout.total_seconds()
         self._client = redis.from_url(
-            self._conf.url.get_secret_value(),
-            max_connections=self._conf.pool,
+            str(self._url.get_secret_value()),
+            max_connections=self._pool,
             socket_timeout=timeout,
             socket_connect_timeout=timeout,
         )
-        logger.info("redis opened", pool=self._conf.pool)
+        logger.info("redis opened", pool=self._pool)
         return self
 
     async def __aexit__(self, *exc: object) -> None:

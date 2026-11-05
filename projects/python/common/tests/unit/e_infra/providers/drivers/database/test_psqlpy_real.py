@@ -1,12 +1,12 @@
 from contextlib import suppress
+from typing import Any
 
 import pytest
 
-from e_infra.infra.config.base import Secret
-from e_infra.infra.config.providers.drivers.database.psqlpy import PsqlpySettings
 from e_infra.infra.errors import DatabaseError, ProviderError
 from e_infra.ports.database import DatabasePort, QueryPort, Vector
 from e_infra.providers.drivers.database.psqlpy import PsqlpyDriver, PsqlpyStatements
+from unit.e_infra.conftest import dsn, over, psqlpy_args
 
 pytestmark = pytest.mark.integration
 
@@ -58,14 +58,14 @@ async def test_postgres_transaction_nested(pg: PsqlpyDriver) -> None:
             assert isinstance(inner, QueryPort)
 
 
-async def test_postgres_unconnected(pg_settings: PsqlpySettings) -> None:
-    adapter = PsqlpyDriver(pg_settings)
+async def test_postgres_unconnected(pg_conf: dict[str, Any]) -> None:
+    adapter = PsqlpyDriver(**pg_conf)
     with pytest.raises(DatabaseError):
         await adapter.fetch("SELECT 1")
 
 
-async def test_postgres_exit_twice(pg_settings: PsqlpySettings) -> None:
-    adapter = PsqlpyDriver(pg_settings)
+async def test_postgres_exit_twice(pg_conf: dict[str, Any]) -> None:
+    adapter = PsqlpyDriver(**pg_conf)
     await adapter.__aenter__()
     await adapter.__aenter__()
     assert await adapter.row("SELECT 1 AS one") == {"one": 1}
@@ -75,12 +75,12 @@ async def test_postgres_exit_twice(pg_settings: PsqlpySettings) -> None:
         await adapter.execute("SELECT 1")
 
 
-async def test_postgres_provision(pg_settings: PsqlpySettings) -> None:
+async def test_postgres_provision(pg_conf: dict[str, Any]) -> None:
     """A missing database is created, once; the second call finds it."""
-    head, _, base = pg_settings.dsn.get_secret_value().rpartition("/")
+    head, _, base = str(pg_conf["dsn"].get_secret_value()).rpartition("/")
     name = f"{base}_provision"
-    adapter = PsqlpyDriver(pg_settings.model_copy(update={"dsn": Secret(f"{head}/{name}")}))
-    async with PsqlpyDriver(pg_settings) as admin:
+    adapter = PsqlpyDriver(**over(pg_conf, dsn=dsn(f"{head}/{name}")))
+    async with PsqlpyDriver(**pg_conf) as admin:
         await admin.execute(f'DROP DATABASE IF EXISTS "{name}"')
         try:
             assert (await adapter.provision(), await adapter.provision()) == (True, False)
@@ -89,20 +89,20 @@ async def test_postgres_provision(pg_settings: PsqlpySettings) -> None:
             await admin.execute(f'DROP DATABASE IF EXISTS "{name}"')
 
 
-async def test_postgres_provision_race(pg_settings: PsqlpySettings) -> None:
+async def test_postgres_provision_race(pg_conf: dict[str, Any]) -> None:
     """A create that fails over a database now there lost a race to a twin: not an error. One that fails over none is."""
-    adapter = PsqlpyDriver(pg_settings)
-    async with PsqlpyDriver(pg_settings) as admin, admin._common_pool().acquire() as connection:
-        existing = pg_settings.dsn.get_secret_value().rpartition("/")[2]
+    adapter = PsqlpyDriver(**pg_conf)
+    async with PsqlpyDriver(**pg_conf) as admin, admin._common_pool().acquire() as connection:
+        existing = str(pg_conf["dsn"].get_secret_value()).rpartition("/")[2]
         assert await adapter._provision_twin(connection, existing) is False
         with pytest.raises(DatabaseError, match="could not be created"):
             await adapter._provision_create(connection, "")
 
 
-async def test_postgres_provision_unreachable(pg_settings: PsqlpySettings) -> None:
-    down = pg_settings.model_copy(update={"dsn": Secret("postgresql://postgres:postgres@127.0.0.1:1/x")})
+async def test_postgres_provision_unreachable(pg_conf: dict[str, Any]) -> None:
+    down = over(pg_conf, dsn=dsn("postgresql://postgres:postgres@127.0.0.1:1/x"))
     with pytest.raises(DatabaseError, match="unreachable"):
-        await PsqlpyDriver(down).provision()
+        await PsqlpyDriver(**down).provision()
 
 
 async def test_postgres_health(pg: PsqlpyDriver) -> None:
@@ -111,19 +111,18 @@ async def test_postgres_health(pg: PsqlpyDriver) -> None:
 
 async def test_postgres_health_down() -> None:
     """A server nothing listens for: `SELECT 1` never runs, the driver is down — and says so without raising."""
-    settings = PsqlpySettings(dsn=Secret("postgresql://postgres:postgres@127.0.0.1:9/none"), pool=2)
-    async with PsqlpyDriver(settings) as driver:
+    async with PsqlpyDriver(**psqlpy_args("postgresql://postgres:postgres@127.0.0.1:9/none", pool=2)) as driver:
         with pytest.raises(ProviderError):
             await driver.health()
 
 
-async def test_postgres_unopen_health(pg_settings: PsqlpySettings) -> None:
+async def test_postgres_unopen_health(pg_conf: dict[str, Any]) -> None:
     with pytest.raises(ProviderError):
-        await PsqlpyDriver(pg_settings).health()
+        await PsqlpyDriver(**pg_conf).health()
 
 
-async def test_postgres_satisfies_port(pg_settings: PsqlpySettings) -> None:
-    assert isinstance(PsqlpyDriver(pg_settings), DatabasePort)
+async def test_postgres_satisfies_port(pg_conf: dict[str, Any]) -> None:
+    assert isinstance(PsqlpyDriver(**pg_conf), DatabasePort)
 
 
 async def test_postgres_error_translated(pg: PsqlpyDriver) -> None:

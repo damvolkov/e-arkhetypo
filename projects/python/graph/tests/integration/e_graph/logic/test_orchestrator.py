@@ -10,10 +10,10 @@ import pytest
 
 from e_graph.logic.agent import AgnosticAgent
 from e_graph.logic.models import SpecStatus
-from infra.config.providers.drivers.telemetry.otel import OTelSettings
 from providers.drivers.telemetry.otel import OTelDriver
 from support.crafter import SpecCrafter
 from support.darts import DartsHarness
+from support.root import otel_args
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -36,8 +36,8 @@ RATIO = {"type": "object", "properties": {"margin": {"type": "number"}}, "requir
 @pytest.mark.timeout(600)
 async def test_fused_specs_read_the_statement(resources: Resources, tmp_path: Path, settings: Any) -> None:
     async with (
-        AgnosticAgent(settings.model_copy(update={"timeout": timedelta(minutes=8)})) as agent,
-        OTelDriver(OTelSettings()) as telemetry,
+        AgnosticAgent(**(settings | {"timeout": timedelta(minutes=8)})) as agent,
+        OTelDriver(**otel_args()) as telemetry,
     ):
         ### a reasoning model answering two specs at once: deadlines sized for the recording, not the replay.
         darts = DartsHarness(

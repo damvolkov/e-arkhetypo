@@ -1,0 +1,30 @@
+# The nomos of the bridge: a caller names a profile, never a flag. `mode` is the coder's permission mode for any
+# tool outside `allow` — dontAsk denies it, acceptEdits accepts file edits, plan only plans, bypassPermissions
+# approves everything (deny rules and hooks still hold). The user's ~/.claude loads on top of every profile.
+
+direct:
+  note: as if Damien worked in Claude Code himself — every tool, nothing asked, nothing limited; home and scratch
+  mode: bypassPermissions
+  roots: [~/, /tmp]
+
+research:
+  note: read the workspace and the vault, search the web; never edits
+  mode: dontAsk
+  allow: [Read, Grep, Glob, WebSearch, WebFetch, Skill, Agent, TodoWrite]
+  roots: [~/workspaces, ~/.config/memory]
+  turns: 40
+
+plan:
+  note: design only — a plan back, nothing touched
+  mode: plan
+  allow: [Read, Grep, Glob, WebSearch, WebFetch]
+  roots: [~/workspaces]
+  turns: 30
+
+code:
+  note: implement in a repo under ~/workspaces/damien — edits and shell, never a push or a sudo
+  mode: acceptEdits
+  allow: [Read, Grep, Glob, Edit, Write, Bash, Skill, Agent, WebSearch, WebFetch, TodoWrite]
+  deny: ["Bash(git push*)", "Bash(sudo*)", "Bash(rm -rf*)"]
+  roots: [~/workspaces/damien]
+  turns: 80

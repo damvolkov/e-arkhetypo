@@ -9,6 +9,9 @@
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           ref: main
+          ### every tag, or `git describe` finds none and the next version restarts at v0.1.0.
+          fetch-depth: 0
+          fetch-tags: true
           persist-credentials: false
       - id: next
         env:
@@ -32,5 +35,6 @@
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ steps.next.outputs.tag }}
         run: |
+          git rev-parse -q --verify "refs/tags/$TAG" >/dev/null || git tag "$TAG"
           git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $(printf '%s:%s' 'x-access-token' "$GH_TOKEN" | base64 -w0)" push origin "$TAG"
           gh release create "$TAG" --latest --verify-tag --generate-notes || gh release edit "$TAG" --latest=true

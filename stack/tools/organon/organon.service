@@ -1,0 +1,19 @@
+[Unit]
+Description=e-organon via Docker Compose — canonical tools (REST · SSE · MCP) and the #tekton bridge (loopback :45190)
+After=network-online.target docker.service paradedb.service docling.service embed.service reranker.service gliner.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=%h/.config/compose/organon
+ExecStart=/usr/bin/docker compose up -d --wait --remove-orphans
+ExecStop=/usr/bin/docker compose stop
+ExecReload=/usr/bin/docker compose up -d --wait --remove-orphans
+Restart=on-failure
+RestartSec=30s
+TimeoutStartSec=300
+TimeoutStopSec=60
+
+[Install]
+WantedBy=default.target

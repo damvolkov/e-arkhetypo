@@ -7,6 +7,18 @@ touches — `stack`, `systems`, `infra`. Lines under `[Unreleased]` are written 
 ## [Unreleased]
 
 ### Added
+- `stack/tools/organon`: e-organon (the house's deterministic tools hub, REST · SSE · MCP, and the #tekton bridge) —
+  public image `ghcr.io/damvolkov/e-organon` on the host network at :45190, `/data` one volume with a subtree per
+  section, the vault read-only with `workflow/` writable as the outbox, the owner's Claude Code setup at host paths.
+  Replaces e-metaxy on the host (2026-11-05). `PATH` keeps the image's `/app/.venv/bin` first: without it the
+  container could not find `granian` and never started.
+
+### Fixed
+- `infra/jobs/release/bump.yml`: the bump job fetches every tag and creates the one it pushes. Shallow and tagless,
+  it restarted at v0.1.0 and pushed a ref that did not exist (e-organon release run 41885106434); e-organon v0.7.0
+  then released clean.
+
+### Added
 - `assets/demian-delta-{dark,light}.png`: Demian's delta, 64 px on transparency, black for light themes and light for
   dark ones — the icon of the house's PR attribution (`#gh-light-mode-only` / `#gh-dark-mode-only`), hosted here because
   this repository is public.

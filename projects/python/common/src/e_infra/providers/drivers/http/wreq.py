@@ -77,7 +77,7 @@ class WreqDriver:
             match TIMED_OUT in str(error):
                 case True:
                     raise HTTPTimeoutError(str(error)) from error
-                case False:
+                case _:
                     raise HTTPError(str(error)) from error
         except WIRE as error:
             logger.error("wreq failed", error=str(error))
@@ -114,7 +114,7 @@ class WreqDriver:
             match response.status.is_success():
                 case True:
                     answer = await read(response)
-                case False:
+                case _:
                     status = response.status.as_int()
                     msg = f"{url} answered {status}"
                     logger.error("wreq refused", url=url, status=status)

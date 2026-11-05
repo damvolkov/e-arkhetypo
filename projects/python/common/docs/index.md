@@ -160,6 +160,7 @@ A port is the shape of the plug; it is never instantiated. Every provider port e
 | Module | Purpose |
 |---|---|
 | [`e_infra.ports.auth`](reference/e_infra/ports/auth.md) | where accounts and grants are kept — the one contract an auth engine needs of a store. |
+| [`e_infra.ports.blob`](reference/e_infra/ports/blob.md) | an object store — bytes by key, every write a new generation, a conditional write the one lock. |
 | [`e_infra.ports.cache`](reference/e_infra/ports/cache.md) | values of one type kept by key — a cache may forget, so a miss is never an error. |
 | [`e_infra.ports.database`](reference/e_infra/ports/database.md) | a SQL database — statements with positional `$n` parameters, rows as dicts, a transaction scope. |
 | [`e_infra.ports.documents`](reference/e_infra/ports/documents.md) | document conversion — a URL, raw bytes or a local file in, its structured forms out. |
@@ -173,8 +174,10 @@ A port is the shape of the plug; it is never instantiated. Every provider port e
 | [`e_infra.ports.provider`](reference/e_infra/ports/provider.md) | the contract of everything the lifespan opens — lifecycle, health and an orienting spec. |
 | [`e_infra.ports.queue`](reference/e_infra/ports/queue.md) | a durable job queue — kinds bound to handlers on named queues, jobs enqueued, read and cancelled. |
 | [`e_infra.ports.rerank`](reference/e_infra/ports/rerank.md) | a cross-encoder — each text scored against the question, read together, in the texts' order. |
+| [`e_infra.ports.shapes`](reference/e_infra/ports/shapes.md) | a SHACL engine — data and shapes in, a report out; `conforms is None` means «not validated». |
 | [`e_infra.ports.store`](reference/e_infra/ports/store.md) | a byte-keyed store — point reads, writes, deletes and a lazy key scan, the whole CRUD a consumer sees. |
 | [`e_infra.ports.telemetry`](reference/e_infra/ports/telemetry.md) | tracing — a span opened around a block, written until it ends, settled by how the block left. |
+| [`e_infra.ports.triples`](reference/e_infra/ports/triples.md) | a triple store by named graph — SPARQL 1.1 Query and Update, graphs loaded and dumped whole. |
 
 ### providers — a capability, a nature, an implementation
 
@@ -200,6 +203,9 @@ groups what is deployed, the providers group contracts, and a new capability ent
 | `telemetry` | `watch` |
 | `documents`, `markdown`, `pages`, `extract` | `rag` |
 | `embed`, `rerank`, `llm`, `ner` | `llm` |
+| `blob` | `storage` |
+| `triples` | `gdb` — today in process (Oxigraph), a SPARQL server the day it is deployed |
+| `shapes` | — in-process: no deployed service |
 
 #### Two Postgres drivers, both first-class
 
@@ -230,12 +236,15 @@ another provider only through its port, received by constructor (docling, TEI an
 | Module | Purpose |
 |---|---|
 | [`e_infra.providers.drivers.auth.postgres`](reference/e_infra/providers/drivers/auth/postgres.md) | accounts and grants in Postgres — the `AuthPort` over any `DatabasePort`. |
+| [`e_infra.providers.drivers.blob.gcs`](reference/e_infra/providers/drivers/blob/gcs.md) | GCS behind `BlobPort` — the JSON API through gcloud-aio-storage, ADC or the emulator. |
 | [`e_infra.providers.drivers.cache.postgres`](reference/e_infra/providers/drivers/cache/postgres.md) | a durable cache in a Postgres database — it rides a `DatabasePort`, whichever driver. |
 | [`e_infra.providers.drivers.database.asyncpg`](reference/e_infra/providers/drivers/database/asyncpg.md) | the SQL edge over asyncpg, and the pool PgQueuer rides. |
 | [`e_infra.providers.drivers.database.psqlpy`](reference/e_infra/providers/drivers/database/psqlpy.md) | the SQL edge over psqlpy — a Rust (tokio-postgres) pool, pgvector bound natively. |
 | [`e_infra.providers.drivers.documents.docling`](reference/e_infra/providers/drivers/documents/docling.md) | document conversion on docling-serve — any source in, the DoclingDocument out. |
+| [`e_infra.providers.drivers.embed.google`](reference/e_infra/providers/drivers/embed/google.md) | gemini-embedding-001 behind `EmbedPort` — the Gemini API or Vertex, one client. |
 | [`e_infra.providers.drivers.embed.tei`](reference/e_infra/providers/drivers/embed/tei.md) | embeddings on text-embeddings-inference — `POST /embed`, behind `EmbedPort`. |
 | [`e_infra.providers.drivers.http.wreq`](reference/e_infra/providers/drivers/http/wreq.md) | the outbound client on wreq (Rust wreq bindings, browser-fidelity TLS). |
+| [`e_infra.providers.drivers.llm.google`](reference/e_infra/providers/drivers/llm/google.md) | a Gemini model behind `LLMPort` — the Gemini API by key, or Vertex by ADC, one client. |
 | [`e_infra.providers.drivers.llm.openai`](reference/e_infra/providers/drivers/llm/openai.md) | a chat model over an OpenAI-compatible server (vLLM, OpenAI) — JSON-schema answers. |
 | [`e_infra.providers.drivers.ner.gliner`](reference/e_infra/providers/drivers/ner/gliner.md) | zero-shot entities from a gliner service — `POST /ner/batch`, NDJSON streamed both ways. |
 | [`e_infra.providers.drivers.queue.awa`](reference/e_infra/providers/drivers/queue/awa.md) | the durable queue — awa, a Rust Postgres job queue, behind `QueuePort`. |
@@ -256,7 +265,10 @@ An adapter wraps a library with no connection (`Locality.EMBEDDED`): `__aenter__
 | [`e_infra.providers.adapters.extract.rtrafilatura`](reference/e_infra/providers/adapters/extract/rtrafilatura.md) | a web page's main content as Markdown — the article without its chrome. |
 | [`e_infra.providers.adapters.markdown.anytomd`](reference/e_infra/providers/adapters/markdown/anytomd.md) | anytomd bound to Python — one engine for every format, PDF and images folded in. |
 | [`e_infra.providers.adapters.pages.liteparse`](reference/e_infra/providers/adapters/pages/liteparse.md) | a document's fast pass on liteparse (Rust, in-process) — the `PagesPort`. |
+| [`e_infra.providers.adapters.shapes.pyshacl`](reference/e_infra/providers/adapters/shapes/pyshacl.md) | pySHACL behind `ShapesPort` — the reference engine, the arbiter of the CI. |
+| [`e_infra.providers.adapters.shapes.rudof`](reference/e_infra/providers/adapters/shapes/rudof.md) | rudof behind `ShapesPort` — Rust, in process, the fast engine of every round. |
 | [`e_infra.providers.adapters.telemetry.null`](reference/e_infra/providers/adapters/telemetry/null.md) | the provider of no provider — tracing off. |
+| [`e_infra.providers.adapters.triples.oxigraph`](reference/e_infra/providers/adapters/triples/oxigraph.md) | Oxigraph in memory behind `TriplesPort` — Rust, in-process, one store a process. |
 
 ### engines — execution against resources
 
@@ -272,6 +284,8 @@ module, not a rename.
 | [`e_infra.engines.cache`](reference/e_infra/engines/cache.md) | a fast cache in front of a durable one — the cache every module takes. |
 | [`e_infra.engines.dispatch`](reference/e_infra/engines/dispatch.md) | background work by kind — on the durable queue when it answers, in memory when it does not. |
 | [`e_infra.engines.health`](reference/e_infra/engines/health.md) | every provider asked how it is, at once — the startup survey and the readiness route's verdicts. |
+| [`e_infra.engines.llm`](reference/e_infra/engines/llm.md) | the model agent — a tier answers a typed contract or a typed error; text becomes vectors of one embedder. |
+| [`e_infra.engines.release`](reference/e_infra/engines/release.md) | a set of RDF graphs released on a blob store — WORM versions, one pointer, one writer at a time. |
 | [`e_infra.engines.telemetry`](reference/e_infra/engines/telemetry.md) | what a service traces, guarded — the facade every module reaches, over one `TelemetryPort`. |
 
 ### processors — transform input into output
@@ -395,6 +409,7 @@ Thirteen categories are claimed of the twenty allowed; a new one is a recorded d
 make install      # sync deps + git hooks
 make check        # lint + type + arch + validate + test
 make cov          # coverage gate (>=90%)
+make offline      # the whole suite in a container with no network: what CI sees with no service up
 make docs         # serve docs at :8000
 ```
 

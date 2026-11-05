@@ -9,6 +9,7 @@ import json
 import re
 import time
 from collections.abc import Iterable
+from contextlib import AsyncExitStack
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Final
 
@@ -233,3 +234,10 @@ async def pg(pg_conf: dict[str, Any]) -> AsyncIterator[PsqlpyDriver]:
         await adapter.execute("CREATE TABLE adapters.probe (id int PRIMARY KEY, label text, v vector(3))")
         yield adapter
         await adapter.execute("DROP SCHEMA adapters CASCADE")
+
+
+@pytest.fixture
+async def fleet(database: str) -> AsyncIterator[list[PsqlpyDriver]]:
+    """Eight database drivers, each its own pool, over one database: as many replicas opening at once."""
+    async with AsyncExitStack() as stack:
+        yield [await stack.enter_async_context(PsqlpyDriver(**psqlpy_args(database, pool=2))) for _ in range(8)]

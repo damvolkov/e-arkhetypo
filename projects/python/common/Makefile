@@ -18,7 +18,7 @@ MAKEFLAGS += --no-print-directory
 export PYTHONPATH := $(CURDIR)/src
 
 ##### TARGETS #####
-.PHONY: help install sync lock lint type arch validate harden hooks test integration cov docs docs-build check ci release ci-vars clean
+.PHONY: help install sync lock lint type arch validate harden hooks test integration cov offline docs docs-build check ci release ci-vars clean
 
 help:
 	@printf "$(BOLD)$(CYAN)$(PROJECT)$(RESET) $(GRAY)· uv · ruff · ty · tach · pytest · zensical — the python infra blueprint of every e-stack system$(RESET)\n\n"
@@ -65,6 +65,11 @@ integration: ## the tests that need a real service (Postgres at POSTGRES_TEST_DS
 
 cov: ## run tests with coverage gate (fail under 90%), benchmarks out like the CI matrix
 	@uv run pytest tests $(TESTARGS) --cov --cov-report=term-missing
+
+offline: ## the whole suite as CI runs it (`pytest tests`, no filter) in a container with no network: no service answers
+	@docker run --rm --network none --user "$$(id -u):$$(id -g)" -e HOME=/tmp/home \
+		-v "$$HOME/.local/share/uv:$$HOME/.local/share/uv:ro" -v "$(CURDIR):$(CURDIR)" -w "$(CURDIR)" \
+		ubuntu:24.04 .venv/bin/python -m pytest tests -q -p no:cacheprovider
 
 # — docs —
 docs: ## serve docs site live at :8000

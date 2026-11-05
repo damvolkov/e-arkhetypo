@@ -301,7 +301,7 @@ class DocProcessor:
                     for number in numbers
                 ]
                 return pages, [self._process_deep(conversion, f"docling:{span[0]}-{span[1]}", span)]
-            case str() as failure:
+            case failure:
                 reads = [self._process_fast(fast[number], failure) for number in numbers]
                 return [page for page, _ in reads], [read for _, read in reads]
 
@@ -382,8 +382,8 @@ class DocProcessor:
         match span:
             case None:
                 return 1
-            case (first, last):
-                return page if first <= page <= last else 0
+            case _:
+                return page if span[0] <= page <= span[1] else 0
 
     @staticmethod
     def _process_item(document: Node, node: Node, prefix: str, page: int) -> Row:

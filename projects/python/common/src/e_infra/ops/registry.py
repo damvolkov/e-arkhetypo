@@ -162,7 +162,7 @@ class CodeRegistry(Mapping[str, Symbol]):
                     ),
                     **children,
                 }
-            case False:
+            case _:
                 return {
                     modpath: Symbol(
                         path=modpath,
@@ -198,7 +198,7 @@ class CodeRegistry(Mapping[str, Symbol]):
                 match module:
                     case None | "":
                         return tuple(f"{CodeRegistry._relative(pkg, lvl)}.{alias.name}" for alias in names)
-                    case str() as mod:
+                    case mod:
                         return (mod if lvl == 0 else f"{CodeRegistry._relative(pkg, lvl)}.{mod}",)
             case _:
                 return ()

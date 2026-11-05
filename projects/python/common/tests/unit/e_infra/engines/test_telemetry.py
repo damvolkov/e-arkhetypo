@@ -132,3 +132,11 @@ async def test_telemetry_processor_turns_a_log_line_into_an_event_with_its_ids(
         format(span.context.span_id, "016x"),
     )
     assert [(event.name, dict(event.attributes or {})) for event in span.events] == [("step", {"n": 1})]
+
+
+def test_telemetry_guard_answers_none_when_the_provider_call_fails() -> None:
+    def broken() -> None:
+        msg = "exporter gone"
+        raise RuntimeError(msg)
+
+    assert TelemetryEngine.guard("export", broken) is None

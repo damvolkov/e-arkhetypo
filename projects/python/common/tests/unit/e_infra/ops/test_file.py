@@ -148,3 +148,12 @@ def test_detector_page_without_extension(head: bytes, fmt: str) -> None:
     """A page served at an address with no extension is told by its head: HTML, read as such — prose stays text."""
     found = FileDetector.classify("https://12factor.net/config", head)
     assert (found.format, found.because) == (fmt, FileLayer.SNIFF)
+
+
+def test_recursive_names_every_module_below_by_its_dotted_path(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    (tmp_path / "tree" / "deep" / "_private").mkdir(parents=True)
+    (tmp_path / "tree" / "top.py").write_text("class Top: ...")
+    (tmp_path / "tree" / "deep" / "leaf.py").write_text("class Leaf: ...")
+    (tmp_path / "tree" / "deep" / "_private" / "hid.py").write_text("class Hid: ...")
+    monkeypatch.syspath_prepend(str(tmp_path))
+    assert sorted(FileFinder("tree", recursive=True).discover(Kind.MODULES)) == ["deep.leaf", "top"]

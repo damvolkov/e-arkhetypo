@@ -304,6 +304,44 @@ def openai_args(**over: Any) -> dict[str, Any]:
     )
 
 
+def gcs_args(**over: Any) -> dict[str, Any]:
+    """The keyword arguments of a `GCSBlobDriver` on a local emulator, the overrides on top."""
+    return {
+        "bucket": "test-bucket",
+        "prefix": "test/",
+        "api_root": "http://127.0.0.1:45013",
+        "timeout": 30,
+        "page": 1000,
+    } | over
+
+
+def google_llm_args(**over: Any) -> dict[str, Any]:
+    """The keyword arguments of a `GoogleLLMDriver` on the Gemini API with no key, the overrides on top."""
+    return {
+        "api_key": None,
+        "enterprise": False,
+        "project": None,
+        "location": "europe-southwest1",
+        "model": "gemini-3.8-flash",
+        "timeout_ms": 120_000,
+        "max_tokens": 8192,
+    } | over
+
+
+def google_embed_args(**over: Any) -> dict[str, Any]:
+    """The keyword arguments of a `GoogleEmbedDriver` on the Gemini API with no key, the overrides on top."""
+    return {
+        "api_key": None,
+        "enterprise": False,
+        "project": None,
+        "location": "europe-southwest1",
+        "model": "gemini-embedding-001",
+        "dimensions": 768,
+        "batch": 100,
+        "timeout_ms": 60_000,
+    } | over
+
+
 def sqlite_args(**over: Any) -> dict[str, Any]:
     """The keyword arguments of a `SqliteDriver`, the overrides on top."""
     return {"path": Path("data/app.db"), "timeout": timedelta(seconds=5)} | over

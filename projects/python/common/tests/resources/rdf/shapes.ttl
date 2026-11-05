@@ -1,0 +1,9 @@
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix core: <https://example.org/core#> .
+@prefix app: <https://example.org/app#> .
+
+app:DriverShape a sh:NodeShape ;
+    sh:targetClass app:Driver ;
+    sh:property [ sh:path core:holds ; sh:minCount 1 ; sh:message "a driver holds a policy" ] ;
+    sh:property [ sh:path app:age ; sh:datatype xsd:integer ; sh:minCount 1 ] .

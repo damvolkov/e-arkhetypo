@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Final
 import pytest
 
 from e_infra.engines.health import HealthEngine, ProviderHealth
-from e_infra.infra.errors import DatabaseError
+from e_infra.infra.errors import DatabaseError, EngineError
 from unit.e_infra.engines.conftest import StubProvider
 
 if TYPE_CHECKING:
@@ -79,3 +79,22 @@ async def test_survey_logs_the_survey_and_warns_for_each_provider_that_is_down(l
     assert logs.at("debug") == ["health survey"]
     assert logs.at("warning") == ["provider down"]
     assert [fields["provider"] for level, _, fields in logs.events if level == "warning"] == ["store"]
+
+
+async def test_watch_joins_the_survey() -> None:
+    """A domain's providers, opened after the engine, join its survey — required or not — in the order watched."""
+    engine = HealthEngine({"store": StubProvider()}, REQUIRED, LIMIT)
+    engine.watch("extra", StubProvider(up=False))
+    engine.watch("archive", StubProvider(), required=True)
+    verdicts = await engine.survey()
+    assert [(v.name, v.ok, v.required) for v in verdicts] == [
+        ("store", True, True),
+        ("extra", False, False),
+        ("archive", True, True),
+    ]
+
+
+async def test_watch_twice_refused() -> None:
+    engine = HealthEngine({"store": StubProvider()}, REQUIRED, LIMIT)
+    with pytest.raises(EngineError, match="store"):
+        engine.watch("store", StubProvider())

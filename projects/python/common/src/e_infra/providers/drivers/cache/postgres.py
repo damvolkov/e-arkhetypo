@@ -1,8 +1,10 @@
 """providers/drivers/cache/postgres: a durable cache in a Postgres database — it rides a `DatabasePort`, whichever driver.
 
 Values of type T under a namespace in the database's `cache` table, shared by every process of the service. The
-database is the lifespan's to open and close, not this cache's. Every refusal at its border — the database's, or a
-value msgspec cannot encode — is a `CacheError`, so the engine above degrades on it and never fails its caller."""
+database is the lifespan's to open and close, not this cache's. Opening creates the table under a transaction-level
+advisory lock: `CREATE TABLE IF NOT EXISTS` alone races between instances opening at once. Every refusal at its
+border — the database's, or a value msgspec cannot encode — is a `CacheError`, so the engine above degrades on it and
+never fails its caller."""
 
 from contextlib import contextmanager
 from datetime import UTC, datetime
@@ -24,6 +26,8 @@ CACHE_SCHEMA: Final[str] = (
     "CREATE TABLE IF NOT EXISTS cache (namespace text NOT NULL, key text NOT NULL, value bytea NOT NULL, "
     "expires timestamptz, PRIMARY KEY (namespace, key))"
 )
+### the table is created by one opener at a time: two concurrent creators collide on `pg_type`.
+CACHE_LOCK: Final[str] = "SELECT pg_advisory_xact_lock(hashtext('cache'))"
 CACHE_GET: Final[str] = (
     "SELECT key, value FROM cache WHERE namespace = $1 AND key = ANY($2) AND (expires IS NULL OR expires > now())"
 )
@@ -87,7 +91,9 @@ class PostgresCacheDriver[T]:
 
     async def __aenter__(self) -> Self:
         with self._common_guard():
-            await self._db.execute(CACHE_SCHEMA)
+            async with self._db.transaction() as tx:
+                await tx.execute(CACHE_LOCK)
+                await tx.execute(CACHE_SCHEMA)
         logger.info("cache postgres opened", namespace=self._namespace)
         return self
 

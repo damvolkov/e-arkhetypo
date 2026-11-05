@@ -26,19 +26,21 @@ async def test_postgres_meets_the_port(store: PostgresAuthDriver) -> None:
     assert isinstance(store, AuthPort)
 
 
-async def test_postgres_open_creates_the_tables(
+async def test_postgres_open_creates_the_tables_under_the_advisory_lock(
     psqlpy: FakePsqlpyServer, store: PostgresAuthDriver, logs: Logs
 ) -> None:
     _ = store
+    assert psqlpy.transactions == ["begin", "commit"]
     assert [sql.split("(")[0].strip() for sql in psqlpy.sql()] == [
+        "SELECT pg_advisory_xact_lock",
         "CREATE TABLE IF NOT EXISTS auth_account",
         "CREATE TABLE IF NOT EXISTS auth_grant",
         "CREATE INDEX IF NOT EXISTS auth_grant_owner ON auth_grant",
     ]
 
 
-async def test_postgres_lifecycle_is_logged(database: PsqlpyDriver, logs: Logs) -> None:
-    async with PostgresAuthDriver(database):
+async def test_postgres_lifecycle_is_logged(scripted: PsqlpyDriver, logs: Logs) -> None:
+    async with PostgresAuthDriver(scripted):
         pass
     assert logs.at("info", "auth postgres") == ["auth postgres opened", "auth postgres closed"]
 

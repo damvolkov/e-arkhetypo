@@ -54,6 +54,13 @@ dependencies = [
     "tokenizers>=0.23",
     ##### web — rtrafilatura: a page's main content #####
     "rtrafilatura>=0.2",
+    ##### models and objects — google-genai (Gemini API or Vertex), gcloud-aio-storage (GCS over aiohttp) #####
+    "google-genai>=2.31",
+    "gcloud-aio-storage>=9",
+    ##### rdf — pyoxigraph (Rust triple store), pyrudof (Rust SHACL), pyshacl (the reference SHACL engine) #####
+    "pyoxigraph>=0.5",
+    "pyrudof>=0.1",
+    "pyshacl>=0.30",
     ##### telemetry #####
     "opentelemetry-sdk>=1.44",
     "opentelemetry-exporter-otlp-proto-http>=1.44",
@@ -150,7 +157,7 @@ select = [
 ignore = ["E501", "ISC001", "PLR0913"]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**" = ["S101", "S106", "PLR2004", "ARG", "FBT"]
+"tests/**" = ["S101", "S106", "PLR2004", "ARG", "FBT", "TID251"]
 "scripts/**" = ["T20", "S603", "S607", "PTH"]
 ### NON_SERVICE is an exclusion vocabulary for host tokens, not a socket bind.
 "src/e_infra/ops/compose.py" = ["S104"]
@@ -158,6 +165,8 @@ ignore = ["E501", "ISC001", "PLR0913"]
 "src/e_infra/infra/mcp/server.py" = ["TID251"]
 "src/e_infra/providers/adapters/language/lingua.py" = ["TID251"]
 "src/e_infra/providers/adapters/watch/watchfiles.py" = ["TID251"]
+### each vendor library is its provider's alone: the banned-api entries guard every other module.
+"src/e_infra/providers/**" = ["TID251"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["e_infra"]
@@ -178,6 +187,11 @@ ban-relative-imports = "all"
 "mcp.server".msg = "the MCP SDK's server is the engine's protocol (infra/mcp/server): an upgrade touches that one module"
 "lingua".msg = "lingua is the language adapter's (providers/adapters/language/lingua, LanguagePort): ask the port"
 "watchfiles".msg = "watchfiles is the watch adapter's (providers/adapters/watch/watchfiles, WatchPort): ask the port"
+"pyoxigraph".msg = "pyoxigraph is the triples adapter's (providers/adapters/triples/oxigraph, TriplesPort): ask the port"
+"pyrudof".msg = "pyrudof is a shapes adapter's (providers/adapters/shapes/rudof, ShapesPort): ask the port"
+"pyshacl".msg = "pyshacl is a shapes adapter's (providers/adapters/shapes/pyshacl, ShapesPort): ask the port"
+"rdflib".msg = "rdflib is the pySHACL adapter's (providers/adapters/shapes/pyshacl): ask the ShapesPort"
+"google.genai".msg = "google-genai is the Google drivers' (providers/drivers/llm|embed/google): ask the port"
 
 [tool.ruff.format]
 docstring-code-format = true
@@ -204,6 +218,10 @@ filterwarnings = [
     "error",
     ### joserfc warns on every EdDSA JWT per RFC 9864 (non-committing signature); kept as an offered alg.
     "ignore::joserfc.errors.SecurityWarning",
+    ### google-genai (2.33) leans on typing's private union alias, deprecated in 3.14: the SDK's, never ours.
+    "ignore:'_UnionGenericAlias' is deprecated:DeprecationWarning",
+    ### google-genai takes aiohttp as its transport once installed (gcloud-aio-storage brings it) and subclasses its session.
+    "ignore:Inheritance class AiohttpClientSession from ClientSession is discouraged:DeprecationWarning",
 ]
 timeout = "60"
 asyncio_mode = "auto"

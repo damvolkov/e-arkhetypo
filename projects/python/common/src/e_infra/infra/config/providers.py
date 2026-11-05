@@ -3,7 +3,7 @@
 from datetime import timedelta
 from enum import StrEnum, auto
 from pathlib import Path
-from typing import Annotated, Any, Self
+from typing import Annotated, Any, ClassVar, Self
 
 from pydantic import (
     ByteSize,
@@ -182,6 +182,36 @@ class ProviderSettings(BaseSettings):
     OTEL_ATTRIBUTES: dict[str, str] = Field(default_factory=dict)
     OTEL_SAMPLE: Annotated[float, Field(ge=0.0, le=1.0)] = 1.0
 
+    ### GCS
+    ### the bucket, and where under it this deployment's keys live (`test/run/` in tests).
+    GCS_BUCKET: str = "local"
+    GCS_PREFIX: str = ""
+    ### the emulator's base; unset for Google with ADC. STORAGE_EMULATOR_HOST wins over GCS_API_ROOT.
+    STORAGE_EMULATOR_HOST: str | None = None
+    GCS_API_ROOT: str | None = None
+    ### one request, seconds; objects a listing asks for at once.
+    GCS_TIMEOUT: PositiveInt = 30
+    GCS_PAGE: PositiveInt = 1000
+
+    ### GOOGLE
+    ### the Gemini API's key (unused on Vertex).
+    GENAI_API_KEY: SecretStr | None = None
+    ### Vertex instead of the Gemini API, its project and region: the model's and the embedder's alike.
+    GENAI_ENTERPRISE: bool = False
+    GENAI_PROJECT: str | None = None
+    GENAI_LOCATION: str = "europe-southwest1"
+    ### the model, set per tier by the root; one answer's ceiling. No sampling parameter: Gemini answers best with its own.
+    GENAI_MODEL: str = "gemini-3.8-flash"
+    GENAI_MAX_TOKENS: Annotated[int, Field(ge=16)] = 8192
+    ### one call, milliseconds; unset, the model's and the embedder's own default below.
+    GENAI_TIMEOUT_MS: PositiveInt | None = None
+    GENAI_LLM_TIMEOUT_MS: ClassVar[int] = 120_000
+    GENAI_EMBED_TIMEOUT_MS: ClassVar[int] = 60_000
+    ### the embedder, the width asked (768: the house standard, halfvec), texts per request.
+    GENAI_EMBED_MODEL: str = "gemini-embedding-001"
+    GENAI_EMBED_DIMENSIONS: PositiveInt = 768
+    GENAI_EMBED_BATCH: PositiveInt = 100
+
     ##### ADAPTERS #####
 
     ### THEINE
@@ -211,6 +241,10 @@ class ProviderSettings(BaseSettings):
     DOC_OCR: bool = False
     DOC_TESSDATA: Path | None = None
     DOC_OCR_LANGUAGE: str = "eng"
+
+    ### OXIGRAPH
+    ### rows a `select` takes from the store per thread hop: the stream's grain.
+    OXIGRAPH_PAGE: PositiveInt = 1000
 
     @field_validator("RERANK_URL", "GLINER_URL", mode="before")
     @classmethod

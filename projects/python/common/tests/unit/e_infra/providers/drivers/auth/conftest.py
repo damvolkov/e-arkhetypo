@@ -1,7 +1,7 @@
 """tests/unit/e_infra/providers/drivers/auth: the auth driver over a psqlpy pool that holds no database.
 
 `psqlpy` is the scripted server (rows answered by a fragment of the statement, every statement recorded) the psqlpy
-driver is patched to build its pool from; `store` is an `PostgresAuthDriver` open on a `PsqlpyDriver` over it."""
+driver is patched to build its pool from; `scripted` is a `PsqlpyDriver` over it, `store` a `PostgresAuthDriver` open on that."""
 
 from typing import TYPE_CHECKING
 
@@ -26,15 +26,15 @@ def psqlpy(monkeypatch: pytest.MonkeyPatch) -> FakePsqlpyServer:
 
 
 @pytest.fixture
-async def database(psqlpy: FakePsqlpyServer) -> AsyncIterator[PsqlpyDriver]:
+async def scripted(psqlpy: FakePsqlpyServer) -> AsyncIterator[PsqlpyDriver]:
     _ = psqlpy
     async with PsqlpyDriver(**psqlpy_args(pool=2)) as opened:
         yield opened
 
 
 @pytest.fixture
-async def store(database: PsqlpyDriver) -> AsyncIterator[PostgresAuthDriver]:
-    async with PostgresAuthDriver(database) as opened:
+async def store(scripted: PsqlpyDriver) -> AsyncIterator[PostgresAuthDriver]:
+    async with PostgresAuthDriver(scripted) as opened:
         yield opened
 
 

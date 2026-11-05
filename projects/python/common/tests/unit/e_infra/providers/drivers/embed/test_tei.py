@@ -70,3 +70,19 @@ async def test_embed_lifecycle_and_an_unhealthy_server_are_logged(stub: Stub, ht
             await embed.health()
     assert logs.at("info", "tei") == ["tei embed opened", "tei embed closed"]
     assert logs.at("warning", "tei") == ["tei embed unhealthy"]
+
+
+@pytest.mark.parametrize("raised", [OSError, ValueError], ids=["no-hub", "force-download-failed"])
+async def test_embed_a_tokenizer_the_hub_does_not_hand_is_a_model_error(
+    stub: Stub, http: HTTPPort, monkeypatch: pytest.MonkeyPatch, raised: type[Exception]
+) -> None:
+    """What `from_pretrained` raises offline: the Hub's OSError, or the ValueError it wraps it in."""
+
+    def offline(_model: str) -> Tokenizer:
+        msg = "We couldn't connect to 'https://huggingface.co'"
+        raise raised(msg)
+
+    monkeypatch.setattr(tei.Tokenizer, "from_pretrained", offline)
+    with pytest.raises(ModelError, match="tokenizer"):
+        async with TEIEmbedDriver(http, **embed_args(url=stub.url)):
+            pass

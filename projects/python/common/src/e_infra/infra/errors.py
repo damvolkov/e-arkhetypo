@@ -53,6 +53,18 @@ class QueueError(DriverError):
     """A durable queue that cannot be reached: the work falls back to memory."""
 
 
+class BlobError(DriverError):
+    """An object store that cannot be reached or refused the operation."""
+
+
+class BlobNotFoundError(BlobError, LookupError):
+    """No object at the key."""
+
+
+class BlobPreconditionError(BlobError):
+    """A conditional write whose generation no longer holds: another writer came first."""
+
+
 class HTTPError(DriverError):
     """An HTTP exchange that failed: unreachable, a non-2xx answer (its `status`), or a body that is not JSON."""
 
@@ -75,6 +87,26 @@ class ModelError(DriverError):
 
 class TruncatedError(ModelError):
     """The model's answer hit its output ceiling before it was whole: asking for less in one call fixes it."""
+
+
+class RefusalError(ModelError):
+    """A model that declined to answer: its safety filter, a blocked prompt, a recitation."""
+
+
+class ReplayMissError(ModelError, LookupError):
+    """A call replayed from the cache that the cache does not hold: in REPLAY no model is asked."""
+
+
+class InvalidOutputError(ModelError):
+    """A model that kept answering outside the contract, past its retries."""
+
+
+class TriplesError(AdapterError, ValueError):
+    """RDF a triple store refused: data that does not parse, SPARQL that does not compile or run."""
+
+
+class ShapesError(AdapterError, ValueError):
+    """Data or shapes a SHACL engine could not read."""
 
 
 class ParseError(AdapterError):
@@ -104,6 +136,22 @@ class ScheduleError(DispatchError, ValueError):
 
 class UnknownWorkError(DispatchError, LookupError):
     """A schedule naming a kind no work is registered for."""
+
+
+class ReleaseError(EngineError):
+    """A release the engine could not publish, find or trust."""
+
+
+class ReleaseConflictError(ReleaseError):
+    """The release moved since the proposal was made, or another writer published first."""
+
+
+class ReleaseNotFoundError(ReleaseError, LookupError):
+    """No release of that version on the current chain."""
+
+
+class ReleaseCorruptError(ReleaseError):
+    """A release file whose bytes no longer match the sha256 its manifest recorded."""
 
 
 class AuthError(EngineError):

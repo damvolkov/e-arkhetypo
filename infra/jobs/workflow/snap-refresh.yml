@@ -54,11 +54,11 @@ jobs:
         run: |
           git diff --quiet -- "projects/python/$SYSTEM/tests/acceptance" && { echo "no pixel movement"; exit 0; }
           BRANCH="snap/$SYSTEM-$(date -u +%Y-%m-%d)"
-          uv run --no-project python .github/tools/changelog.py --area projects --line "\`$SYSTEM\` visual goldens refreshed on the runner (\`$BRANCH\`)"
+          uv run --no-project python .github/tools/changelog.py record --branch "$BRANCH" --area projects --line "\`$SYSTEM\` visual goldens refreshed on the runner (\`$BRANCH\`)"
           git config user.name "$SLUG[bot]"
           git config user.email "$SLUG[bot]@users.noreply.github.com"
           git checkout -b "$BRANCH"
-          git add -A "projects/python/$SYSTEM/tests/acceptance" CHANGELOG.md
+          git add -A "projects/python/$SYSTEM/tests/acceptance" changelog.d
           git commit -m "chore(snap-refresh): runner-canonical goldens for $SYSTEM"
           git push "https://x-access-token:$TOKEN@github.com/${GITHUB_REPOSITORY}.git" "$BRANCH"
           {

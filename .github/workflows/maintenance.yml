@@ -21,7 +21,7 @@ concurrency:
 
 env:
   MAX_ATTEMPTS: 3
-  ALLOWED: ^((stack/[^/]+/[^/]+/.*|stack/README\.md|projects/python/[^/]+/(src|tests|docs)/.*|projects/python/[^/]+/README\.md|CHANGELOG\.md|README\.md))$
+  ALLOWED: ^((stack/[^/]+/[^/]+/.*|stack/README\.md|projects/python/[^/]+/(src|tests|docs)/.*|projects/python/[^/]+/README\.md|CHANGELOG\.md|changelog\.d/.*|README\.md))$
 
 jobs:
   fix:

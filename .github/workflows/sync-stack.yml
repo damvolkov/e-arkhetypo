@@ -39,11 +39,11 @@ jobs:
         run: |
           git diff --quiet stack/stack.versions.yml && { echo "no movement"; exit 0; }
           BRANCH="stack/resolve-$(date -u +%Y-%m-%d)"
-          uv run --no-project python .github/tools/changelog.py --area stack --line "floating tags resolved to current digests (\`$BRANCH\`)"
+          uv run --no-project python .github/tools/changelog.py record --branch "$BRANCH" --area stack --line "floating tags resolved to current digests (\`$BRANCH\`)"
           git config user.name "$SLUG[bot]"
           git config user.email "$SLUG[bot]@users.noreply.github.com"
           git checkout -b "$BRANCH"
-          git add stack/stack.versions.yml CHANGELOG.md
+          git add stack/stack.versions.yml changelog.d
           git commit -m "chore(sync-stack): resolve the floating tags"
           git push "https://x-access-token:$TOKEN@github.com/${GITHUB_REPOSITORY}.git" "$BRANCH"
           {

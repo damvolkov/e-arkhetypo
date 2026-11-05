@@ -13,6 +13,17 @@ touches — `stack`, `systems`, `infra`. Lines under `[Unreleased]` are written 
   Now it fails its build.
 
 ### Added
+- infra: changelog fragments, `TODO_fragments` steps 3-5 (the changelog conflicted on nearly every merge: each branch
+  inserted on the same line under `[Unreleased]`). `changelog.py` now has `record` (a bullet into
+  `changelog.d/<branch, / as ->.md`, not into `CHANGELOG.md`) and `fold` (every fragment into `[Unreleased]`, oldest
+  first by the commit that added it, areas kept where the file uses them, fragments deleted, idempotent, no fragments
+  is a no-op); the four bot workflows record into their branch's fragment. New `changelog-fold` workflow (feature
+  `selfmaintain` and `repo-maintain`): on push to main touching `changelog.d/**`, one serial group, the App token,
+  `chore/changelog-fold` rebuilt from main, one PR, `gh pr merge --auto --squash`; zizmor clean. New prek hook
+  `changelog` in common's `prek.toml`: fails a commit that stages `CHANGELOG.md` without `CHANGELOG_FOLD=1`. The
+  allowlist admits `changelog.d/`. `make test` (in `check`): 21 tests for the fold and the hook, red first.
+  `docs/decisions.md` records why towncrier, scriv and changie lost. Not run end to end: the workflow needs the App.
+  This entry is the old form, the repo has no fragments yet.
 - stack: `mem/egnosis` — the form e-gnosis lacked (its compose was hand-made in `~/.config/compose/egnosis`, 2026-10-21):
   the public image `ghcr.io/damvolkov/e-gnosis:latest` (0.10.0, 2026-11-03), host network :45200, `${HOST_HOME}` parity
   mounts and `EGNOSIS_ENV_FILE` as in `tools/organon`, `egnosis.service` ordering paradedb, embed, reranker, gliner,

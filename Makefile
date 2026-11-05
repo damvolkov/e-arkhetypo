@@ -14,7 +14,7 @@ SHELL := bash
 MAKEFLAGS += --no-print-directory
 
 ##### TARGETS #####
-.PHONY: help install update stack-versions health check clean taxis
+.PHONY: help install update stack-versions health test check clean taxis
 
 help:
 	@printf "$(BOLD)$(CYAN)e-arkhetypo$(RESET) $(GRAY)· project blueprints, stacks and CI sources$(RESET)\n\n"
@@ -35,7 +35,10 @@ health: ## the three-area dependency health report: stack · projects · infra
 	@uv run --no-project python .github/tools/repo_health.py --root . --output /tmp/repo-health.md --token "$$(gh auth token 2>/dev/null || true)"; \
 		STATUS=$$?; cat /tmp/repo-health.md; [ $$STATUS -le 3 ] || exit $$STATUS
 
-check: ## run the fast gate of every project
+test: ## unit tests of the CI tools and the shared hooks (infra/files/tools, projects/python/common/prek.toml)
+	@PYTHONPATH=infra/files/tools uv run --no-project --with pytest --with pytest-asyncio pytest -o asyncio_mode=auto -o asyncio_default_fixture_loop_scope=function -q tests
+
+check: test ## run the tool tests, then the fast gate of every project
 	@for p in $(PROJECTS); do printf "$(BOLD)$(p)$(RESET)\n"; $(MAKE) -C $$p check || exit 1; done
 
 clean: ## clean caches and artifacts everywhere

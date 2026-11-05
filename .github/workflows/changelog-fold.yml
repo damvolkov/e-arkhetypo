@@ -1,0 +1,56 @@
+name: changelog-fold
+
+# After every merge to main that brought a fragment, the fragments of changelog.d/ are folded into
+# CHANGELOG.md (oldest first, then deleted) on one fixed branch rebuilt from main, in one PR that is
+# auto-merged once its checks pass. Branches never touch CHANGELOG.md, so it never conflicts. The PR
+# is opened with the App token: a GITHUB_TOKEN PR does not trigger the required CI.
+# Generated from infra/, do not edit.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "changelog.d/**"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: changelog-fold
+  cancel-in-progress: false
+
+jobs:
+  fold:
+    name: fold the fragments into CHANGELOG.md
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510  # v3.3.0
+        id: app
+        with:
+          client-id: ${{ vars.APP_CLIENT_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2  # v10.3.3
+      - name: Fold the fragments on a branch rebuilt from main
+        env:
+          CHANGELOG_FOLD: "1"
+          TOKEN: ${{ steps.app.outputs.token }}
+          SLUG: ${{ steps.app.outputs.app-slug }}
+          GH_TOKEN: ${{ steps.app.outputs.token }}
+        run: |
+          BRANCH="chore/changelog-fold"
+          git checkout -B "$BRANCH"
+          uv run --no-project python .github/tools/changelog.py fold
+          git diff --quiet HEAD && { echo "nothing to fold"; exit 0; }
+          git config user.name "$SLUG[bot]"
+          git config user.email "$SLUG[bot]@users.noreply.github.com"
+          git add -A CHANGELOG.md changelog.d
+          git commit -m "chore(changelog): fold the fragments"
+          git push --force "https://x-access-token:$TOKEN@github.com/${GITHUB_REPOSITORY}.git" "$BRANCH"
+          [ "$(gh pr list --head "$BRANCH" --state open --json number --jq length)" -gt 0 ] || gh pr create --head "$BRANCH" --title "chore(changelog): fold the fragments" --body "Folds every \`changelog.d/\` fragment into \`CHANGELOG.md\` under \`[Unreleased]\`, oldest first. Opened by the changelog-fold workflow; merges itself once the checks pass."
+          gh pr merge "$BRANCH" --auto --squash

@@ -6,6 +6,21 @@ touches — `stack`, `systems`, `infra`. Lines under `[Unreleased]` are written 
 
 ## [Unreleased]
 
+### Fixed
+- systems: the settings law held past common — `api/admin.mint` takes its database and auth values from `__main__`
+  (it read `st` below the root); every template (api, graph, cli, tui) gates its own tree with
+  `tests/unit/test_settings.py` (root-only reads, types-only below), mutation-checked on api. The root pattern names
+  `app.py` and `lifespan.py` (the TUI's app, the cli's runtime) in common's gate too. Graph locks regenerated.
+- systems: the template materializers keep the shared homes (e-nous `proj-py-layout/references/settings.md`) —
+  `infra/config/` and `infra/settings.py` take common's clusters and default composer, but a file the project tracks
+  there is never written, pruned or flagged as drift; its `infra/settings.py` wins over common's default (the mechanism
+  of e-taxis #41: `SHARED`, `_shared`, `_project`). The four `.gitignore` keep the same ignored set in a shape a project
+  re-includes from (`!src/infra/settings.py`, `!src/infra/config/<own>.py`, verified in a scratch repo).
+  `tests/unit/test_materialize.py` in api, cli, graph and tui: a tracked settings and cluster survive a run and the
+  drift gate. Graph locks regenerated.
+- systems: common's full-stack snapshot counts `tools/organon` (#110): 44 services, the golden retaken — only organon
+  added, nothing else moved.
+
 ### Added
 - `stack/tools/organon`: e-organon (the house's deterministic tools hub, REST · SSE · MCP, and the #tekton bridge) —
   public image `ghcr.io/damvolkov/e-organon` on the host network at :45190, `/data` one volume with a subtree per

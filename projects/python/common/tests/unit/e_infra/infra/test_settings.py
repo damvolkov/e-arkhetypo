@@ -27,8 +27,8 @@ SNAPSHOT: Final[Path] = RESOURCES / "settings" / "env.json"
 ### the package the spine sits in: `e_infra` here, the project's package or `src` once materialized.
 SOURCE: Final[Path] = Path(composer.__file__).resolve().parents[1]
 CONFIG: Final[Path] = SOURCE / "infra" / "config"
-### the composition root: entrypoints, lifespans, request deps, the cli's runtime.
-ROOT: Final[re.Pattern[str]] = re.compile(r"(^|/)(main|__main__|deps|cli)\.py$|(^|/)lifespan/|(^|/)cli/runtime/")
+### the composition root: entrypoints and the app they build, lifespans, request deps, the cli's runtime.
+ROOT: Final[re.Pattern[str]] = re.compile(r"(^|/)(main|__main__|app|deps|cli|lifespan)\.py$|(^|/)(lifespan|runtime)/")
 
 
 class DB(BaseModel):
@@ -205,13 +205,15 @@ def below() -> list[Path]:
     return [
         path
         for path in SOURCE.rglob("*.py")
-        if CONFIG not in path.parents and path.name != "settings.py" and not ROOT.search(str(path.relative_to(SOURCE)))
+        if CONFIG not in path.parents
+        and path.name != "settings.py"
+        and not ROOT.search(path.relative_to(SOURCE).as_posix())
     ]
 
 
 def test_settings_is_read_by_the_composition_root_alone() -> None:
     readers = {
-        str(path.relative_to(SOURCE))
+        path.relative_to(SOURCE).as_posix()
         for path in below()
         for module, _ in imports(path)
         if module.endswith("infra.settings")
@@ -221,7 +223,7 @@ def test_settings_is_read_by_the_composition_root_alone() -> None:
 
 def test_below_the_root_config_gives_only_types() -> None:
     clusters = {
-        f"{path.relative_to(SOURCE)!s}:{name}"
+        f"{path.relative_to(SOURCE).as_posix()}:{name}"
         for path in below()
         for module, name in imports(path)
         if ".infra.config" in f".{module}" and name.endswith("Settings")

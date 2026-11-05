@@ -6,6 +6,12 @@ touches — `stack`, `systems`, `infra`. Lines under `[Unreleased]` are written 
 
 ## [Unreleased]
 
+### Fixed
+- `projects/python/{api,graph}/Dockerfile`: the deploy stage imports the package at build time
+  (`RUN python -c "import <pkg>"`). The venv is built for the builder's Python; when a bot moves the deploy stage alone
+  to another minor (e-organon v0.8.0: Renovate to 3.15 over a 3.14 venv) the image built, published and could not import.
+  Now it fails its build.
+
 ### Added
 - stack: `mem/egnosis` — the form e-gnosis lacked (its compose was hand-made in `~/.config/compose/egnosis`, 2026-10-21):
   the public image `ghcr.io/damvolkov/e-gnosis:latest` (0.10.0, 2026-11-03), host network :45200, `${HOST_HOME}` parity

@@ -23,6 +23,8 @@ FROM python:3.14-slim-trixie AS deploy
 WORKDIR /app
 ENV PATH="/app/.venv/bin:$PATH" PYTHONUNBUFFERED=1
 COPY --from=builder /app/.venv .venv
+### the venv was built for the builder's Python: a deploy stage on another minor would ship an image that cannot import.
+RUN python -c "import e_graph"
 RUN mkdir -p /app/data && chown -R nobody /app/data
 USER nobody
 EXPOSE 8000

@@ -1,0 +1,1 @@
+- `test_full_stack` golden and service count follow the 45-service stack (`mem/egnosis` added); `uv run pytest tests/unit/e_infra/ops/test_compose.py` 16 passed.

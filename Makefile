@@ -48,5 +48,6 @@ clean: ## clean caches and artifacts everywhere
 
 taxis: ## put the taxis CLI on the PATH, editable from the e-taxis checkout (TAXIS=../e-taxis)
 	@uv tool install --force --editable $(TAXIS)
+	@taxis completion
 	@taxis --version
 

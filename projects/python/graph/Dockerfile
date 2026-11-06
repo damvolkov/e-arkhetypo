@@ -16,7 +16,9 @@ RUN uv sync --frozen --no-dev --no-install-project
 COPY README.md LICENSE ./
 COPY src /app/src
 COPY --from=ui /app/src/e_graph/ui/dist /app/src/e_graph/ui/dist
-RUN uv sync --frozen --no-dev --no-editable
+### the build context has no .git: the release hands the tag's version in, or the package would say 0.0.0.
+ARG VERSION=0.0.0
+RUN UV_DYNAMIC_VERSIONING_BYPASS=${VERSION} uv sync --frozen --no-dev --no-editable
 
 ##### DEPLOY #####
 FROM python:3.14-slim-trixie AS deploy

@@ -201,16 +201,16 @@ class OTelDriver:
 
     def _enter_processor(self) -> SpanProcessor | None:
         match (self._exporter, self._endpoint):
-            case (None, ""):
+            case (SpanExporter() as exporter, _):
+                return SimpleSpanProcessor(exporter)
+            case (_, ""):
                 return None
-            case (None, _):
+            case _:
                 return BatchSpanProcessor(
                     self._enter_exporter(),
                     schedule_delay_millis=self._flush.total_seconds() * MS_PER_SECOND,
                     export_timeout_millis=self._timeout.total_seconds() * MS_PER_SECOND,
                 )
-            case (SpanExporter() as exporter, _):
-                return SimpleSpanProcessor(exporter)
 
     @staticmethod
     def _span_shaped(

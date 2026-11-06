@@ -1,8 +1,9 @@
 """tests/unit/e_infra/providers/drivers/cache: a `DatabasePort` that keeps the cache table in a dict.
 
-`FakeDatabase` answers the three statements the cache runs — create, get, put — by identity, honouring namespace, key
+`FakeDatabase` answers the statements the cache runs — lock, create, get, put — by identity, honouring namespace, key
 and expiry as the SQL does; `down` makes every call fail as a database that went away."""
 
+from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any, ClassVar, Self
 
@@ -13,7 +14,7 @@ from e_infra.ports.provider import Isolation, Locality, ProviderSpec, Workload
 from e_infra.providers.drivers.cache.postgres import CACHE_GET, CACHE_PUT, CACHE_SCHEMA
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import AsyncGenerator, Sequence
     from contextlib import AbstractAsyncContextManager
 
     from e_infra.ports.database import QueryPort, Row
@@ -27,6 +28,7 @@ class FakeDatabase:
     def __init__(self) -> None:
         self.table: dict[tuple[str, str], tuple[bytes, datetime | None]] = {}
         self.created = 0
+        self.statements: list[str] = []
         self.down = False
 
     def _check(self) -> None:
@@ -47,6 +49,7 @@ class FakeDatabase:
     async def execute(self, query: str, params: Sequence[object] = ()) -> None:
         self._check()
         self.created += query == CACHE_SCHEMA
+        self.statements.append(query)
 
     async def fetch(self, query: str, params: Sequence[object] = ()) -> list[Row]:
         self._check()
@@ -69,8 +72,11 @@ class FakeDatabase:
     async def script(self, statements: str) -> None:
         raise NotImplementedError
 
-    def transaction(self) -> AbstractAsyncContextManager[QueryPort]:
-        raise NotImplementedError
+    @asynccontextmanager
+    async def transaction(self) -> AsyncGenerator[QueryPort]:
+        """The same dict: one fake connection has nothing to isolate."""
+        self._check()
+        yield self
 
     def connection(self) -> AbstractAsyncContextManager[QueryPort]:
         raise NotImplementedError

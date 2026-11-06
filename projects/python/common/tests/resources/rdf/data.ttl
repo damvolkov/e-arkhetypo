@@ -1,0 +1,5 @@
+@prefix core: <https://example.org/core#> .
+@prefix app: <https://example.org/app#> .
+
+app:ana a app:Driver ; app:age 31 ; core:holds app:p1 .
+app:p1 a core:Policy .

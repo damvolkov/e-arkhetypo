@@ -1,0 +1,4 @@
+@prefix core: <https://example.org/core#> .
+@prefix app: <https://example.org/app#> .
+
+app:bea a app:Driver ; app:age "old" .

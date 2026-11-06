@@ -166,7 +166,7 @@ class FileFinder:
                         if not any(part.startswith("_") for part in path.relative_to(root).parts)
                     }
                 )
-            case False:
+            case _:
                 return [info.name for info in pkgutil.iter_modules(package.__path__) if not info.ispkg]
 
     def _modules(self) -> dict[str, ModuleType]:

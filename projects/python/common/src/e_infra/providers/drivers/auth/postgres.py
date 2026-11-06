@@ -1,7 +1,7 @@
 """providers/drivers/auth/postgres: accounts and grants in Postgres — the `AuthPort` over any `DatabasePort`.
 
 Two tables: `auth_account` (an account: its keyed id, name, role, since when) and `auth_grant` (a grant: its digest,
-account, kind, issue, expiry and revocation). Opening the driver creates them when missing. `enroll` makes an account or
+account, kind, issue, expiry and revocation). Opening the driver creates them when missing, under a transaction-level advisory lock. `enroll` makes an account or
 renames it in place; `revoke` stamps every live grant of an account, never deletes one. The database is the lifespan's
 to open and close, not this driver's."""
 
@@ -25,6 +25,8 @@ SCHEMA: Final[tuple[str, ...]] = (
     revoked timestamptz)""",
     "CREATE INDEX IF NOT EXISTS auth_grant_owner ON auth_grant (owner) WHERE revoked IS NULL",
 )
+### the tables are created by one opener at a time: two concurrent creators collide on `pg_type`.
+SCHEMA_LOCK: Final[str] = "SELECT pg_advisory_xact_lock(hashtext('auth'))"
 ENROLL: Final[str] = """
 INSERT INTO auth_account (id, name, role) VALUES ($1, $2, $3)
 ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, role = EXCLUDED.role
@@ -61,7 +63,9 @@ class PostgresAuthDriver:
     ##### PUBLIC #####
 
     async def __aenter__(self) -> Self:
-        _ = [await self._db.execute(statement) for statement in SCHEMA]
+        async with self._db.transaction() as tx:
+            await tx.execute(SCHEMA_LOCK)
+            _ = [await tx.execute(statement) for statement in SCHEMA]
         logger.info("auth postgres opened")
         return self
 

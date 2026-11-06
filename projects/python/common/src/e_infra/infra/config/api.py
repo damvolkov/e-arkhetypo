@@ -57,7 +57,7 @@ class ApiSettings(BaseSettings):
             case True:
                 ### one canonical spelling: `/docs`, never `/docs/` — subpaths are appended to it.
                 return value.rstrip("/") or "/"
-            case False:
+            case _:
                 msg = f"docs path must be absolute: {value!r}"
                 raise ValueError(msg)
 
@@ -77,5 +77,5 @@ class ApiSettings(BaseSettings):
             case True:
                 msg = f"an alias cannot be the docs root itself: {self.DOCS_PATH!r}"
                 raise ValueError(msg)
-            case False:
+            case _:
                 return self

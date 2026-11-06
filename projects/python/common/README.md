@@ -24,6 +24,7 @@ Makefile        # uv · ruff · ty · tach · pytest — no Docker: it is a libr
 make install      # sync deps + git hooks
 make check        # lint + type + arch + validate + test
 make cov          # coverage gate (≥90%)
+make offline      # the whole suite in a container with no network: what CI sees with no service up
 make integration  # the real-service tests (Postgres at POSTGRES_TEST_DSN) the default run leaves out
 make docs         # serve docs at :8000
 ```

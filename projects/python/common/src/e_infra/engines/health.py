@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING, Final
 
 import msgspec
 
+from e_infra.infra.errors import EngineError
 from e_infra.infra.logger import logger
 
 if TYPE_CHECKING:
@@ -38,13 +39,13 @@ class ProviderHealth(msgspec.Struct, frozen=True, kw_only=True):
 ##### ENGINE #####
 class HealthEngine:
     """The providers of a process, surveyed together within `limit` each; `required` names the ones a ready service
-    cannot do without."""
+    cannot do without. A domain's lifespan adds its own with `watch` before the graph is sealed."""
 
     __slots__ = ("_limit", "_providers", "_required")
 
     def __init__(self, providers: Mapping[str, Provider], required: frozenset[str], limit: timedelta) -> None:
-        self._providers = providers
-        self._required = required
+        self._providers: dict[str, Provider] = dict(providers)
+        self._required: set[str] = set(required)
         self._limit = limit
 
     ##### PRIVATE #####
@@ -73,6 +74,17 @@ class HealthEngine:
     ############################################################
 
     ##### PUBLIC #####
+
+    def watch(self, name: str, provider: Provider, *, required: bool = False) -> None:
+        """A provider a domain opened after the engine was built, surveyed from now on; a name already watched is a
+        wiring bug."""
+        match name in self._providers:
+            case True:
+                msg = f"provider {name!r} is already watched"
+                raise EngineError(msg)
+            case _:
+                self._providers[name] = provider
+                _ = required and self._required.add(name)
 
     async def survey(self) -> tuple[ProviderHealth, ...]:
         """Every provider checked at once, in mapping order: the whole takes the slowest, never the sum."""

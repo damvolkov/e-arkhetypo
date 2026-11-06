@@ -63,7 +63,8 @@ class TelemetryEngine:
         match opened:
             case None:
                 return
-            case (manager, _):
+            case _:
+                manager, _ = opened
                 exit_args = (type(error), error, error.__traceback__) if error else (None, None, None)
                 self.guard("span close", lambda: manager.__exit__(*exit_args))
 

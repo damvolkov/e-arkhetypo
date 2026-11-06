@@ -59,6 +59,18 @@ EXCLUDES: frozenset[str] = frozenset(
         "ports/auth.py",
         "providers/drivers/auth/postgres.py",
         "engines/auth.py",
+        ##### blob, rdf and the model agent: opt-in, each brings its library (gcloud-aio-storage, pyoxigraph, pyshacl and rdflib, pyrudof, google-genai) #####
+        "ports/blob.py",
+        "providers/drivers/blob/gcs.py",
+        "engines/release.py",
+        "ports/triples.py",
+        "providers/adapters/triples/oxigraph.py",
+        "ports/shapes.py",
+        "providers/adapters/shapes/pyshacl.py",
+        "providers/adapters/shapes/rudof.py",
+        "providers/drivers/embed/google.py",
+        "providers/drivers/llm/google.py",
+        "engines/llm.py",
     }
 )
 

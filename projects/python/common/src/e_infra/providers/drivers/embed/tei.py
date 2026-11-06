@@ -61,7 +61,12 @@ class TEIEmbedDriver:
 
     async def __aenter__(self) -> Self:
         ### the Hub lookup and the JSON parse block: a thread, not the loop.
-        self._tokenizer = await anyio.to_thread.run_sync(Tokenizer.from_pretrained, self._model)
+        try:
+            self._tokenizer = await anyio.to_thread.run_sync(Tokenizer.from_pretrained, self._model)
+        except (OSError, ValueError) as error:
+            logger.warning("tei tokenizer unavailable", model=self._model, error=str(error))
+            msg = f"{self._model}: the tokenizer could not be read from the Hub or its cache ({error})"
+            raise ModelError(msg) from error
         logger.info("tei embed opened", model=self._model, url=self._url)
         return self
 

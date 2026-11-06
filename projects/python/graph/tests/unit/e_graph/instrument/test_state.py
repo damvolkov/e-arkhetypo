@@ -4,11 +4,11 @@ import uuid
 
 import pytest
 
+from e_graph.infra.state import State
 from e_graph.instrument.state import Channels, InfraState, InstrumentState, ProvidersState, RunState
 from e_graph.logic.agent import AgnosticAgent
 from e_graph.logic.state import LogicState
-from infra.state import State
-from processors.doc import DocProcessor
+from e_graph.processors.doc import DocProcessor
 
 
 def test_run_state_shape_fixed_at_birth(run_state: RunState) -> None:

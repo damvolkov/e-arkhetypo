@@ -8,9 +8,9 @@ from typing import TYPE_CHECKING, Any, Self
 import granian
 
 from e_api.api import admin
+from e_api.infra.auth.models import Issued, Role
+from e_api.infra.settings import settings as st
 from e_api.main import create_app
-from infra.auth.models import Issued, Role
-from infra.settings import settings as st
 
 if TYPE_CHECKING:
     import pytest

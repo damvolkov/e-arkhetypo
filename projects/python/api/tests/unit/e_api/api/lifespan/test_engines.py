@@ -9,13 +9,13 @@ from litestar.testing import TestClient
 from e_api.api.lifespan import engines
 from e_api.api.lifespan.engines import EnginesState
 from e_api.api.lifespan.providers import ProvidersState
+from e_api.engines.auth import AuthEngine
+from e_api.infra.auth.models import Role
+from e_api.infra.settings import Settings
+from e_api.infra.settings import settings as st
 from e_api.main import create_app
-from engines.auth import AuthEngine
-from infra.auth.models import Role
-from infra.settings import Settings
-from infra.settings import settings as st
-from ops.crypto import Crypto
-from providers.drivers.store.sqlite import SqliteDriver
+from e_api.ops.crypto import Crypto
+from e_api.providers.drivers.store.sqlite import SqliteDriver
 
 if TYPE_CHECKING:
     import pytest

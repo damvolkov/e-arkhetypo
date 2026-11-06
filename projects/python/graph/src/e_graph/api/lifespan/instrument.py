@@ -11,10 +11,10 @@ from contextlib import asynccontextmanager
 from litestar import Litestar
 
 from e_graph.api.state import AppState
+from e_graph.infra.logger import logger
 from e_graph.instrument.contexts import InstrumentContexts
 from e_graph.instrument.state import InstrumentState
 from e_graph.instrument.telemetry import InstrumentTelemetry
-from infra.logger import logger
 
 
 @asynccontextmanager

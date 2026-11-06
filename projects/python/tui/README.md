@@ -107,5 +107,5 @@ make cov        # ... with the 100 % gate (real-service tests, marked `integrati
 ##### SNAPSHOTS #####
 
 `tests/acceptance/e_tui/test_gallery.py` renders every registered architecture at every viewport in the
-matrix (`ops.snap.GallerySnap`) and diffs it against accepted SVGs — visual drift fails CI until a human
+matrix (`e_tui.ops.snap.GallerySnap`) and diffs it against accepted SVGs — visual drift fails CI until a human
 runs `uv run pytest --snapshot-update` and reviews the change.

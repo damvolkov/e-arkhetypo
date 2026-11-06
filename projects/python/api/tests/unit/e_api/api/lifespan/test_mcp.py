@@ -6,8 +6,8 @@ from typing import TYPE_CHECKING
 from litestar.testing import AsyncTestClient
 
 from e_api.api.lifespan import mcp as lifespan
+from e_api.infra.settings import Settings
 from e_api.main import create_app
-from infra.settings import Settings
 from support.mcp import BASE
 
 if TYPE_CHECKING:

@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING, Any, Final
 
 import pytest
 
+from e_graph.infra.state import State
 from e_graph.instrument.contexts import InstrumentContexts
 from e_graph.instrument.models import RunStatus
 from e_graph.instrument.state import InfraState, InstrumentState, ProcessorsState, RunState
@@ -21,8 +22,7 @@ from e_graph.logic.orchestrator.core import OrchestratorCore
 from e_graph.logic.state import LogicState
 from e_graph.models.section import Section
 from e_graph.pipelines.note.graph import NoteGraph
-from infra.state import State
-from processors.doc import DocProcessor
+from e_graph.processors.doc import DocProcessor
 from support.darts import ScriptedAgent
 from support.docling import MARKDOWN, GoldenPort
 from support.root import darts, doc_args
@@ -32,7 +32,7 @@ if TYPE_CHECKING:
 
     from e_graph.instrument.graph import InstrumentGraph
     from e_graph.logic.models import SectionPlan
-    from providers.adapters.pages.liteparse import LiteparseAdapter
+    from e_graph.providers.adapters.pages.liteparse import LiteparseAdapter
 
 NOTES = Path(__file__).resolve().parents[5] / "tests" / "resources" / "documents" / "notes"
 PAYMENT_DATES: Final = (

@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from providers.drivers.telemetry.otel import OTelDriver
+from e_graph.providers.drivers.telemetry.otel import OTelDriver
 from support.crafter import SpecCrafter
 from support.darts import DartsHarness
 from support.root import otel_args

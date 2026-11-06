@@ -9,15 +9,15 @@ areas:
 - ports
 - processors
 - providers
-inputs_hash: "80101323548b86f29fe481f6e0666d1e9b9eb59cd47b417cfa816dd931141cc2"
+inputs_hash: "6bcd9d5f0049af5e7e01542e484cfe2ebfb14f8cab7b5ac3e7ae4d74f14c149c"
 units:
 - key: engines/auth
   area: engines
   name: auth
   files:
-  - src/engines/auth.py
+  - src/e_api/engines/auth.py
   tests:
-  - tests/unit/engines/test_auth.py
+  - tests/unit/e_api/engines/test_auth.py
   deps:
   - infra/auth/models
   - infra/errors
@@ -44,9 +44,9 @@ units:
   area: engines
   name: health
   files:
-  - src/engines/health.py
+  - src/e_api/engines/health.py
   tests:
-  - tests/unit/engines/test_health.py
+  - tests/unit/e_api/engines/test_health.py
   deps:
   - infra/logger
   - ports/provider
@@ -66,9 +66,9 @@ units:
   area: engines
   name: telemetry
   files:
-  - src/engines/telemetry.py
+  - src/e_api/engines/telemetry.py
   tests:
-  - tests/unit/engines/test_telemetry.py
+  - tests/unit/e_api/engines/test_telemetry.py
   deps:
   - infra/logger
   dependents: []
@@ -86,9 +86,9 @@ units:
   area: infra
   name: auth/guard
   files:
-  - src/infra/auth/guard.py
+  - src/e_api/infra/auth/guard.py
   tests:
-  - tests/unit/infra/auth/test_guard.py
+  - tests/unit/e_api/infra/auth/test_guard.py
   deps:
   - infra/auth/middleware
   - infra/auth/models
@@ -115,9 +115,9 @@ units:
   area: infra
   name: auth/middleware
   files:
-  - src/infra/auth/middleware.py
+  - src/e_api/infra/auth/middleware.py
   tests:
-  - tests/unit/infra/auth/test_middleware.py
+  - tests/unit/e_api/infra/auth/test_middleware.py
   deps:
   - infra/auth/resolver
   - infra/errors
@@ -141,7 +141,7 @@ units:
   area: infra
   name: auth/models
   files:
-  - src/infra/auth/models.py
+  - src/e_api/infra/auth/models.py
   tests: []
   deps: []
   dependents:
@@ -160,9 +160,9 @@ units:
   area: infra
   name: auth/policy
   files:
-  - src/infra/auth/policy.py
+  - src/e_api/infra/auth/policy.py
   tests:
-  - tests/unit/infra/auth/test_policy.py
+  - tests/unit/e_api/infra/auth/test_policy.py
   deps:
   - infra/auth/models
   - infra/errors
@@ -184,7 +184,7 @@ units:
   area: infra
   name: auth/resolver
   files:
-  - src/infra/auth/resolver.py
+  - src/e_api/infra/auth/resolver.py
   tests: []
   deps:
   - infra/auth/models
@@ -199,9 +199,9 @@ units:
   area: infra
   name: background
   files:
-  - src/infra/background.py
+  - src/e_api/infra/background.py
   tests:
-  - tests/unit/infra/test_background.py
+  - tests/unit/e_api/infra/test_background.py
   deps:
   - infra/errors
   - infra/logger
@@ -220,7 +220,7 @@ units:
   area: infra
   name: config/agent
   files:
-  - src/infra/config/agent.py
+  - src/e_api/infra/config/agent.py
   tests: []
   deps:
   - infra/config/base
@@ -235,7 +235,7 @@ units:
   area: infra
   name: config/api
   files:
-  - src/infra/config/api.py
+  - src/e_api/infra/config/api.py
   tests: []
   deps:
   - infra/config/base
@@ -250,9 +250,9 @@ units:
   area: infra
   name: config/base
   files:
-  - src/infra/config/base.py
+  - src/e_api/infra/config/base.py
   tests:
-  - tests/unit/infra/config/test_base.py
+  - tests/unit/e_api/infra/config/test_base.py
   deps: []
   dependents:
   - infra/config/agent
@@ -274,7 +274,7 @@ units:
   area: infra
   name: config/cli
   files:
-  - src/infra/config/cli.py
+  - src/e_api/infra/config/cli.py
   tests: []
   deps:
   - infra/config/base
@@ -289,7 +289,7 @@ units:
   area: infra
   name: config/darts
   files:
-  - src/infra/config/darts.py
+  - src/e_api/infra/config/darts.py
   tests: []
   deps:
   - infra/config/base
@@ -304,7 +304,7 @@ units:
   area: infra
   name: config/engines
   files:
-  - src/infra/config/engines.py
+  - src/e_api/infra/config/engines.py
   tests: []
   deps:
   - infra/config/base
@@ -319,7 +319,7 @@ units:
   area: infra
   name: config/infra
   files:
-  - src/infra/config/infra.py
+  - src/e_api/infra/config/infra.py
   tests: []
   deps:
   - infra/config/base
@@ -338,7 +338,7 @@ units:
   area: infra
   name: config/mcp
   files:
-  - src/infra/config/mcp.py
+  - src/e_api/infra/config/mcp.py
   tests: []
   deps:
   - infra/config/base
@@ -353,7 +353,7 @@ units:
   area: infra
   name: config/processors
   files:
-  - src/infra/config/processors.py
+  - src/e_api/infra/config/processors.py
   tests: []
   deps:
   - infra/config/base
@@ -374,7 +374,7 @@ units:
   area: infra
   name: config/providers
   files:
-  - src/infra/config/providers.py
+  - src/e_api/infra/config/providers.py
   tests: []
   deps:
   - infra/config/base
@@ -392,7 +392,7 @@ units:
   area: infra
   name: config/theme
   files:
-  - src/infra/config/theme.py
+  - src/e_api/infra/config/theme.py
   tests: []
   deps:
   - infra/config/base
@@ -407,7 +407,7 @@ units:
   area: infra
   name: config/ui
   files:
-  - src/infra/config/ui.py
+  - src/e_api/infra/config/ui.py
   tests: []
   deps:
   - infra/config/base
@@ -422,9 +422,9 @@ units:
   area: infra
   name: errors
   files:
-  - src/infra/errors.py
+  - src/e_api/infra/errors.py
   tests:
-  - tests/unit/infra/test_errors.py
+  - tests/unit/e_api/infra/test_errors.py
   deps: []
   dependents:
   - engines/auth
@@ -455,9 +455,9 @@ units:
   area: infra
   name: events
   files:
-  - src/infra/events.py
+  - src/e_api/infra/events.py
   tests:
-  - tests/unit/infra/test_events.py
+  - tests/unit/e_api/infra/test_events.py
   deps:
   - infra/logger
   dependents: []
@@ -475,9 +475,9 @@ units:
   area: infra
   name: logger
   files:
-  - src/infra/logger.py
+  - src/e_api/infra/logger.py
   tests:
-  - tests/unit/infra/test_logger.py
+  - tests/unit/e_api/infra/test_logger.py
   deps:
   - infra/config/infra
   - infra/proxy
@@ -520,7 +520,7 @@ units:
   area: infra
   name: mcp/bridge
   files:
-  - src/infra/mcp/bridge.py
+  - src/e_api/infra/mcp/bridge.py
   tests: []
   deps:
   - infra/logger
@@ -549,7 +549,7 @@ units:
   area: infra
   name: mcp/guard
   files:
-  - src/infra/mcp/guard.py
+  - src/e_api/infra/mcp/guard.py
   tests: []
   deps:
   - infra/logger
@@ -569,7 +569,7 @@ units:
   area: infra
   name: mcp/models
   files:
-  - src/infra/mcp/models.py
+  - src/e_api/infra/mcp/models.py
   tests: []
   deps:
   - infra/auth/guard
@@ -598,7 +598,7 @@ units:
   area: infra
   name: mcp/mount
   files:
-  - src/infra/mcp/mount.py
+  - src/e_api/infra/mcp/mount.py
   tests: []
   deps:
   - infra/logger
@@ -628,9 +628,9 @@ units:
   area: infra
   name: mcp/registry
   files:
-  - src/infra/mcp/registry.py
+  - src/e_api/infra/mcp/registry.py
   tests:
-  - tests/unit/infra/mcp/test_registry.py
+  - tests/unit/e_api/infra/mcp/test_registry.py
   deps:
   - infra/errors
   - infra/logger
@@ -657,9 +657,9 @@ units:
   area: infra
   name: mcp/server
   files:
-  - src/infra/mcp/server.py
+  - src/e_api/infra/mcp/server.py
   tests:
-  - tests/unit/infra/mcp/test_server.py
+  - tests/unit/e_api/infra/mcp/test_server.py
   deps:
   - infra/logger
   - infra/mcp/bridge
@@ -690,9 +690,9 @@ units:
   area: infra
   name: proxy
   files:
-  - src/infra/proxy.py
+  - src/e_api/infra/proxy.py
   tests:
-  - tests/unit/infra/test_proxy.py
+  - tests/unit/e_api/infra/test_proxy.py
   deps: []
   dependents:
   - infra/logger
@@ -704,9 +704,9 @@ units:
   area: infra
   name: settings
   files:
-  - src/infra/settings.py
+  - src/e_api/infra/settings.py
   tests:
-  - tests/unit/infra/test_settings.py
+  - tests/unit/e_api/infra/test_settings.py
   deps:
   - infra/config/agent
   - infra/config/api
@@ -742,9 +742,9 @@ units:
   area: infra
   name: state
   files:
-  - src/infra/state.py
+  - src/e_api/infra/state.py
   tests:
-  - tests/unit/infra/test_state.py
+  - tests/unit/e_api/infra/test_state.py
   deps: []
   dependents: []
   closure: []
@@ -755,9 +755,9 @@ units:
   area: infra
   name: struct
   files:
-  - src/infra/struct.py
+  - src/e_api/infra/struct.py
   tests:
-  - tests/unit/infra/test_struct.py
+  - tests/unit/e_api/infra/test_struct.py
   deps: []
   dependents: []
   closure: []
@@ -768,9 +768,9 @@ units:
   area: ops
   name: crypto
   files:
-  - src/ops/crypto.py
+  - src/e_api/ops/crypto.py
   tests:
-  - tests/unit/ops/test_crypto.py
+  - tests/unit/e_api/ops/test_crypto.py
   deps:
   - infra/errors
   dependents:
@@ -785,9 +785,9 @@ units:
   area: ops
   name: file
   files:
-  - src/ops/file.py
+  - src/e_api/ops/file.py
   tests:
-  - tests/unit/ops/test_file.py
+  - tests/unit/e_api/ops/test_file.py
   deps:
   - infra/errors
   dependents: []
@@ -800,9 +800,9 @@ units:
   area: ops
   name: hash
   files:
-  - src/ops/hash.py
+  - src/e_api/ops/hash.py
   tests:
-  - tests/unit/ops/test_hash.py
+  - tests/unit/e_api/ops/test_hash.py
   deps: []
   dependents:
   - engines/auth
@@ -814,9 +814,9 @@ units:
   area: ops
   name: image
   files:
-  - src/ops/image.py
+  - src/e_api/ops/image.py
   tests:
-  - tests/unit/ops/test_image.py
+  - tests/unit/e_api/ops/test_image.py
   deps:
   - infra/errors
   dependents: []
@@ -829,9 +829,9 @@ units:
   area: ops
   name: registry
   files:
-  - src/ops/registry.py
+  - src/e_api/ops/registry.py
   tests:
-  - tests/unit/ops/test_registry.py
+  - tests/unit/e_api/ops/test_registry.py
   deps:
   - infra/errors
   dependents: []
@@ -844,9 +844,9 @@ units:
   area: ops
   name: wrappers
   files:
-  - src/ops/wrappers.py
+  - src/e_api/ops/wrappers.py
   tests:
-  - tests/unit/ops/test_wrappers.py
+  - tests/unit/e_api/ops/test_wrappers.py
   deps: []
   dependents: []
   closure: []
@@ -857,7 +857,7 @@ units:
   area: ports
   name: auth
   files:
-  - src/ports/auth.py
+  - src/e_api/ports/auth.py
   tests: []
   deps:
   - infra/auth/models
@@ -874,9 +874,9 @@ units:
   area: ports
   name: database
   files:
-  - src/ports/database.py
+  - src/e_api/ports/database.py
   tests:
-  - tests/unit/ports/test_database_real.py
+  - tests/unit/e_api/ports/test_database_real.py
   deps:
   - ports/provider
   dependents:
@@ -891,7 +891,7 @@ units:
   area: ports
   name: documents
   files:
-  - src/ports/documents.py
+  - src/e_api/ports/documents.py
   tests: []
   deps:
   - ports/provider
@@ -907,7 +907,7 @@ units:
   area: ports
   name: extract
   files:
-  - src/ports/extract.py
+  - src/e_api/ports/extract.py
   tests: []
   deps:
   - ports/provider
@@ -921,7 +921,7 @@ units:
   area: ports
   name: http
   files:
-  - src/ports/http.py
+  - src/e_api/ports/http.py
   tests: []
   deps:
   - ports/provider
@@ -936,7 +936,7 @@ units:
   area: ports
   name: language
   files:
-  - src/ports/language.py
+  - src/e_api/ports/language.py
   tests: []
   deps:
   - ports/provider
@@ -950,7 +950,7 @@ units:
   area: ports
   name: markdown
   files:
-  - src/ports/markdown.py
+  - src/e_api/ports/markdown.py
   tests: []
   deps:
   - ports/provider
@@ -966,7 +966,7 @@ units:
   area: ports
   name: pages
   files:
-  - src/ports/pages.py
+  - src/e_api/ports/pages.py
   tests: []
   deps:
   - infra/config/processors
@@ -986,9 +986,9 @@ units:
   area: ports
   name: provider
   files:
-  - src/ports/provider.py
+  - src/e_api/ports/provider.py
   tests:
-  - tests/unit/ports/test_provider.py
+  - tests/unit/e_api/ports/test_provider.py
   deps: []
   dependents:
   - engines/health
@@ -1022,7 +1022,7 @@ units:
   area: ports
   name: store
   files:
-  - src/ports/store.py
+  - src/e_api/ports/store.py
   tests: []
   deps:
   - ports/provider
@@ -1036,7 +1036,7 @@ units:
   area: ports
   name: watch
   files:
-  - src/ports/watch.py
+  - src/e_api/ports/watch.py
   tests: []
   deps:
   - ports/provider
@@ -1051,10 +1051,10 @@ units:
   area: processors
   name: doc
   files:
-  - src/processors/doc.py
+  - src/e_api/processors/doc.py
   tests:
-  - tests/unit/processors/test_doc.py
-  - tests/unit/processors/test_doc_real.py
+  - tests/unit/e_api/processors/test_doc.py
+  - tests/unit/e_api/processors/test_doc_real.py
   deps:
   - infra/config/processors
   - infra/config/providers
@@ -1086,9 +1086,9 @@ units:
   area: processors
   name: models
   files:
-  - src/processors/models.py
+  - src/e_api/processors/models.py
   tests:
-  - tests/unit/processors/test_models.py
+  - tests/unit/e_api/processors/test_models.py
   deps:
   - infra/config/processors
   dependents:
@@ -1104,9 +1104,9 @@ units:
   area: providers
   name: adapters/extract/rtrafilatura
   files:
-  - src/providers/adapters/extract/rtrafilatura.py
+  - src/e_api/providers/adapters/extract/rtrafilatura.py
   tests:
-  - tests/unit/providers/adapters/extract/test_rtrafilatura.py
+  - tests/unit/e_api/providers/adapters/extract/test_rtrafilatura.py
   deps:
   - infra/errors
   - infra/logger
@@ -1127,9 +1127,9 @@ units:
   area: providers
   name: adapters/language/lingua
   files:
-  - src/providers/adapters/language/lingua.py
+  - src/e_api/providers/adapters/language/lingua.py
   tests:
-  - tests/unit/providers/adapters/language/test_lingua.py
+  - tests/unit/e_api/providers/adapters/language/test_lingua.py
   deps:
   - infra/logger
   - ports/provider
@@ -1149,9 +1149,9 @@ units:
   area: providers
   name: adapters/markdown/anytomd
   files:
-  - src/providers/adapters/markdown/anytomd.py
+  - src/e_api/providers/adapters/markdown/anytomd.py
   tests:
-  - tests/unit/providers/adapters/markdown/test_anytomd.py
+  - tests/unit/e_api/providers/adapters/markdown/test_anytomd.py
   deps:
   - infra/errors
   - infra/logger
@@ -1174,9 +1174,9 @@ units:
   area: providers
   name: adapters/pages/liteparse
   files:
-  - src/providers/adapters/pages/liteparse.py
+  - src/e_api/providers/adapters/pages/liteparse.py
   tests:
-  - tests/unit/providers/adapters/pages/test_liteparse.py
+  - tests/unit/e_api/providers/adapters/pages/test_liteparse.py
   deps:
   - infra/config/processors
   - infra/errors
@@ -1202,9 +1202,9 @@ units:
   area: providers
   name: adapters/telemetry/null
   files:
-  - src/providers/adapters/telemetry/null.py
+  - src/e_api/providers/adapters/telemetry/null.py
   tests:
-  - tests/unit/providers/adapters/telemetry/test_null.py
+  - tests/unit/e_api/providers/adapters/telemetry/test_null.py
   deps:
   - ports/provider
   dependents: []
@@ -1217,9 +1217,9 @@ units:
   area: providers
   name: adapters/watch/watchfiles
   files:
-  - src/providers/adapters/watch/watchfiles.py
+  - src/e_api/providers/adapters/watch/watchfiles.py
   tests:
-  - tests/unit/providers/adapters/watch/test_watchfiles.py
+  - tests/unit/e_api/providers/adapters/watch/test_watchfiles.py
   deps:
   - infra/logger
   - ports/provider
@@ -1241,9 +1241,9 @@ units:
   area: providers
   name: drivers/auth/postgres
   files:
-  - src/providers/drivers/auth/postgres.py
+  - src/e_api/providers/drivers/auth/postgres.py
   tests:
-  - tests/unit/providers/drivers/auth/test_postgres.py
+  - tests/unit/e_api/providers/drivers/auth/test_postgres.py
   deps:
   - infra/auth/models
   - infra/errors
@@ -1268,10 +1268,10 @@ units:
   area: providers
   name: drivers/database/psqlpy
   files:
-  - src/providers/drivers/database/psqlpy.py
+  - src/e_api/providers/drivers/database/psqlpy.py
   tests:
-  - tests/unit/providers/drivers/database/test_psqlpy.py
-  - tests/unit/providers/drivers/database/test_psqlpy_real.py
+  - tests/unit/e_api/providers/drivers/database/test_psqlpy.py
+  - tests/unit/e_api/providers/drivers/database/test_psqlpy_real.py
   deps:
   - infra/errors
   - infra/logger
@@ -1294,9 +1294,9 @@ units:
   area: providers
   name: drivers/documents/docling
   files:
-  - src/providers/drivers/documents/docling.py
+  - src/e_api/providers/drivers/documents/docling.py
   tests:
-  - tests/unit/providers/drivers/documents/test_docling.py
+  - tests/unit/e_api/providers/drivers/documents/test_docling.py
   deps:
   - infra/config/providers
   - infra/errors
@@ -1323,9 +1323,9 @@ units:
   area: providers
   name: drivers/http/wreq
   files:
-  - src/providers/drivers/http/wreq.py
+  - src/e_api/providers/drivers/http/wreq.py
   tests:
-  - tests/unit/providers/drivers/http/test_wreq.py
+  - tests/unit/e_api/providers/drivers/http/test_wreq.py
   deps:
   - infra/errors
   - infra/logger
@@ -1346,9 +1346,9 @@ units:
   area: providers
   name: drivers/store/redis
   files:
-  - src/providers/drivers/store/redis.py
+  - src/e_api/providers/drivers/store/redis.py
   tests:
-  - tests/unit/providers/drivers/store/test_redis.py
+  - tests/unit/e_api/providers/drivers/store/test_redis.py
   deps:
   - infra/errors
   - infra/logger
@@ -1369,9 +1369,9 @@ units:
   area: providers
   name: drivers/store/sqlite
   files:
-  - src/providers/drivers/store/sqlite.py
+  - src/e_api/providers/drivers/store/sqlite.py
   tests:
-  - tests/unit/providers/drivers/store/test_sqlite.py
+  - tests/unit/e_api/providers/drivers/store/test_sqlite.py
   deps:
   - infra/errors
   - infra/logger

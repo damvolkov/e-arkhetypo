@@ -22,24 +22,24 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field, fields
 from typing import TYPE_CHECKING, Annotated, Final, TypedDict, cast
 
+from e_graph.engines.health import HealthEngine
+from e_graph.infra.state import State
 from e_graph.instrument.contexts import InstrumentContexts
 from e_graph.instrument.models import NodeOutput
-from engines.health import HealthEngine
-from infra.state import State
-from ports.documents import DocumentPort
-from ports.http import HTTPPort
-from ports.markdown import MarkdownPort
-from ports.pages import PagesPort
-from ports.provider import Provider
-from ports.store import StorePort
-from ports.telemetry import TelemetryPort
+from e_graph.ports.documents import DocumentPort
+from e_graph.ports.http import HTTPPort
+from e_graph.ports.markdown import MarkdownPort
+from e_graph.ports.pages import PagesPort
+from e_graph.ports.provider import Provider
+from e_graph.ports.store import StorePort
+from e_graph.ports.telemetry import TelemetryPort
 
 if TYPE_CHECKING:
     ### annotation only: each sits above this module — it imports this one at runtime, or lives in a higher layer.
     from e_graph.instrument.graph import InstrumentGraph
     from e_graph.instrument.telemetry import InstrumentTelemetry
     from e_graph.logic.state import LogicState
-    from processors.doc import DocProcessor
+    from e_graph.processors.doc import DocProcessor
 
 ### the providers a ready service cannot do without; a role not here is optional.
 REQUIRED: Final[frozenset[str]] = frozenset({"store"})

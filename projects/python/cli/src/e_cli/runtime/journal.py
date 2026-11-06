@@ -14,8 +14,8 @@ import msgspec
 
 from e_cli.models.error import JournalError
 from e_cli.models.journal import Journal
-from ports.provider import Isolation, Locality, ProviderSpec, Workload
-from ports.store import StorePort
+from e_cli.ports.provider import Isolation, Locality, ProviderSpec, Workload
+from e_cli.ports.store import StorePort
 
 ##### DEFAULTS #####
 PREFIX: str = "journal:"

@@ -26,15 +26,15 @@ from e_api.api.middlewares import MIDDLEWARES, cors_config
 from e_api.api.router import auth, health, user
 from e_api.api.security import BEARER_SCHEME, SecuritySchemeName
 from e_api.api.state import AppState
+from e_api.infra.auth.guard import OPT, guard
+from e_api.infra.auth.models import Access
+from e_api.infra.logger import ELogger
+from e_api.infra.mcp.guard import internal
+from e_api.infra.settings import settings as st
+from e_api.infra.state import State
 from e_api.mcp import mount
 from e_api.mcp import registry as tools
 from e_api.websockets import telemetry
-from infra.auth.guard import OPT, guard
-from infra.auth.models import Access
-from infra.logger import ELogger
-from infra.mcp.guard import internal
-from infra.settings import settings as st
-from infra.state import State
 
 ### the API's routers, each route declaring its access (`opt=OPT[...]`).
 GUARDED: Final = (health.ROUTES, user.ROUTES, auth.ROUTES)

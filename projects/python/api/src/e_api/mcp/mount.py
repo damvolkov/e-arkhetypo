@@ -5,7 +5,7 @@ who, each tool admits them at its own access."""
 from litestar.handlers import ASGIRouteHandler
 
 from e_api.api.state import AppState
-from infra.mcp.mount import MCPMount
+from e_api.infra.mcp.mount import MCPMount
 
 
 def routes(*, path: str) -> tuple[ASGIRouteHandler, ...]:

@@ -61,8 +61,8 @@ common-check: ## fail if the materialized sections or the shared root files drif
 
 # — gates —
 lint: ## ruff check + format
-	@uv run ruff check --fix $(PACKAGE) src/infra src/ops src/ports src/providers src/engines src/processors scripts tests
-	@uv run ruff format $(PACKAGE) src/infra src/ops src/ports src/providers src/engines src/processors scripts tests
+	@uv run ruff check --fix $(PACKAGE) scripts tests
+	@uv run ruff format $(PACKAGE) scripts tests
 
 type: ## ty type check
 	@uv run ty check
@@ -132,7 +132,7 @@ logs: ## tail docker logs [args: service]
 
 clean: ## remove caches + build artifacts + materialized common
 	@find . -type d \( -name __pycache__ -o -name .pytest_cache -o -name .ruff_cache \) -exec rm -rf {} + 2>/dev/null || true
-	@rm -rf dist build *.egg-info .coverage .coverage.* .ty_cache site src/infra src/ops src/ports src/providers src/engines src/processors prek.toml .gitattributes .python-version
+	@rm -rf dist build *.egg-info .coverage .coverage.* .ty_cache site $(PACKAGE)/infra $(PACKAGE)/ops $(PACKAGE)/ports $(PACKAGE)/providers $(PACKAGE)/engines $(PACKAGE)/processors prek.toml .gitattributes .python-version
 	@printf "$(GREEN)✓ clean$(RESET)\n"
 
 %:

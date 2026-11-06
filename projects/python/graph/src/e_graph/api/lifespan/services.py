@@ -13,17 +13,17 @@ from typing import TYPE_CHECKING
 from litestar import Litestar
 
 from e_graph.api.state import AppState
+from e_graph.engines.health import HealthEngine
+from e_graph.infra.logger import logger
+from e_graph.infra.settings import settings as st
 from e_graph.instrument.state import REQUIRED, EnginesState, ProcessorsState
-from engines.health import HealthEngine
-from infra.logger import logger
-from infra.settings import settings as st
-from ops.crypto import Crypto, CryptoKeys
-from processors.doc import DocProcessor
+from e_graph.ops.crypto import Crypto, CryptoKeys
+from e_graph.processors.doc import DocProcessor
 
 if TYPE_CHECKING:
-    from ports.documents import DocumentPort
-    from ports.markdown import MarkdownPort
-    from ports.pages import PagesPort
+    from e_graph.ports.documents import DocumentPort
+    from e_graph.ports.markdown import MarkdownPort
+    from e_graph.ports.pages import PagesPort
 
 
 ##### ROOT #####

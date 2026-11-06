@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING, Any, Final
 
 import pytest
 
+from e_graph.infra.state import State
 from e_graph.instrument.contexts import InstrumentContexts
 from e_graph.instrument.models import RunStatus
 from e_graph.instrument.state import InfraState, InstrumentState, ProcessorsState, RunState
@@ -18,8 +19,7 @@ from e_graph.instrument.telemetry import InstrumentTelemetry
 from e_graph.logic.orchestrator.core import OrchestratorCore
 from e_graph.logic.state import LogicState
 from e_graph.pipelines.filing.graph import FilingGraph
-from infra.state import State
-from processors.doc import DocProcessor
+from e_graph.processors.doc import DocProcessor
 from support.darts import ScriptedAgent
 from support.docling import MARKDOWN, GoldenPort
 from support.root import darts, doc_args
@@ -28,7 +28,7 @@ if TYPE_CHECKING:
     from pytest_resources import Resources
 
     from e_graph.instrument.graph import InstrumentGraph
-    from providers.adapters.pages.liteparse import LiteparseAdapter
+    from e_graph.providers.adapters.pages.liteparse import LiteparseAdapter
 
 FILINGS: Final[Path] = Path(__file__).resolve().parents[5] / "tests" / "resources" / "documents" / "filings"
 MILLION: Final[int] = 1_000_000

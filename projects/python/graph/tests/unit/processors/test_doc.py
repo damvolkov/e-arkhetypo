@@ -11,16 +11,16 @@ from typing import TYPE_CHECKING, Any
 import polars as pl
 import pytest
 
-from infra.config.processors import DocMode, DocSignal
-from processors.doc import DocProcessor
-from processors.models import Backend, Document
+from e_graph.infra.config.processors import DocMode, DocSignal
+from e_graph.processors.doc import DocProcessor
+from e_graph.processors.models import Backend, Document
 from support.docling import MARKDOWN, GoldenPort
 from support.root import doc_args
 
 if TYPE_CHECKING:
     from pytest_resources import Resources
 
-    from providers.adapters.pages.liteparse import LiteparseAdapter
+    from e_graph.providers.adapters.pages.liteparse import LiteparseAdapter
 
 
 LABELS: dict[str, str] = {

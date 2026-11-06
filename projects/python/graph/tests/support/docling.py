@@ -12,10 +12,10 @@ from typing import Any, ClassVar, Final, Self
 
 import msgspec
 
-from infra.errors import DocumentError
-from ports.documents import DocumentConversion
-from ports.provider import Isolation, Locality, ProviderSpec, Workload
-from providers.adapters.markdown.anytomd import AnytomdAdapter
+from e_graph.infra.errors import DocumentError
+from e_graph.ports.documents import DocumentConversion
+from e_graph.ports.provider import Isolation, Locality, ProviderSpec, Workload
+from e_graph.providers.adapters.markdown.anytomd import AnytomdAdapter
 from support.root import anytomd_args
 
 ### the anytomd reader the processor detects formats with: the corpus is PDFs, so it never converts — unopened is enough.

@@ -5,9 +5,9 @@ from typing import Annotated, Any, Final
 
 import msgspec
 
+from e_graph.infra.struct import CheckedStruct
 from e_graph.instrument.state import RunState
 from e_graph.logic.models import Call
-from infra.struct import CheckedStruct
 
 PERCENT: Final = 100.0
 

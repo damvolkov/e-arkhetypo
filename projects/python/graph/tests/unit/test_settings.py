@@ -9,7 +9,7 @@ import re
 from pathlib import Path
 from typing import Final
 
-from infra import settings as composer
+from e_graph.infra import settings as composer
 
 ### `src`: the template's package and the materialized sections beside it.
 SOURCE: Final[Path] = Path(composer.__file__).resolve().parents[1]
@@ -45,7 +45,7 @@ def test_settings_is_read_by_the_composition_root_alone() -> None:
         path.relative_to(SOURCE).as_posix()
         for path in below()
         for module, _ in imports(path)
-        if module.endswith("infra.settings")
+        if module.endswith("e_graph.infra.settings")
     }
     assert sorted(readers) == []
 

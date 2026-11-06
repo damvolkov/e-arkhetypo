@@ -12,13 +12,13 @@ from litestar.handlers import HTTPRouteHandler
 from litestar.params import JSONBody
 
 from e_api.api.router import user as router
+from e_api.infra.auth.models import Access, Caller
+from e_api.infra.mcp.models import MCPTool
+from e_api.infra.state import State
 from e_api.mcp.models import NoArgs, UserArgs, UserUpdateArgs
 from e_api.mcp.refusals import REFUSALS
 from e_api.models.user import User, UserCreate, UserUpdate
-from infra.auth.models import Access, Caller
-from infra.mcp.models import MCPTool
-from infra.state import State
-from ports.store import StorePort
+from e_api.ports.store import StorePort
 
 ##### TOOLS — what a client is told #####
 LIST: Final = MCPTool(

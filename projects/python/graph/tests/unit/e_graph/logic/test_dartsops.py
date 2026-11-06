@@ -5,6 +5,8 @@ from typing import TYPE_CHECKING, Any
 
 import pytest
 
+from e_graph.infra.settings import settings as st
+from e_graph.infra.state import State
 from e_graph.instrument.contexts import InstrumentContexts
 from e_graph.instrument.state import InfraState, InstrumentState
 from e_graph.instrument.telemetry import InstrumentTelemetry
@@ -14,8 +16,6 @@ from e_graph.logic.errors import Rule
 from e_graph.logic.models import DeterministicSpec, JSONSchema, Reply, Role, Section, SemanticSpec, Tier
 from e_graph.logic.orchestrator.core import OrchestratorCore
 from e_graph.logic.state import LogicState
-from infra.settings import settings as st
-from infra.state import State
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
@@ -25,7 +25,7 @@ if TYPE_CHECKING:
     from pytest_resources import Resources
 
     from support.darts import DartsHarness
-from providers.drivers.telemetry.otel import OTelDriver
+from e_graph.providers.drivers.telemetry.otel import OTelDriver
 from support.crafter import SpecCrafter
 from support.darts import DartsHarness
 from support.root import darts as budgets

@@ -5,11 +5,11 @@ from typing import Any
 
 import msgspec
 
+from e_graph.infra.config.agent import AgentSettings
+from e_graph.infra.config.darts import DartsSettings
+from e_graph.infra.config.processors import ProcessorSettings
+from e_graph.infra.config.providers import ProviderSettings
 from e_graph.logic.models import Darts
-from infra.config.agent import AgentSettings
-from infra.config.darts import DartsSettings
-from infra.config.processors import ProcessorSettings
-from infra.config.providers import ProviderSettings
 
 ### the agent's own knobs, named as the tests name them; any other key is a provider variable, upper-cased.
 AGENT_KNOBS = frozenset({"timeout", "retries", "high", "medium", "low"})

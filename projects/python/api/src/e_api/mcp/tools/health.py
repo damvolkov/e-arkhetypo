@@ -7,11 +7,11 @@ from litestar.handlers import HTTPRouteHandler
 from litestar.params import JSONBody
 
 from e_api.api.router import health as router
+from e_api.infra.auth.models import Access
+from e_api.infra.mcp.models import MCPTool
+from e_api.infra.state import State
 from e_api.mcp.models import NoArgs, Status
 from e_api.mcp.refusals import REFUSALS
-from infra.auth.models import Access
-from infra.mcp.models import MCPTool
-from infra.state import State
 
 ##### TOOLS — what a client is told #####
 HEALTH: Final = MCPTool(

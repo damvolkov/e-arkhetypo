@@ -12,8 +12,8 @@ from litestar.handlers import HTTPRouteHandler
 from litestar.status_codes import HTTP_200_OK, HTTP_503_SERVICE_UNAVAILABLE
 
 from e_graph.api.deps import DepKey, system
-from engines.health import ProviderHealth
-from infra.state import State
+from e_graph.engines.health import ProviderHealth
+from e_graph.infra.state import State
 
 
 async def health() -> dict[str, str]:

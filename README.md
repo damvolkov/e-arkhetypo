@@ -31,7 +31,7 @@ zizmor`, git-tag releases, all publishing gates inert by default.
 
 - `projects/python/common` — **e-infra**: the shared source of truth. Layered settings composer, structured logger,
   state, ops agnostic tools (file discovery, crypto), service adapters. Services do not import `e_infra` — they
-  **materialize** it. Edit shared code only here, never in a service's `src/infra/`.
+  **materialize** it. Edit shared code only here, never in a service's `src/<package>/infra/`.
 - `projects/python/api` — **e-api**: Litestar + Granian API service template, msgspec end to end.
 - `projects/python/graph` — **e-graph**: LangGraph runtime, rustworkx topology, React Flow canvas over
   Litestar + Granian (api + canvas).

@@ -13,13 +13,13 @@ from dataclasses import dataclass
 
 from structlog.typing import BindableLogger
 
+from e_cli.infra.logger import logger, setup
+from e_cli.infra.proxy import LazyProxy
+from e_cli.infra.settings import Settings
+from e_cli.infra.settings import settings as st
+from e_cli.infra.state import State
 from e_cli.models.session import Session
 from e_cli.runtime.deps import Deps
-from infra.logger import logger, setup
-from infra.proxy import LazyProxy
-from infra.settings import Settings
-from infra.settings import settings as st
-from infra.state import State
 
 
 ##### SECTION #####

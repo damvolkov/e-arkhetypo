@@ -37,6 +37,9 @@ from e_graph.api.lifespan.logic import agent as build_agent
 from e_graph.api.lifespan.logic import darts as build_darts
 from e_graph.api.lifespan.providers import anytomd, liteparse, present, wreq
 from e_graph.api.lifespan.services import doc
+from e_graph.infra.logger import ELogger
+from e_graph.infra.settings import settings as st
+from e_graph.infra.state import State
 from e_graph.instrument.contexts import InstrumentContexts
 from e_graph.instrument.state import InfraState, InstrumentState, ProcessorsState
 from e_graph.instrument.telemetry import InstrumentTelemetry
@@ -50,9 +53,6 @@ from e_graph.logic.orchestrator.plan import DagPlan
 from e_graph.logic.state import LogicState
 from e_graph.models.section import Section
 from e_graph.pipelines.base import PipelineRegistry
-from infra.logger import ELogger
-from infra.settings import settings as st
-from infra.state import State
 
 CONSOLE: Final[Console] = Console(soft_wrap=True)
 EXIT: Final[dict[bool, int]] = {True: 0, False: 1}

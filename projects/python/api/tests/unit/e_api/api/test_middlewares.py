@@ -4,7 +4,7 @@ transports live — preflight answered, correlation id propagated; the access lo
 from uuid import uuid4
 
 from e_api.api.middlewares import cors_config
-from infra.config.api import HTTPMethod
+from e_api.infra.config.api import HTTPMethod
 
 
 def test_cors_config_translates_origins_and_methods() -> None:

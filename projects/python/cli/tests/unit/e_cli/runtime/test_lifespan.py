@@ -6,9 +6,9 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+from e_cli.infra.state import State
 from e_cli.models.session import Session
 from e_cli.runtime.lifespan import SharedState, lifespan
-from infra.state import State
 
 if TYPE_CHECKING:
     from pathlib import Path

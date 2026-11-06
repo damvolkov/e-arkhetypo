@@ -4,8 +4,8 @@ import pytest
 from litestar import Litestar
 
 from e_graph.api.state import AppState
+from e_graph.infra.state import State
 from e_graph.main import create_app
-from infra.state import State
 
 
 def test_create_app_installs_the_typed_state() -> None:

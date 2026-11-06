@@ -10,7 +10,7 @@ import pytest
 
 from e_graph.logic.agent import AgnosticAgent
 from e_graph.logic.models import SpecStatus
-from providers.drivers.telemetry.otel import OTelDriver
+from e_graph.providers.drivers.telemetry.otel import OTelDriver
 from support.crafter import SpecCrafter
 from support.darts import DartsHarness
 from support.root import otel_args

@@ -22,7 +22,7 @@ from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, Final
 
 from e_graph.instrument.graph import InstrumentGraph
-from ops.file import FileFinder
+from e_graph.ops.file import FileFinder
 
 if TYPE_CHECKING:
     from collections.abc import Mapping

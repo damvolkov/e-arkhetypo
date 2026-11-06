@@ -18,18 +18,18 @@ from typing import TYPE_CHECKING, Any, ClassVar, Final, Self
 import eserde
 import msgspec
 
-from infra.config.providers.drivers.documents.docling import DoclingSettings
-from processors.doc import DocProcessor
-from providers.adapters.pages.liteparse import LiteparseAdapter
-from providers.drivers.documents.docling import DoclingDriver
-from providers.drivers.http.wreq import WreqDriver
+from e_graph.infra.config.providers.drivers.documents.docling import DoclingSettings
+from e_graph.processors.doc import DocProcessor
+from e_graph.providers.adapters.pages.liteparse import LiteparseAdapter
+from e_graph.providers.drivers.documents.docling import DoclingDriver
+from e_graph.providers.drivers.http.wreq import WreqDriver
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
-    from ports.documents import DocumentConversion
-    from ports.pages import PagesPort
-    from ports.provider import ProviderSpec
+    from e_graph.ports.documents import DocumentConversion
+    from e_graph.ports.pages import PagesPort
+    from e_graph.ports.provider import ProviderSpec
 
 ROOT: Final[Path] = Path(__file__).resolve().parents[1] / "tests" / "resources"
 DOCUMENTS: Final[Path] = ROOT / "documents"

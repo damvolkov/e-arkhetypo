@@ -122,7 +122,7 @@ bump = true
 fallback-version = "0.0.0"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/e_api", "src/infra", "src/ops", "src/ports", "src/providers", "src/engines", "src/processors"]
+packages = ["src/e_api"]
 
 [tool.hatch.build.targets.sdist]
 include = ["src/", "tests/", "README.md"]
@@ -151,18 +151,18 @@ ignore = ["E501", "ISC001", "PLR0913"]
 "src/e_api/main.py" = ["TC001", "TC002", "TC003"]
 "src/e_api/mcp/**" = ["TC001", "TC002", "TC003"]
 ### the one module that speaks the MCP protocol: an SDK upgrade touches it alone.
-"src/infra/mcp/server.py" = ["TID251"]
+"src/e_api/infra/mcp/server.py" = ["TID251"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["e_api", "infra", "ops", "ports", "providers", "engines", "processors"]
+known-first-party = ["e_api"]
 
 [tool.ruff.lint.flake8-type-checking]
 ### pydantic and msgspec resolve these classes' annotations at runtime: their imports must stay real.
 runtime-evaluated-base-classes = [
     "pydantic.BaseModel",
-    "infra.config.base.BaseSettings",
+    "e_api.infra.config.base.BaseSettings",
     "msgspec.Struct",
-    "infra.struct.CheckedStruct",
+    "e_api.infra.struct.CheckedStruct",
 ]
 
 [tool.ruff.lint.flake8-tidy-imports]

@@ -141,7 +141,7 @@ bump = true
 fallback-version = "0.0.0"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/e_graph", "src/engines", "src/infra", "src/ops", "src/ports", "src/processors", "src/providers"]
+packages = ["src/e_graph"]
 ### the canvas is part of the package: its built bundle ships (gitignored, so declared), its sources never do.
 artifacts = ["src/e_graph/ui/dist/**"]
 exclude = ["src/e_graph/ui/*", "!src/e_graph/ui/dist"]
@@ -179,15 +179,15 @@ ignore = ["E501", "ISC001", "PLR0913"]
 "src/e_graph/runners/**" = ["TC001", "TC002", "TC003", "ARG001"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["e_graph", "engines", "infra", "ops", "ports", "processors", "providers"]
+known-first-party = ["e_graph"]
 
 [tool.ruff.lint.flake8-type-checking]
 ### pydantic and msgspec resolve these classes' annotations at runtime: their imports must stay real.
 runtime-evaluated-base-classes = [
     "pydantic.BaseModel",
-    "infra.config.base.BaseSettings",
+    "e_graph.infra.config.base.BaseSettings",
     "msgspec.Struct",
-    "infra.struct.CheckedStruct",
+    "e_graph.infra.struct.CheckedStruct",
 ]
 
 [tool.ruff.lint.flake8-tidy-imports]

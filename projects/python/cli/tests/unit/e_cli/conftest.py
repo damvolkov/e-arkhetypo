@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, ClassVar, Self
 import pytest
 
 from e_cli.cli import build
-from ports.provider import Isolation, Locality, ProviderSpec, Workload
+from e_cli.ports.provider import Isolation, Locality, ProviderSpec, Workload
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator, Callable

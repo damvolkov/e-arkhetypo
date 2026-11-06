@@ -44,7 +44,7 @@ lock: common ## refresh uv lockfile (against the current materialized common)
 
 ### a file target: made once when missing, never overwritten — the dev crypto secret, random per machine, gitignored.
 .env:
-	@uv run python -c "import sys; from ops.crypto import Crypto; sys.stdout.write(f'SECRET={Crypto.generate_keys().secret.get_secret_value()}\\n')" > $@
+	@uv run python -c "import sys; from e_graph.ops.crypto import Crypto; sys.stdout.write(f'SECRET={Crypto.generate_keys().secret.get_secret_value()}\\n')" > $@
 	@printf "$(GREEN)✓ .env$(RESET) $(GRAY)dev secret generated — see .env.example for every other knob$(RESET)\n"
 
 # — common —
@@ -69,8 +69,8 @@ common-check: ## fail if the materialized sections or the shared root files drif
 
 # — gates —
 lint: ## ruff check + format, biome check + format on the ui
-	@uv run ruff check --fix $(PACKAGE) src/infra src/ops src/ports src/providers src/engines src/processors scripts tests
-	@uv run ruff format $(PACKAGE) src/infra src/ops src/ports src/providers src/engines src/processors scripts tests
+	@uv run ruff check --fix $(PACKAGE) scripts tests
+	@uv run ruff format $(PACKAGE) scripts tests
 	@pnpm -C $(UI) fix
 
 type: ## ty type check, tsc on the ui
@@ -168,7 +168,7 @@ logs: ## tail docker logs [args: service]
 
 clean: ## remove caches + build artifacts + materialized common
 	@find . -type d \( -name __pycache__ -o -name .pytest_cache -o -name .ruff_cache \) -exec rm -rf {} + 2>/dev/null || true
-	@rm -rf dist build *.egg-info .coverage .coverage.* .ty_cache site $(UI)/dist $(UI)/node_modules src/infra src/ops src/ports src/providers src/engines src/processors prek.toml .gitattributes .python-version
+	@rm -rf dist build *.egg-info .coverage .coverage.* .ty_cache site $(UI)/dist $(UI)/node_modules $(PACKAGE)/infra $(PACKAGE)/ops $(PACKAGE)/ports $(PACKAGE)/providers $(PACKAGE)/engines $(PACKAGE)/processors prek.toml .gitattributes .python-version
 	@printf "$(GREEN)✓ clean$(RESET)\n"
 
 %:

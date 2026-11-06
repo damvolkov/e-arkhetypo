@@ -25,12 +25,12 @@ from textual.widget import Widget
 from textual.widgets import Static
 
 from e_tui.flow.walk import Finished, Move, OnPage, Walker
+from e_tui.infra.settings import settings as st
 from e_tui.interact.registry import build
 from e_tui.layout.frame import Colors
 from e_tui.layout.render import SLOT_CLASS, LayoutRender
 from e_tui.models.error import SpecError
 from e_tui.templates.standard import StandardTemplate
-from infra.settings import settings as st
 
 if TYPE_CHECKING:
     from e_tui.flow.graph import Graph

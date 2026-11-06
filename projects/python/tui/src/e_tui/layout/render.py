@@ -20,7 +20,7 @@ from textual.widgets import Static
 from e_tui.layout.frame import BoxFrame, Colors, EdgeFrame
 from e_tui.layout.shape import EllipseShape, Painter, PolygonShape
 from e_tui.layout.spec import Box, Line, Mast, Shape
-from ops.tui import HeaderTui
+from e_tui.ops.tui import HeaderTui
 
 ##### DISPATCH #####
 SLOT_CLASS: Final[str] = "slot-content"  # marks widgets an app mounted into a dynamic slot (vs. structural frames)

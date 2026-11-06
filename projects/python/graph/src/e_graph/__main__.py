@@ -4,8 +4,8 @@ from granian import Granian
 from granian.constants import Interfaces
 
 from e_graph.api.router.ui import UI
-from infra.config.infra import Env
-from infra.settings import settings as st
+from e_graph.infra.config.infra import Env
+from e_graph.infra.settings import settings as st
 
 if __name__ == "__main__":
     Granian(

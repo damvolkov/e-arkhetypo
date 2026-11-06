@@ -12,8 +12,8 @@ from litestar.config.cors import CORSConfig
 from litestar.enums import HttpMethod as LitestarHttpMethod
 from litestar.types import ASGIApp
 
-from infra.config.api import HTTPMethod
-from infra.logger import logger
+from e_graph.infra.config.api import HTTPMethod
+from e_graph.infra.logger import logger
 
 if TYPE_CHECKING:
     from collections.abc import Sequence

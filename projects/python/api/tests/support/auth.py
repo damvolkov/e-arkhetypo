@@ -9,9 +9,9 @@ from typing import ClassVar, Self
 
 import msgspec
 
-from infra.auth.models import Account, Grant, GrantKind, Role
-from ops.hash import hash_bytes
-from ports.provider import Isolation, Locality, ProviderSpec, Workload
+from e_api.infra.auth.models import Account, Grant, GrantKind, Role
+from e_api.ops.hash import hash_bytes
+from e_api.ports.provider import Isolation, Locality, ProviderSpec, Workload
 
 
 class FakeAuth:

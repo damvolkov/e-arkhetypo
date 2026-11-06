@@ -36,6 +36,7 @@ import anyio
 import eserde
 import msgspec
 
+from e_graph.infra.struct import CheckedStruct
 from e_graph.logic.errors import AuditError, CatalogError, Rule, RuleError, Severity
 from e_graph.logic.models import (
     ROLES,
@@ -64,8 +65,7 @@ from e_graph.logic.rules import (
     rule_tree,
 )
 from e_graph.models.section import ORDER, Section
-from infra.struct import CheckedStruct
-from ops.registry import CodeRegistry, Kind
+from e_graph.ops.registry import CodeRegistry, Kind
 
 if TYPE_CHECKING:
     from types import ModuleType

@@ -3,8 +3,8 @@
 from e_tui.flow.graph import Graph
 from e_tui.flow.page import Page
 from e_tui.flow.state import FlowState, has, seed
+from e_tui.infra.state import State
 from e_tui.models.object import ConfirmSpec
-from infra.state import State
 
 
 def _flow() -> Graph:

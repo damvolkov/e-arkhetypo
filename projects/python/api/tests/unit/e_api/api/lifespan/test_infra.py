@@ -3,9 +3,9 @@
 from typing import TYPE_CHECKING
 
 from e_api.api.lifespan.infra import SharedState
-from infra import settings as settings_module
-from infra.logger import logger
-from infra.settings import settings as st
+from e_api.infra import settings as settings_module
+from e_api.infra.logger import logger
+from e_api.infra.settings import settings as st
 
 if TYPE_CHECKING:
     from litestar.testing import TestClient

@@ -2,9 +2,9 @@
 
 import pytest
 
+from e_api.infra.mcp.models import TOOL
 from e_api.mcp.instructions import INSTRUCTIONS
 from e_api.mcp.registry import ROUTES
-from infra.mcp.models import TOOL
 
 NAMES = sorted(route.opt[TOOL].name for route in ROUTES)
 

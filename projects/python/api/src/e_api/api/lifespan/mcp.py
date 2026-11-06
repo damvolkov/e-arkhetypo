@@ -14,13 +14,13 @@ from importlib.metadata import version
 from litestar import Litestar
 
 from e_api.api.state import AppState
+from e_api.infra.logger import logger
+from e_api.infra.mcp.registry import MCPRegistry
+from e_api.infra.mcp.server import MCPServer
+from e_api.infra.settings import settings as st
 from e_api.mcp.instructions import INSTRUCTIONS
 from e_api.mcp.registry import ROUTES
 from e_api.mcp.state import MCPState
-from infra.logger import logger
-from infra.mcp.registry import MCPRegistry
-from infra.mcp.server import MCPServer
-from infra.settings import settings as st
 
 
 @asynccontextmanager

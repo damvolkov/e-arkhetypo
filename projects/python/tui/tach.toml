@@ -17,7 +17,7 @@ root_module = "forbid"
 # — one horizontal layer, none imports another, each reaches only ports, infra and ops · then the contracts, the
 # shared core, the ops helpers, the error tree (`infra.errors`: the floor every shared module raises from, it imports
 # nothing) and data.
-layers = ["examples", "app", "templates", "flow", "interact", "layout", "execution", "ports", "infra", "ops", "errors", "models"]
+layers = ["examples", "app", "templates", "flow", "interact", "layout", "execution", "e_tui.ports", "e_tui.infra", "e_tui.ops", "errors", "models"]
 
 [rules]
 unused_ignore_directives = "error"
@@ -69,41 +69,41 @@ layer = "models"
 depends_on = []
 
 [[modules]]
-path = "engines"
+path = "e_tui.engines"
 layer = "execution"
 depends_on = []
 
 [[modules]]
-path = "processors"
+path = "e_tui.processors"
 layer = "execution"
 depends_on = []
 
 [[modules]]
-path = "providers.drivers"
+path = "e_tui.providers.drivers"
 layer = "execution"
 depends_on = []
 
 [[modules]]
-path = "providers.adapters"
+path = "e_tui.providers.adapters"
 layer = "execution"
 depends_on = []
 
 [[modules]]
-path = "ports"
-layer = "ports"
+path = "e_tui.ports"
+layer = "e_tui.ports"
 depends_on = []
 
 [[modules]]
-path = "infra"
-layer = "infra"
+path = "e_tui.infra"
+layer = "e_tui.infra"
 depends_on = []
 
 [[modules]]
-path = "ops"
-layer = "ops"
+path = "e_tui.ops"
+layer = "e_tui.ops"
 depends_on = []
 
 [[modules]]
-path = "infra.errors"
+path = "e_tui.infra.errors"
 layer = "errors"
 depends_on = []

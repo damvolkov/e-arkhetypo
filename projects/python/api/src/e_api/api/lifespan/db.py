@@ -11,10 +11,10 @@ from contextlib import asynccontextmanager
 from litestar import Litestar
 from pydantic import PostgresDsn, Secret
 
-from infra.errors import DatabaseError
-from infra.logger import logger
-from infra.settings import settings as st
-from providers.drivers.database.psqlpy import PsqlpyDriver
+from e_api.infra.errors import DatabaseError
+from e_api.infra.logger import logger
+from e_api.infra.settings import settings as st
+from e_api.providers.drivers.database.psqlpy import PsqlpyDriver
 
 
 ##### ROWS #####

@@ -101,6 +101,7 @@ touches — `stack`, `systems`, `infra`. Lines under `[Unreleased]` are written 
 - `common` and the templates: class names keep their acronyms whole (Damien) — `EmbedTEIDriver`, `RerankTEIDriver`,
   `OTelDriver`, `MCP…`, `LLMPort`, `HTTPPort`, `HTTPError`, `NERPort`, `MDConversion`, `APISettings`, `CLIError`,
   `JSONSchema`, `UIView`; brands that are no acronym keep theirs; Litestar's `HttpMethod` untouched. TODO_REVERSE 15.
+- `test_full_stack` golden and service count follow the 45-service stack (`mem/egnosis` added); `uv run pytest tests/unit/e_infra/ops/test_compose.py` 16 passed.
 
 ### stack
 
@@ -306,4 +307,3 @@ touches — `stack`, `systems`, `infra`. Lines under `[Unreleased]` are written 
 - setup docs for dummies: `selfmaintain.md` and `repo-maintain.md` rewritten as click-by-click GitHub installs (App, keys, Renovate, labels, branch protection, verification), same shape as anytomd's `docs/maintenance.md`
 - fix(tools): `Request(url, headers)` pasaba el dict como *data* — todo sondeo de `health.py`/`upstream.py` moría antes de preguntar; orden de versiones por enteros, no lexicográfico; `zizmor` al grupo lint de management; las ensambladuras de `systems/*` entran en `drops` de los templates
 - Self-maintenance for wide repos born: `repo-ci` and `repo-maintain` in `infra/` — the repo
-

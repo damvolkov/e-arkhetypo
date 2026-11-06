@@ -7,8 +7,8 @@ import pytest
 from pydantic import PostgresDsn, Secret
 
 from e_api.api import admin
-from infra.errors import AuthClosedError
-from infra.settings import settings as st
+from e_api.infra.errors import AuthClosedError
+from e_api.infra.settings import settings as st
 
 if TYPE_CHECKING:
     from support.auth import FakeAuth

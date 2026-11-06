@@ -7,13 +7,13 @@ import pytest
 from litestar.testing import TestClient
 
 from e_api.api.lifespan.providers import ProvidersState
+from e_api.infra.errors import StoreError
 from e_api.main import create_app
-from infra.errors import StoreError
-from ports.auth import AuthPort
-from ports.database import DatabasePort
-from ports.http import HTTPPort
-from ports.provider import Provider
-from ports.store import StorePort
+from e_api.ports.auth import AuthPort
+from e_api.ports.database import DatabasePort
+from e_api.ports.http import HTTPPort
+from e_api.ports.provider import Provider
+from e_api.ports.store import StorePort
 
 ### the roles are the section's fields: a provider the export drops leaves this list with it.
 ROLES: Final[tuple[str, ...]] = tuple(each.name for each in fields(ProvidersState))

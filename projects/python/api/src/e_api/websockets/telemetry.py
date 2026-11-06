@@ -12,8 +12,8 @@ from litestar.dto import MsgspecDTO
 from litestar.handlers import WebsocketRouteHandler
 
 from e_api.api.deps import correlation_id
+from e_api.infra.logger import logger
 from e_api.models.telemetry import Heartbeat, Status, TelemetryEvent
-from infra.logger import logger
 
 
 async def telemetry(data: Heartbeat, correlation_id: NamedDependency[str]) -> TelemetryEvent:

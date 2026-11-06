@@ -8,10 +8,10 @@ from typing import TYPE_CHECKING, Any, Final
 
 import pytest
 
+from e_graph.infra.config.agent import AgentSettings
 from e_graph.logic.agent import AgnosticAgent
 from e_graph.logic.models import Endpoint, Provider, Tier
-from infra.config.agent import AgentSettings
-from providers.adapters.pages.liteparse import LiteparseAdapter
+from e_graph.providers.adapters.pages.liteparse import LiteparseAdapter
 from support.root import agent_args, liteparse_args
 
 if TYPE_CHECKING:

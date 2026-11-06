@@ -14,6 +14,7 @@ from litestar.testing import TestClient
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 
 from e_graph.api.lifespan import db
+from e_graph.infra.state import State
 from e_graph.instrument.contexts import InstrumentContexts
 from e_graph.instrument.graph import InstrumentGraph
 from e_graph.instrument.state import InfraState, InstrumentState, ProcessorsState, ProvidersState, RunState
@@ -22,10 +23,9 @@ from e_graph.logic.agent import AgnosticAgent
 from e_graph.logic.orchestrator.core import OrchestratorCore
 from e_graph.logic.state import LogicState
 from e_graph.main import create_app
-from infra.state import State
-from processors.doc import DocProcessor
-from providers.drivers.store import redis as redis_module
-from providers.drivers.telemetry.otel import OTelDriver
+from e_graph.processors.doc import DocProcessor
+from e_graph.providers.drivers.store import redis as redis_module
+from e_graph.providers.drivers.telemetry.otel import OTelDriver
 from support.docling import MARKDOWN, GoldenPort
 from support.root import agent_args, darts, doc_args, otel_args
 
@@ -34,7 +34,7 @@ if TYPE_CHECKING:
 
     from pytest_httpserver import HTTPServer
 
-    from providers.adapters.pages.liteparse import LiteparseAdapter
+    from e_graph.providers.adapters.pages.liteparse import LiteparseAdapter
 
 
 class FakePsqlpyDriver:

@@ -7,11 +7,11 @@ the same engine and driver the service runs — every earlier admin key revoked,
 from contextlib import AsyncExitStack
 from typing import TYPE_CHECKING
 
-from engines.auth import AuthEngine
-from infra.auth.models import Issued
-from infra.logger import logger
-from providers.drivers.auth.postgres import PostgresAuthDriver
-from providers.drivers.database.psqlpy import PsqlpyDriver
+from e_api.engines.auth import AuthEngine
+from e_api.infra.auth.models import Issued
+from e_api.infra.logger import logger
+from e_api.providers.drivers.auth.postgres import PostgresAuthDriver
+from e_api.providers.drivers.database.psqlpy import PsqlpyDriver
 
 if TYPE_CHECKING:
     from datetime import timedelta

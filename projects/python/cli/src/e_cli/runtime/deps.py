@@ -15,14 +15,14 @@ from typing import Annotated, ClassVar, TypeVar, cast
 from cyclopts import Parameter
 from rich.console import Console
 
+from e_cli.infra.settings import settings as st
+from e_cli.infra.state import State
 from e_cli.models.identity import Identity
+from e_cli.ports.store import StorePort
+from e_cli.providers.drivers.store.sqlite import SqliteDriver
 from e_cli.runtime.journal import StoreJournal
 from e_cli.services.auth import AuthService
 from e_cli.services.project import ProjectService
-from infra.settings import settings as st
-from infra.state import State
-from ports.store import StorePort
-from providers.drivers.store.sqlite import SqliteDriver
 
 T = TypeVar("T")
 ### cyclopts reads `Annotated` metadata but does not unwrap PEP 695 `type` aliases: the classic generic alias is what it sees.

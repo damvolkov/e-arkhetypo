@@ -33,18 +33,19 @@ def script() -> ModuleType:
 def owned(root: Path) -> None:
     """A project in `root` tracking its own settings and one cluster of its own."""
     _ = [
-        (root / "src" / rel).parent.mkdir(parents=True, exist_ok=True) or (root / "src" / rel).write_text(body)
+        (root / "src" / "e_api" / rel).parent.mkdir(parents=True, exist_ok=True)
+        or (root / "src" / "e_api" / rel).write_text(body)
         for rel, body in OWN.items()
     ]
     subprocess.run([GIT, "init", "-q", str(root)], check=True)  # noqa: S603 — fixed argv, a tmp repo.
-    subprocess.run([GIT, "-C", str(root), "add", "--", *(f"src/{rel}" for rel in OWN)], check=True)  # noqa: S603 — fixed argv.
+    subprocess.run([GIT, "-C", str(root), "add", "--", *(f"src/e_api/{rel}" for rel in OWN)], check=True)  # noqa: S603 — fixed argv.
 
 
 def test_materialize_keeps_the_projects_own_files(tmp_path: Path) -> None:
     owned(tmp_path)
     script().materialize(tmp_path)
-    kept = {rel: (tmp_path / "src" / rel).read_text() for rel in OWN}
-    assert (kept, (tmp_path / "src" / "infra" / "config" / "base.py").is_file()) == (OWN, True)
+    kept = {rel: (tmp_path / "src" / "e_api" / rel).read_text() for rel in OWN}
+    assert (kept, (tmp_path / "src" / "e_api" / "infra" / "config" / "base.py").is_file()) == (OWN, True)
 
 
 def test_check_ignores_the_projects_own_files(tmp_path: Path) -> None:

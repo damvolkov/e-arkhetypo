@@ -23,9 +23,9 @@ from e_graph.api.lifespan.infra import lifespan as infra_lifespan
 from e_graph.api.middlewares import MIDDLEWARES, cors_config
 from e_graph.api.router import health, pipelines, specs, ui
 from e_graph.api.state import AppState
-from infra.logger import ELogger
-from infra.settings import settings as st
-from infra.state import State
+from e_graph.infra.logger import ELogger
+from e_graph.infra.settings import settings as st
+from e_graph.infra.state import State
 
 
 def create_app() -> Litestar:

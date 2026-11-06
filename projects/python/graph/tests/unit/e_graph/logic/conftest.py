@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Any
 
 import pytest
 
-from infra.config.agent import PROVIDERS
+from e_graph.infra.config.agent import PROVIDERS
 from support.crafter import SpecCrafter
 from support.root import agent_args
 

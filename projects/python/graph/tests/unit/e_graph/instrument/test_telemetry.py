@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Any
 
 import pytest
 
+from e_graph.infra.state import State
 from e_graph.instrument.contexts import InstrumentContexts
 from e_graph.instrument.graph import InstrumentGraph
 from e_graph.instrument.models import NodeOutput, NodeStatus, RunEnd, RunStatus
@@ -14,9 +15,8 @@ from e_graph.instrument.state import InfraState, InstrumentState, RunState
 from e_graph.instrument.telemetry import NO_SPAN, InstrumentTelemetry, NullSpan, NullTelemetry, SpanTelemetry
 from e_graph.logic.models import Usage
 from e_graph.logic.state import LogicState
-from infra.state import State
-from ports.telemetry import SpanKind, SpanPort, SpanStatus
-from providers.drivers.telemetry.otel import OTelDriver
+from e_graph.ports.telemetry import SpanKind, SpanPort, SpanStatus
+from e_graph.providers.drivers.telemetry.otel import OTelDriver
 from support.root import otel_args
 
 if TYPE_CHECKING:

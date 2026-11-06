@@ -17,11 +17,11 @@ from litestar.connection import Request
 from litestar.di import NamedDependency
 
 from e_api.api.state import AppState
+from e_api.engines.auth import AuthEngine
+from e_api.infra.auth.models import Caller
+from e_api.infra.state import State
 from e_api.models.user import User, UserRecord
-from engines.auth import AuthEngine
-from infra.auth.models import Caller
-from infra.state import State
-from ports.store import StorePort
+from e_api.ports.store import StorePort
 
 USER_KEY: str = "user:"
 

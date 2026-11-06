@@ -6,7 +6,7 @@ from litestar import Litestar, get
 from litestar.testing import TestClient
 
 from e_graph.api.router.ui import STATIC, router
-from infra.settings import settings as st
+from e_graph.infra.settings import settings as st
 
 if TYPE_CHECKING:
     from pathlib import Path

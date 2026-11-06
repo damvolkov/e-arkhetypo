@@ -5,7 +5,7 @@ at startup freezes its shape, while this store must keep taking and dropping run
 
 from collections.abc import Iterator, Mapping
 
-from infra.state import State
+from e_graph.infra.state import State
 
 
 class InstrumentContexts(Mapping[str, State]):

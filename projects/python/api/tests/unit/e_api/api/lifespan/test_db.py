@@ -7,7 +7,7 @@ from litestar import Litestar
 from pydantic import PostgresDsn, Secret
 
 from e_api.api.lifespan import db
-from infra.errors import DatabaseError
+from e_api.infra.errors import DatabaseError
 
 
 class FakeDriver:

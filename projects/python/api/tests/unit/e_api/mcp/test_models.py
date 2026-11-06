@@ -8,8 +8,8 @@ from uuid import UUID
 import msgspec
 import pytest
 
+from e_api.engines.health import ProviderHealth
 from e_api.mcp.models import NoArgs, Status, UserArgs, UserUpdateArgs
-from engines.health import ProviderHealth
 
 UID = "9d1a5b58-0e0e-4a5e-9a3f-000000000000"
 

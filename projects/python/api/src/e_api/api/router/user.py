@@ -28,12 +28,12 @@ from e_api.api.deps import (
     to_user,
 )
 from e_api.api.security import SECURITY
+from e_api.infra.auth.guard import OPT
+from e_api.infra.auth.models import Access, Caller
+from e_api.infra.logger import logger
+from e_api.infra.state import State
 from e_api.models.user import User, UserCreate, UserRecord, UserUpdate
-from infra.auth.guard import OPT
-from infra.auth.models import Access, Caller
-from infra.logger import logger
-from infra.state import State
-from ports.store import StorePort
+from e_api.ports.store import StorePort
 
 
 ##### HANDLERS #####

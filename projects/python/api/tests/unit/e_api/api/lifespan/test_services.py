@@ -5,8 +5,8 @@ from typing import TYPE_CHECKING, cast
 
 from e_api.api.lifespan import services
 from e_api.api.state import AppState
-from infra.state import State
-from ops.crypto import Crypto
+from e_api.infra.state import State
+from e_api.ops.crypto import Crypto
 
 if TYPE_CHECKING:
     from litestar import Litestar

@@ -1,9 +1,9 @@
-"""scripts/materialize: the hardened sed — copy `projects/python/common` sections into `src/` with a structural rewrite.
+"""scripts/materialize: the hardened sed — copy `projects/python/common` sections into `src/e_graph/` with a structural rewrite.
 
 libcst parses each source file as real 3.14 syntax (PEP 695 included, verified against the whole
-`e_infra` tree) and rewrites *only* the import nodes `e_infra.<section> → <section>` for the six sections;
+`e_infra` tree) and rewrites *only* the import nodes `e_infra.<section> → e_graph.<section>` for the six sections;
 every result is re-parsed with `ast.parse` and scanned for leftovers before it is written. `make common`
-materializes into `src/`; `make common-check` materializes into a throwaway tree under `/tmp` and diffs,
+materializes into `src/e_graph/`; `make common-check` materializes into a throwaway tree under `/tmp` and diffs,
 so both modes run the exact same generation path and the drift-check cannot lie about a second one.
 """
 
@@ -24,6 +24,7 @@ if TYPE_CHECKING:
 
 API_ROOT: Path = Path(__file__).resolve().parents[1]
 COMMON_SRC: Path = API_ROOT.parent / "common" / "src" / "e_infra"
+PACKAGE: Final[str] = "e_graph"
 SECTIONS: tuple[str, ...] = ("engines", "infra", "ops", "ports", "processors", "providers")
 ### the TUI header belongs to the boilerplate wizard, not to a running service: same topology as the old sed.
 ### the compose tool belongs to stack management (e-taxis materializes the whole ops area), not to a running service.
@@ -75,7 +76,7 @@ EXCLUDES: frozenset[str] = frozenset(
 )
 
 
-### the shared homes, under `src`: common lands its clusters and a default `infra/settings.py` there, but a file the
+### the shared homes, under `src/e_graph`: common lands its clusters and a default `infra/settings.py` there, but a file the
 ### project tracks is its own — never written, pruned or flagged as drift; its `infra/settings.py` wins over common's
 ### default (e-nous `proj-py-layout/references/settings.md`). Every other path of a section is common's alone.
 SHARED: Final[frozenset[str]] = frozenset({"infra/config", "infra/settings.py"})
@@ -105,25 +106,25 @@ def _dotted(parts: Sequence[str]) -> cst.BaseExpression:
             return cst.Attribute(value=_dotted(init), attr=cst.Name(last))
 
 
-def _strip_e_infra(name: cst.BaseExpression) -> cst.BaseExpression:
-    """`e_infra.infra.x` → `infra.x`; anything outside a materialized section is returned untouched."""
+def _reroot_e_infra(name: cst.BaseExpression) -> cst.BaseExpression:
+    """`e_infra.infra.x` → `e_graph.infra.x`; anything outside a materialized section is returned untouched."""
     parts = _parts(name)
     hit = parts is not None and parts[0] == "e_infra" and len(parts) > 1 and parts[1] in SECTIONS
-    return _dotted(parts[1:]) if hit else name
+    return _dotted([PACKAGE, *parts[1:]]) if hit else name
 
 
-def _strip_alias(alias: object) -> object:
+def _reroot_alias(alias: object) -> object:
     """One `import a.b [as c]` alias, stripped whatever its wrapper shape; anything else passes through."""
     match alias:
         case cst.ImportAlias(name=name):
-            return alias.with_changes(name=_strip_e_infra(name))
+            return alias.with_changes(name=_reroot_e_infra(name))
         case cst.Element(node=cst.ImportAlias() as inner):
-            return alias.with_changes(node=_strip_alias(inner))
+            return alias.with_changes(node=_reroot_alias(inner))
         case _:
             return alias
 
 
-class _StripEInfra(cst.CSTTransformer):
+class _RerootEInfra(cst.CSTTransformer):
     """Import statements only: docstrings and comments keep naming the source of truth verbatim."""
 
     def leave_Import(  # noqa: N802 — libcst dispatches visitor methods by node class name
@@ -133,7 +134,7 @@ class _StripEInfra(cst.CSTTransformer):
             case cst.ImportStar():
                 return updated_node
             case aliases:
-                return updated_node.with_changes(names=[_strip_alias(alias) for alias in aliases])
+                return updated_node.with_changes(names=[_reroot_alias(alias) for alias in aliases])
 
     def leave_ImportFrom(  # noqa: N802 — libcst dispatches by node class name
         self, _original_node: cst.ImportFrom, updated_node: cst.ImportFrom
@@ -142,7 +143,7 @@ class _StripEInfra(cst.CSTTransformer):
             case None:
                 return updated_node
             case module:
-                return updated_node.with_changes(module=_strip_e_infra(module))
+                return updated_node.with_changes(module=_reroot_e_infra(module))
 
 
 ##### VALIDATION #####
@@ -156,7 +157,7 @@ def _is_e_infra_import(node: ast.AST) -> bool:
 
 def rewrite_source(text: str, path: str) -> str:
     """One file rewritten structurally, then hard-validated: parseable by `ast`, free of `e_infra` imports."""
-    out = cst.parse_module(text).visit(_StripEInfra()).code
+    out = cst.parse_module(text).visit(_RerootEInfra()).code
     match [node for node in ast.walk(ast.parse(out, filename=path)) if _is_e_infra_import(node)]:
         case []:
             return out
@@ -183,15 +184,18 @@ def _shared(rel: Path) -> bool:
 def _project(dest_root: Path) -> frozenset[Path]:
     """What the project owns inside the shared homes: what git tracks there. Common never writes over it."""
     found = subprocess.run(
-        ["git", "-C", str(dest_root / "src"), "ls-files", "--", *SHARED], capture_output=True, text=True, check=False
+        ["git", "-C", str(dest_root / "src" / PACKAGE), "ls-files", "--", *SHARED],
+        capture_output=True,
+        text=True,
+        check=False,
     )
     return frozenset(rel for line in found.stdout.splitlines() if _shared(rel := Path(line)))
 
 
 def materialize(dest_root: Path) -> None:
-    """Write the rewritten sections under `dest_root/src`, replacing any previous copy — except what the project owns
+    """Write the rewritten sections under `dest_root/src/<package>`, replacing any previous copy — except what the project owns
     in a shared home, kept byte for byte."""
-    src = dest_root / "src"
+    src = dest_root / "src" / PACKAGE
     owned = {rel: (src / rel).read_bytes() for rel in _project(dest_root) if (src / rel).is_file()}
     for section in SECTIONS:
         shutil.rmtree(src / section, ignore_errors=True)
@@ -207,11 +211,11 @@ def materialize(dest_root: Path) -> None:
 
 
 def _materialized(dest_root: Path) -> set[Path]:
-    """The .py files currently materialized under `dest_root/src`, relative to `src`."""
+    """The .py files currently materialized under `dest_root/src/<package>`, relative to it."""
     return {
-        path.relative_to(dest_root / "src")
+        path.relative_to(dest_root / "src" / PACKAGE)
         for section in SECTIONS
-        for path in (dest_root / "src" / section).rglob("*.py")
+        for path in (dest_root / "src" / PACKAGE / section).rglob("*.py")
     }
 
 
@@ -229,7 +233,7 @@ def check(dest_root: Path) -> int:
             *(
                 f"{rel}: stale"
                 for rel in sorted(expected & actual)
-                if not filecmp.cmp(tmp / "src" / rel, dest_root / "src" / rel, shallow=False)
+                if not filecmp.cmp(tmp / "src" / PACKAGE / rel, dest_root / "src" / PACKAGE / rel, shallow=False)
             ),
         ]
         match issues:
@@ -255,7 +259,9 @@ def main(argv: Sequence[str] | None = None) -> int:
             return check(API_ROOT)
         case _:
             materialize(API_ROOT)
-            print(f"✓ materialized {', '.join(f'{section}/' for section in SECTIONS)} from projects/python/common")
+            print(
+                f"✓ materialized {', '.join(f'{PACKAGE}/{section}/' for section in SECTIONS)} from projects/python/common"
+            )
             return 0
 
 

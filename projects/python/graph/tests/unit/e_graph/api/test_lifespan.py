@@ -8,20 +8,20 @@ from litestar.testing import TestClient
 from e_graph.api.lifespan import graphs, instrument, logic, providers, sealed, services
 from e_graph.api.lifespan.infra import SharedState
 from e_graph.api.lifespan.infra import lifespan as infra_lifespan
+from e_graph.engines.health import HealthEngine
+from e_graph.infra.errors import StoreError
+from e_graph.infra.logger import logger
 from e_graph.instrument.graph import InstrumentGraph
 from e_graph.instrument.state import EnginesState, ProvidersState
 from e_graph.main import create_app
-from engines.health import HealthEngine
-from infra.errors import StoreError
-from infra.logger import logger
-from ports.documents import DocumentPort
-from ports.http import HTTPPort
-from ports.markdown import MarkdownPort
-from ports.pages import PagesPort
-from ports.provider import Provider
-from ports.store import StorePort
-from ports.telemetry import TelemetryPort
-from processors.doc import DocProcessor
+from e_graph.ports.documents import DocumentPort
+from e_graph.ports.http import HTTPPort
+from e_graph.ports.markdown import MarkdownPort
+from e_graph.ports.pages import PagesPort
+from e_graph.ports.provider import Provider
+from e_graph.ports.store import StorePort
+from e_graph.ports.telemetry import TelemetryPort
+from e_graph.processors.doc import DocProcessor
 
 
 def test_lifespans_are_declared_not_built() -> None:

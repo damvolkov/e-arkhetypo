@@ -7,7 +7,7 @@ from e_tui.app import LayoutApp
 from e_tui.layout.frame import BoxFrame, EdgeFrame
 from e_tui.layout.spec import Axis, Box, Kind, Mast, Measure, Shape
 from e_tui.models.error import SpecError
-from ops.tui import HeaderTui
+from e_tui.ops.tui import HeaderTui
 
 ##### FIXTURES #####
 

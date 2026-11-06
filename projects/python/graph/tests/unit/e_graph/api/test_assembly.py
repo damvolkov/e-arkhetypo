@@ -3,8 +3,8 @@
 from importlib.metadata import version
 
 import e_graph.main as entrypoint
-from infra.settings import Settings
-from infra.settings import settings as st
+from e_graph.infra.settings import Settings
+from e_graph.infra.settings import settings as st
 
 
 def test_importing_main_has_no_side_effects() -> None:
@@ -14,7 +14,15 @@ def test_importing_main_has_no_side_effects() -> None:
 
 def test_settings_hold_every_cluster() -> None:
     fields = set(Settings.model_fields)
-    assert {"ALLOW_ORIGINS", "APP_PORT", "CRYPTO__SECRET", "PING_TIMEOUT", "DOC_MODE", "REDIS_URL", "UI_TOAST"} <= fields
+    assert {
+        "ALLOW_ORIGINS",
+        "APP_PORT",
+        "CRYPTO__SECRET",
+        "PING_TIMEOUT",
+        "DOC_MODE",
+        "REDIS_URL",
+        "UI_TOAST",
+    } <= fields
     assert str(st.REDIS_URL.get_secret_value()).startswith("redis://")
     assert st.APP_PORT == 8000
 

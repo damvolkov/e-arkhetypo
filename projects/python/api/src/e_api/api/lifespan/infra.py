@@ -12,9 +12,9 @@ from litestar import Litestar
 from structlog.typing import BindableLogger
 
 from e_api.api.state import AppState
-from infra.logger import logger
-from infra.proxy import LazyProxy
-from infra.settings import settings as st
+from e_api.infra.logger import logger
+from e_api.infra.proxy import LazyProxy
+from e_api.infra.settings import settings as st
 
 
 ##### SECTION #####

@@ -17,20 +17,20 @@ unused_ignore_directives = "error"
 ### the service stands on the materialized sections and on its own models; nothing materialized imports it back.
 [[modules]]
 path = "e_api"
-depends_on = ["e_api.api", "e_api.api.lifespan", "e_api.mcp", "e_api.websockets", "infra", "infra.auth", "infra.mcp"]
+depends_on = ["e_api.api", "e_api.api.lifespan", "e_api.mcp", "e_api.websockets", "e_api.infra", "e_api.infra.auth", "e_api.infra.mcp"]
 
 [[modules]]
 path = "e_api.api"
 depends_on = [
     "e_api.models",
-    "engines",
-    "providers.drivers",
-    "providers.adapters",
-    "ports",
-    "infra",
-    "infra.auth",
-    "infra.errors",
-    "ops",
+    "e_api.engines",
+    "e_api.providers.drivers",
+    "e_api.providers.adapters",
+    "e_api.ports",
+    "e_api.infra",
+    "e_api.infra.auth",
+    "e_api.infra.errors",
+    "e_api.ops",
 ]
 
 ### the composition root's lifespans stand on every section and on the MCP door they build the server of; the door reads
@@ -40,70 +40,70 @@ path = "e_api.api.lifespan"
 depends_on = [
     "e_api.api",
     "e_api.mcp",
-    "engines",
-    "providers.drivers",
-    "ports",
-    "infra",
-    "infra.auth",
-    "infra.mcp",
-    "infra.errors",
-    "ops",
+    "e_api.engines",
+    "e_api.providers.drivers",
+    "e_api.ports",
+    "e_api.infra",
+    "e_api.infra.auth",
+    "e_api.infra.mcp",
+    "e_api.infra.errors",
+    "e_api.ops",
 ]
 
 [[modules]]
 path = "e_api.mcp"
-depends_on = ["e_api.api", "e_api.models", "engines", "ports", "infra", "infra.auth", "infra.mcp", "infra.errors"]
+depends_on = ["e_api.api", "e_api.models", "e_api.engines", "e_api.ports", "e_api.infra", "e_api.infra.auth", "e_api.infra.mcp", "e_api.infra.errors"]
 
 [[modules]]
 path = "e_api.websockets"
-depends_on = ["e_api.api", "e_api.models", "infra", "infra.errors"]
+depends_on = ["e_api.api", "e_api.models", "e_api.infra", "e_api.infra.errors"]
 
 [[modules]]
 path = "e_api.models"
-depends_on = ["infra", "infra.errors"]
+depends_on = ["e_api.infra", "e_api.infra.errors"]
 
 ##### MATERIALIZED #####
 ### engines, processors, drivers and adapters are the execution level: each stands on ports, infra and ops, and none
 ### lists another — the horizontal ban is the absence of an edge.
 [[modules]]
-path = "engines"
-depends_on = ["ports", "infra", "infra.auth", "infra.errors", "ops"]
+path = "e_api.engines"
+depends_on = ["e_api.ports", "e_api.infra", "e_api.infra.auth", "e_api.infra.errors", "e_api.ops"]
 
 [[modules]]
-path = "processors"
-depends_on = ["ports", "infra", "infra.errors", "ops"]
+path = "e_api.processors"
+depends_on = ["e_api.ports", "e_api.infra", "e_api.infra.errors", "e_api.ops"]
 
 [[modules]]
-path = "providers.drivers"
-depends_on = ["ports", "infra", "infra.auth", "infra.errors", "ops"]
+path = "e_api.providers.drivers"
+depends_on = ["e_api.ports", "e_api.infra", "e_api.infra.auth", "e_api.infra.errors", "e_api.ops"]
 
 [[modules]]
-path = "providers.adapters"
-depends_on = ["ports", "infra", "infra.errors", "ops"]
+path = "e_api.providers.adapters"
+depends_on = ["e_api.ports", "e_api.infra", "e_api.infra.errors", "e_api.ops"]
 
 ### ports are the bottleneck of the import graph: they see infra and nothing else.
 [[modules]]
-path = "ports"
-depends_on = ["infra", "infra.auth", "infra.errors"]
+path = "e_api.ports"
+depends_on = ["e_api.infra", "e_api.infra.auth", "e_api.infra.errors"]
 
 [[modules]]
-path = "infra"
-depends_on = ["ops", "infra.errors"]
+path = "e_api.infra"
+depends_on = ["e_api.ops", "e_api.infra.errors"]
 
 ### the opt-in infra packages look only down: nothing in `infra` proper imports them, and the MCP engine rides the auth package.
 [[modules]]
-path = "infra.auth"
-depends_on = ["infra", "infra.errors"]
+path = "e_api.infra.auth"
+depends_on = ["e_api.infra", "e_api.infra.errors"]
 
 [[modules]]
-path = "infra.mcp"
-depends_on = ["infra", "infra.auth", "infra.errors"]
+path = "e_api.infra.mcp"
+depends_on = ["e_api.infra", "e_api.infra.auth", "e_api.infra.errors"]
 
 ### the error tree is the floor of the package: every module, `ops` included, raises from it and it imports nothing.
 [[modules]]
-path = "infra.errors"
+path = "e_api.infra.errors"
 depends_on = []
 
 [[modules]]
-path = "ops"
-depends_on = ["infra.errors"]
+path = "e_api.ops"
+depends_on = ["e_api.infra.errors"]

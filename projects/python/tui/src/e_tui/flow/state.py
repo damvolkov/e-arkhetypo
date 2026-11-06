@@ -18,7 +18,7 @@ from typing import Final
 
 from e_tui.flow.graph import Graph
 from e_tui.flow.page import Page
-from infra.state import State
+from e_tui.infra.state import State
 
 ##### NAMESPACE #####
 ANSWERS: str = "answers"

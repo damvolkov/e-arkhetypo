@@ -15,8 +15,8 @@ make up         # docker compose up
 
 ## Layout
 
-The service lives in `src/e_graph/`, layered by [tach](https://tach.dev). `src/engines/`, `src/infra/`, `src/ops/`,
-`src/ports/`, `src/processors/` and `src/providers/` are **materialized** from the infra blueprint by `make common` — edit
+The service lives in `src/e_graph/`, layered by [tach](https://tach.dev). `src/e_graph/engines/`, `src/e_graph/infra/`, `src/e_graph/ops/`,
+`src/e_graph/ports/`, `src/e_graph/processors/` and `src/e_graph/providers/` are **materialized** from the infra blueprint by `make common` — edit
 them there, never here:
 
 | Module | Layer | Purpose |
@@ -55,15 +55,15 @@ them there, never here:
 | [`e_graph.models.section`](reference/e_graph/models/section.md) | models | The closed DARTS taxonomy, in fixed order |
 | [`e_graph.models.pipeline`](reference/e_graph/models/pipeline.md) | models | How the list names a pipeline |
 | [`e_graph.models.ui`](reference/e_graph/models/ui.md) | models | The canvas tunables as the UI reads them |
-| [`processors.doc`](reference/processors/doc.md) | execution | DocProcessor: liteparse on every page, docling-serve on the pages that hold tables, figures or scans — one engine-neutral `Document` (materialized) |
-| [`providers.drivers.documents.docling`](reference/providers/drivers/documents/docling.md) | execution | DocumentPort over docling-serve, riding the HTTPPort: conversions as server tasks, options from `DOCLING_*` (materialized) |
-| [`providers.adapters.pages.liteparse`](reference/providers/adapters/pages/liteparse.md) | execution | PagesPort over liteparse, in-process: the DocProcessor's fast pass, every page and its signals (materialized) |
-| [`providers.drivers.telemetry.otel`](reference/providers/drivers/telemetry/otel.md) | execution | TelemetryPort over the OpenTelemetry SDK, OTLP/HTTP export — common to every system (materialized) |
-| [`engines.health`](reference/engines/health.md) | execution | HealthEngine: every provider surveyed at once — the startup log and `GET /ready` (materialized) |
-| [`ports.provider`](reference/ports/provider.md) | ports | Provider: the lifecycle, `health()` and `ProviderSpec` every provider declares (materialized) |
-| [`ops.wrappers`](reference/ops/wrappers.md) | ops | LatencyWrapper and the agnostic measuring wrappers (materialized) |
-| [`infra.settings`](reference/infra/settings.md) | infra | Composed settings: one BaseSettings reader over the per-scope structs of `infra.config` (materialized) |
-| [`infra.logger`](reference/infra/logger.md) | infra | Structured logging: JSON in prod, ordered plain text in dev (materialized) |
+| [`e_graph.processors.doc`](reference/e_graph/processors/doc.md) | execution | DocProcessor: liteparse on every page, docling-serve on the pages that hold tables, figures or scans — one engine-neutral `Document` (materialized) |
+| [`e_graph.providers.drivers.documents.docling`](reference/e_graph/providers/drivers/documents/docling.md) | execution | DocumentPort over docling-serve, riding the HTTPPort: conversions as server tasks, options from `DOCLING_*` (materialized) |
+| [`e_graph.providers.adapters.pages.liteparse`](reference/e_graph/providers/adapters/pages/liteparse.md) | execution | PagesPort over liteparse, in-process: the DocProcessor's fast pass, every page and its signals (materialized) |
+| [`e_graph.providers.drivers.telemetry.otel`](reference/e_graph/providers/drivers/telemetry/otel.md) | execution | TelemetryPort over the OpenTelemetry SDK, OTLP/HTTP export — common to every system (materialized) |
+| [`e_graph.engines.health`](reference/e_graph/engines/health.md) | execution | HealthEngine: every provider surveyed at once — the startup log and `GET /ready` (materialized) |
+| [`e_graph.ports.provider`](reference/e_graph/ports/provider.md) | ports | Provider: the lifecycle, `health()` and `ProviderSpec` every provider declares (materialized) |
+| [`e_graph.ops.wrappers`](reference/e_graph/ops/wrappers.md) | ops | LatencyWrapper and the agnostic measuring wrappers (materialized) |
+| [`e_graph.infra.settings`](reference/e_graph/infra/settings.md) | infra | Composed settings: one BaseSettings reader over the per-scope structs of `e_graph.infra.config` (materialized) |
+| [`e_graph.infra.logger`](reference/e_graph/infra/logger.md) | infra | Structured logging: JSON in prod, ordered plain text in dev (materialized) |
 
 Reference pages are generated automatically from the sources: drop a new module under `src/` and it
 appears here on the next build.

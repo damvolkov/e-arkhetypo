@@ -5,12 +5,12 @@ from typing import Any, cast
 
 import pytest
 
-from infra.config import infra as infra_mod
-from infra.config.base import BaseSettings
-from ops.file import FileFinder, Kind
+from e_graph.infra.config import infra as infra_mod
+from e_graph.infra.config.base import BaseSettings
+from e_graph.ops.file import FileFinder, Kind
 
-INFRA = FileFinder("infra")
-CONFIG = FileFinder("infra.config")
+INFRA = FileFinder("e_graph.infra")
+CONFIG = FileFinder("e_graph.infra.config")
 
 
 def test_modules_skips_packages_and_declared_names() -> None:
@@ -18,7 +18,7 @@ def test_modules_skips_packages_and_declared_names() -> None:
     ### `config` is a package: excluded.
     assert "config" not in INFRA.discover(Kind.MODULES)
     assert "base" in CONFIG.discover(Kind.MODULES)
-    strict = FileFinder("infra.config", skip=frozenset({"base"}))
+    strict = FileFinder("e_graph.infra.config", skip=frozenset({"base"}))
     assert "base" not in strict.discover(Kind.MODULES)
 
 

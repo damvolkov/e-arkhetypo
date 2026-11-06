@@ -10,9 +10,9 @@ from contextlib import asynccontextmanager
 from litestar import Litestar
 
 from e_api.api.state import AppState
-from infra.logger import logger
-from infra.settings import settings as st
-from ops.crypto import Crypto, CryptoKeys
+from e_api.infra.logger import logger
+from e_api.infra.settings import settings as st
+from e_api.ops.crypto import Crypto, CryptoKeys
 
 
 @asynccontextmanager

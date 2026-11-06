@@ -11,6 +11,7 @@ of `logic/orchestrator/core.py`."""
 from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, ClassVar, Final
 
+from e_graph.infra.state import State
 from e_graph.instrument.contexts import InstrumentContexts
 from e_graph.instrument.state import InfraState, InstrumentState, RunState
 from e_graph.instrument.telemetry import InstrumentTelemetry
@@ -30,13 +31,12 @@ from e_graph.logic.models import (
 from e_graph.logic.orchestrator.core import OrchestratorCore
 from e_graph.logic.state import LogicState
 from e_graph.models.section import Section
-from infra.state import State
 from support.crafter import plug
 from support.root import darts
 
 if TYPE_CHECKING:
     from e_graph.logic.models import SectionRun
-    from providers.drivers.telemetry.otel import OTelDriver
+    from e_graph.providers.drivers.telemetry.otel import OTelDriver
     from support.crafter import SpecCrafter
 
 SECTION: Final[Section] = Section.EXTRACT

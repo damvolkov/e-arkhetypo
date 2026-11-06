@@ -17,10 +17,10 @@ from litestar import Litestar
 
 from e_api.api.lifespan.providers import ProvidersState
 from e_api.api.state import AppState
-from engines.auth import AuthEngine
-from engines.health import HealthEngine
-from infra.logger import logger
-from infra.settings import settings as st
+from e_api.engines.auth import AuthEngine
+from e_api.engines.health import HealthEngine
+from e_api.infra.logger import logger
+from e_api.infra.settings import settings as st
 
 ### the providers a ready service cannot do without; a role not here is optional.
 REQUIRED: Final[frozenset[str]] = frozenset({"store", "auth"})

@@ -9,7 +9,7 @@ from typing import Any, Final
 
 import pytest
 
-from infra.config.agent import AgentSettings
+from e_graph.infra.config.agent import AgentSettings
 from support.root import agent_args
 
 ### the endpoint these cassettes were recorded against; the key never lands here — CUSTOM is a local-server

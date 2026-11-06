@@ -3,7 +3,7 @@ built and run for the app's life by `api/lifespan/mcp`, read by the endpoint's m
 
 from dataclasses import dataclass
 
-from infra.mcp.server import MCPServer
+from e_api.infra.mcp.server import MCPServer
 
 
 @dataclass(frozen=True, slots=True)

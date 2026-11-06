@@ -13,7 +13,7 @@ root_module = "forbid"
 # (the composition root) · `services`: the use cases, which see ports only · `execution`: engines, processors,
 # drivers and adapters share one horizontal layer, none imports another · then ports, the shared core, and data ·
 # `errors`: the floor — the one root of every error, importing nothing (same edge as the common blueprint).
-layers = ["cli", "runtime", "services", "execution", "ports", "infra", "ops", "models", "errors"]
+layers = ["cli", "runtime", "services", "execution", "e_cli.ports", "e_cli.infra", "e_cli.ops", "models", "errors"]
 
 [rules]
 unused_ignore_directives = "error"
@@ -40,39 +40,39 @@ layer = "services"
 depends_on = []
 
 [[modules]]
-path = "engines"
+path = "e_cli.engines"
 layer = "execution"
 depends_on = []
 
 [[modules]]
-path = "processors"
+path = "e_cli.processors"
 layer = "execution"
 depends_on = []
 
 [[modules]]
-path = "providers.drivers"
+path = "e_cli.providers.drivers"
 layer = "execution"
 depends_on = []
 
 [[modules]]
-path = "providers.adapters"
+path = "e_cli.providers.adapters"
 layer = "execution"
 depends_on = []
 
 [[modules]]
-path = "ports"
-layer = "ports"
+path = "e_cli.ports"
+layer = "e_cli.ports"
 depends_on = []
 
 
 [[modules]]
-path = "infra"
-layer = "infra"
+path = "e_cli.infra"
+layer = "e_cli.infra"
 depends_on = []
 
 [[modules]]
-path = "ops"
-layer = "ops"
+path = "e_cli.ops"
+layer = "e_cli.ops"
 depends_on = []
 
 [[modules]]
@@ -81,6 +81,6 @@ layer = "models"
 depends_on = []
 
 [[modules]]
-path = "infra.errors"
+path = "e_cli.infra.errors"
 layer = "errors"
 depends_on = []

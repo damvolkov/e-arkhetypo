@@ -17,6 +17,7 @@ from typing import TYPE_CHECKING, Any, Final, Protocol, cast
 
 import msgspec
 
+from e_graph.infra.state import State
 from e_graph.instrument.contexts import InstrumentContexts
 from e_graph.instrument.state import RunState
 from e_graph.logic.discover import KINDS, RUNNERS, SPECS, SpecDiscover
@@ -40,7 +41,6 @@ from e_graph.logic.models import (
     Tier,
 )
 from e_graph.models.section import ORDER, PREFIXES, Section
-from infra.state import State
 
 
 class Answers(Protocol):

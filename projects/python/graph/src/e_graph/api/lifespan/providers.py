@@ -19,19 +19,19 @@ from typing import TYPE_CHECKING
 from litestar import Litestar
 
 from e_graph.api.state import AppState
+from e_graph.infra.logger import logger
+from e_graph.infra.settings import settings as st
 from e_graph.instrument.state import ProvidersState
-from infra.logger import logger
-from infra.settings import settings as st
-from providers.adapters.markdown.anytomd import AnytomdAdapter
-from providers.adapters.pages.liteparse import LiteparseAdapter
-from providers.drivers.documents.docling import DoclingDriver
-from providers.drivers.http.wreq import WreqDriver
-from providers.drivers.store.redis import RedisDriver
-from providers.drivers.store.sqlite import SqliteDriver
-from providers.drivers.telemetry.otel import OTelDriver
+from e_graph.providers.adapters.markdown.anytomd import AnytomdAdapter
+from e_graph.providers.adapters.pages.liteparse import LiteparseAdapter
+from e_graph.providers.drivers.documents.docling import DoclingDriver
+from e_graph.providers.drivers.http.wreq import WreqDriver
+from e_graph.providers.drivers.store.redis import RedisDriver
+from e_graph.providers.drivers.store.sqlite import SqliteDriver
+from e_graph.providers.drivers.telemetry.otel import OTelDriver
 
 if TYPE_CHECKING:
-    from ports.http import HTTPPort
+    from e_graph.ports.http import HTTPPort
 
 
 ##### ROOT — the readers every root opens: this lifespan and the cli's rehearsal #####

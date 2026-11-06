@@ -13,14 +13,14 @@ templates:
       detach:
         - unit: providers/drivers/store/redis
           prunes:
-            - {file: src/e_api/api/lifespan/providers.py, pattern: '^from providers\.drivers\.store\.redis import RedisDriver\n'}
+            - {file: src/e_api/api/lifespan/providers.py, pattern: '^from e_api\.providers\.drivers\.store\.redis import RedisDriver\n'}
             - {file: src/e_api/api/lifespan/providers.py, pattern: '^    redis: StorePort\n'}
             - {file: src/e_api/api/lifespan/providers.py, pattern: '^        redis = await enter\(RedisDriver\(\)\)\n'}
             - {file: src/e_api/api/lifespan/providers.py, pattern: ', redis=redis'}
             - {file: tests/unit/e_api/api/lifespan/test_providers.py, pattern: '^    assert (isinstance\(section\.redis, StorePort\)|section\.redis\.spec\.name == "redis")\n'}
-            - {file: tests/unit/e_api/api/router/test_health.py, pattern: '^from providers\.drivers\.store\.redis import RedisDriver\n'}
+            - {file: tests/unit/e_api/api/router/test_health.py, pattern: '^from e_api\.providers\.drivers\.store\.redis import RedisDriver\n'}
             - {file: tests/conftest.py, pattern: '^import fakeredis\nimport fakeredis\.aioredis\n'}
-            - {file: tests/conftest.py, pattern: '^from providers\.drivers\.store import redis as redis_module\n'}
+            - {file: tests/conftest.py, pattern: '^from e_api\.providers\.drivers\.store import redis as redis_module\n'}
             - {file: tests/conftest.py, pattern: '^@pytest\.fixture\(autouse=True\)\ndef redis_server[\s\S]*?(?=^@pytest\.fixture)'}
             - {file: tests/unit/e_api/api/router/test_health.py, pattern: '\(RedisDriver, "redis", 200\), '}
             - {file: tests/unit/e_api/api/router/test_health.py, pattern: '"optional-down", '}
@@ -28,12 +28,12 @@ templates:
             - {file: pyproject.toml, pattern: '^    "(fake)?redis>=[^"]*",\n'}
         - unit: providers/drivers/http/wreq
           prunes:
-            - {file: src/e_api/api/lifespan/providers.py, pattern: '^from providers\.drivers\.http\.wreq import WreqDriver\n'}
-            - {file: src/e_api/api/lifespan/providers.py, pattern: '^from ports\.http import HTTPPort\n'}
+            - {file: src/e_api/api/lifespan/providers.py, pattern: '^from e_api\.providers\.drivers\.http\.wreq import WreqDriver\n'}
+            - {file: src/e_api/api/lifespan/providers.py, pattern: '^from e_api\.ports\.http import HTTPPort\n'}
             - {file: src/e_api/api/lifespan/providers.py, pattern: '^    http: HTTPPort\n'}
             - {file: src/e_api/api/lifespan/providers.py, pattern: '^        http = await enter\(WreqDriver\(\)\)\n'}
             - {file: src/e_api/api/lifespan/providers.py, pattern: ', http=http'}
-            - {file: tests/unit/e_api/api/lifespan/test_providers.py, pattern: '^from ports\.http import HTTPPort\n'}
+            - {file: tests/unit/e_api/api/lifespan/test_providers.py, pattern: '^from e_api\.ports\.http import HTTPPort\n'}
             - {file: tests/unit/e_api/api/lifespan/test_providers.py, pattern: '^    assert (isinstance\(section\.http, HTTPPort\)|section\.http\.spec\.name == "wreq")\n'}
             - {file: pyproject.toml, pattern: '^    ##### http #####\n    "wreq>=[^"]*",\n'}
     materials: &materials
@@ -72,31 +72,34 @@ templates:
           - {file: src/e_api/main.py, pattern: '^from e_api\.websockets import telemetry\n'}
           - {file: src/e_api/main.py, pattern: '^    app\.register\(\n        Router\(path="/", route_handlers=list\(telemetry\.ws_routes\(\)\)[^\n]*\n    \)\n'}
           - {file: tach.toml, pattern: ', "e_api\.websockets"'}
-          - {file: tach.toml, pattern: '\[\[modules\]\]\npath = "e_api\.websockets"\ndepends_on = \["e_api\.api", "e_api\.models", "infra", "infra\.errors"\]\n\n'}
+          - {file: tach.toml, pattern: '\[\[modules\]\]\npath = "e_api\.websockets"\ndepends_on = \["e_api\.api", "e_api\.models", "e_api\.infra", "e_api\.infra\.errors"\]\n\n'}
           - {file: tests/unit/e_api/test_main.py, pattern: '^        "/ws/telemetry",\n'}
 
       - name: mcp
         group: modules
         label: MCP door (the resources as tools, served at /mcp)
         default: true
-        paths: [src/e_api/mcp, src/e_api/api/lifespan/mcp.py, src/infra/mcp, src/infra/config/mcp.py, tests/unit/e_api/mcp, tests/unit/e_api/api/lifespan/test_mcp.py, tests/resources/mcp, tests/support/mcp.py]
+        paths: [src/e_api/mcp, src/e_api/api/lifespan/mcp.py, src/e_api/infra/mcp, src/e_api/infra/config/mcp.py, tests/unit/e_api/mcp, tests/unit/e_api/api/lifespan/test_mcp.py, tests/resources/mcp, tests/support/mcp.py]
         prunes:
           - {file: src/e_api/main.py, pattern: 'engines, mcp, providers', to: 'engines, providers'}
           - {file: src/e_api/main.py, pattern: '^from e_api\.mcp import mount\n'}
           - {file: src/e_api/main.py, pattern: '^from e_api\.mcp import registry as tools\n'}
-          - {file: src/e_api/main.py, pattern: '^from infra\.mcp\.guard import internal\n'}
+          - {file: src/e_api/main.py, pattern: '^from e_api\.infra\.mcp\.guard import internal\n'}
+          ### the one Settings names every cluster: the door's goes with the door, or the settings import fails.
+          - {file: src/e_api/infra/settings.py, pattern: '^from e_api\.infra\.config\.mcp import McpSettings\n'}
+          - {file: src/e_api/infra/settings.py, pattern: '^    McpSettings,\n'}
           - {file: src/e_api/main.py, pattern: '^            mcp\.lifespan,\n'}
           - {file: src/e_api/main.py, pattern: '^    ### the MCP door:[^\n]*\n    ###[^\n]*\n    app\.register\(Router\(path="/", route_handlers=list\(tools\.ROUTES\)[^\n]*\n    app\.register\(Router\(path="/", route_handlers=list\(mount\.routes\(\)\)[^\n]*\n'}
           - {file: tach.toml, pattern: '\[\[modules\]\]\npath = "e_api\.mcp"\ndepends_on = [^\n]*\n\n'}
-          - {file: tach.toml, pattern: '\[\[modules\]\]\npath = "infra\.mcp"\ndepends_on = [^\n]*\n\n'}
+          - {file: tach.toml, pattern: '\[\[modules\]\]\npath = "e_api\.infra\.mcp"\ndepends_on = [^\n]*\n\n'}
           - {file: tach.toml, pattern: '"e_api\.mcp", ', to: ''}
-          - {file: tach.toml, pattern: ', "infra\.mcp"\]', to: ']'}
+          - {file: tach.toml, pattern: ', "e_api\.infra\.mcp"\]', to: ']'}
           - {file: tach.toml, pattern: '^    "e_api\.mcp",\n'}
-          - {file: tach.toml, pattern: '^    "infra\.mcp",\n'}
+          - {file: tach.toml, pattern: '^    "e_api\.infra\.mcp",\n'}
           - {file: pyproject.toml, pattern: '^    ### the MCP door: the official SDK[^\n]*\n    "mcp>=[^"]*",\n    ###[^\n]*\n    "python-multipart>=[^"]*",\n'}
           - {file: pyproject.toml, pattern: '^    ### the MCP door.s tests drive[^\n]*\n    "httpx2>=[^"]*",\n'}
           - {file: pyproject.toml, pattern: '^"src/e_api/mcp/\*\*" = [^\n]*\n'}
-          - {file: pyproject.toml, pattern: '^### the one module that speaks the MCP protocol[^\n]*\n"src/infra/mcp/server\.py" = [^\n]*\n'}
+          - {file: pyproject.toml, pattern: '^### the one module that speaks the MCP protocol[^\n]*\n"src/e_api/infra/mcp/server\.py" = [^\n]*\n'}
           - {file: pyproject.toml, pattern: '\n\[tool\.ruff\.lint\.flake8-tidy-imports\.banned-api\]\n"mcp\.server"\.msg = [^\n]*\n'}
           - {file: tests/unit/e_api/test_main.py, pattern: ', "mcp"\]', to: ']'}
           - {file: tests/unit/e_api/api/lifespan/test_sealed.py, pattern: ', "mcp"\}', to: '}'}
@@ -151,7 +154,8 @@ templates:
       - {file: Makefile, pattern: ' common-check'}
       - {file: Makefile, pattern: ' common\b(?![/-])'}
       - {file: .gitignore, pattern: '^# (generated|materialized).*\n'}
-      - {file: .gitignore, pattern: '^src/(infra|ops|ports|providers|engines|processors)/\n'}
+      ### every line that hides the common: a generated project has no materializer, so it tracks its common whole.
+      - {file: .gitignore, pattern: '^!?src/\w+/(infra|ops|ports|providers|engines|processors)/(config/)?\*?\n'}
       - {file: .gitignore, pattern: '^(prek\.toml|\.(gitattributes|python-version))\n'}
       - {file: .gitignore, pattern: '^\.github/(dependabot\.yml|CODEOWNERS)\n'}
       - {file: pyproject.toml, pattern: ', shared infra materialized from projects/python/common'}
@@ -159,7 +163,7 @@ templates:
       - {file: Makefile, pattern: ' — infra/ops/ports/providers/engines/processors materialized from \$\(COMMON_SRC\)'}
       - {file: README.md, pattern: '^.*\b(GENERATED|make common)\b.*\n'}
       ### a detached project owns its infra set: `clean` must not delete source the generator no longer restores.
-      - {file: Makefile, pattern: ' src/infra src/ops src/ports src/providers src/engines src/processors prek\.toml \.gitattributes \.python-version'}
+      - {file: Makefile, pattern: ' \$\(PACKAGE\)/infra \$\(PACKAGE\)/ops \$\(PACKAGE\)/ports \$\(PACKAGE\)/providers \$\(PACKAGE\)/engines \$\(PACKAGE\)/processors prek\.toml \.gitattributes \.python-version'}
       - {file: Makefile, pattern: ' \+ materialized common'}
       ### an e- service runs as one word: its compose service, container and host name drop the brand's hyphen (egnosis).
       - {file: compose.yml, pattern: '^(  |    container_name: |    hostname: )e-([a-z0-9]+)(:?)$', to: '\1e\2\3'}

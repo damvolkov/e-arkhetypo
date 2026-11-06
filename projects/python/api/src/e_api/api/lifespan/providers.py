@@ -14,18 +14,18 @@ from dataclasses import dataclass, fields
 from litestar import Litestar
 
 from e_api.api.state import AppState
-from infra.logger import logger
-from infra.settings import settings as st
-from ports.auth import AuthPort
-from ports.database import DatabasePort
-from ports.http import HTTPPort
-from ports.provider import Provider
-from ports.store import StorePort
-from providers.drivers.auth.postgres import PostgresAuthDriver
-from providers.drivers.database.psqlpy import PsqlpyDriver
-from providers.drivers.http.wreq import WreqDriver
-from providers.drivers.store.redis import RedisDriver
-from providers.drivers.store.sqlite import SqliteDriver
+from e_api.infra.logger import logger
+from e_api.infra.settings import settings as st
+from e_api.ports.auth import AuthPort
+from e_api.ports.database import DatabasePort
+from e_api.ports.http import HTTPPort
+from e_api.ports.provider import Provider
+from e_api.ports.store import StorePort
+from e_api.providers.drivers.auth.postgres import PostgresAuthDriver
+from e_api.providers.drivers.database.psqlpy import PsqlpyDriver
+from e_api.providers.drivers.http.wreq import WreqDriver
+from e_api.providers.drivers.store.redis import RedisDriver
+from e_api.providers.drivers.store.sqlite import SqliteDriver
 
 
 ##### SECTION #####

@@ -40,12 +40,12 @@ from typing import TYPE_CHECKING, Any, Final
 
 import anyio
 
+from e_graph.infra.logger import logger
 from e_graph.logic.discover import KINDS, RUNNERS, SPECS, SpecDiscover
 from e_graph.logic.errors import BlockedError, OrchestratorError, SectionError
 from e_graph.logic.models import AgentCall, Bound, Call, SectionRun, SemanticSpec, Slot, SpecOutcome, SpecStatus
 from e_graph.logic.orchestrator.fusion import SpecFusion
 from e_graph.logic.orchestrator.plan import DagPlan
-from infra.logger import logger
 
 if TYPE_CHECKING:
     from collections.abc import Generator, Iterator, Mapping, Sequence

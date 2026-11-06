@@ -75,7 +75,7 @@ if TYPE_CHECKING:
     from any_llm.types.completion import ChatCompletionMessage
     from pydantic import SecretStr
 
-    from infra.config.agent import AgentTier
+    from e_graph.infra.config.agent import AgentTier
 
 type Prompt = str | Sequence[Message]
 ### an output model: validated by pydantic when it is one, by msgspec otherwise.

@@ -16,10 +16,10 @@ from litestar.middleware import DefineMiddleware
 from litestar.types import ASGIApp
 
 from e_api.api.state import AppState
-from infra.auth.middleware import TokenMiddleware
-from infra.auth.resolver import CallerResolver
-from infra.config.api import HTTPMethod
-from infra.logger import logger
+from e_api.infra.auth.middleware import TokenMiddleware
+from e_api.infra.auth.resolver import CallerResolver
+from e_api.infra.config.api import HTTPMethod
+from e_api.infra.logger import logger
 
 if TYPE_CHECKING:
     from collections.abc import Sequence

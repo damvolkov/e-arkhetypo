@@ -12,8 +12,8 @@ from dataclasses import dataclass, field
 from e_tui.flow.graph import Graph
 from e_tui.flow.page import Page
 from e_tui.flow.state import has, seed
+from e_tui.infra.state import State
 from e_tui.models.error import PageStructureError
-from infra.state import State
 
 ##### SHADOW #####
 _PRESENCE: object = object()  # the sentinel a produced path holds in the shadow: presence, never a value

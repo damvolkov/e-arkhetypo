@@ -10,8 +10,8 @@ from typing import TYPE_CHECKING, Final
 import pytest
 
 from e_graph.api.lifespan import services
-from infra.proxy import LazyProxy
-from infra.state import State
+from e_graph.infra.proxy import LazyProxy
+from e_graph.infra.state import State
 
 ### shared by nature, never a node held twice: interned atoms, and the lazy singletons `shared` mirrors on purpose.
 ATOMS: Final[tuple[type, ...]] = (str, bytes, int, float, bool, type(None), LazyProxy)
@@ -21,9 +21,12 @@ if TYPE_CHECKING:
 
     from litestar.testing import TestClient
 
-### the strata are every package of the service but its edge, `api`, where the lifespans and their sections live.
+### the strata are every package of the service but its edge, `api`, where the lifespans and their sections live, and
+### the common sections materialized beside it — tools, never a stratum's node.
 SERVICE: Final[str] = "e_graph."
-EDGE: Final[str] = "e_graph.api."
+EDGE: Final[tuple[str, ...]] = tuple(
+    f"e_graph.{name}." for name in ("api", "engines", "infra", "ops", "ports", "processors", "providers")
+)
 
 
 @dataclass(slots=True)

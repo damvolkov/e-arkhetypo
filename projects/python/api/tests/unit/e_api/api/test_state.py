@@ -11,8 +11,8 @@ import pytest
 from litestar import Litestar
 
 from e_api.api.state import AppState
+from e_api.infra.state import State
 from e_api.main import create_app
-from infra.state import State
 
 
 def test_state_create_app_installs_the_typed_state() -> None:

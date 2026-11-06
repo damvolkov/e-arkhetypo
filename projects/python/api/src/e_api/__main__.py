@@ -9,8 +9,8 @@ from granian import Granian
 from granian.constants import Interfaces
 
 from e_api.api.admin import mint
-from infra.config.infra import Env
-from infra.settings import settings as st
+from e_api.infra.config.infra import Env
+from e_api.infra.settings import settings as st
 
 if __name__ == "__main__":
     match sys.argv[1:]:

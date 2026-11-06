@@ -20,13 +20,13 @@ from litestar.params import JSONBody
 from litestar.status_codes import HTTP_422_UNPROCESSABLE_ENTITY
 
 from e_graph.api.deps import DepKey, graph, graphs, lab, section, system
+from e_graph.infra.state import State
 from e_graph.instrument.graph import InstrumentGraph
 from e_graph.logic.errors import CatalogError
 from e_graph.logic.models import SectionInfo, SectionMap, Simulation
 from e_graph.logic.orchestrator.lab import SectionLab
 from e_graph.models.run import SimulateRequest
 from e_graph.models.section import Section
-from infra.state import State
 
 PREFIX: Final[str] = "/api/specs"
 SVG: Final[str] = "image/svg+xml"

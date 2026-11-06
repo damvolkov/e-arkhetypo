@@ -10,7 +10,7 @@ which receive the app, narrow it with `AppState.of(app)`: a runtime check, never
 from litestar import Litestar
 from litestar.datastructures import State as LitestarState
 
-from infra.state import State
+from e_graph.infra.state import State
 
 
 class AppState(LitestarState):

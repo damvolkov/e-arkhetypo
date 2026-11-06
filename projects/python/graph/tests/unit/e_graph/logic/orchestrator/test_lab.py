@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Any, Final
 
 import pytest
 
+from e_graph.infra.state import State
 from e_graph.instrument.contexts import InstrumentContexts
 from e_graph.instrument.state import InfraState, InstrumentState, ProcessorsState
 from e_graph.instrument.telemetry import InstrumentTelemetry
@@ -17,8 +18,7 @@ from e_graph.logic.orchestrator.lab import RehearsalAgent, SectionLab
 from e_graph.logic.state import LogicState
 from e_graph.models.section import Section
 from e_graph.pipelines.base import PipelineRegistry
-from infra.state import State
-from processors.doc import DocProcessor
+from e_graph.processors.doc import DocProcessor
 from support.darts import SECTION, ScriptedAgent
 from support.docling import MARKDOWN, GoldenPort
 from support.root import darts, doc_args
@@ -27,7 +27,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable, Mapping
 
     from e_graph.instrument.graph import InstrumentGraph
-    from providers.adapters.pages.liteparse import LiteparseAdapter
+    from e_graph.providers.adapters.pages.liteparse import LiteparseAdapter
     from support.darts import DartsHarness
 
 AAPL: Final[str] = str(Path(__file__).resolve().parents[5] / "tests/resources/documents/filings/aapl-10k-2025.pdf")

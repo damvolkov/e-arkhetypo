@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from ops.snap import GallerySnap
+from e_tui.ops.snap import GallerySnap
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Mapping

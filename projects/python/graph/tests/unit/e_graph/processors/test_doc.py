@@ -1,4 +1,4 @@
-"""tests/unit: processors.doc (core, materialized) on the graph's corpus — hybrid reads held to the official truth.
+"""tests/unit/e_graph/processors/doc: processors.doc (core, materialized) on the graph's corpus — hybrid reads held to the official truth.
 
 Every corpus document is read once per module by the real hybrid: liteparse on the real PDF, docling
 answered by the golden conversions (`support.docling.GoldenPort`). The filings' XBRL facts must sit on
@@ -11,16 +11,16 @@ from typing import TYPE_CHECKING, Any
 import polars as pl
 import pytest
 
-from infra.config.processors import DocMode, DocSignal
-from processors.doc import DocProcessor
-from processors.models import Backend, Document
+from e_graph.infra.config.processors import DocMode, DocSignal
+from e_graph.processors.doc import DocProcessor
+from e_graph.processors.models import Backend, Document
 from support.docling import MARKDOWN, GoldenPort
 from support.root import doc_args
 
 if TYPE_CHECKING:
     from pytest_resources import Resources
 
-    from providers.adapters.pages.liteparse import LiteparseAdapter
+    from e_graph.providers.adapters.pages.liteparse import LiteparseAdapter
 
 
 LABELS: dict[str, str] = {

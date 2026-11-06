@@ -3,8 +3,8 @@
 import pytest
 
 from e_cli.models.error import JournalError
+from e_cli.ports.store import StorePort
 from e_cli.runtime.journal import PREFIX, StoreJournal
-from ports.store import StorePort
 
 
 def test_journal_satisfies_the_store_port(store) -> None:

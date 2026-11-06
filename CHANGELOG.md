@@ -6,13 +6,6 @@ touches — `stack`, `systems`, `infra`. Lines under `[Unreleased]` are written 
 
 ## [Unreleased]
 
-### Changed
-- Secrets leave the stacks' working folders for `~/.config/secrets/<owner>/` (mode 700/600): `stack/agent/hermes`
-  mounts `HERMES_SECRETS_DIR` read-only as Hermes' managed layer (`/etc/hermes/.env`, pinned over the vault's
-  `.env`, which keeps only the non-secret settings the e-nous render writes — Hermes rewrites its `.env` by atomic
-  rename, so a file mount would break it); `stack/tools/organon` mounts `ORGANON_PKI_DIR` read-only at
-  `/run/secrets/pki` for `doc/sign`; the `.env.example` files point at the new paths (organon, egnosis, hermes).
-
 ### Fixed
 - `projects/python/{api,graph}/Dockerfile`: the deploy stage imports the package at build time
   (`RUN python -c "import <pkg>"`). The venv is built for the builder's Python; when a bot moves the deploy stage alone

@@ -196,6 +196,14 @@ markers = [
 [tool.coverage.run]
 ### the materialized sections (infra, ops, ports, providers, engines, processors) are tested at their source (projects/python/common); the gate covers the tool.
 source_pkgs = ["e_tui"]
+omit = [
+    "*/src/e_tui/engines/*",
+    "*/src/e_tui/infra/*",
+    "*/src/e_tui/ops/*",
+    "*/src/e_tui/ports/*",
+    "*/src/e_tui/processors/*",
+    "*/src/e_tui/providers/*",
+]
 branch = true
 parallel = true
 

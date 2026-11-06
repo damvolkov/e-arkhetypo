@@ -1,4 +1,4 @@
-"""tests/unit: processors.doc (core, materialized) on the graph's corpus — hybrid reads held to the official truth.
+"""tests/unit/e_graph/processors/doc: processors.doc (core, materialized) on the graph's corpus — hybrid reads held to the official truth.
 
 Every corpus document is read once per module by the real hybrid: liteparse on the real PDF, docling
 answered by the golden conversions (`support.docling.GoldenPort`). The filings' XBRL facts must sit on

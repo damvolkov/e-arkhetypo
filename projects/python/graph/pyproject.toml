@@ -236,10 +236,18 @@ markers = [
 
 ##### COVERAGE #####
 [tool.coverage.run]
-### engines/, infra/, ops/, ports/, processors/ and providers/ are materialized and tested at their source (projects/python/common); the gate covers the service.
+### engines/, infra/, ops/, ports/, processors/ and providers/ are materialized into e_graph and tested at their source (projects/python/common); the gate covers the service.
 source_pkgs = ["e_graph"]
-### runners a test writes to its tmp dir load under `e_graph.runners.*`: fixtures, never the product.
-omit = ["*/pytest-of-*/*"]
+omit = [
+    "*/src/e_graph/engines/*",
+    "*/src/e_graph/infra/*",
+    "*/src/e_graph/ops/*",
+    "*/src/e_graph/ports/*",
+    "*/src/e_graph/processors/*",
+    "*/src/e_graph/providers/*",
+    ### runners a test writes to its tmp dir load under `e_graph.runners.*`: fixtures, never the product.
+    "*/pytest-of-*/*",
+]
 branch = true
 parallel = true
 

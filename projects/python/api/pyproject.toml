@@ -208,8 +208,16 @@ markers = [
 
 ##### COVERAGE #####
 [tool.coverage.run]
-### infra/, ops/, ports/, providers/, engines/ and processors/ are materialized and tested at their source (projects/python/common); the gate covers the service.
+### infra/, ops/, ports/, providers/, engines/ and processors/ are materialized into e_api and tested at their source (projects/python/common); the gate covers the service.
 source_pkgs = ["e_api"]
+omit = [
+    "*/src/e_api/engines/*",
+    "*/src/e_api/infra/*",
+    "*/src/e_api/ops/*",
+    "*/src/e_api/ports/*",
+    "*/src/e_api/processors/*",
+    "*/src/e_api/providers/*",
+]
 branch = true
 parallel = true
 

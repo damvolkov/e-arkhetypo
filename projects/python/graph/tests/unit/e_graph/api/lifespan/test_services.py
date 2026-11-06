@@ -10,6 +10,7 @@ from e_graph.providers.drivers.store.sqlite import SqliteDriver
 
 if TYPE_CHECKING:
     import pytest
+    from pytest_httpserver import HTTPServer
 
 ROLES: Final[list[str]] = ["store", "telemetry", "redis", "http", "docling", "pages", "markdown"]
 
@@ -26,7 +27,7 @@ async def test_services_health_surveys_every_provider(client: TestClient) -> Non
 
 
 async def test_services_startup_logs_each_verdict(
-    monkeypatch: pytest.MonkeyPatch, logs: list[tuple[str, str, dict[str, object]]]
+    monkeypatch: pytest.MonkeyPatch, logs: list[tuple[str, str, dict[str, object]]], docling: HTTPServer
 ) -> None:
     """One event per provider as the app starts: info when it answers, a warning when it does not — the app still
     starts."""

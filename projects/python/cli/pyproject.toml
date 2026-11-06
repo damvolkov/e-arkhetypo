@@ -196,6 +196,14 @@ markers = [
 [tool.coverage.run]
 ### the six materialized sections (infra, ops, ports, providers, engines, processors) are tested at their source (projects/python/common); the gate covers the tool.
 source_pkgs = ["e_cli"]
+omit = [
+    "*/src/e_cli/engines/*",
+    "*/src/e_cli/infra/*",
+    "*/src/e_cli/ops/*",
+    "*/src/e_cli/ports/*",
+    "*/src/e_cli/processors/*",
+    "*/src/e_cli/providers/*",
+]
 branch = true
 parallel = true
 

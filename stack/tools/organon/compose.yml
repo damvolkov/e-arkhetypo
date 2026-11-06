@@ -45,6 +45,8 @@ services:
       ##### ORGANON #####
       - ${ORGANON_DATA_DIR:-../data/eorganon}:/data
       - ${ORGANON_PROFILES:-./profiles.yaml}:/app/profiles.yaml:ro
+      ### the signing certificate (doc/sign: SIGN_P12=/run/secrets/pki/<name>.p12), read-only.
+      - ${ORGANON_PKI_DIR:-./pki}:/run/secrets/pki:ro
       ##### FILES — what a path argument may name, and where outputs land #####
       - ${HOST_HOME}/.config/memory:${HOST_HOME}/.config/memory:ro
       - ${HOST_HOME}/.config/memory/workflow:${HOST_HOME}/.config/memory/workflow

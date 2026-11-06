@@ -37,6 +37,8 @@ services:
       - HERMES_DASHBOARD_HOST=127.0.0.1   # loopback only: the dashboard holds the API keys
     volumes:
       - ${VAULT_DIR:-${HOST_HOME:?set HOST_HOME}/.config/memory}/hermes:/opt/data
+      # the secrets (API keys, tokens) out of the vault: Hermes' managed layer, /etc/hermes/.env, pinned over /opt/data/.env
+      - ${HERMES_SECRETS_DIR:-${HOST_HOME}/.config/secrets/hermes}:/etc/hermes:ro
       # the same directory at its host path too: the render (e-nous → taxis) writes absolute host paths into config.yaml
       - ${VAULT_DIR:-${HOST_HOME}/.config/memory}/hermes:${VAULT_DIR:-${HOST_HOME}/.config/memory}/hermes
       - ${VAULT_DIR:-${HOST_HOME}/.config/memory}/inbox:${VAULT_DIR:-${HOST_HOME}/.config/memory}/inbox

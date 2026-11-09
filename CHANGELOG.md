@@ -187,6 +187,7 @@ touches — `stack`, `systems`, `infra`. Lines under `[Unreleased]` are written 
   mount would break it). `tools/organon` mounts `ORGANON_PKI_DIR` read-only at `/run/secrets/pki` for `doc/sign`. The
   `.env.example` files of organon, egnosis and hermes point at the new paths. Live on the host: Discord connected,
   model and organon calls authenticated from the managed layer.
+- floating tags resolved to current digests (`stack/resolve-2026-11-09`)
 
 ### projects
 

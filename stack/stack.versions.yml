@@ -1,5 +1,5 @@
 schema: 1
-resolved: "2026-11-03"
+resolved: "2026-11-09"
 images:
 - ref: "agentmemory:latest"
   service: "agentmemory"
@@ -16,7 +16,7 @@ images:
   category: "mem"
   registry: "docker.io"
   tag: "3-alpine"
-  digest: "sha256:20a82dbc2783112ddb91d1534603f802d222a3e63e593cd002eb2ac534e70211"
+  digest: "sha256:a0f2e268f2ce8f3709611a90054ec6a8ae31f6251f5896b8648b9bb99835e30a"
   floating: false
   vanished: false
   build: false
@@ -46,7 +46,7 @@ images:
   category: "llm"
   registry: "ghcr.io"
   tag: "server-cuda"
-  digest: "sha256:d5ffba7d096ab0236c65dc147d797b4b7658a7e5425634593373635d661bccda"
+  digest: "sha256:f28803153f5ce48a6c8deaef694f58fca09b5dd79baca75fced670ec23b7bd71"
   floating: true
   vanished: false
   build: false
@@ -66,7 +66,7 @@ images:
   category: "llm"
   registry: "ghcr.io"
   tag: "cpu-latest"
-  digest: "sha256:a5435d2ee87d356511722f885a3919c388745a4fc6c3d5296373d40449de9964"
+  digest: "sha256:50c39e698cda14212ea5bb0c17400ad3c72ee3432e03326a17dc8a096aeb9f33"
   floating: true
   vanished: false
   build: false
@@ -91,6 +91,16 @@ images:
   vanished: false
   build: false
   parked: false
+- ref: "fsouza/fake-gcs-server:latest"
+  service: "gcs"
+  category: "storage"
+  registry: "docker.io"
+  tag: "latest"
+  digest: "sha256:797ce226d62f947c009dc40246b30cfb456b8473d8241407f9d6f2c04e4d69ef"
+  floating: true
+  vanished: false
+  build: false
+  parked: false
 - ref: "ghcr.io/edamlabs/gliner:0.1.3"
   service: "gliner"
   category: "llm"
@@ -110,6 +120,16 @@ images:
   floating: true
   vanished: false
   build: false
+  parked: false
+- ref: "hermes-agent:house"
+  service: "hermes"
+  category: "agent"
+  registry: "build"
+  tag: "house"
+  digest: null
+  floating: true
+  vanished: false
+  build: true
   parked: false
 - ref: "ghcr.io/ikawrakow/ik-llama-cpp:cu13-server"
   service: "ikllama"
@@ -136,7 +156,7 @@ images:
   category: "speech"
   registry: "ghcr.io"
   tag: "latest"
-  digest: "sha256:9e215d5396edf212e008ffc0025bcd0d92f827783dda338bda1034a0f6fdabc1"
+  digest: "sha256:f027cfc59d7ae3cb283365248b3177c68d36bc5701c1385783a285262316687b"
   floating: true
   vanished: false
   build: false
@@ -156,7 +176,7 @@ images:
   category: "llm"
   registry: "ghcr.io"
   tag: "server-cuda"
-  digest: "sha256:d5ffba7d096ab0236c65dc147d797b4b7658a7e5425634593373635d661bccda"
+  digest: "sha256:f28803153f5ce48a6c8deaef694f58fca09b5dd79baca75fced670ec23b7bd71"
   floating: true
   vanished: false
   build: false
@@ -166,7 +186,7 @@ images:
   category: "llm"
   registry: "ghcr.io"
   tag: "server-cuda"
-  digest: "sha256:d5ffba7d096ab0236c65dc147d797b4b7658a7e5425634593373635d661bccda"
+  digest: "sha256:f28803153f5ce48a6c8deaef694f58fca09b5dd79baca75fced670ec23b7bd71"
   floating: true
   vanished: false
   build: false
@@ -216,7 +236,7 @@ images:
   category: "front"
   registry: "ghcr.io"
   tag: "latest"
-  digest: "sha256:0b399a8ba34558e181d316750455f2a95376a38cd60a61b9c942e138898944bd"
+  digest: "sha256:59b912d4246103c7285de0e9a5f2f6586614c06b4c4e46edc51a8f29e7b099a5"
   floating: true
   vanished: false
   build: false
@@ -226,17 +246,17 @@ images:
   category: "watch"
   registry: "docker.io"
   tag: "latest"
-  digest: "sha256:340c9ca6a36617084c6661bdc4f0fe92b7cda5a805d61673ec8db375fddc522b"
+  digest: "sha256:e40d61f10c9a617cca1ffd1be4d7e2b3a4b0f0001798ff07e58cabe82e618cea"
   floating: true
   vanished: false
   build: false
   parked: false
-- ref: "paradedb/paradedb:v0.26.4-pg17"
+- ref: "paradedb/paradedb:v0.26.6-pg17"
   service: "paradedb"
   category: "rdb"
   registry: "docker.io"
-  tag: "v0.26.4-pg17"
-  digest: "sha256:533732a54d011c4e9c239cba2d4555c9e2ae5a3f51bcbcfd09252848e4815423"
+  tag: "v0.26.6-pg17"
+  digest: "sha256:d2793a65990a7179c97835cc8fc546f8f8bb3a2df975d80194f35e1744fd49be"
   floating: false
   vanished: false
   build: false
@@ -271,12 +291,12 @@ images:
   vanished: false
   build: false
   parked: false
-- ref: "pgvector/pgvector:pg17"
+- ref: "pgvector/pgvector:pg18"
   service: "postgres"
   category: "rdb"
   registry: "docker.io"
-  tag: "pg17"
-  digest: "sha256:7d0a41464797aeb9862dfdc0bbf1526b82cfd324cdd8036df19e3545f4a9ccb8"
+  tag: "pg18"
+  digest: "sha256:c29f30688a9ad961691bdf0ec1650717cc132a5814619d80f80463d6e4c42e47"
   floating: true
   vanished: false
   build: false
@@ -286,7 +306,7 @@ images:
   category: "watch"
   registry: "docker.io"
   tag: "latest"
-  digest: "sha256:fa3302279710be2f21a8301ec17a8b4f2301fd829bd113839b3b6b02b6f191a2"
+  digest: "sha256:e04987641b57704f408e31f6373ba4138ecf27cb4a165d24aabb6c38fddd0f06"
   floating: true
   vanished: false
   build: false
@@ -306,7 +326,7 @@ images:
   category: "cdb"
   registry: "docker.io"
   tag: "latest"
-  digest: "sha256:de1068af6f552240dfab67bcc9bfef99bfc60f776bb4580ef077ea4c8c97e848"
+  digest: "sha256:1f88291b4c57bdf249f02eb085a8669889b2d2954e91d4de5118a5da6b78dd53"
   floating: true
   vanished: false
   build: false
@@ -326,7 +346,7 @@ images:
   category: "rag"
   registry: "docker.io"
   tag: "latest"
-  digest: "sha256:892ed5710603e38f9dc201e6a0b2f3f14dbdb8108edcadac30e55b165c979fb7"
+  digest: "sha256:287af61f1a13e86d02974fcde91a3413a9945788de38b61ffbc491d81a19bcc2"
   floating: true
   vanished: false
   build: false
@@ -336,7 +356,17 @@ images:
   category: "media"
   registry: "docker.io"
   tag: "latest"
-  digest: "sha256:ccca91b38e57b0565d965ee8e7db698f0d7fd1a44a4018c4cacae14eb95bed10"
+  digest: "sha256:26b5e320482c48d999073dfaf830666b1a312ad0f97d35ae67bd499659b9834e"
+  floating: true
+  vanished: false
+  build: false
+  parked: false
+- ref: "gcr.io/cloud-spanner-emulator/emulator:latest"
+  service: "spanner"
+  category: "gdb"
+  registry: "gcr.io"
+  tag: "latest"
+  digest: "sha256:5f71fecd6330211789b75065ade9587d67b3a6b4678e7e5408e42c22f778c63e"
   floating: true
   vanished: false
   build: false
@@ -356,9 +386,9 @@ images:
   category: "tools"
   registry: "docker.stirlingpdf.com"
   tag: "latest-fat"
-  digest: "sha256:b63cd013fcd242210b137d6ac5aeb9fcf4c5cb9d4e004b8a3e3185fcd57d3c9e"
+  digest: null
   floating: true
-  vanished: false
+  vanished: true
   build: false
   parked: false
 - ref: "ghcr.io/collabora/whisperlive-gpu:latest"
@@ -376,7 +406,7 @@ images:
   category: "rag"
   registry: "docker.io"
   tag: "latest"
-  digest: "sha256:55c5e5dd928f312cf47a57afa8d645df37366f15678e0983c8b7fdbe3b5f6475"
+  digest: "sha256:4077e9d85ea13e3d2a29b63add60b109ccced191bebfc169d422dd50fca44c41"
   floating: true
   vanished: false
   build: false

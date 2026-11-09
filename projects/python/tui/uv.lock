@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 5
 requires-python = ">=3.14"
 
 [options]
@@ -464,7 +464,7 @@ test = [
 
 [package.metadata]
 requires-dist = [
-    { name = "aiosqlite", specifier = ">=0.20" },
+    { name = "aiosqlite", specifier = ">=0.22.1" },
     { name = "anyio", specifier = ">=4.15.1" },
     { name = "anytomd", extras = ["full"], specifier = ">=1.3.1.post2,<1.4" },
     { name = "argon2-cffi", specifier = ">=25.1.0" },

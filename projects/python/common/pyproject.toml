@@ -38,7 +38,7 @@ dependencies = [
     ##### postgres — psqlpy (Rust driver, pgvector native); the background's durable engines: PgQueuer (asyncpg), awa #####
     "psqlpy>=0.12",
     "pgqueuer[asyncpg]>=1.6",
-    "awa-pg>=0.6.9",
+    "awa-pg>=0.6.15",
     ##### http #####
     "wreq>=0.10",
     ##### web — litestar carries the auth middleware, guard and MCP routes; mcp is the protocol (infra/mcp/server only) #####

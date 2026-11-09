@@ -1,6 +1,6 @@
 """.github/tools/changelog.py: per-branch changelog fragments, folded into the single CHANGELOG.md. Deterministic, idempotent.
 
-Two branches never touch the same file: a change is recorded in `changelog.d/<branch, / as ->.md` (bullets,
+Two branches never touch the same file: a change is recorded in `.changelog.d/<branch, / as ->.md` (bullets,
 optionally under `### stack|projects|infra` areas), and after every merge to main a bot PR folds every fragment
 into `## [Unreleased]` of CHANGELOG.md and deletes it. Fragments fold oldest first (date of the commit that
 added them). Areas are kept where CHANGELOG.md already uses them; otherwise the bullets go in plain.
@@ -16,7 +16,7 @@ from typing import Final
 
 AREAS: Final = ("stack", "projects", "infra")
 UNRELEASED: Final = "## [Unreleased]"
-FRAGMENTS: Final = "changelog.d"
+FRAGMENTS: Final = ".changelog.d"
 GUIDE: Final = "README.md"
 HEADER: Final = "# Changelog\n"
 AREA_HEADING: Final = re.compile(rf"^### ({'|'.join(AREAS)})$", re.MULTILINE)

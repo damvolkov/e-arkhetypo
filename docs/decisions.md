@@ -22,3 +22,15 @@ have and a taxonomy our changelogs do not use, against a stdlib tool that alread
 `record` already uses. Folding only on release (findr-ground has no tags, the file would never move) and a generated
 view of the fragments (the file people read would not exist in the tree). A `GITHUB_TOKEN` PR for the fold (it does
 not trigger the required CI, so the PR would never merge).
+
+## 2026-11-09 — The fragments folder is hidden: `.changelog.d/`
+
+**Decision.** The per-branch fragments live in `.changelog.d/<branch, / as ->.md` (and the shipped guide in
+`infra/files/.changelog.d/README.md`); the fold tool, the workflows that stage fragments, the features' file lists and
+the prek hook's message name it. Fragments stay tracked, never ignored: they are the record a PR carries and the fold
+reads from `origin/main`. The Triad moves with it: e-nous's `changelog` and `plans` checks, e-taxis's allowlist.
+**Evidence.** Damien (2026-11-09): the folder is plumbing, not a page of the repo. findr-ground had dropped fragments
+(TODO_layout 11) and, behind a merge queue, met four `CHANGELOG.md` conflicts in one day (#62 twice, #64, #65); it
+returns to fragments under this name.
+**Rejected.** Renaming in one piece only: the checks would see no fragments and demand `CHANGELOG.md`, which the hook
+forbids — no commit passes. Gitignoring the folder: the record would never reach the PR.

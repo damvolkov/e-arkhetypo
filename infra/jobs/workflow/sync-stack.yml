@@ -43,7 +43,7 @@ jobs:
           git config user.name "$SLUG[bot]"
           git config user.email "$SLUG[bot]@users.noreply.github.com"
           git checkout -b "$BRANCH"
-          git add stack/stack.versions.yml changelog.d
+          git add stack/stack.versions.yml .changelog.d
           git commit -m "chore(sync-stack): resolve the floating tags"
           git push "https://x-access-token:$TOKEN@github.com/${GITHUB_REPOSITORY}.git" "$BRANCH"
           {

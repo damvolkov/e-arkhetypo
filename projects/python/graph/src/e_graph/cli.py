@@ -33,10 +33,10 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.tree import Tree
 
+from e_graph.api.lifespan.execution import doc
 from e_graph.api.lifespan.logic import agent as build_agent
 from e_graph.api.lifespan.logic import darts as build_darts
 from e_graph.api.lifespan.providers import anytomd, liteparse, present, wreq
-from e_graph.api.lifespan.services import doc
 from e_graph.infra.logger import ELogger
 from e_graph.infra.settings import settings as st
 from e_graph.infra.state import State

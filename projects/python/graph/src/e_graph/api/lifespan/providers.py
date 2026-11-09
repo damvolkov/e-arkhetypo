@@ -6,7 +6,7 @@ graph carries contracts, not classes. This is the composition root's one place t
 provider is a singleton built here, enters the shared `AsyncExitStack` in field order — the HTTP pool before the
 docling driver that rides it — and they close in reverse when the stack unwinds. Every provider is one line per block —
 its import, its field, its construction — so an exported project that drops one loses exactly those lines. Their health
-is surveyed by the engine the services lifespan builds over them.
+is surveyed by the engine the execution lifespan builds over them.
 
 docling is the one optional provider: `DoclingDriver.present` opens it only when DOCLING_URL names a docling-serve
 that answers; when it does not, the section holds None in its place, said once — liteparse and anytomd read every

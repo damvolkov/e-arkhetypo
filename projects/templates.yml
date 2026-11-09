@@ -38,6 +38,7 @@ templates:
             - {file: pyproject.toml, pattern: '^    ##### http #####\n    "wreq>=[^"]*",\n'}
     materials: &materials
       - {src: projects/python/common/prek.toml, dst: prek.toml}
+      - {src: projects/python/common/semgrep.yml, dst: semgrep.yml}
       - {src: projects/python/common/.gitattributes, dst: .gitattributes}
       - {src: projects/python/common/.python-version, dst: .python-version}
       - {src: projects/python/common/.github/dependabot.yml, dst: .github/dependabot.yml}
@@ -58,7 +59,7 @@ templates:
       - tests/unit/e_api/api/lifespan/test_infra.py
       - tests/unit/e_api/api/lifespan/test_providers.py
       - tests/unit/e_api/api/lifespan/test_sealed.py
-      - tests/unit/e_api/api/lifespan/test_services.py
+      - tests/unit/e_api/api/lifespan/test_crypto.py
 
     ##### CHOICES — grouped by the wizard stage that owns them #####
     choices:

@@ -5,7 +5,7 @@ import inspect
 import pytest
 from litestar.testing import TestClient
 
-from e_graph.api.lifespan import graphs, instrument, logic, providers, sealed, services
+from e_graph.api.lifespan import crypto, execution, graphs, instrument, logic, providers, sealed
 from e_graph.api.lifespan.infra import SharedState
 from e_graph.api.lifespan.infra import lifespan as infra_lifespan
 from e_graph.engines.health import HealthEngine
@@ -30,7 +30,8 @@ def test_lifespans_are_declared_not_built() -> None:
         for cm in (
             infra_lifespan,
             providers.lifespan,
-            services.lifespan,
+            crypto.lifespan,
+            execution.lifespan,
             instrument.lifespan,
             logic.lifespan,
             graphs.lifespan,

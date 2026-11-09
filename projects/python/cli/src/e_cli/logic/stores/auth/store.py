@@ -1,8 +1,8 @@
-"""services.auth: the credential use cases — keep a login, drop it, and decide who a run acts as.
+"""logic.stores.auth.store: the credential store — keep a login, drop it, and decide who a run acts as.
 
 Identity resolution is the one place auth policy lives: a run's own identity (flag or CLI_TOKEN, already
 in the session) wins; otherwise the stored login; otherwise `IdentityError`. A command opts into it by
-declaring `Inject[Identity]`, and the provider asks this service."""
+declaring `Inject[Identity]`, and the provider asks this store."""
 
 from typing import TYPE_CHECKING
 
@@ -17,7 +17,7 @@ KEY: str = "auth:token"
 
 
 ##### TYPES #####
-class AuthService:
+class AuthStore:
     """The stored login over any `StorePort`, and the resolution order around it."""
 
     __slots__ = ("_store",)

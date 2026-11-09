@@ -1,4 +1,4 @@
-"""tests/unit/e_graph/api/lifespan/services: the health engine built over every provider the providers lifespan opened,
+"""tests/unit/e_graph/api/lifespan/execution: the health engine built over every provider the providers lifespan opened,
 surveyed at once at startup — one event each, never a failed start."""
 
 from typing import TYPE_CHECKING, Final
@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 ROLES: Final[list[str]] = ["store", "telemetry", "redis", "http", "docling", "pages", "markdown"]
 
 
-async def test_services_health_surveys_every_provider(client: TestClient) -> None:
+async def test_lifespan_health_surveys_every_provider(client: TestClient) -> None:
     """In field order, `store` the only required provider; the open sqlite file, the in-process telemetry provider, the
     open client and the loaded readers always answer."""
     verdicts = {each.name: each for each in await client.app.state.system.infra.engines.health.survey()}
@@ -26,7 +26,7 @@ async def test_services_health_surveys_every_provider(client: TestClient) -> Non
     )
 
 
-async def test_services_startup_logs_each_verdict(
+async def test_lifespan_startup_logs_each_verdict(
     monkeypatch: pytest.MonkeyPatch, logs: list[tuple[str, str, dict[str, object]]], docling: HTTPServer
 ) -> None:
     """One event per provider as the app starts: info when it answers, a warning when it does not — the app still

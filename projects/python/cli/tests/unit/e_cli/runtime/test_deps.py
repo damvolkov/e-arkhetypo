@@ -5,11 +5,11 @@ from contextlib import AsyncExitStack
 import pytest
 
 from e_cli.infra.state import State
+from e_cli.logic.stores.ports import ProjectStorePort
 from e_cli.models.session import Session
 from e_cli.ports.store import StorePort
 from e_cli.runtime.deps import Deps
 from e_cli.runtime.journal import StoreJournal
-from e_cli.services.project import ProjectService
 
 
 def _state() -> State:
@@ -21,7 +21,7 @@ async def test_deps_builds_each_kind_once_per_run() -> None:
         deps = Deps(stack, _state())
         store = await deps.resolve(StorePort)
         assert store is await deps.resolve(StoreJournal)
-        assert (await deps.resolve(ProjectService)) is await deps.resolve(ProjectService)
+        assert (await deps.resolve(ProjectStorePort)) is await deps.resolve(ProjectStorePort)
 
 
 async def test_deps_injects_by_name_from_the_declared_type() -> None:

@@ -1,6 +1,6 @@
-"""api.lifespan.services: assemble what travels with the app over the providers — crypto, the engines, the processors.
+"""api.lifespan.execution: the execution branches over the providers — `infra.engines` and `infra.processors`.
 
-Crypto, the health engine and the readers are pure in-process objects over the providers already open: this concern
+The health engine and the readers are pure in-process objects over the providers already open: this concern
 owns no resource to close. The health engine surveys every provider at once (each under PING_TIMEOUT, so the whole
 takes the slowest) right here — one log event each, never a failed start — and again on every `GET /ready`. Required
 is `store`, the provider the app's records live on; every other one is reported, never blocking. The instrument and
@@ -17,7 +17,6 @@ from e_graph.engines.health import HealthEngine
 from e_graph.infra.logger import logger
 from e_graph.infra.settings import settings as st
 from e_graph.instrument.state import REQUIRED, EnginesState, ProcessorsState
-from e_graph.ops.crypto import Crypto, CryptoKeys
 from e_graph.processors.doc import DocProcessor
 
 if TYPE_CHECKING:
@@ -45,19 +44,9 @@ def doc(markdown: MarkdownPort, pages: PagesPort, docling: DocumentPort | None) 
 
 @asynccontextmanager
 async def lifespan(app: Litestar) -> AsyncGenerator[None]:
-    """Assemble crypto, the engines and the processors, then log every provider's health once."""
+    """Mount the engines and the processors, then log every provider's health once."""
     system = AppState.of(app).system
     providers = system.infra.providers
-    system.crypto = Crypto(
-        CryptoKeys(
-            secret=st.CRYPTO__SECRET,
-            alg=st.CRYPTO__ALG,
-            enc=st.CRYPTO__ENC,
-            private_key=st.CRYPTO__PRIVATE_KEY.get_secret_value(),
-            hasher=st.CRYPTO__HASHER,
-            bcrypt_rounds=st.CRYPTO__BCRYPT_ROUNDS,
-        )
-    )
     system.infra.engines = EnginesState(health=HealthEngine(providers.named, REQUIRED, st.PING_TIMEOUT))
     ### readers over the providers: documents through anytomd, liteparse and — when present — the docling driver.
     system.infra.processors = ProcessorsState(doc=doc(providers.markdown, providers.pages, providers.docling))
@@ -68,5 +57,5 @@ async def lifespan(app: Litestar) -> AsyncGenerator[None]:
         )
         for health in await system.infra.engines.health.survey()
     ]  # fmt: skip
-    logger.info("services ready", step="START")
+    logger.info("execution ready", step="START")
     yield

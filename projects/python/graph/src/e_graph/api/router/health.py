@@ -1,7 +1,7 @@
 """api.router.health: liveness and readiness.
 
 `/health` answers without touching the state, even while backends are down; `/ready` surveys every provider at once
-through the health engine (`api/lifespan/services`): 200 when every required one answers, 503 otherwise, each
+through the health engine (`api/lifespan/execution`): 200 when every required one answers, 503 otherwise, each
 provider's verdict in the body."""
 
 from typing import Final

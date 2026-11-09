@@ -1,4 +1,4 @@
-"""commands.project: driving adapter for the demo domain — parse, call `ProjectService`, render.
+"""commands.project: driving adapter for the demo domain — parse, call the `ProjectStorePort`, render.
 
 No store, no encoding, no rule lives here: the service owns them. Every change goes through the store the
 service was given, which the runtime wrapped in the undo journal, so each command here is undoable with
@@ -8,17 +8,17 @@ service was given, which the runtime wrapped in the undo journal, so each comman
 from rich.console import Console
 from rich.table import Table
 
+from e_cli.logic.stores.ports import ProjectStorePort
 from e_cli.models.identity import Identity
 from e_cli.models.project import ProjectState
 from e_cli.runtime.deps import Inject
-from e_cli.services.project import ProjectService
 
 ##### DEFAULTS #####
 HEADER: str = "bold #6f9bff"
 
 
 ##### COMMANDS #####
-async def listing(*, projects: Inject[ProjectService], console: Inject[Console]) -> None:
+async def listing(*, projects: Inject[ProjectStorePort], console: Inject[Console]) -> None:
     """Every project, with its state and how many variables it holds."""
     table = Table("project", "state", "vars", "description", box=None, header_style=HEADER)
     async for project in projects.listing():
@@ -31,7 +31,7 @@ async def create(
     *,
     description: str = "",
     state: ProjectState = ProjectState.DRAFT,
-    projects: Inject[ProjectService],
+    projects: Inject[ProjectStorePort],
     _me: Inject[Identity],
     console: Inject[Console],
 ) -> None:
@@ -47,7 +47,7 @@ async def create(
 
 
 async def remove(
-    name: str, *, projects: Inject[ProjectService], _me: Inject[Identity], console: Inject[Console]
+    name: str, *, projects: Inject[ProjectStorePort], _me: Inject[Identity], console: Inject[Console]
 ) -> None:
     """Delete a project and its variables — `ecli history undo` brings it back.
 
@@ -63,7 +63,7 @@ async def env_set(
     key: str,
     value: str,
     *,
-    projects: Inject[ProjectService],
+    projects: Inject[ProjectStorePort],
     _me: Inject[Identity],
     console: Inject[Console],
 ) -> None:
@@ -78,7 +78,7 @@ async def env_set(
     console.print(f"[green]✓[/] {project} · {key} set")
 
 
-async def env_list(project: str, *, projects: Inject[ProjectService], console: Inject[Console]) -> None:
+async def env_list(project: str, *, projects: Inject[ProjectStorePort], console: Inject[Console]) -> None:
     """Every variable of one project.
 
     Args:

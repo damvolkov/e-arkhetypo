@@ -23,7 +23,7 @@ dependencies = [
     ##### core #####
     "litestar>=2.24",
     "granian[reload]>=2.7",
-    "asgi-correlation-id>=5.0",
+    "asgi-correlation-id>=5.0.1",
     "structlog>=26.1",
     ##### data #####
     "msgspec>=0.21",

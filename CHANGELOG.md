@@ -333,6 +333,8 @@ touches — `stack`, `systems`, `infra`. Lines under `[Unreleased]` are written 
 - core: adapter health contract — `BaseAdapter.ping` is abstract (each adapter's cheapest real check: sqlite/postgres/awa `SELECT 1`, redis `PING`, docling `/ready` — replacing its `ready() -> bool` —, otel flush, anytomd a one-line render, http the open client) raising `PingError(adapter, reason)`; `BaseAdapter.survey` gathers many under one limit (`asyncio.gather`, `return_exceptions`) into typed `AdapterPing(name, required, ok, latency, reason)`, never raising; `PING_TIMEOUT` (2 s). Ported from e-gnosis 63deb94; the gather lives in core, not in each service, so api and graph share one implementation
 - core: wall-clock benchmarks marked `slow` and out of `test`/`cov` by default (`TESTARGS`) — a cold runner hiccup is not a correctness gate
 - graph: visual goldens leave `test`/`cov` (`TESTARGS` default `-m 'not ui'`) — they are runner-canonical now
+- `python/{api,graph}/Dockerfile`: `ARG VERSION` → `UV_DYNAMIC_VERSIONING_BYPASS` at install (the build context has
+  no `.git`). Verified on e-organon: `--build-arg VERSION=9.9.9` → the installed version is 9.9.9.
 
 ### infra
 
@@ -355,3 +357,6 @@ touches — `stack`, `systems`, `infra`. Lines under `[Unreleased]` are written 
 - setup docs for dummies: `selfmaintain.md` and `repo-maintain.md` rewritten as click-by-click GitHub installs (App, keys, Renovate, labels, branch protection, verification), same shape as anytomd's `docs/maintenance.md`
 - fix(tools): `Request(url, headers)` pasaba el dict como *data* — todo sondeo de `health.py`/`upstream.py` moría antes de preguntar; orden de versiones por enteros, no lexicográfico; `zizmor` al grupo lint de management; las ensambladuras de `systems/*` entran en `drops` de los templates
 - Self-maintenance for wide repos born: `repo-ci` and `repo-maintain` in `infra/` — the repo
+- `jobs/release/image.yml`: the image build gets the tag's version (`build-args: VERSION`) and `docker/metadata-action`
+  the tag as its semver value — under `workflow_dispatch` there is no tag ref, so the `:X.Y.Z` tag was never pushed
+  (e-organon `:0.8.0` not found) and the package inside said 0.0.0.

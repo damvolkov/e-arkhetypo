@@ -6,7 +6,7 @@ engine (`infra/mcp`) and answering it alone. Both sit behind the same middleware
 the key — and the same guard, at the access each route and tool declares. Routers and websockets enter through
 `register` calls — the include_router shape; middleware, the lifespan chain and CORS enter through the constructor, and
 the order of `lifespan=[...]` is the startup order: infra first (every later concern may depend on the loaded
-singletons), then the providers, the engines over their ports and the services, the MCP server, sealed last. Dependency
+singletons), then the providers, the engines over their ports and crypto, the MCP server, sealed last. Dependency
 chains are wired by each endpoint, never here. The settings are read once, at import (`infra.settings`); this root
 reads `st` and hands each door its values.
 """
@@ -20,7 +20,7 @@ from litestar.router import Router
 from litestar.types import Middleware
 
 from e_api.api import docs
-from e_api.api.lifespan import db, engines, mcp, providers, sealed, services
+from e_api.api.lifespan import crypto, db, engines, mcp, providers, sealed
 from e_api.api.lifespan.infra import lifespan as infra_lifespan
 from e_api.api.middlewares import MIDDLEWARES, cors_config
 from e_api.api.router import auth, health, user
@@ -54,7 +54,7 @@ def create_app() -> Litestar:
             db.lifespan,
             providers.lifespan,
             engines.lifespan,
-            services.lifespan,
+            crypto.lifespan,
             mcp.lifespan,
             sealed.lifespan,
         ],

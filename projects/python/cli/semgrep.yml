@@ -1,0 +1,84 @@
+# The house's own rules — e-nous law 26, "Literals live in banks" (para-py-dispatch, references/banks.md).
+# A meaningful literal is a member of a typed bank, never inline. The one legitimate exception names itself:
+# `# nosemgrep: <rule id>` and the reason, on the line.
+rules:
+  - id: bank-sql-inline
+    message: >-
+      SQL outside its bank. A statement is a member of the consumer's statement enum (`query.py`), with its
+      description and parameter types; the database port accepts only that type. Keywords are read in capitals:
+      the house writes SQL that way.
+    severity: ERROR
+    languages: [python]
+    paths:
+      exclude: ["**/query.py", "**/queries.py", "**/migrations/**"]
+    patterns:
+      - pattern-either:
+          - pattern: '"$TEXT"'
+          - pattern: 'f"$TEXT"'
+      - metavariable-regex:
+          metavariable: $TEXT
+          regex: ^\s*(SELECT\s+(\d|.+\sFROM\s)|INSERT\s+INTO\s|UPDATE\s+\S+\s+SET\s|DELETE\s+FROM\s|CREATE\s+(TABLE|INDEX|SCHEMA|EXTENSION)\b|ALTER\s+TABLE\s|DROP\s+(TABLE|SCHEMA|INDEX)\b|TRUNCATE\s|WITH\s+\w+\s+AS\s*\()
+
+  - id: bank-prose-pattern
+    message: >-
+      A pattern over human language inline. It is a member of a rule bank keyed by (label, language), with its
+      description, hits and misses — ops/ and logic/ receive it, never spell it.
+    severity: ERROR
+    languages: [python]
+    patterns:
+      - pattern-either:
+          - pattern: re.compile($PAT, ...)
+          - pattern: re.search($PAT, ...)
+          - pattern: re.match($PAT, ...)
+          - pattern: re.fullmatch($PAT, ...)
+          - pattern: re.findall($PAT, ...)
+          - pattern: re.finditer($PAT, ...)
+          - pattern: re.sub($PAT, ...)
+          - pattern: re.split($PAT, ...)
+      - metavariable-regex:
+          metavariable: $PAT
+          regex: (?is).*?([^\W\d_]{4,}[^|]*\|){2,}
+
+  - id: bank-prose-literal
+    message: >-
+      A prompt or prose written in code. It lives in a versioned bank (an agent file, a text table per language)
+      whose version the run records.
+    severity: ERROR
+    languages: [python]
+    paths:
+      exclude: ["tests/**", "**/tests/**"]
+    patterns:
+      - pattern-either:
+          - pattern: '$NAME = $TEXT'
+          - pattern: '$NAME: $TYPE = $TEXT'
+      - metavariable-regex:
+          metavariable: $TEXT
+          regex: ^\(?\s*[rbu]*["'](?:[^\s"']+[\s"']+){40,}
+
+  - id: bank-port-takes-text
+    message: >-
+      A port that admits a raw string for a statement or a command. It takes the bank's member type (a model's
+      prompt is text by nature: its bank sits before the port, where the prompt is composed).
+    severity: ERROR
+    languages: [python]
+    patterns:
+      - pattern-inside: |
+          class $PORT(..., Protocol, ...):
+              ...
+      - pattern-either:
+          - pattern: 'def $METHOD(..., $ARG: str, ...): ...'
+          - pattern: 'async def $METHOD(..., $ARG: str, ...): ...'
+      - metavariable-regex:
+          metavariable: $ARG
+          regex: ^(sql|statement|query|cmd|command)$
+
+  - id: bank-literalstring-cast
+    message: >-
+      A cast to LiteralString defeats the statement bank. Allowed once — where a statement arrives as data (a
+      migration file) — and marked there with `# nosemgrep: bank-literalstring-cast` and the reason.
+    severity: ERROR
+    languages: [python]
+    pattern-either:
+      - pattern: cast("LiteralString", ...)
+      - pattern: cast(LiteralString, ...)
+      - pattern: typing.cast(LiteralString, ...)

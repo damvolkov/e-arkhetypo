@@ -21,7 +21,7 @@ async def test_create_app_takes_nothing() -> None:
 
 
 def test_create_app_lifespans_write_the_graph_in_startup_order(client: TestClient) -> None:
-    """Infra first, then the providers, the engines over them, the services, the MCP server; sealed last."""
+    """Infra first, then the providers, the engines over them, crypto, the MCP server; sealed last."""
     assert list(client.app.state.system) == ["shared", "providers", "engines", "crypto", "mcp"]
 
 

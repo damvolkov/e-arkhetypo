@@ -1,6 +1,6 @@
-"""services.project: the project use cases — the core of the demo domain, knowing the store only as a port.
+"""logic.stores.project.store: the project store — the core of the demo domain, knowing the store only as a port.
 
-`ProjectService` never names sqlite, redis or the journal: it asks a `StorePort` and gets whatever the
+`ProjectStore` never names sqlite, redis or the journal: it asks a `StorePort` and gets whatever the
 composition root bound (today, sqlite behind the undo journal). Raw user input enters through
 `msgspec.convert` against the constrained models, so every rule in `models.project` runs once, here,
 and a violation leaves as a `ProjectError` the launcher knows how to report."""
@@ -23,7 +23,7 @@ PREFIX: str = "project:"
 
 
 ##### TYPES #####
-class ProjectService:
+class ProjectStore:
     """Create, read, change and delete projects over any `StorePort`."""
 
     __slots__ = ("_store",)

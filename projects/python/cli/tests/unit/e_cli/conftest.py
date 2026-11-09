@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 
 
 class MemoryStore:
-    """StorePort over a dict: the services and the journal are tested against the port, not against sqlite."""
+    """StorePort over a dict: the stores and the journal are tested against the port, not against sqlite."""
 
     spec: ClassVar[ProviderSpec] = ProviderSpec("memory", Locality.EMBEDDED, Workload.IO_BOUND, Isolation.LOOP)
 

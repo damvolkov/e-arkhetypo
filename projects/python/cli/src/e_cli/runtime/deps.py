@@ -1,7 +1,7 @@
 """runtime.deps: injection by declared type — the one place ports meet providers, built on demand, once per run.
 
 This is the composition root of the hexagon: `SqliteDriver` is named here and nowhere else, wrapped in the
-undo journal and handed to the services as a bare `StorePort`. `Inject[T]` marks a parameter cyclopts must not parse (and `--help` must not show); the launcher resolves
+undo journal and handed to the stores of `logic/` as a bare `StorePort`. `Inject[T]` marks a parameter cyclopts must not parse (and `--help` must not show); the launcher resolves
 each one from its type through `Deps.PROVIDERS`, a frozen table type → builder. A builder runs at most once
 per run, and every resource it opens enters the run's exit stack, so edges close in reverse on the way out.
 A command that never asks for the store never opens sqlite; one that never asks for an `Identity` never
@@ -17,12 +17,13 @@ from rich.console import Console
 
 from e_cli.infra.settings import settings as st
 from e_cli.infra.state import State
+from e_cli.logic.stores.auth.store import AuthStore
+from e_cli.logic.stores.ports import AuthStorePort, ProjectStorePort
+from e_cli.logic.stores.project.store import ProjectStore
 from e_cli.models.identity import Identity
 from e_cli.ports.store import StorePort
 from e_cli.providers.drivers.store.sqlite import SqliteDriver
 from e_cli.runtime.journal import StoreJournal
-from e_cli.services.auth import AuthService
-from e_cli.services.project import ProjectService
 
 T = TypeVar("T")
 ### cyclopts reads `Annotated` metadata but does not unwrap PEP 695 `type` aliases: the classic generic alias is what it sees.
@@ -56,14 +57,14 @@ class Deps:
         journal = StoreJournal(store, command=self._state.session.command, depth=st.CLI_HISTORY)
         return await self._stack.enter_async_context(journal)
 
-    async def _resolve_projects(self) -> ProjectService:
-        return ProjectService(await self.resolve(StoreJournal))
+    async def _resolve_projects(self) -> ProjectStorePort:
+        return ProjectStore(await self.resolve(StoreJournal))
 
-    async def _resolve_auth(self) -> AuthService:
-        return AuthService(await self.resolve(StoreJournal))
+    async def _resolve_auth(self) -> AuthStorePort:
+        return AuthStore(await self.resolve(StoreJournal))
 
     async def _resolve_identity(self) -> Identity:
-        return await (await self.resolve(AuthService)).identify(self._state.session.identity)
+        return await (await self.resolve(AuthStorePort)).identify(self._state.session.identity)
 
     ############################################################
 
@@ -75,8 +76,8 @@ class Deps:
             Console: _resolve_console,
             StorePort: _resolve_store,
             StoreJournal: _resolve_store,
-            ProjectService: _resolve_projects,
-            AuthService: _resolve_auth,
+            ProjectStorePort: _resolve_projects,
+            AuthStorePort: _resolve_auth,
             Identity: _resolve_identity,
         }
     )

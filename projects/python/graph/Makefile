@@ -53,6 +53,7 @@ COMMON_ROOT ?= ../common
 common: ## materialize the shared sections (engines, infra, ops, ports, processors, providers) from projects/python/common (source of truth) via a structural rewrite, and the shared root files into the project root
 	@uv run python scripts/materialize.py
 	@cp $(COMMON_ROOT)/prek.toml prek.toml
+	@cp $(COMMON_ROOT)/semgrep.yml semgrep.yml
 	@cp $(COMMON_ROOT)/.gitattributes .gitattributes
 	@cp $(COMMON_ROOT)/.python-version .python-version
 	@cp $(COMMON_ROOT)/.github/dependabot.yml .github/dependabot.yml
@@ -61,6 +62,7 @@ common: ## materialize the shared sections (engines, infra, ops, ports, processo
 common-check: ## fail if the materialized sections or the shared root files drifted from projects/python/common
 	@uv run python scripts/materialize.py --check
 	@diff $(COMMON_ROOT)/prek.toml prek.toml \
+	 && diff $(COMMON_ROOT)/semgrep.yml semgrep.yml \
 	 && diff $(COMMON_ROOT)/.gitattributes .gitattributes \
 	 && diff $(COMMON_ROOT)/.python-version .python-version \
 	 && diff $(COMMON_ROOT)/.github/dependabot.yml .github/dependabot.yml \

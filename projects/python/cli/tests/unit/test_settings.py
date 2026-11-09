@@ -2,7 +2,7 @@
 alone, and nothing but enums and value types taken from `infra.config` below it.
 
 Common's gate holds the clusters (uppercase, one owner per field, the env snapshot) over common; this one holds the
-reads over everything the template adds on top: its doors, its lifespans, its services."""
+reads over everything the template adds on top: its doors, its lifespans, its logic."""
 
 import ast
 import re

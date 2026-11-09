@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Final
 
 import pytest
 
-from e_graph.api.lifespan import services
+from e_graph.api.lifespan import execution
 from e_graph.infra.proxy import LazyProxy
 from e_graph.infra.state import State
 
@@ -44,9 +44,9 @@ class LogRecorder:
 
 @pytest.fixture
 def logs(monkeypatch: pytest.MonkeyPatch) -> list[tuple[str, str, dict[str, object]]]:
-    """The services lifespan's events as they are logged — level, name, fields."""
+    """The execution lifespan's events as they are logged — level, name, fields."""
     recorder = LogRecorder()
-    monkeypatch.setattr(services, "logger", recorder)
+    monkeypatch.setattr(execution, "logger", recorder)
     return recorder.events
 
 

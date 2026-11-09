@@ -71,25 +71,25 @@ async def test_record_adds_once_under_area(tool: ModuleType) -> None:
 
 async def test_record_cli_writes_the_branch_fragment_not_the_changelog(repo: Path, run) -> None:
     assert run("record", "--area", "infra", "--line", "did a thing") == 0
-    assert "- did a thing" in (repo / "changelog.d" / "feat-x.md").read_text()
+    assert "- did a thing" in (repo / ".changelog.d" / "feat-x.md").read_text()
     assert not (repo / "CHANGELOG.md").exists()
 
 
 async def test_fold_cli_folds_deletes_and_keeps_readme(repo: Path, run) -> None:
-    (repo / "changelog.d").mkdir()
-    (repo / "changelog.d" / "README.md").write_text("how this works\n")
+    (repo / ".changelog.d").mkdir()
+    (repo / ".changelog.d" / "README.md").write_text("how this works\n")
     (repo / "CHANGELOG.md").write_text(PLAIN_TEXT)
     run("record", "--line", "from the branch")
     assert run("fold") == 0
     assert "- from the branch" in (repo / "CHANGELOG.md").read_text()
-    assert sorted(p.name for p in (repo / "changelog.d").iterdir()) == ["README.md"]
+    assert sorted(p.name for p in (repo / ".changelog.d").iterdir()) == ["README.md"]
 
 
 async def test_fold_cli_orders_by_first_commit_date(repo: Path, run) -> None:
     (repo / "CHANGELOG.md").write_text(PLAIN_TEXT)
-    (repo / "changelog.d").mkdir()
+    (repo / ".changelog.d").mkdir()
     for name, date in (("a-late.md", "2026-03-01T00:00:00"), ("z-early.md", "2026-01-01T00:00:00")):
-        (repo / "changelog.d" / name).write_text(f"- {name}\n")
+        (repo / ".changelog.d" / name).write_text(f"- {name}\n")
         env = {**os.environ, "GIT_AUTHOR_DATE": date, "GIT_COMMITTER_DATE": date}
         subprocess.run(["git", "-C", str(repo), "add", "."], check=True)
         subprocess.run(["git", "-C", str(repo), "commit", "-q", "-m", name], check=True, env=env)

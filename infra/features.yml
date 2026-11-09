@@ -97,7 +97,7 @@ features:
     jobs:
       ci: [upstream-context]
       workflow: [sync, maintenance, health, changelog-fold]
-    files: [renovate.json, qwen.md, tools/health.py, tools/upstream.py, tools/changelog.py, changelog.d/README.md]
+    files: [renovate.json, qwen.md, tools/health.py, tools/upstream.py, tools/changelog.py, .changelog.d/README.md]
     requires: [ci-basics]
     gate: null
     vars: [APP_CLIENT_ID, SM_BASE_URL, SM_MODEL, QWEN_BASE_URL, QWEN_MODEL, QWEN_CLI_VERSION]
@@ -121,7 +121,7 @@ features:
     jobs:
       ci: [upstream-context-repo]
       workflow: [sync-projects, sync-stack, sync-infra, maintenance, health-areas, changelog-fold]
-    files: [renovate.repo.json, qwen.repo.md, tools/health.py, tools/upstream.py, tools/repo_health.py, tools/stack_resolve.py, tools/changelog.py, changelog.d/README.md]
+    files: [renovate.repo.json, qwen.repo.md, tools/health.py, tools/upstream.py, tools/repo_health.py, tools/stack_resolve.py, tools/changelog.py, .changelog.d/README.md]
     requires: [repo-ci]
     replaces: [selfmaintain]
     gate: null

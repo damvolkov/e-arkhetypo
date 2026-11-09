@@ -1,6 +1,6 @@
-# changelog.d
+# .changelog.d
 
-One fragment per branch: `changelog.d/<branch, with / as ->.md` (`feat/base-root` -> `feat-base-root.md`), a list of
+One fragment per branch: `.changelog.d/<branch, with / as ->.md` (`feat/base-root` -> `feat-base-root.md`), a list of
 bullets. Record your change there, never in `CHANGELOG.md`: two branches never touch the same file, so the changelog
 never conflicts.
 

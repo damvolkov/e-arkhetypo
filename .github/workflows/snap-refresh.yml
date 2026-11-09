@@ -58,7 +58,7 @@ jobs:
           git config user.name "$SLUG[bot]"
           git config user.email "$SLUG[bot]@users.noreply.github.com"
           git checkout -b "$BRANCH"
-          git add -A "projects/python/$SYSTEM/tests/acceptance" changelog.d
+          git add -A "projects/python/$SYSTEM/tests/acceptance" .changelog.d
           git commit -m "chore(snap-refresh): runner-canonical goldens for $SYSTEM"
           git push "https://x-access-token:$TOKEN@github.com/${GITHUB_REPOSITORY}.git" "$BRANCH"
           {

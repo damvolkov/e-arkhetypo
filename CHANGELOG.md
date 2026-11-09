@@ -144,6 +144,11 @@ touches — `stack`, `systems`, `infra`. Lines under `[Unreleased]` are written 
   validate, `make cov` 98.9% (gate 90%), docs-build strict. Not brought: the RDF extension table of `SniffProcessor`
   (the processor and its `Format` model are findr's, common has no sniff processor), the cache row `owner` column
   (pending, not designed). Known red on main, not touched: `test_full_stack` (stack holds 45 services, the test pins 44).
+- The fragments folder is `.changelog.d/` (was `changelog.d/`): `git mv` of the repo's own and of the shipped guide
+  (`infra/files/.changelog.d/README.md`); `FRAGMENTS` in `tools/changelog.py` (infra and `.github`), the
+  `changelog-fold` trigger path and its `git add`, the `sync-*` and `snap-refresh` workflows, the `selfmaintain` and
+  `repo-maintain` file lists, the prek `changelog` hook's message. `test_changelog.py` asks for `.changelog.d/` (2 red,
+  then 21/21). Decision in `docs/decisions.md`; e-nous and e-taxis move with it (TODO_fragments).
 
 ### stack
 

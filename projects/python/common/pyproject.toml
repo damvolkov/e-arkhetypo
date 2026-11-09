@@ -34,7 +34,7 @@ dependencies = [
     "anyio>=4.15.1",
     ##### stores #####
     "redis>=6.2",
-    "aiosqlite>=0.20",
+    "aiosqlite>=0.22.1",
     ##### postgres — psqlpy (Rust driver, pgvector native); the background's durable engines: PgQueuer (asyncpg), awa #####
     "psqlpy>=0.12",
     "pgqueuer[asyncpg]>=1.6",

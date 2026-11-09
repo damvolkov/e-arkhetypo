@@ -59,7 +59,7 @@ dependencies = [
     "opentelemetry-exporter-otlp-proto-grpc>=1.44",
     ##### stores #####
     "redis>=6.2",
-    "aiosqlite>=0.20",
+    "aiosqlite>=0.22.1",
     ##### background — the in-process supervisor and the dispatch engine schedule cron jobs #####
     "croniter>=6.0",
     ### the db lifespan provisions the databases the settings name: CREATE DATABASE, outside any transaction.

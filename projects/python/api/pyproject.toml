@@ -45,7 +45,7 @@ dependencies = [
     "wreq>=0.10",
     ##### stores #####
     "redis>=6.2",
-    "aiosqlite>=0.20",
+    "aiosqlite>=0.22.1",
     ### the db lifespan provisions the databases the settings name: CREATE DATABASE, outside any transaction.
     "psqlpy>=0.12",
     ##### queue clock — the in-process supervisor's schedules (infra/background) #####

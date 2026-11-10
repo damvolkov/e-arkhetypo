@@ -549,6 +549,22 @@ rules:
       - 'hasattr(kind, "_is_protocol")'
 
   - level: syntax
+    id: type-ignore
+    law: "13"
+    message: "never silence the checker: `# type: ignore` and `# ty: ignore` hide the failure — fix the annotation; an upstream gap is a marked cast with the diagnostic as its reason"
+    files: ["src/**/*.py", "scripts/**/*.py", "gates/**/*.py"]
+    rule:
+      kind: comment
+      regex: '^#\s*(type|ty|pyright|mypy):\s*ignore'
+    valid:
+      - "x = 1  # noqa: E501 — the URL"
+      - "### the type is ignored upstream."
+    invalid:
+      - "x = f()  # type: ignore"
+      - "x = f()  # ty: ignore[invalid-type-form]"
+      - "x = f()  # pyright: ignore"
+
+  - level: syntax
     id: not-open
     law: "8"
     message: "a provider's resource read before open is an `Opened[T]` descriptor (ports/provider), never a hand-written `case None: raise`"

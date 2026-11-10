@@ -9,6 +9,8 @@ import pytest
 from e_infra.infra import logger as lg
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
     from structlog.typing import EventDict, WrappedLogger
 
 
@@ -103,3 +105,52 @@ async def test_load_skips_setup_when_configured(monkeypatch: pytest.MonkeyPatch)
 
     monkeypatch.setattr(lg.ELogger, "setup", refuse)
     assert lg.ELogger.load() is not None
+
+
+##### REDACT #####
+PII = "marta@correo.es"
+MASKED = "[EMAIL]"
+
+
+def _mask(event_dict: EventDict) -> EventDict:
+    return {k: v.replace(PII, MASKED) if isinstance(v, str) else v for k, v in event_dict.items()}
+
+
+async def test_logger_setup_redact_rewrites_prod_json(tmp_path: Path) -> None:
+    path = tmp_path / "log"
+    try:
+        with path.open("w+") as sink:
+            lg.setup(env="prod", stream=sink, redact=_mask)
+            with lg.structlog.contextvars.bound_contextvars(said=PII):
+                lg.structlog.get_logger().info("node.ran", summary=PII, thread="t1")
+        record = json.loads(path.read_text())
+    finally:
+        lg.setup(env="prod")
+    assert (record["summary"], record["said"], record["thread"], record["event"]) == (MASKED, MASKED, "t1", "node.ran")
+
+
+async def test_logger_setup_redact_rewrites_dev_text_and_exception(tmp_path: Path) -> None:
+    path = tmp_path / "log"
+    try:
+        with path.open("w+") as sink:
+            lg.setup(env="dev", stream=sink, colors=False, redact=_mask)
+            try:
+                raise ValueError(PII)
+            except ValueError:
+                lg.structlog.get_logger().exception("run.failed", summary=PII)
+        text = path.read_text()
+    finally:
+        lg.setup(env="prod")
+    assert (MASKED in text, PII in text) == (True, False)
+
+
+async def test_logger_setup_without_redact_leaves_the_line(tmp_path: Path) -> None:
+    path = tmp_path / "log"
+    try:
+        with path.open("w+") as sink:
+            lg.setup(env="prod", stream=sink)
+            lg.structlog.get_logger().info("node.ran", summary=PII)
+        record = json.loads(path.read_text())
+    finally:
+        lg.setup(env="prod")
+    assert record["summary"] == PII

@@ -1,7 +1,7 @@
 ### gates/rules.yml — every rule no existing tool states by name; imports, `print`, `os.environ`, layers and forbidden
 ### files live in ruff, tach and prek. One list, each rule tagged by its level: tree (directories), shape (a module's top
 ### level), syntax (ast-grep, with its cases), genealogy and parity (the imported program, run by the unit suite).
-### The template's defaults come first; the project's own follow, under PROJECT. `python -m scripts.gate check|semantic|test`.
+### The template's defaults come first; the project's own follow, under PROJECT. `python -m gates.engine check|semantic|test`.
 
 roots: [src, tests, scripts, gates]
 

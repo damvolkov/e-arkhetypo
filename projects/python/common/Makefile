@@ -54,7 +54,7 @@ harden: ## zizmor audit of GitHub Actions workflows (templates assemble them at 
 	@test -d .github/workflows && uv run zizmor --persona=regular .github/workflows || echo "no workflows assembled: e-taxis writes them"
 
 gates: ## gates/rules.yml, the house laws no tool names (e-nous law 21): rules against their cases, tree/shape/syntax, genealogy/parity
-	@failed=0; for phase in test check semantic; do echo "== $$phase"; uv run python -m scripts.gate $$phase || failed=1; done; exit $$failed
+	@failed=0; for phase in test check semantic; do echo "== $$phase"; uv run python -m gates.engine $$phase || failed=1; done; exit $$failed
 
 hooks: ## run all prek hooks on every file (ruff, ty, tach, zizmor, gitleaks)
 	@uv run prek run --all-files

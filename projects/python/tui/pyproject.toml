@@ -134,6 +134,8 @@ select = [
 ignore = ["E501", "ISC001", "PLR0913"]
 
 [tool.ruff.lint.per-file-ignores]
+### the gates engine runs ast-grep: the binary resolved by path, the arguments ours.
+"gates/engine.py" = ["S603"]
 "tests/**" = ["S101", "S106", "PLR2004", "ARG", "FBT", "TC001", "TC002", "TC003", "TID251"]
 "scripts/**" = ["T20", "S603", "S607", "PTH"]
 ### the entrypoint prints the version to stdout: that IS its job.
@@ -151,7 +153,7 @@ ignore = ["E501", "ISC001", "PLR0913"]
 "os.getenv".msg = "config is an injected contract: pydantic-settings, never os.getenv (e-nous law 16)"
 
 [tool.ruff.lint.isort]
-known-first-party = ["e_tui", "scripts", "gates"]
+known-first-party = ["e_tui", "gates"]
 
 [tool.ruff.lint.flake8-type-checking]
 ### pydantic and msgspec resolve these classes' annotations at runtime: their imports must stay real.
@@ -173,7 +175,7 @@ docstring-code-format = true
 python-version = "3.14"
 
 [tool.ty.src]
-include = ["src", "tests", "scripts/gate.py", "gates"]
+include = ["src", "tests", "gates"]
 
 [tool.ty.terminal]
 error-on-warning = true

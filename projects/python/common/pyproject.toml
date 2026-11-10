@@ -158,6 +158,8 @@ select = [
 ignore = ["E501", "ISC001", "PLR0913"]
 
 [tool.ruff.lint.per-file-ignores]
+### the gates engine runs ast-grep: the binary resolved by path, the arguments ours.
+"gates/engine.py" = ["S603"]
 "tests/**" = ["S101", "S106", "PLR2004", "ARG", "FBT", "TID251"]
 "scripts/**" = ["T20", "S603", "S607", "PTH"]
 ### NON_SERVICE is an exclusion vocabulary for host tokens, not a socket bind.
@@ -170,7 +172,7 @@ ignore = ["E501", "ISC001", "PLR0913"]
 "src/e_infra/providers/**" = ["TID251"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["e_infra", "scripts", "gates"]
+known-first-party = ["e_infra", "gates"]
 
 [tool.ruff.lint.flake8-type-checking]
 ### pydantic and msgspec resolve these classes' annotations at runtime: their imports must stay real.
@@ -204,7 +206,7 @@ docstring-code-format = true
 python-version = "3.14"
 
 [tool.ty.src]
-include = ["src", "tests", "scripts/gate.py", "gates"]
+include = ["src", "tests", "gates"]
 
 [tool.ty.terminal]
 error-on-warning = true

@@ -1,12 +1,12 @@
-"""scripts/gate: the engine of the gates — reads `gates/rules.yml`, runs every rule at its level and reports each violation,
+"""gates/engine: the engine of the gates — reads `gates/rules.yml`, runs every rule at its level and reports each violation,
 for a commit's files (prek passes them) or for the whole tree (no files: CI, `make gates`).
 
 `tree` and `shape` are read here, from the paths and the stdlib `ast`; `syntax` rules are handed to ast-grep inline,
 one run for all; `genealogy` and `parity` import the project, so the unit suite runs them, never a commit hook.
 
-    python -m scripts.gate check [paths...]   tree, shape, syntax; with paths, only the violations at those paths
-    python -m scripts.gate semantic           genealogy, parity
-    python -m scripts.gate test               every syntax rule against its own valid and invalid cases"""
+    python -m gates.engine check [paths...]   tree, shape, syntax; with paths, only the violations at those paths
+    python -m gates.engine semantic           genealogy, parity
+    python -m gates.engine test               every syntax rule against its own valid and invalid cases"""
 
 import ast
 import importlib
@@ -498,7 +498,7 @@ def gate_main(argv: Sequence[str]) -> int:
         case [command, *paths] if command in COMMANDS:
             return gate_print(COMMANDS[command](Path.cwd(), paths))
         case _:
-            sys.stderr.write(f"usage: python -m scripts.gate {{{'|'.join(COMMANDS)}}} [paths...]\n")
+            sys.stderr.write(f"usage: python -m gates.engine {{{'|'.join(COMMANDS)}}} [paths...]\n")
             return 2
 
 

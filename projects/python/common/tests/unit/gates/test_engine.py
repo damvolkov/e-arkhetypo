@@ -5,6 +5,17 @@ from typing import TYPE_CHECKING, Final
 
 import pytest
 
+from gates.engine import (
+    gate_cases,
+    gate_check,
+    gate_genealogy,
+    gate_main,
+    gate_parity,
+    gate_shape,
+    gate_syntax,
+    gate_tree,
+    gate_within,
+)
 from gates.models import (
     Classes,
     Constants,
@@ -17,17 +28,6 @@ from gates.models import (
     Syntax,
     Tree,
     Violation,
-)
-from scripts.gate import (
-    gate_cases,
-    gate_check,
-    gate_genealogy,
-    gate_main,
-    gate_parity,
-    gate_shape,
-    gate_syntax,
-    gate_tree,
-    gate_within,
 )
 
 if TYPE_CHECKING:

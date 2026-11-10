@@ -2,7 +2,7 @@
 
 - The house laws no tool names are gates, in one file every project carries: `gates/rules.yml` (one list, each rule
   tagged by level — `tree`, `shape`, `syntax` (ast-grep, each rule with its valid and invalid cases), `genealogy`,
-  `parity`), typed by `gates/models.py` and run by `scripts/gate.py` (`check` · `semantic` · `test`). `common` holds
+  `parity`), typed by `gates/models.py` and run by `gates/engine.py` (`python -m gates.engine check` · `semantic` · `test`) — one folder, the gates' whole stack. `common` holds
   the defaults; `templates.yml` materials, `make common` and `make common-check` carry them into every blueprint, and a
   project adds its own rules under `##### PROJECT #####`: `make common` keeps them, `common-check` compares only what
   comes before. Every Makefile gains `gates`. Built and calibrated on aivo-agents (`feat/gates`).

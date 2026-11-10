@@ -38,24 +38,11 @@ jobs:
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2  # v10.3.3
       - name: Pin the Python the ecosystem declares
         run: echo "UV_PYTHON=$(cat projects/python/common/.python-version)" >> "$GITHUB_ENV"
-      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413  # v6.1.0
-        with:
-          package_json_file: projects/python/graph/src/e_graph/ui/package.json
-      - name: Materialize and sync every project (infra/ops/adapters and the shared root files are generated, not committed)
-        run: |
-          for d in projects/python/*/; do
-            [ -f "$d/Makefile" ] || continue
-            make -C "$d" install
-          done
-      - name: make ci in every system, one by one, reporting all failures
-        run: |
-          STATUS=0
-          for d in projects/python/*/; do
-            [ -f "$d/Makefile" ] || continue
-            printf '\n### %s\n' "$d"
-            make -C "$d" ci || STATUS=1
-          done
-          exit "$STATUS"
+      ### the templates are frozen (only projects/python/common changes): CI holds common alone.
+      - name: Sync common
+        run: make -C projects/python/common install
+      - name: make ci in common
+        run: make -C projects/python/common ci
 
   # feature: repo-ci
   repo-gates:

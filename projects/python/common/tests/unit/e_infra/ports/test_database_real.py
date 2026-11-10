@@ -10,7 +10,6 @@ from typing import TYPE_CHECKING
 import anyio
 import pytest
 import pytest_asyncio
-from psqlpy.exceptions import Error as PsqlError
 
 from e_infra.infra.errors import DatabaseError
 from e_infra.ports.database import DatabasePort, ListenPort, Vector
@@ -31,11 +30,8 @@ TYPES = (
 
 @pytest_asyncio.fixture(scope="session", loop_scope="session")
 async def database(worker_id: str) -> str:
-    """A database of the contract's own beside POSTGRES_TEST_DSN's; every test skips with no server."""
-    try:
-        return await create(f"{DSN}_ports_{worker_id}")
-    except PsqlError as error:
-        pytest.skip(f"no test Postgres at {DSN.rpartition('@')[2]}: {error}")
+    """A database of the contract's own beside POSTGRES_TEST_DSN's; no server is an error, never a skip."""
+    return await create(f"{DSN}_ports_{worker_id}")
 
 
 @pytest.fixture(params=["psqlpy", "asyncpg"])

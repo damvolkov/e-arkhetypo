@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from e_infra.infra.errors import BlobNotFoundError, BlobPreconditionError, ProviderError
+from e_infra.infra.errors import BlobNotFoundError, BlobPreconditionError
 from e_infra.ports.blob import BlobMeta, BlobPort
 from e_infra.providers.drivers.blob.gcs import GCSBlobDriver
 from support.blob import MemoryBlob
@@ -38,10 +38,7 @@ async def blob(request: pytest.FixtureRequest, httpserver: HTTPServer) -> AsyncI
         case _:
             driver = MemoryBlob()
     async with driver:
-        try:
-            await driver.health()
-        except ProviderError as error:
-            pytest.skip(f"no GCS emulator at {EMULATOR}: {error}")
+        await driver.health()
         yield driver
 
 

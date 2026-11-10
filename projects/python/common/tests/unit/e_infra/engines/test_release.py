@@ -12,7 +12,7 @@ import msgspec
 import pytest
 
 from e_infra.engines.release import Manifest, ReleaseEngine
-from e_infra.infra.errors import ProviderError, ReleaseConflictError, ReleaseCorruptError, ReleaseNotFoundError
+from e_infra.infra.errors import ReleaseConflictError, ReleaseCorruptError, ReleaseNotFoundError
 from e_infra.providers.drivers.blob.gcs import GCSBlobDriver
 from support.blob import MemoryBlob
 from unit.e_infra.conftest import gcs_args
@@ -180,10 +180,7 @@ async def test_release_a_pointer_to_a_missing_folder_is_not_found() -> None:
 async def test_release_two_writers_on_one_base_one_wins_on_gcs() -> None:
     conf = gcs_args(prefix=f"test/release/{uuid.uuid4().hex}/", api_root="http://127.0.0.1:45013")
     async with GCSBlobDriver(**conf) as blob:
-        try:
-            await blob.health()
-        except ProviderError as error:
-            pytest.skip(f"no GCS emulator: {error}")
+        await blob.health()
         releases = engine(blob)
         await first(releases)
         outcomes = await asyncio.gather(

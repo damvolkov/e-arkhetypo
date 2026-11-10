@@ -1,7 +1,7 @@
 """tests/unit/e_infra/engines/llm_real: the model agent against real models — the contract held whoever answers.
 
 The same typed request goes to every vendor that answers here: the local vLLM (Gemma), and Gemini when GEMINI_API_KEY
-is one Google accepts — a key it refuses skips with Google's reason, never passes. Embeddings go to the local TEI."""
+is one Google accepts — a missing key, or one it refuses, fails with Google's reason, never skips. Embeddings go to the local TEI."""
 
 from contextlib import AsyncExitStack
 from typing import TYPE_CHECKING, Annotated
@@ -13,7 +13,6 @@ from pydantic import SecretStr as Secret
 
 from e_infra.engines.llm import LLMEngine, Purpose
 from e_infra.infra.config.engines import Tier
-from e_infra.infra.errors import ProviderError
 from e_infra.infra.settings import settings as st
 from e_infra.providers.drivers.embed.tei import TEIEmbedDriver
 from e_infra.providers.drivers.http.wreq import WreqDriver
@@ -64,14 +63,11 @@ async def model(request: pytest.FixtureRequest) -> AsyncIterator[LLMPort]:
         match request.param:
             case "openai":
                 driver: LLMPort = OpenaiDriver(http, **openai_args(key=Secret("local-dev"), model="gemma4-26b-a4b"))
-                try:
-                    await driver.health()
-                except ProviderError as error:
-                    pytest.skip(f"no local vLLM: {error}")
+                await driver.health()
             case _:
                 key = st.GEMINI_API_KEY or st.GENAI_API_KEY
                 reason = "no GEMINI_API_KEY" if key is None else await gemini_refusal(key.get_secret_value())
-                _ = reason and pytest.skip(reason)
+                _ = reason and pytest.fail(reason)
                 driver = GoogleLLMDriver(**google_llm_args(api_key=key, model="gemini-3.8-flash"))
         async with driver:
             yield driver
@@ -94,11 +90,8 @@ async def test_llm_every_vendor_answers_the_same_contract(model: LLMPort) -> Non
 async def test_embed_tei_answers_its_declared_width() -> None:
     conf = embed_args(model="Qwen/Qwen3-Embedding-0.6B")
     async with WreqDriver(**wreq_args()) as http, AsyncExitStack() as stack:
-        try:
-            embed = await stack.enter_async_context(TEIEmbedDriver(http, **conf))
-            await embed.health()
-        except ProviderError as error:
-            pytest.skip(f"no local TEI: {error}")
+        embed = await stack.enter_async_context(TEIEmbedDriver(http, **conf))
+        await embed.health()
         engine = LLMEngine(
             dict.fromkeys(Tier, OpenaiDriver(http, **openai_args())),
             embed,

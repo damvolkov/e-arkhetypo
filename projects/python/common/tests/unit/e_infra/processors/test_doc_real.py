@@ -1,8 +1,8 @@
 """tests/unit/e_infra/processors/doc_real: the reader as the lifespan builds it today — no docling — on real engines.
 
 Companion to `test_doc.py` (fake ports). Here the actual bindings run: anytomd on real text and markup, liteparse
-on a real PDF, and the OpenAI-compatible vision model on a real image (skipped without a key). Offline except the
-vision case, which needs `MD_VISION_TEST_KEY`."""
+on a real PDF, and the OpenAI-compatible vision model on a real image. Offline except the vision case: an integration
+test that needs `MD_VISION_TEST_KEY` and fails without it, never skips."""
 
 import os
 import pathlib
@@ -21,7 +21,6 @@ from unit.e_infra.processors.conftest import opened
 RESOURCES = pathlib.Path(__file__).resolve().parents[3] / "resources"
 PDF = (RESOURCES / "documents" / "filing.pdf").read_bytes()
 KEY = os.environ.get("MD_VISION_TEST_KEY")
-needs_vision = pytest.mark.skipif(not KEY, reason="no vision key (set MD_VISION_TEST_KEY)")
 
 
 def png(rgb: tuple[int, int, int]) -> bytes:
@@ -54,9 +53,9 @@ async def test_real_engines_read_each_format(data: bytes, name: str, backend: Ba
     assert snippet in document.markdown
 
 
-@needs_vision
+@pytest.mark.integration
 async def test_real_vision_describes_an_image_inline() -> None:
-    assert KEY is not None
+    assert KEY is not None, "no vision key: set MD_VISION_TEST_KEY"
     vision = anytomd_args(vision_api_key=Secret(KEY))
     async with AnytomdAdapter(**vision) as anytomd:
         document = await DocProcessor(anytomd, opened(), None, **doc_args()).process(

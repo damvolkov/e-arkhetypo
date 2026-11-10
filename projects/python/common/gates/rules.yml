@@ -565,6 +565,21 @@ rules:
       - "x = f()  # pyright: ignore"
 
   - level: syntax
+    id: logger-singleton
+    law: "16"
+    message: "one logger: import `logger` from infra/logger; a structlog logger built at a call site escapes the singleton (its setup, its redact stage, its tracer hook)"
+    files: ["src/**/*.py"]
+    ignores: ["src/*/infra/logger.py"]
+    rule:
+      kind: call
+      has: {field: function, regex: '^(structlog\.)?get_logger$'}
+    valid:
+      - 'logger.info("graph.built")'
+    invalid:
+      - 'structlog.get_logger("app").info("graph.built")'
+      - "get_logger().warning('x')"
+
+  - level: syntax
     id: not-open
     law: "8"
     message: "a provider's resource read before open is an `Opened[T]` descriptor (ports/provider), never a hand-written `case None: raise`"

@@ -197,6 +197,11 @@ touches — `stack`, `systems`, `infra`. Lines under `[Unreleased]` are written 
   imports the one `logger` — a call-site logger escapes the setup, its redact stage and its tracer hook. From the
   reverse-distill of aivo-agents feat/canon (should, upheld). Evidence: the rule's cases pass `gates.engine test`;
   common has zero hits today.
+- common's gates gain `file-parents` (law 16, Damien 2026-11-10: "never relative from below"): no location derived
+  from the module's own file — `Path(__file__).parent`, `.parents[n]`, resolved or not — in src/, scripts/, gates/; a
+  path is absolute and given, or anchored once at `Path(sys.prefix).parent`. Evidence: the rule's cases pass
+  `gates.engine test`; common has zero hits. Found in aivo's KANON hook (`parents[2]`), which the Triad's loader
+  replaces with `CLAUDE_PROJECT_DIR`.
 
 ### stack
 
@@ -426,6 +431,7 @@ touches — `stack`, `systems`, `infra`. Lines under `[Unreleased]` are written 
 - Left as found: `common/uv.lock` cannot be relocked on main (`awa-pg>=0.6.15` against `exclude-newer = 2026-10-20`),
   so its new dev dependency `ast-grep-cli` is not locked there; `common`'s `test_compose::test_full_stack` fails on main
   as before.
+- common: `QueryPort` takes a bank member (`Query`, a `NamedTuple` of literal SQL and description, in `e_infra.infra.query`; one enum per consumer: `DatabaseQuery`, `CacheQuery`, `QueueQuery`, `AuthQuery`) and `script` a `Script` NewType, never a raw string; both database drivers, the auth, cache and PgQueuer consumers and every test follow. The gate `bank-port-takes-text` goes 4 -> 0 and `bank-sql-inline` 39 -> 10, no other rule moves; ruff, ty and tach clean, 1445 unit tests and the 80 database integration tests pass on a live Postgres.
 
 ### infra
 

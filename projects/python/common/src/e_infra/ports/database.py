@@ -14,6 +14,8 @@ if TYPE_CHECKING:
     from decimal import Decimal
     from uuid import UUID
 
+    from e_infra.infra.query import Query, Script
+
 ### what a statement binds and a row holds, as the drivers carry it; a `Vector` is a `Sequence[float]`, a JSON column a
 ### mapping or a sequence.
 type Cell = (
@@ -46,22 +48,22 @@ class Vector(tuple[float, ...]):
 
 @runtime_checkable
 class QueryPort(Protocol):
-    """Statements: `execute` runs without returning rows; `fetch` returns every row, `row` the first (None when
-    none), `many` runs one statement for each parameter set, `script` several statements without parameters in one
-    round trip. Inside `transaction()` every call shares one connection and commits on a clean exit, rolls back on a
-    raise; inside `connection()` every call shares one connection, each statement its own commit — what a
-    session-level lock needs. A scope opened inside a scope is that scope. Every refusal is a `DatabaseError`; a
-    vector column reads back as a list of floats through `::real[]`, on every driver."""
+    """Statements, each a bank's `Query`: `execute` runs without returning rows; `fetch` returns every row, `row` the
+    first (None when none), `many` runs one statement for each parameter set, `script` a `Script` of several statements
+    without parameters in one round trip. Inside `transaction()` every call shares one connection and commits on a
+    clean exit, rolls back on a raise; inside `connection()` every call shares one connection, each statement its own
+    commit — what a session-level lock needs. A scope opened inside a scope is that scope. Every refusal is a
+    `DatabaseError`; a vector column reads back as a list of floats through `::real[]`, on every driver."""
 
-    async def execute(self, query: str, params: Sequence[Cell] = ()) -> None: ...
+    async def execute(self, query: Query, params: Sequence[Cell] = ()) -> None: ...
 
-    async def fetch(self, query: str, params: Sequence[Cell] = ()) -> Sequence[Row]: ...
+    async def fetch(self, query: Query, params: Sequence[Cell] = ()) -> Sequence[Row]: ...
 
-    async def row(self, query: str, params: Sequence[Cell] = ()) -> Row | None: ...
+    async def row(self, query: Query, params: Sequence[Cell] = ()) -> Row | None: ...
 
-    async def many(self, query: str, params: Sequence[Sequence[Cell]]) -> None: ...
+    async def many(self, query: Query, params: Sequence[Sequence[Cell]]) -> None: ...
 
-    async def script(self, statements: str) -> None: ...
+    async def script(self, sql: Script) -> None: ...
 
     def transaction(self) -> AbstractAsyncContextManager[QueryPort]: ...
 

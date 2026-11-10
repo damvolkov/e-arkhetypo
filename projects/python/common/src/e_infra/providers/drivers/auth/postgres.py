@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING, ClassVar, Final, Self
 import msgspec
 
 from e_infra.infra.auth.models import Account, Grant, GrantKind, Role
+from e_infra.infra.auth.query import AuthQuery
 from e_infra.infra.errors import ProviderError
 from e_infra.infra.logger import logger
 from e_infra.ports.provider import Isolation, Locality, ProviderSpec, Workload
@@ -18,41 +19,14 @@ from e_infra.ports.provider import Isolation, Locality, ProviderSpec, Workload
 if TYPE_CHECKING:
     from e_infra.ports.database import DatabasePort, Row
 
-##### SQL #####
-SCHEMA: Final[tuple[str, ...]] = (
-    """CREATE TABLE IF NOT EXISTS auth_account (
-    id text PRIMARY KEY, name text NOT NULL, role text NOT NULL, created timestamptz NOT NULL DEFAULT now())""",
-    """CREATE TABLE IF NOT EXISTS auth_grant (
-    digest text PRIMARY KEY, owner text NOT NULL REFERENCES auth_account (id) ON DELETE CASCADE,
-    kind text NOT NULL DEFAULT 'key', created timestamptz NOT NULL DEFAULT now(), expires timestamptz,
-    revoked timestamptz)""",
-    "CREATE INDEX IF NOT EXISTS auth_grant_owner ON auth_grant (owner) WHERE revoked IS NULL",
-    ### the segments an account reads beyond the general: added in place to a table made before them.
-    "ALTER TABLE auth_account ADD COLUMN IF NOT EXISTS segments text[] NOT NULL DEFAULT '{}'",
-    ### whether the account acts for the people it serves, naming each call's subject.
-    "ALTER TABLE auth_account ADD COLUMN IF NOT EXISTS delegate boolean NOT NULL DEFAULT false",
+### the tables, in the order they exist: the grant's owner references the account.
+SCHEMA: Final[tuple[AuthQuery, ...]] = (
+    AuthQuery.ACCOUNT_TABLE,
+    AuthQuery.GRANT_TABLE,
+    AuthQuery.GRANT_INDEX,
+    AuthQuery.SEGMENTS_COLUMN,
+    AuthQuery.DELEGATE_COLUMN,
 )
-### the tables are created by one opener at a time: two concurrent creators collide on `pg_type`.
-SCHEMA_LOCK: Final[str] = "SELECT pg_advisory_xact_lock(hashtext('auth'))"
-ENROLL: Final[str] = """
-INSERT INTO auth_account (id, name, role) VALUES ($1, $2, $3)
-ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, role = EXCLUDED.role
-RETURNING id, name, role, created, segments, delegate"""
-ACCOUNTS: Final[str] = "SELECT id, name, role, created, segments, delegate FROM auth_account ORDER BY created"
-SEGMENT: Final[str] = (
-    "UPDATE auth_account SET segments = $2 WHERE id = $1 RETURNING id, name, role, created, segments, delegate"
-)
-DELEGATE: Final[str] = (
-    "UPDATE auth_account SET delegate = $2 WHERE id = $1 RETURNING id, name, role, created, segments, delegate"
-)
-ISSUE: Final[str] = (
-    "INSERT INTO auth_grant (digest, owner, kind, created, expires) VALUES ($1, $2, $3, coalesce($4, now()), $5)"
-)
-REVOKE: Final[str] = "UPDATE auth_grant SET revoked = now() WHERE owner = $1 AND revoked IS NULL RETURNING digest"
-HOLDER: Final[str] = """
-SELECT a.id, a.name, a.role, a.created, a.segments, a.delegate, g.digest, g.kind, g.created AS issued, g.expires,
-    g.revoked
-FROM auth_grant g JOIN auth_account a ON a.id = g.owner WHERE g.digest = $1"""
 
 
 ##### WIRE #####
@@ -108,7 +82,7 @@ class PostgresAuthDriver:
 
     async def __aenter__(self) -> Self:
         async with self._db.transaction() as tx:
-            await tx.execute(SCHEMA_LOCK)
+            await tx.execute(AuthQuery.LOCK)
             _ = [await tx.execute(statement) for statement in SCHEMA]
         logger.info("auth postgres opened")
         return self
@@ -125,34 +99,36 @@ class PostgresAuthDriver:
             raise
 
     async def enroll(self, account: Account) -> Account:
-        row = await self._db.row(ENROLL, [account.owner, account.name, account.role.value])
+        row = await self._db.row(AuthQuery.ENROLL, [account.owner, account.name, account.role.value])
         logger.debug("auth postgres enroll", owner=account.owner, role=account.role.value)
         return self._common_account(row) if row else account
 
     async def accounts(self) -> list[Account]:
-        return [self._common_account(row) for row in await self._db.fetch(ACCOUNTS)]
+        return [self._common_account(row) for row in await self._db.fetch(AuthQuery.ACCOUNTS)]
 
     async def issue(self, grant: Grant) -> None:
-        await self._db.execute(ISSUE, [grant.digest, grant.owner, grant.kind.value, grant.created, grant.expires])
+        await self._db.execute(
+            AuthQuery.ISSUE, [grant.digest, grant.owner, grant.kind.value, grant.created, grant.expires]
+        )
         logger.debug("auth postgres issue", owner=grant.owner, kind=grant.kind.value)
 
     async def revoke(self, owner: str) -> int:
-        revoked = len(await self._db.fetch(REVOKE, [owner]))
+        revoked = len(await self._db.fetch(AuthQuery.REVOKE, [owner]))
         logger.debug("auth postgres revoke", owner=owner, revoked=revoked)
         return revoked
 
     async def segment(self, owner: str, segments: frozenset[str]) -> Account | None:
-        row = await self._db.row(SEGMENT, [owner, sorted(segments)])
+        row = await self._db.row(AuthQuery.SEGMENT, [owner, sorted(segments)])
         logger.debug("auth postgres segment", owner=owner, segments=len(segments))
         return None if row is None else self._common_account(row)
 
     async def delegate(self, owner: str, *, delegate: bool) -> Account | None:
-        row = await self._db.row(DELEGATE, [owner, delegate])
+        row = await self._db.row(AuthQuery.DELEGATE, [owner, delegate])
         logger.debug("auth postgres delegate", owner=owner, delegate=delegate)
         return None if row is None else self._common_account(row)
 
     async def holder(self, digest: str) -> tuple[Account, Grant] | None:
-        match await self._db.row(HOLDER, [digest]):
+        match await self._db.row(AuthQuery.HOLDER, [digest]):
             case None:
                 return None
             case row:

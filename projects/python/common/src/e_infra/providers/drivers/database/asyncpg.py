@@ -23,6 +23,7 @@ import asyncpg
 
 from e_infra.infra.errors import DatabaseError, ProviderError
 from e_infra.infra.logger import logger
+from e_infra.infra.query import DatabaseQuery
 from e_infra.ports.database import Row, Vector
 from e_infra.ports.provider import Isolation, Locality, Opened, ProviderSpec, Workload
 
@@ -33,6 +34,7 @@ if TYPE_CHECKING:
 
     from pydantic import PostgresDsn, Secret
 
+    from e_infra.infra.query import Query, Script
     from e_infra.ports.database import Cell, Notify, QueryPort
 
 ### the errors that are the driver's own, not the caller's: the server's refusal, a closed connection, the network, a
@@ -40,7 +42,6 @@ if TYPE_CHECKING:
 WIRE: Final[tuple[type[BaseException], ...]] = (asyncpg.PostgresError, asyncpg.InterfaceError, OSError, TimeoutError)
 ### every Postgres server has it: where a database that does not exist yet is created from.
 MAINTENANCE: Final[str] = "postgres"
-FOUND: Final[str] = "SELECT 1 FROM pg_database WHERE datname = $1"
 
 type Fanout = Callable[[asyncpg.Connection, int, str, str], None]
 
@@ -116,21 +117,23 @@ class AsyncpgStatements:
 
     ##### PUBLIC #####
 
-    async def execute(self, query: str, params: Sequence[Cell] = ()) -> None:
+    async def execute(self, query: Query, params: Sequence[Cell] = ()) -> None:
         ### always the extended protocol, as psqlpy prepares: one statement, and a comment-only one is no error.
-        _ = await self._common_call(self._on.fetch(query, *self._common_params(params)))
+        _ = await self._common_call(self._on.fetch(query.sql, *self._common_params(params)))
 
-    async def fetch(self, query: str, params: Sequence[Cell] = ()) -> Sequence[Row]:
-        return [dict(record) for record in await self._common_call(self._on.fetch(query, *self._common_params(params)))]
+    async def fetch(self, query: Query, params: Sequence[Cell] = ()) -> Sequence[Row]:
+        return [
+            dict(record) for record in await self._common_call(self._on.fetch(query.sql, *self._common_params(params)))
+        ]
 
-    async def row(self, query: str, params: Sequence[Cell] = ()) -> Row | None:
+    async def row(self, query: Query, params: Sequence[Cell] = ()) -> Row | None:
         return next(iter(await self.fetch(query, params)), None)
 
-    async def many(self, query: str, params: Sequence[Sequence[Cell]]) -> None:
-        await self._common_call(self._on.executemany(query, [self._common_params(each) for each in params]))
+    async def many(self, query: Query, params: Sequence[Sequence[Cell]]) -> None:
+        await self._common_call(self._on.executemany(query.sql, [self._common_params(each) for each in params]))
 
-    async def script(self, statements: str) -> None:
-        _ = await self._common_call(self._on.execute(statements))
+    async def script(self, sql: Script) -> None:
+        _ = await self._common_call(self._on.execute(sql))
 
     def transaction(self) -> AbstractAsyncContextManager[Self]:
         return self._common_self()
@@ -163,7 +166,7 @@ class AsyncpgDriver:
     async def _provision_create(self, connection: asyncpg.Connection, name: str) -> bool:
         """Create the database unless it exists; False when it does, or when a twin created it first."""
         try:
-            match await connection.fetch(FOUND, name):
+            match await connection.fetch(DatabaseQuery.FOUND.sql, name):
                 case []:
                     ### CREATE DATABASE takes no parameters: the name is quoted as an identifier, quotes doubled.
                     await connection.execute(f'CREATE DATABASE "{name.replace('"', '""')}"')
@@ -177,7 +180,7 @@ class AsyncpgDriver:
     @staticmethod
     async def _provision_twin(connection: asyncpg.Connection, name: str) -> bool:
         """After a failed create: the database exists — a twin won the race — or the failure was real."""
-        match await connection.fetch(FOUND, name):
+        match await connection.fetch(DatabaseQuery.FOUND.sql, name):
             case []:
                 msg = f"database {name!r} could not be created"
                 raise DatabaseError(msg)
@@ -254,7 +257,7 @@ class AsyncpgDriver:
     async def health(self) -> bool:
         """One trivial query on a pooled connection."""
         try:
-            await self.fetch("SELECT 1")
+            await self.fetch(DatabaseQuery.HEALTH)
         except ProviderError as error:
             logger.warning("asyncpg unhealthy", error=str(error))
             raise
@@ -277,28 +280,28 @@ class AsyncpgDriver:
         finally:
             await admin.close()
 
-    async def execute(self, query: str, params: Sequence[Cell] = ()) -> None:
+    async def execute(self, query: Query, params: Sequence[Cell] = ()) -> None:
         logger.debug("asyncpg execute", params=len(params))
         async with self.connection() as held:
             await held.execute(query, params)
 
-    async def fetch(self, query: str, params: Sequence[Cell] = ()) -> Sequence[Row]:
+    async def fetch(self, query: Query, params: Sequence[Cell] = ()) -> Sequence[Row]:
         logger.debug("asyncpg fetch", params=len(params))
         async with self.connection() as held:
             return await held.fetch(query, params)
 
-    async def row(self, query: str, params: Sequence[Cell] = ()) -> Row | None:
+    async def row(self, query: Query, params: Sequence[Cell] = ()) -> Row | None:
         return next(iter(await self.fetch(query, params)), None)
 
-    async def many(self, query: str, params: Sequence[Sequence[Cell]]) -> None:
+    async def many(self, query: Query, params: Sequence[Sequence[Cell]]) -> None:
         logger.debug("asyncpg many", sets=len(params))
         async with self.connection() as held:
             await held.many(query, params)
 
-    async def script(self, statements: str) -> None:
+    async def script(self, sql: Script) -> None:
         logger.debug("asyncpg script")
         async with self.connection() as held:
-            await held.script(statements)
+            await held.script(sql)
 
     def transaction(self) -> AbstractAsyncContextManager[QueryPort]:
         logger.debug("asyncpg transaction")

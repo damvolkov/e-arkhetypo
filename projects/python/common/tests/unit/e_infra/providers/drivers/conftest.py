@@ -22,6 +22,7 @@ from werkzeug import Request, Response
 from e_infra.providers.drivers.database.psqlpy import PsqlpyDriver
 from e_infra.providers.drivers.http.wreq import WreqDriver
 from support.asyncpg import FakeAsyncpgServer
+from support.query import sql
 from unit.e_infra.conftest import DSN, create, psqlpy_args, wreq_args
 
 if TYPE_CHECKING:
@@ -224,12 +225,12 @@ def pg_conf(database: str) -> dict[str, Any]:
 async def pg(pg_conf: dict[str, Any]) -> AsyncIterator[PsqlpyDriver]:
     """A connected adapter over a fresh `adapters` schema holding one probe table, dropped after the test."""
     async with PsqlpyDriver(**pg_conf) as adapter:
-        await adapter.execute("CREATE EXTENSION IF NOT EXISTS vector")
-        await adapter.execute("DROP SCHEMA IF EXISTS adapters CASCADE")
-        await adapter.execute("CREATE SCHEMA adapters")
-        await adapter.execute("CREATE TABLE adapters.probe (id int PRIMARY KEY, label text, v vector(3))")
+        await adapter.execute(sql("CREATE EXTENSION IF NOT EXISTS vector"))
+        await adapter.execute(sql("DROP SCHEMA IF EXISTS adapters CASCADE"))
+        await adapter.execute(sql("CREATE SCHEMA adapters"))
+        await adapter.execute(sql("CREATE TABLE adapters.probe (id int PRIMARY KEY, label text, v vector(3))"))
         yield adapter
-        await adapter.execute("DROP SCHEMA adapters CASCADE")
+        await adapter.execute(sql("DROP SCHEMA adapters CASCADE"))
 
 
 @pytest.fixture

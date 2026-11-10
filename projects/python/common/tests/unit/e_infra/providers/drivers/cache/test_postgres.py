@@ -7,8 +7,9 @@ import anyio
 import pytest
 
 from e_infra.infra.errors import CacheError, ProviderError
+from e_infra.infra.query import CacheQuery
 from e_infra.ports.cache import CachePort
-from e_infra.providers.drivers.cache.postgres import CACHE_LOCK, CACHE_SCHEMA, PostgresCacheDriver
+from e_infra.providers.drivers.cache.postgres import PostgresCacheDriver
 from support.cache import cache
 
 if TYPE_CHECKING:
@@ -22,7 +23,7 @@ async def test_cache_postgres_meets_the_cache_port(db: FakeDatabase) -> None:
 
 async def test_cache_postgres_opening_creates_the_table_and_logs(db: FakeDatabase, logs: Logs) -> None:
     async with cache(db):
-        assert (db.created, db.statements) == (1, [CACHE_LOCK, CACHE_SCHEMA])
+        assert (db.created, db.statements) == (1, [CacheQuery.LOCK, CacheQuery.SCHEMA])
     assert logs.at("info") == ["cache postgres opened", "cache postgres closed"]
 
 

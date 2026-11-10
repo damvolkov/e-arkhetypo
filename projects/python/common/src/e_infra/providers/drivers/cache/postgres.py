@@ -8,12 +8,13 @@ never fails its caller."""
 
 from contextlib import contextmanager
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, ClassVar, Final, Self
+from typing import TYPE_CHECKING, ClassVar, Self
 
 import msgspec
 
 from e_infra.infra.errors import CacheError, DatabaseError, ProviderError
 from e_infra.infra.logger import logger
+from e_infra.infra.query import CacheQuery
 from e_infra.ports.provider import Isolation, Locality, ProviderSpec, Workload
 
 if TYPE_CHECKING:
@@ -21,20 +22,6 @@ if TYPE_CHECKING:
     from datetime import timedelta
 
     from e_infra.ports.database import DatabasePort
-
-CACHE_SCHEMA: Final[str] = (
-    "CREATE TABLE IF NOT EXISTS cache (namespace text NOT NULL, key text NOT NULL, value bytea NOT NULL, "
-    "expires timestamptz, PRIMARY KEY (namespace, key))"
-)
-### the table is created by one opener at a time: two concurrent creators collide on `pg_type`.
-CACHE_LOCK: Final[str] = "SELECT pg_advisory_xact_lock(hashtext('cache'))"
-CACHE_GET: Final[str] = (
-    "SELECT key, value FROM cache WHERE namespace = $1 AND key = ANY($2) AND (expires IS NULL OR expires > now())"
-)
-CACHE_PUT: Final[str] = (
-    "INSERT INTO cache (namespace, key, value, expires) VALUES ($1, $2, $3, $4) "
-    "ON CONFLICT (namespace, key) DO UPDATE SET value = EXCLUDED.value, expires = EXCLUDED.expires"
-)
 
 
 ##### WIRE #####
@@ -100,8 +87,8 @@ class PostgresCacheDriver[T]:
     async def __aenter__(self) -> Self:
         with self._common_guard():
             async with self._db.transaction() as tx:
-                await tx.execute(CACHE_LOCK)
-                await tx.execute(CACHE_SCHEMA)
+                await tx.execute(CacheQuery.LOCK)
+                await tx.execute(CacheQuery.SCHEMA)
         logger.info("cache postgres opened", namespace=self._namespace)
         return self
 
@@ -122,7 +109,7 @@ class PostgresCacheDriver[T]:
     async def many(self, keys: Sequence[str]) -> dict[str, T]:
         logger.debug("cache postgres many", namespace=self._namespace, keys=len(keys))
         with self._common_guard():
-            rows = await self._db.fetch(CACHE_GET, [self._namespace, list(keys)]) if keys else []
+            rows = await self._db.fetch(CacheQuery.GET, [self._namespace, list(keys)]) if keys else []
         entries = [msgspec.convert(row, PostgresEntry) for row in rows]
         return {entry.key: value for entry in entries if (value := self._common_decoded(entry.value)) is not None}
 
@@ -134,4 +121,4 @@ class PostgresCacheDriver[T]:
         rows = [[self._namespace, key, self._put_encoded(value), expires] for key, value in items.items()]
         logger.debug("cache postgres put many", namespace=self._namespace, keys=len(rows))
         with self._common_guard():
-            _ = rows and await self._db.many(CACHE_PUT, rows)
+            _ = rows and await self._db.many(CacheQuery.PUT, rows)

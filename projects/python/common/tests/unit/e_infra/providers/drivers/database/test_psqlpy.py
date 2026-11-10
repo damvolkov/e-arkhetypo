@@ -9,8 +9,10 @@ from psqlpy.exceptions import Error as PsqlError
 from psqlpy.extra_types import PgVector
 
 from e_infra.infra.errors import DatabaseError, ProviderError
+from e_infra.infra.query import DatabaseQuery, Script
 from e_infra.ports.database import DatabasePort, Vector
-from e_infra.providers.drivers.database.psqlpy import FOUND, PsqlpyDriver, PsqlpyStatements
+from e_infra.providers.drivers.database.psqlpy import PsqlpyDriver, PsqlpyStatements
+from support.query import sql
 from unit.e_infra.conftest import psqlpy_args
 
 if TYPE_CHECKING:
@@ -44,7 +46,7 @@ async def test_psqlpy_pool_never_drops_below_psqlpys_floor(psqlpy: FakePsqlpySer
 
 
 async def test_psqlpy_unopened_calls_are_database_errors(driver: PsqlpyDriver) -> None:
-    for call in (driver.execute("SELECT 1"), driver.fetch("SELECT 1"), driver.many("INSERT", [[1]])):
+    for call in (driver.execute(sql("SELECT 1")), driver.fetch(sql("SELECT 1")), driver.many(sql("INSERT"), [[1]])):
         with pytest.raises(DatabaseError, match="not open"):
             await call
 
@@ -76,10 +78,10 @@ async def test_psqlpy_health_false_when_never_opened(driver: PsqlpyDriver, logs:
 async def test_psqlpy_statements_run_with_their_parameters(driver: PsqlpyDriver, psqlpy: FakePsqlpyServer) -> None:
     psqlpy.answers["FROM t"] = [{"id": 1}, {"id": 2}]
     async with driver:
-        await driver.execute("DELETE FROM t WHERE id = $1", [7])
-        rows = await driver.fetch("SELECT id FROM t", [])
-        first = await driver.row("SELECT id FROM t")
-        await driver.many("INSERT INTO t VALUES ($1)", [[1], [2]])
+        await driver.execute(sql("DELETE FROM t WHERE id = $1"), [7])
+        rows = await driver.fetch(sql("SELECT id FROM t"), [])
+        first = await driver.row(sql("SELECT id FROM t"))
+        await driver.many(sql("INSERT INTO t VALUES ($1)"), [[1], [2]])
     assert (rows, first) == ([{"id": 1}, {"id": 2}], {"id": 1})
     assert psqlpy.statements == [
         ("DELETE FROM t WHERE id = $1", [7]),
@@ -92,12 +94,12 @@ async def test_psqlpy_statements_run_with_their_parameters(driver: PsqlpyDriver,
 
 async def test_psqlpy_row_of_nothing_is_none(driver: PsqlpyDriver) -> None:
     async with driver:
-        assert await driver.row("SELECT 1 WHERE false") is None
+        assert await driver.row(sql("SELECT 1 WHERE false")) is None
 
 
 async def test_psqlpy_vector_binds_as_a_pgvector(driver: PsqlpyDriver, psqlpy: FakePsqlpyServer) -> None:
     async with driver:
-        await driver.execute("INSERT INTO v VALUES ($1, $2)", [Vector((0.1, 0.2)), "plain"])
+        await driver.execute(sql("INSERT INTO v VALUES ($1, $2)"), [Vector((0.1, 0.2)), "plain"])
     bound = psqlpy.statements[0][1]
     assert (type(bound[0]), bound[1]) == (PgVector, "plain")
 
@@ -106,10 +108,10 @@ async def test_psqlpy_vector_binds_as_a_pgvector(driver: PsqlpyDriver, psqlpy: F
 async def test_psqlpy_transaction_commits_on_a_clean_exit(driver: PsqlpyDriver, psqlpy: FakePsqlpyServer) -> None:
     psqlpy.answers["FROM t"] = [{"id": 1}]
     async with driver, driver.transaction() as tx:
-        await tx.execute("UPDATE t SET x = $1", [1])
-        assert await tx.fetch("SELECT id FROM t") == [{"id": 1}]
-        assert await tx.row("SELECT id FROM t") == {"id": 1}
-        await tx.many("INSERT INTO t VALUES ($1)", [[1], [2]])
+        await tx.execute(sql("UPDATE t SET x = $1"), [1])
+        assert await tx.fetch(sql("SELECT id FROM t")) == [{"id": 1}]
+        assert await tx.row(sql("SELECT id FROM t")) == {"id": 1}
+        await tx.many(sql("INSERT INTO t VALUES ($1)"), [[1], [2]])
         assert isinstance(tx, PsqlpyStatements)
         async with tx.transaction() as nested:
             assert nested is tx
@@ -122,7 +124,7 @@ async def test_psqlpy_transaction_rolls_back_on_a_raise_and_lets_it_through(
 ) -> None:
     async def mine() -> None:
         async with driver.transaction() as tx:
-            await tx.execute("UPDATE t SET x = 1")
+            await tx.execute(sql("UPDATE t SET x = 1"))
             msg = "mine"
             raise ValueError(msg)
 
@@ -141,7 +143,7 @@ async def test_psqlpy_errors_are_translated_and_logged(
     args: Any = [[1]] if method == "many" else ()
     async with driver:
         with pytest.raises(DatabaseError, match="connection reset") as caught:
-            await getattr(driver, method)("BOOM", args)
+            await getattr(driver, method)(sql("BOOM"), args)
     assert caught.value.__cause__ is broken
     assert logs.at("error") == ["psqlpy failed"]
 
@@ -153,10 +155,10 @@ async def test_psqlpy_transaction_errors_are_translated(
     async with driver:
         with pytest.raises(DatabaseError):
             async with driver.transaction() as tx:
-                await tx.fetch("BOOM")
+                await tx.fetch(sql("BOOM"))
         with pytest.raises(DatabaseError):
             async with driver.transaction() as tx:
-                await tx.execute("BOOM")
+                await tx.execute(sql("BOOM"))
     assert psqlpy.transactions == ["begin", "rollback", "begin", "rollback"]
 
 
@@ -167,7 +169,7 @@ async def test_psqlpy_a_cancelled_call_gives_its_connection_back(
     psqlpy.hang = "SLOW"
     async with driver:
         with anyio.move_on_after(0.05) as scope:
-            await driver.fetch("SLOW")
+            await driver.fetch(sql("SLOW"))
         assert scope.cancelled_caught
     assert psqlpy.held == 0
 
@@ -179,11 +181,11 @@ async def test_psqlpy_a_cancelled_call_gives_its_connection_back(
 async def test_psqlpy_provision_creates_a_missing_database_on_the_maintenance_one(
     driver: PsqlpyDriver, psqlpy: FakePsqlpyServer, logs: Logs, found: list[dict[str, int]], created: bool
 ) -> None:
-    psqlpy.answers[FOUND] = found
+    psqlpy.answers[DatabaseQuery.FOUND.sql] = found
     assert await driver.provision() is created
     admin = psqlpy.pools[-1]
     assert (admin.kwargs["dsn"], admin.closed) == ("postgresql://u:p@db:5432/postgres", True)
-    assert psqlpy.statements[0] == (FOUND, ["x"])
+    assert psqlpy.statements[0] == (DatabaseQuery.FOUND.sql, ["x"])
     assert ('CREATE DATABASE "x"' in psqlpy.sql()) is created
     assert (logs.at("info") == ["psqlpy database created"]) is created
 
@@ -193,7 +195,7 @@ async def test_psqlpy_provision_loses_the_race_without_error(
 ) -> None:
     """A twin created it between the look and the CREATE: not this call's creation, and no failure."""
     looks = iter([[], [{"?column?": 1}]])
-    psqlpy.answers[FOUND] = lambda: next(looks)
+    psqlpy.answers[DatabaseQuery.FOUND.sql] = lambda: next(looks)
     psqlpy.failures["CREATE DATABASE"] = broken
     assert await driver.provision() is False
 
@@ -201,7 +203,7 @@ async def test_psqlpy_provision_loses_the_race_without_error(
 async def test_psqlpy_provision_failing_for_real_is_a_database_error(
     driver: PsqlpyDriver, psqlpy: FakePsqlpyServer, broken: PsqlError
 ) -> None:
-    psqlpy.answers[FOUND] = []
+    psqlpy.answers[DatabaseQuery.FOUND.sql] = []
     psqlpy.failures["CREATE DATABASE"] = broken
     with pytest.raises(DatabaseError, match="could not be created"):
         await driver.provision()
@@ -225,15 +227,15 @@ async def test_psqlpy_pool_timeout_reaches_the_connect_bound(psqlpy: FakePsqlpyS
 ##### SCRIPT AND CONNECTION #####
 async def test_psqlpy_script_runs_as_one_batch(driver: PsqlpyDriver, psqlpy: FakePsqlpyServer) -> None:
     async with driver:
-        await driver.script("CREATE TABLE a (k int); CREATE INDEX a_k ON a (k)")
+        await driver.script(Script("CREATE TABLE a (k int); CREATE INDEX a_k ON a (k)"))
     assert psqlpy.statements == [("CREATE TABLE a (k int); CREATE INDEX a_k ON a (k)", [])]
 
 
 async def test_psqlpy_connection_pins_one_without_a_transaction(driver: PsqlpyDriver, psqlpy: FakePsqlpyServer) -> None:
     async with driver, driver.connection() as held, held.connection() as inner, inner.transaction() as same:
         assert held is inner is same
-        await same.script("SELECT 1; SELECT 2")
-        await same.many("INSERT", [[1]])
+        await same.script(Script("SELECT 1; SELECT 2"))
+        await same.many(sql("INSERT"), [[1]])
         assert psqlpy.held == 1
     assert (psqlpy.transactions, psqlpy.held) == ([], 0)
 
@@ -252,7 +254,7 @@ async def test_psqlpy_refusal_reads_the_state_off_the_message(
     psqlpy.failures["INSERT"] = PsqlError(message)
     async with driver:
         with pytest.raises(DatabaseError) as refused:
-            await driver.execute("INSERT INTO job VALUES (1)")
+            await driver.execute(sql("INSERT INTO job VALUES (1)"))
     assert (refused.value.sqlstate, refused.value.constraint_name, str(refused.value)) == (*state, message)
 
 

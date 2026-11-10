@@ -25,6 +25,7 @@ from psqlpy.extra_types import PgVector
 
 from e_infra.infra.errors import DatabaseError, ProviderError
 from e_infra.infra.logger import logger
+from e_infra.infra.query import DatabaseQuery
 from e_infra.ports.database import Row, Vector
 from e_infra.ports.provider import Isolation, Locality, Opened, ProviderSpec, Workload
 
@@ -35,13 +36,13 @@ if TYPE_CHECKING:
 
     from pydantic import PostgresDsn, Secret
 
+    from e_infra.infra.query import Query, Script
     from e_infra.ports.database import Cell, Notify, QueryPort
 
 ### psqlpy refuses a pool of one connection.
 FLOOR: Final[int] = 2
 ### every Postgres server has it: where a database that does not exist yet is created from.
 MAINTENANCE: Final[str] = "postgres"
-FOUND: Final[str] = "SELECT 1 FROM pg_database WHERE datname = $1"
 UNIQUE: Final[re.Pattern[str]] = re.compile(r'duplicate key value violates unique constraint "(?P<constraint>[^"]+)"')
 UNIQUE_STATE: Final[str] = "23505"
 
@@ -97,20 +98,20 @@ class PsqlpyStatements:
 
     ##### PUBLIC #####
 
-    async def execute(self, query: str, params: Sequence[Cell] = ()) -> None:
-        await self._common_call(self._on.execute(query, self._common_params(params)))
+    async def execute(self, query: Query, params: Sequence[Cell] = ()) -> None:
+        await self._common_call(self._on.execute(query.sql, self._common_params(params)))
 
-    async def fetch(self, query: str, params: Sequence[Cell] = ()) -> Sequence[Row]:
-        return (await self._common_call(self._on.fetch(query, self._common_params(params)))).result()
+    async def fetch(self, query: Query, params: Sequence[Cell] = ()) -> Sequence[Row]:
+        return (await self._common_call(self._on.fetch(query.sql, self._common_params(params)))).result()
 
-    async def row(self, query: str, params: Sequence[Cell] = ()) -> Row | None:
+    async def row(self, query: Query, params: Sequence[Cell] = ()) -> Row | None:
         return next(iter(await self.fetch(query, params)), None)
 
-    async def many(self, query: str, params: Sequence[Sequence[Cell]]) -> None:
-        await self._common_call(self._on.execute_many(query, [self._common_params(each) for each in params]))
+    async def many(self, query: Query, params: Sequence[Sequence[Cell]]) -> None:
+        await self._common_call(self._on.execute_many(query.sql, [self._common_params(each) for each in params]))
 
-    async def script(self, statements: str) -> None:
-        await self._common_call(self._on.execute_batch(statements))
+    async def script(self, sql: Script) -> None:
+        await self._common_call(self._on.execute_batch(sql))
 
     def transaction(self) -> AbstractAsyncContextManager[Self]:
         return self._common_self()
@@ -142,7 +143,7 @@ class PsqlpyDriver:
     async def _provision_create(self, connection: Connection, name: str) -> bool:
         """Create the database unless it exists; False when it does, or when a twin created it first."""
         try:
-            match (await connection.fetch(FOUND, [name])).result():
+            match (await connection.fetch(DatabaseQuery.FOUND.sql, [name])).result():
                 case []:
                     ### CREATE DATABASE takes no parameters: the name is quoted as an identifier, quotes doubled.
                     await connection.execute(f'CREATE DATABASE "{name.replace('"', '""')}"')
@@ -156,7 +157,7 @@ class PsqlpyDriver:
     @staticmethod
     async def _provision_twin(connection: Connection, name: str) -> bool:
         """After a failed create: the database exists — a twin won the race — or the failure was real."""
-        match (await connection.fetch(FOUND, [name])).result():
+        match (await connection.fetch(DatabaseQuery.FOUND.sql, [name])).result():
             case []:
                 msg = f"database {name!r} could not be created"
                 raise DatabaseError(msg)
@@ -225,7 +226,7 @@ class PsqlpyDriver:
     async def health(self) -> bool:
         """One trivial query on a pooled connection."""
         try:
-            await self.fetch("SELECT 1")
+            await self.fetch(DatabaseQuery.HEALTH)
         except ProviderError as error:
             logger.warning("psqlpy unhealthy", error=str(error))
             raise
@@ -250,28 +251,28 @@ class PsqlpyDriver:
         finally:
             admin.close()
 
-    async def execute(self, query: str, params: Sequence[Cell] = ()) -> None:
+    async def execute(self, query: Query, params: Sequence[Cell] = ()) -> None:
         logger.debug("psqlpy execute", params=len(params))
         async with self.connection() as held:
             await held.execute(query, params)
 
-    async def fetch(self, query: str, params: Sequence[Cell] = ()) -> Sequence[Row]:
+    async def fetch(self, query: Query, params: Sequence[Cell] = ()) -> Sequence[Row]:
         logger.debug("psqlpy fetch", params=len(params))
         async with self.connection() as held:
             return await held.fetch(query, params)
 
-    async def row(self, query: str, params: Sequence[Cell] = ()) -> Row | None:
+    async def row(self, query: Query, params: Sequence[Cell] = ()) -> Row | None:
         return next(iter(await self.fetch(query, params)), None)
 
-    async def many(self, query: str, params: Sequence[Sequence[Cell]]) -> None:
+    async def many(self, query: Query, params: Sequence[Sequence[Cell]]) -> None:
         logger.debug("psqlpy many", sets=len(params))
         async with self.connection() as held:
             await held.many(query, params)
 
-    async def script(self, statements: str) -> None:
+    async def script(self, sql: Script) -> None:
         logger.debug("psqlpy script")
         async with self.connection() as held:
-            await held.script(statements)
+            await held.script(sql)
 
     def transaction(self) -> AbstractAsyncContextManager[QueryPort]:
         logger.debug("psqlpy transaction")

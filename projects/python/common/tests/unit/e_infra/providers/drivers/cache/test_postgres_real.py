@@ -8,6 +8,7 @@ import anyio
 import pytest
 
 from e_infra.providers.drivers.cache.postgres import PostgresCacheDriver
+from support.query import sql
 
 if TYPE_CHECKING:
     from e_infra.providers.drivers.database.psqlpy import PsqlpyDriver
@@ -40,8 +41,8 @@ async def test_cache_postgres_expires(pg: PsqlpyDriver) -> None:
 
 async def test_cache_postgres_opened_at_once_makes_one_table(fleet: list[PsqlpyDriver]) -> None:
     """`CREATE TABLE IF NOT EXISTS` alone is not safe under concurrency: two creators collide on `pg_type`."""
-    await fleet[0].execute("DROP TABLE IF EXISTS cache")
+    await fleet[0].execute(sql("DROP TABLE IF EXISTS cache"))
     caches = [PostgresCacheDriver(db, "race", int, ttl=None) for db in fleet]
     await asyncio.gather(*(cache.__aenter__() for cache in caches))
     await asyncio.gather(*(cache.put("k", n) for n, cache in enumerate(caches)))
-    assert await fleet[0].row("SELECT count(*) AS n FROM cache WHERE namespace = 'race'") == {"n": 1}
+    assert await fleet[0].row(sql("SELECT count(*) AS n FROM cache WHERE namespace = 'race'")) == {"n": 1}

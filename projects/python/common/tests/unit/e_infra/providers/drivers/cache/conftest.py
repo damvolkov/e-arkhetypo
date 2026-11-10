@@ -11,12 +11,13 @@ import pytest
 
 from e_infra.infra.errors import DatabaseError
 from e_infra.ports.provider import Isolation, Locality, ProviderSpec, Workload
-from e_infra.providers.drivers.cache.postgres import CACHE_GET, CACHE_PUT, CACHE_SCHEMA
+from e_infra.providers.drivers.cache.postgres import CacheQuery
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, Sequence
     from contextlib import AbstractAsyncContextManager
 
+    from e_infra.infra.query import Query, Script
     from e_infra.ports.database import QueryPort, Row
 
 
@@ -28,7 +29,7 @@ class FakeDatabase:
     def __init__(self) -> None:
         self.table: dict[tuple[str, str], tuple[bytes, datetime | None]] = {}
         self.created = 0
-        self.statements: list[str] = []
+        self.statements: list[Query] = []
         self.down = False
 
     def _check(self) -> None:
@@ -46,30 +47,30 @@ class FakeDatabase:
         self._check()
         return True
 
-    async def execute(self, query: str, params: Sequence[object] = ()) -> None:
+    async def execute(self, query: Query, params: Sequence[object] = ()) -> None:
         self._check()
-        self.created += query == CACHE_SCHEMA
+        self.created += query is CacheQuery.SCHEMA
         self.statements.append(query)
 
-    async def fetch(self, query: str, params: Sequence[object] = ()) -> list[Row]:
+    async def fetch(self, query: Query, params: Sequence[object] = ()) -> list[Row]:
         self._check()
         namespace, keys = params
         now = datetime.now(UTC)
         return [
             {"key": key, "value": value}
             for (held, key), (value, expires) in self.table.items()
-            if query == CACHE_GET and held == namespace and key in keys and (expires is None or expires > now)  # ty: ignore[unsupported-operator]
+            if query is CacheQuery.GET and held == namespace and key in keys and (expires is None or expires > now)  # ty: ignore[unsupported-operator]
         ]
 
-    async def row(self, query: str, params: Sequence[object] = ()) -> Row | None:
+    async def row(self, query: Query, params: Sequence[object] = ()) -> Row | None:
         return next(iter(await self.fetch(query, params)), None)
 
-    async def many(self, query: str, params: Sequence[Sequence[object]]) -> None:
+    async def many(self, query: Query, params: Sequence[Sequence[object]]) -> None:
         self._check()
-        rows: list[Any] = [*params] if query == CACHE_PUT else []
+        rows: list[Any] = [*params] if query is CacheQuery.PUT else []
         self.table |= {(namespace, key): (value, expires) for namespace, key, value, expires in rows}
 
-    async def script(self, statements: str) -> None:
+    async def script(self, sql: Script) -> None:
         raise NotImplementedError
 
     @asynccontextmanager

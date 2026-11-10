@@ -12,6 +12,7 @@ from e_infra.ports.queue import QueuePort, SchedulePort
 from e_infra.providers.drivers.database.asyncpg import AsyncpgDriver
 from e_infra.providers.drivers.database.psqlpy import PsqlpyDriver
 from e_infra.providers.drivers.queue.pgqueuer import PgqueuerDriver
+from support.query import sql
 from unit.e_infra.conftest import asyncpg_args, psqlpy_args, running, settled, until
 
 if TYPE_CHECKING:
@@ -198,7 +199,7 @@ async def test_pgqueuer_call_outage(
     async with engine:
         monkeypatch.setattr(type(engine._db), "fetch", broken)
         with pytest.raises(QueueError, match=message):
-            await engine._common_call(lambda: engine._db.fetch("SELECT 1"))
+            await engine._common_call(lambda: engine._db.fetch(sql("SELECT 1")))
         with pytest.raises(ProviderError):
             await engine.health()
 

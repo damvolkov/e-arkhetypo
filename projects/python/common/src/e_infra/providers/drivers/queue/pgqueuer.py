@@ -26,7 +26,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from functools import partial
-from typing import TYPE_CHECKING, ClassVar, Final, Self, cast
+from typing import TYPE_CHECKING, ClassVar, Final, LiteralString, Self, cast
 
 import anyio
 import msgspec
@@ -40,6 +40,7 @@ from pgqueuer.domain.types import JobId
 from e_infra.infra.background import BackgroundJob, BackgroundState
 from e_infra.infra.errors import DatabaseError, ProviderError, QueueError
 from e_infra.infra.logger import logger
+from e_infra.infra.query import Query, QueueQuery, Script
 from e_infra.ports.provider import Isolation, Locality, Opened, ProviderSpec, Workload
 
 if TYPE_CHECKING:
@@ -55,52 +56,7 @@ if TYPE_CHECKING:
 ### a cron with a seconds field: six fields.
 SECONDS: Final[int] = 6
 
-SCHEMA: Final[tuple[str, ...]] = (
-    "CREATE SCHEMA IF NOT EXISTS background",
-    (
-        "CREATE TABLE IF NOT EXISTS background.job ("
-        "id bigint PRIMARY KEY, kind text NOT NULL, queue text NOT NULL, args jsonb NOT NULL, attempts int NOT NULL, "
-        "created timestamptz NOT NULL DEFAULT now(), progress jsonb)"
-    ),
-    "CREATE INDEX IF NOT EXISTS job_kind_created ON background.job (kind, created DESC)",
-)
-RECORD: Final[str] = "INSERT INTO background.job (id, kind, queue, args, attempts) VALUES ($1, $2, $3, $4::jsonb, $5)"
-REPORT: Final[str] = "UPDATE background.job SET progress = $2::jsonb WHERE id = $1"
-### one row per job: the queue row while it lives, else the log's last word; picks count the attempts; a retry's
-### traceback is PgQueuer's RetryRequested, whose message is the failure it carries.
-READ: Final[str] = """
-SELECT j.id, j.kind, j.queue, j.args::text AS args, j.created, j.progress::text AS progress,
-       q.status::text AS live, q.attempts AS retries, q.execute_after,
-       l.last::text AS last, l.picks, l.errors, l.finished,
-       CASE
-           WHEN q.status = 'picked' THEN 'running'
-           WHEN q.status = 'queued' AND q.execute_after > now() THEN
-               CASE WHEN q.attempts > 0 THEN 'retryable' ELSE 'scheduled' END
-           WHEN q.status = 'queued' THEN CASE WHEN q.attempts > 0 THEN 'retryable' ELSE 'available' END
-           WHEN q.status = 'failed' THEN 'failed'
-           WHEN l.last = 'successful' THEN 'completed'
-           WHEN l.last IN ('exception', 'failed') THEN 'failed'
-           WHEN l.last IN ('canceled', 'deleted') THEN 'cancelled'
-           ELSE 'available'
-       END AS state
-FROM background.job j
-LEFT JOIN pgqueuer q ON q.id = j.id
-LEFT JOIN LATERAL (
-    SELECT (array_agg(status ORDER BY created DESC, id DESC)
-                FILTER (WHERE status NOT IN ('queued', 'picked')))[1] AS last,
-           count(*) FILTER (WHERE status = 'picked') AS picks,
-           coalesce(array_agg(CASE traceback->>'exception_type' WHEN 'RetryRequested' THEN traceback->>'exception_message'
-                ELSE (traceback->>'exception_type') || ': ' || (traceback->>'exception_message') END
-                ORDER BY created, id) FILTER (WHERE traceback IS NOT NULL), '{}') AS errors,
-           max(created) FILTER (WHERE status NOT IN ('queued', 'picked')) AS finished
-    FROM pgqueuer_log WHERE job_id = j.id
-) l ON true
-"""
-ONE: Final[str] = f"SELECT * FROM ({READ}) r WHERE id = $1"  # noqa: S608 — constants only, values bound
-WHERE: Final[str] = "($1::text IS NULL OR kind = $1) AND ($2::text IS NULL OR state = $2)"
-MANY: Final[str] = f"SELECT * FROM ({READ}) r WHERE {WHERE} ORDER BY created DESC, id DESC LIMIT $3"  # noqa: S608 — constants only, values bound
-### a cancel already logged for the job: what a NOTIFY that came before the job's scope existed would have said.
-CANCELLED: Final[str] = "SELECT 1 FROM pgqueuer_log WHERE job_id = $1 AND status IN ('canceled', 'deleted') LIMIT 1"
+SCHEMA: Final[tuple[QueueQuery, ...]] = (QueueQuery.SCHEMA, QueueQuery.TABLE, QueueQuery.INDEX)
 
 
 ##### BRIDGE #####
@@ -125,21 +81,32 @@ class PgqueuerBridge:
         """What PgQueuer binds, as the port takes it."""
         return cast("Sequence[Cell]", args)  # ast-grep-ignore: cast
 
+    @staticmethod
+    def _common_query(text: str) -> Query:
+        """PgQueuer's statement text as a `Query`: its own library writes it, so it is no member of our bank."""
+        ### the one place a statement arrives as data; the cast says only that PgQueuer's text is SQL.
+        literal = cast("LiteralString", text)  # ast-grep-ignore: bank-literalstring-cast
+        return Query(literal, "A statement PgQueuer writes.")
+
     ############################################################
 
     ##### PUBLIC #####
 
     ### PgQueuer's `Driver` fixes `object` for what it binds and returns.
     async def fetch(self, query: str, *args: object) -> list[dict[str, object]]:  # ast-grep-ignore: object-annotation
-        return [dict(row) for row in await self._on.fetch(query, self._common_cells(args))]
+        return [dict(row) for row in await self._on.fetch(self._common_query(query), self._common_cells(args))]
 
     ### same: the `Driver` port's own signature.
     async def execute(self, query: str, *args: object) -> str:  # ast-grep-ignore: object-annotation
-        _ = await (self._on.execute(query, self._common_cells(args)) if args else self._on.script(query))
+        _ = await (
+            self._on.execute(self._common_query(query), self._common_cells(args))
+            if args
+            else self._on.script(Script(query))
+        )
         return ""
 
     async def notify(self, channel: str, payload: str) -> None:
-        await self._on.execute("SELECT pg_notify($1, $2)", [channel, payload])
+        await self._on.execute(QueueQuery.NOTIFY, [channel, payload])
 
     async def add_listener(self, channel: str, callback: NotifyCallback) -> None:
         self._heard.append((channel, callback))
@@ -166,7 +133,7 @@ class PgqueuerBridge:
 
 
 class PgqueuerRow(msgspec.Struct, frozen=True, kw_only=True):
-    """The columns of `READ` this driver reads; `args` and `progress` are JSON text."""
+    """The columns of `QueueQuery.ONE` this driver reads; `args` and `progress` are JSON text."""
 
     id: int
     kind: str
@@ -253,7 +220,7 @@ class PgqueuerDriver:
         async with self._db.connection() as held:
             queries = Queries(PgqueuerBridge(held, self._listen))
             _ = await queries.upgrade() if await queries.schema_is_installed() else await queries.install()
-            _ = [await held.execute(statement) for statement in SCHEMA]
+            _ = [await held.execute(query) for query in SCHEMA]
         logger.debug("pgqueuer schema installed")
 
     def _common_queries(self, on: QueryPort | None = None) -> Queries:
@@ -359,7 +326,7 @@ class PgqueuerDriver:
 
     async def _register_cancelled(self, job: int) -> bool:
         """Whether the job's cancel is already logged."""
-        return bool(await self._common_call(lambda: self._db.fetch(CANCELLED, [job])))
+        return bool(await self._common_call(lambda: self._db.fetch(QueueQuery.CANCELLED, [job])))
 
     async def _cancel_ordered(self, job: JobId) -> None:
         """PgQueuer's cancel in order: the log written, then the NOTIFY — its own sends both at once, so a NOTIFY could
@@ -370,7 +337,7 @@ class PgqueuerDriver:
 
     async def _register_report(self, job: int, progress: Mapping[str, JSON]) -> None:
         ### a JSON parameter travels as a Python value: each driver binds it as jsonb (text would bind as a JSON string).
-        await self._common_call(lambda: self._db.execute(REPORT, [job, json.loads(json.dumps(progress))]))
+        await self._common_call(lambda: self._db.execute(QueueQuery.REPORT, [job, json.loads(json.dumps(progress))]))
 
     async def _common_call[T](self, call: Callable[[], Awaitable[T]]) -> T:
         """One call within QUEUE_TIMEOUT; a database that fails under it is the port's `QueueError`."""
@@ -416,7 +383,7 @@ class PgqueuerDriver:
         """The driver is entered and its database answers one query within QUEUE_TIMEOUT."""
         try:
             _ = self.closing
-            await self._common_call(lambda: self._db.fetch("SELECT 1"))
+            await self._common_call(lambda: self._db.fetch(QueueQuery.HEALTH))
         except ProviderError as error:
             logger.warning("pgqueuer unhealthy", error=str(error))
             raise
@@ -466,7 +433,7 @@ class PgqueuerDriver:
             async with self._db.transaction() as tx:
                 payload = json.dumps({"kind": kind, "args": plain}).encode()
                 ids = await self._common_queries(tx).enqueue(queue, payload, headers={"attempts": str(attempts)})
-                await tx.execute(RECORD, [ids[0], kind, queue, plain, attempts])
+                await tx.execute(QueueQuery.RECORD, [ids[0], kind, queue, plain, attempts])
                 return ids[0]
 
         found = await self.job(str(await self._common_call(insert)))
@@ -478,13 +445,13 @@ class PgqueuerDriver:
                 return job
 
     async def job(self, job: str) -> BackgroundJob | None:
-        row = await self._common_call(lambda: self._db.row(ONE, [int(job)])) if job.isdecimal() else None
+        row = await self._common_call(lambda: self._db.row(QueueQuery.ONE, [int(job)])) if job.isdecimal() else None
         return self._common_job(row) if row else None
 
     async def jobs(
         self, *, kind: str | None = None, state: BackgroundState | None = None, limit: int = 20
     ) -> list[BackgroundJob]:
-        rows = await self._common_call(lambda: self._db.fetch(MANY, [kind, state and str(state), limit]))
+        rows = await self._common_call(lambda: self._db.fetch(QueueQuery.MANY, [kind, state and str(state), limit]))
         return [self._common_job(row) for row in rows]
 
     async def cancel(self, job: str) -> BackgroundJob | None:

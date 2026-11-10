@@ -12,9 +12,11 @@ import pytest
 import pytest_asyncio
 
 from e_infra.infra.errors import DatabaseError
+from e_infra.infra.query import Script
 from e_infra.ports.database import DatabasePort, ListenPort, Vector
 from e_infra.providers.drivers.database.asyncpg import AsyncpgDriver
 from e_infra.providers.drivers.database.psqlpy import PsqlpyDriver
+from support.query import sql
 from unit.e_infra.conftest import DSN, asyncpg_args, create, psqlpy_args
 
 if TYPE_CHECKING:
@@ -43,9 +45,9 @@ async def db(request: pytest.FixtureRequest, database: str) -> AsyncIterator[Psq
         else AsyncpgDriver(**asyncpg_args(database, pool=2))
     )
     async with driver:
-        await driver.execute("DROP TABLE IF EXISTS twin")
+        await driver.execute(sql("DROP TABLE IF EXISTS twin"))
         yield driver
-        await driver.execute("DROP TABLE IF EXISTS twin")
+        await driver.execute(sql("DROP TABLE IF EXISTS twin"))
 
 
 async def test_database_meets_both_ports(db: PsqlpyDriver | AsyncpgDriver) -> None:
@@ -53,7 +55,7 @@ async def test_database_meets_both_ports(db: PsqlpyDriver | AsyncpgDriver) -> No
 
 
 async def test_database_types_are_one_shape(db: PsqlpyDriver | AsyncpgDriver) -> None:
-    found = await db.row(TYPES)
+    found = await db.row(sql(TYPES))
     assert found is not None
     assert {key: type(value) for key, value in found.items()} == {
         "j": dict, "u": str, "t": datetime, "f": float, "n": Decimal, "a": list, "b": bool, "s": int, "by": bytes,
@@ -68,62 +70,62 @@ async def test_database_types_are_one_shape(db: PsqlpyDriver | AsyncpgDriver) ->
 
 async def test_database_parameters_bind_alike(db: PsqlpyDriver | AsyncpgDriver) -> None:
     found = await db.row(
-        "SELECT $1::jsonb AS j, $2::text[] AS a, $3::bigint AS b, $4::bytea AS by, ($5::vector)::real[] AS v",
+        sql("SELECT $1::jsonb AS j, $2::text[] AS a, $3::bigint AS b, $4::bytea AS by, ($5::vector)::real[] AS v"),
         [{"y": [1, 2]}, ["a", "b"], 2**40, b"\x00\x01", Vector((0.5, 1.0, 2.0))],
     )
     assert found == {"j": {"y": [1, 2]}, "a": ["a", "b"], "b": 2**40, "by": b"\x00\x01", "v": [0.5, 1.0, 2.0]}
 
 
 async def test_database_many_and_script(db: PsqlpyDriver | AsyncpgDriver) -> None:
-    await db.script("CREATE TABLE twin (k int PRIMARY KEY, v text); CREATE INDEX twin_v ON twin (v)")
-    await db.many("INSERT INTO twin VALUES ($1, $2)", [[1, "a"], [2, "b"]])
-    await db.execute("-- a statement of comments only is no error")
-    assert await db.fetch("SELECT k, v FROM twin ORDER BY k") == [{"k": 1, "v": "a"}, {"k": 2, "v": "b"}]
+    await db.script(Script("CREATE TABLE twin (k int PRIMARY KEY, v text); CREATE INDEX twin_v ON twin (v)"))
+    await db.many(sql("INSERT INTO twin VALUES ($1, $2)"), [[1, "a"], [2, "b"]])
+    await db.execute(sql("-- a statement of comments only is no error"))
+    assert await db.fetch(sql("SELECT k, v FROM twin ORDER BY k")) == [{"k": 1, "v": "a"}, {"k": 2, "v": "b"}]
 
 
 async def test_database_transaction_commits_or_rolls_back(db: PsqlpyDriver | AsyncpgDriver) -> None:
-    await db.execute("CREATE TABLE twin (k int PRIMARY KEY)")
+    await db.execute(sql("CREATE TABLE twin (k int PRIMARY KEY)"))
     async with db.transaction() as tx:
-        await tx.execute("INSERT INTO twin VALUES (1)")
+        await tx.execute(sql("INSERT INTO twin VALUES (1)"))
 
     async def undone() -> None:
         async with db.transaction() as tx:
-            await tx.execute("INSERT INTO twin VALUES (2)")
-            await tx.execute("INSERT INTO twin VALUES (2)")
+            await tx.execute(sql("INSERT INTO twin VALUES (2)"))
+            await tx.execute(sql("INSERT INTO twin VALUES (2)"))
 
     with pytest.raises(DatabaseError):
         await undone()
-    assert await db.fetch("SELECT k FROM twin") == [{"k": 1}]
+    assert await db.fetch(sql("SELECT k FROM twin")) == [{"k": 1}]
 
 
 async def test_database_nested_scopes_are_the_outer_one(db: PsqlpyDriver | AsyncpgDriver) -> None:
     """A transaction or a connection opened inside a scope is that scope: its statements land on the same connection."""
     async with db.transaction() as tx, tx.transaction() as inner, inner.connection() as held:
-        await held.execute("CREATE TEMP TABLE scoped (k int)")
-        await held.script("INSERT INTO scoped VALUES (1); INSERT INTO scoped VALUES (2)")
-        await held.many("INSERT INTO scoped VALUES ($1)", [[3]])
-        assert (await tx.row("SELECT count(*)::int AS n FROM scoped"), held is inner is tx) == ({"n": 3}, True)
+        await held.execute(sql("CREATE TEMP TABLE scoped (k int)"))
+        await held.script(Script("INSERT INTO scoped VALUES (1); INSERT INTO scoped VALUES (2)"))
+        await held.many(sql("INSERT INTO scoped VALUES ($1)"), [[3]])
+        assert (await tx.row(sql("SELECT count(*)::int AS n FROM scoped")), held is inner is tx) == ({"n": 3}, True)
 
 
 async def test_database_connection_holds_a_session_lock(db: PsqlpyDriver | AsyncpgDriver) -> None:
     """Lock and unlock on one connection: what a schema lock needs, never escaping across a pool."""
     async with db.connection() as held:
-        await held.execute("SELECT pg_advisory_lock($1)", [4242])
-        unlocked = await held.row("SELECT pg_advisory_unlock($1) AS ok", [4242])
+        await held.execute(sql("SELECT pg_advisory_lock($1)"), [4242])
+        unlocked = await held.row(sql("SELECT pg_advisory_unlock($1) AS ok"), [4242])
     assert unlocked == {"ok": True}
 
 
 async def test_database_unique_violation_names_its_state(db: PsqlpyDriver | AsyncpgDriver) -> None:
-    await db.execute("CREATE TABLE twin (k int CONSTRAINT twin_k PRIMARY KEY)")
-    await db.execute("INSERT INTO twin VALUES (1)")
+    await db.execute(sql("CREATE TABLE twin (k int CONSTRAINT twin_k PRIMARY KEY)"))
+    await db.execute(sql("INSERT INTO twin VALUES (1)"))
     with pytest.raises(DatabaseError) as refused:
-        await db.execute("INSERT INTO twin VALUES (1)")
+        await db.execute(sql("INSERT INTO twin VALUES (1)"))
     assert (refused.value.sqlstate, refused.value.constraint_name) == ("23505", "twin_k")
 
 
 async def test_database_other_refusals_are_database_errors(db: PsqlpyDriver | AsyncpgDriver) -> None:
     with pytest.raises(DatabaseError, match="nowhere"):
-        await db.fetch("SELECT * FROM nowhere")
+        await db.fetch(sql("SELECT * FROM nowhere"))
 
 
 async def test_database_listen_fans_out_and_unlistens(db: PsqlpyDriver | AsyncpgDriver) -> None:
@@ -136,7 +138,7 @@ async def test_database_listen_fans_out_and_unlistens(db: PsqlpyDriver | Asyncpg
         heard.append(("second", payload))
 
     async def told(payload: str, count: int) -> None:
-        await db.execute("SELECT pg_notify($1, $2)", ["twins", payload])
+        await db.execute(sql("SELECT pg_notify($1, $2)"), ["twins", payload])
         with anyio.fail_after(5):
             _ = [await anyio.sleep(0.02) for _ in iter(lambda: len(heard) >= count, True)]
 
@@ -146,7 +148,7 @@ async def test_database_listen_fans_out_and_unlistens(db: PsqlpyDriver | Asyncpg
     await db.unlisten("twins", first)
     await told("one", 3)
     await db.unlisten("twins", second)
-    await db.execute("SELECT pg_notify($1, $2)", ["twins", "none"])
+    await db.execute(sql("SELECT pg_notify($1, $2)"), ["twins", "none"])
     await anyio.sleep(0.2)
     assert sorted(heard) == [("first", "both"), ("second", "both"), ("second", "one")]
 

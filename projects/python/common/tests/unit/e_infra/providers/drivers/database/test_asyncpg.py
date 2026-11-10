@@ -8,9 +8,11 @@ import asyncpg
 import pytest
 
 from e_infra.infra.errors import DatabaseError, ProviderError
+from e_infra.infra.query import DatabaseQuery, Script
 from e_infra.ports.database import DatabasePort, Vector
-from e_infra.providers.drivers.database.asyncpg import FOUND, AsyncpgDriver, AsyncpgStatements
+from e_infra.providers.drivers.database.asyncpg import AsyncpgDriver, AsyncpgStatements
 from support.asyncpg import FakeAsyncpgConnection
+from support.query import sql
 from unit.e_infra.conftest import asyncpg_args
 
 if TYPE_CHECKING:
@@ -48,9 +50,9 @@ async def test_asyncpg_open_builds_the_pool_from_settings_and_close_closes_it(
 
 async def test_asyncpg_unopened_calls_are_database_errors(asyncpg_driver: AsyncpgDriver) -> None:
     for call in (
-        asyncpg_driver.execute("SELECT 1"),
-        asyncpg_driver.fetch("SELECT 1"),
-        asyncpg_driver.many("INSERT", [[1]]),
+        asyncpg_driver.execute(sql("SELECT 1")),
+        asyncpg_driver.fetch(sql("SELECT 1")),
+        asyncpg_driver.many(sql("INSERT"), [[1]]),
     ):
         with pytest.raises(DatabaseError, match="not open"):
             await call
@@ -131,10 +133,10 @@ async def test_asyncpg_statements_run_with_their_parameters(
 ) -> None:
     asyncpg_server.answers["FROM t"] = [{"id": 1}, {"id": 2}]
     async with asyncpg_driver:
-        await asyncpg_driver.execute("DELETE FROM t WHERE id = $1", [7])
-        rows = await asyncpg_driver.fetch("SELECT id FROM t", [])
-        first = await asyncpg_driver.row("SELECT id FROM t")
-        await asyncpg_driver.many("INSERT INTO t VALUES ($1)", [[1], [2]])
+        await asyncpg_driver.execute(sql("DELETE FROM t WHERE id = $1"), [7])
+        rows = await asyncpg_driver.fetch(sql("SELECT id FROM t"), [])
+        first = await asyncpg_driver.row(sql("SELECT id FROM t"))
+        await asyncpg_driver.many(sql("INSERT INTO t VALUES ($1)"), [[1], [2]])
     assert (rows, first) == ([{"id": 1}, {"id": 2}], {"id": 1})
     assert asyncpg_server.statements == [
         ("DELETE FROM t WHERE id = $1", (7,)),
@@ -148,14 +150,14 @@ async def test_asyncpg_statements_run_with_their_parameters(
 
 async def test_asyncpg_row_of_nothing_is_none(asyncpg_driver: AsyncpgDriver) -> None:
     async with asyncpg_driver:
-        assert await asyncpg_driver.row("SELECT 1 WHERE false") is None
+        assert await asyncpg_driver.row(sql("SELECT 1 WHERE false")) is None
 
 
 async def test_asyncpg_vector_binds_as_pgvectors_text_form(
     asyncpg_driver: AsyncpgDriver, asyncpg_server: FakeAsyncpgServer
 ) -> None:
     async with asyncpg_driver:
-        await asyncpg_driver.execute("INSERT INTO v VALUES ($1, $2)", [Vector((0.1, 0.25)), "plain"])
+        await asyncpg_driver.execute(sql("INSERT INTO v VALUES ($1, $2)"), [Vector((0.1, 0.25)), "plain"])
     assert asyncpg_server.statements[0][1] == ("[0.1,0.25]", "plain")
 
 
@@ -165,10 +167,10 @@ async def test_asyncpg_transaction_commits_on_a_clean_exit(
 ) -> None:
     asyncpg_server.answers["FROM t"] = [{"id": 1}]
     async with asyncpg_driver, asyncpg_driver.transaction() as tx:
-        await tx.execute("UPDATE t SET x = $1", [1])
-        assert await tx.fetch("SELECT id FROM t") == [{"id": 1}]
-        assert await tx.row("SELECT id FROM t") == {"id": 1}
-        await tx.many("INSERT INTO t VALUES ($1)", [[1], [2]])
+        await tx.execute(sql("UPDATE t SET x = $1"), [1])
+        assert await tx.fetch(sql("SELECT id FROM t")) == [{"id": 1}]
+        assert await tx.row(sql("SELECT id FROM t")) == {"id": 1}
+        await tx.many(sql("INSERT INTO t VALUES ($1)"), [[1], [2]])
         assert isinstance(tx, AsyncpgStatements)
         async with tx.transaction() as nested:
             assert nested is tx
@@ -181,7 +183,7 @@ async def test_asyncpg_transaction_rolls_back_on_a_raise_and_lets_it_through(
 ) -> None:
     async def mine() -> None:
         async with asyncpg_driver.transaction() as tx:
-            await tx.execute("UPDATE t SET x = 1")
+            await tx.execute(sql("UPDATE t SET x = 1"))
             msg = "mine"
             raise ValueError(msg)
 
@@ -205,7 +207,7 @@ async def test_asyncpg_errors_are_translated_and_logged(
     args: Any = [[1]] if method == "many" else ()
     async with asyncpg_driver:
         with pytest.raises(DatabaseError) as caught:
-            await getattr(asyncpg_driver, method)("BOOM", args)
+            await getattr(asyncpg_driver, method)(sql("BOOM"), args)
     assert caught.value.__cause__ is failure
     assert logs.at("error") == ["asyncpg failed"]
 
@@ -217,10 +219,10 @@ async def test_asyncpg_transaction_errors_are_translated(
     async with asyncpg_driver:
         with pytest.raises(DatabaseError):
             async with asyncpg_driver.transaction() as tx:
-                await tx.fetch("BOOM")
+                await tx.fetch(sql("BOOM"))
         with pytest.raises(DatabaseError):
             async with asyncpg_driver.transaction() as tx:
-                await tx.execute("BOOM")
+                await tx.execute(sql("BOOM"))
     assert asyncpg_server.transactions == ["begin", "rollback", "begin", "rollback"]
 
 
@@ -231,7 +233,7 @@ async def test_asyncpg_a_cancelled_call_is_not_swallowed_and_gives_its_connectio
     asyncpg_server.hang = "SLOW"
     async with asyncpg_driver:
         with anyio.move_on_after(0.05) as scope:
-            await asyncpg_driver.fetch("SLOW")
+            await asyncpg_driver.fetch(sql("SLOW"))
         assert scope.cancelled_caught
     assert asyncpg_server.held == 0
 
@@ -258,7 +260,7 @@ async def test_asyncpg_vector_components_go_through_float(
             return f"np.float32({float(self)})"
 
     async with asyncpg_driver:
-        await asyncpg_driver.execute("INSERT", [Vector((Scalar(0.5), 1))])
+        await asyncpg_driver.execute(sql("INSERT"), [Vector((Scalar(0.5), 1))])
     assert asyncpg_server.statements == [("INSERT", ("[0.5,1.0]",))]
 
 
@@ -267,7 +269,7 @@ async def test_asyncpg_script_runs_as_one_batch(
     asyncpg_driver: AsyncpgDriver, asyncpg_server: FakeAsyncpgServer
 ) -> None:
     async with asyncpg_driver:
-        await asyncpg_driver.script("SELECT 1; SELECT 2")
+        await asyncpg_driver.script(Script("SELECT 1; SELECT 2"))
     assert asyncpg_server.statements == [("SELECT 1; SELECT 2", ())]
 
 
@@ -281,7 +283,7 @@ async def test_asyncpg_connection_pins_one_without_a_transaction(
         inner.connection() as same,
     ):
         assert held is inner is same
-        await same.many("INSERT", [[1]])
+        await same.many(sql("INSERT"), [[1]])
         assert asyncpg_server.held == 1
     assert (asyncpg_server.transactions, asyncpg_server.held) == ([], 0)
 
@@ -295,7 +297,7 @@ async def test_asyncpg_refusal_keeps_the_servers_state(
     asyncpg_server.failures["INSERT"] = unique
     async with asyncpg_driver:
         with pytest.raises(DatabaseError) as refused:
-            await asyncpg_driver.execute("INSERT INTO job VALUES (1)")
+            await asyncpg_driver.execute(sql("INSERT INTO job VALUES (1)"))
     assert (refused.value.sqlstate, refused.value.constraint_name) == ("23505", "job_pkey")
 
 
@@ -305,7 +307,7 @@ async def test_asyncpg_a_command_past_its_timeout_is_a_database_error(
     asyncpg_server.failures["SELECT"] = TimeoutError()
     async with asyncpg_driver:
         with pytest.raises(DatabaseError, match="TimeoutError"):
-            await asyncpg_driver.fetch("SELECT pg_sleep(9)")
+            await asyncpg_driver.fetch(sql("SELECT pg_sleep(9)"))
 
 
 ##### LISTEN #####
@@ -341,13 +343,13 @@ async def test_asyncpg_listen_holds_one_connection_fans_out_and_unlistens(
 async def test_asyncpg_provision_creates_a_missing_database_on_the_maintenance_one(
     asyncpg_driver: AsyncpgDriver, asyncpg_server: FakeAsyncpgServer, found: list[dict[str, int]], created: bool
 ) -> None:
-    asyncpg_server.answers[FOUND] = found
+    asyncpg_server.answers[DatabaseQuery.FOUND.sql] = found
     assert await asyncpg_driver.provision() is created
     (admin,) = asyncpg_server.connections
     assert (admin.dsn, admin.closed, asyncpg_server.statements[0]) == (
         "postgresql://u:p@db:5432/postgres",
         True,
-        (FOUND, ("x",)),
+        (DatabaseQuery.FOUND.sql, ("x",)),
     )
     assert ('CREATE DATABASE "x"' in asyncpg_server.sql()) is created
 
@@ -357,7 +359,7 @@ async def test_asyncpg_provision_after_a_failed_create(
     asyncpg_driver: AsyncpgDriver, asyncpg_server: FakeAsyncpgServer, second: list[dict[str, int]], raised: bool
 ) -> None:
     looks = iter([[], second])
-    asyncpg_server.answers[FOUND] = lambda: next(looks)
+    asyncpg_server.answers[DatabaseQuery.FOUND.sql] = lambda: next(looks)
     asyncpg_server.failures["CREATE DATABASE"] = asyncpg.DuplicateDatabaseError("exists")
     match raised:
         case True:

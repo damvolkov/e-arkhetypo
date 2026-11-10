@@ -14,9 +14,10 @@ from pgqueuer.domain.types import JobId
 
 from e_infra.infra.background import BackgroundState
 from e_infra.infra.errors import ProviderError, QueueError
+from e_infra.infra.query import QueueQuery
 from e_infra.ports.queue import QueuePort, SchedulePort
 from e_infra.providers.drivers.database.asyncpg import AsyncpgDriver
-from e_infra.providers.drivers.queue.pgqueuer import MANY, ONE, RECORD, REPORT, SCHEMA, PgqueuerBridge, PgqueuerDriver
+from e_infra.providers.drivers.queue.pgqueuer import SCHEMA, PgqueuerBridge, PgqueuerDriver
 from support.pgqueuer import book_row
 from unit.e_infra.conftest import asyncpg_args, until
 
@@ -39,7 +40,7 @@ async def test_pgqueuer_open_installs_its_schema_and_the_books_on_the_drivers_po
     pgqueuer_driver: PgqueuerDriver, asyncpg_server: FakeAsyncpgServer, logs: Logs
 ) -> None:
     async with pgqueuer_driver:
-        assert asyncpg_server.sql() == list(SCHEMA)
+        assert asyncpg_server.sql() == [query.sql for query in SCHEMA]
         assert asyncpg_server.dedicated == 0
     assert logs.at("info") == ["pgqueuer opened", "pgqueuer closed"]
 
@@ -106,7 +107,7 @@ async def test_pgqueuer_health_false_and_warned_when_the_database_fails(
 async def test_pgqueuer_a_database_failure_is_a_queue_error_and_logged(
     opened: PgqueuerDriver, asyncpg_server: FakeAsyncpgServer, logs: Logs
 ) -> None:
-    asyncpg_server.failures[ONE] = asyncpg.PostgresConnectionError("server closed the connection")
+    asyncpg_server.failures[QueueQuery.ONE.sql] = asyncpg.PostgresConnectionError("server closed the connection")
     with pytest.raises(QueueError, match="server closed"):
         await opened.job("1")
     assert logs.at("error") == ["asyncpg failed", "pgqueuer database failed"]
@@ -137,7 +138,7 @@ async def test_pgqueuer_enqueue_books_the_job_in_the_same_transaction_and_answer
         BackgroundState.AVAILABLE,
         {"sources": ["a"]},
     )
-    assert (RECORD, (1, "reported", "q", {"sources": ["a"]}, 3)) in asyncpg_server.statements
+    assert (QueueQuery.RECORD.sql, (1, "reported", "q", {"sources": ["a"]}, 3)) in asyncpg_server.statements
     assert asyncpg_server.transactions == ["begin", "commit"]
     assert list(pgqueuer_memory.queries._jobs) == [1]
 
@@ -191,7 +192,7 @@ async def test_pgqueuer_jobs_are_asked_by_kind_state_and_limit(
     asyncpg_server.answers[ROW_MANY] = [book_row(3), book_row(2)]
     listed = await opened.jobs(kind="reported", state=BackgroundState.AVAILABLE, limit=2)
     assert [job.id for job in listed] == ["3", "2"]
-    assert asyncpg_server.statements[-1] == (MANY, ("reported", "available", 2))
+    assert asyncpg_server.statements[-1] == (QueueQuery.MANY.sql, ("reported", "available", 2))
 
 
 async def test_pgqueuer_cancel_marks_a_queued_job_and_answers_it_as_the_book_has_it(
@@ -221,9 +222,9 @@ async def test_pgqueuer_a_started_queue_runs_the_handler_of_the_kind_and_books_p
     opened.register("reported", "q", handler)
     await opened.start({"q": 1})
     await opened.enqueue("reported", {"n": 7}, queue="q", attempts=1)
-    await until(lambda: bool(seen) and REPORT in asyncpg_server.sql(), seconds=5)
+    await until(lambda: bool(seen) and QueueQuery.REPORT.sql in asyncpg_server.sql(), seconds=5)
     assert seen == [{"job": "1", "kind": "reported", "args": {"n": 7}, "state": BackgroundState.RUNNING}]
-    assert (REPORT, (1, {"stage": "done"})) in asyncpg_server.statements
+    assert (QueueQuery.REPORT.sql, (1, {"stage": "done"})) in asyncpg_server.statements
     await opened.__aexit__(None, None, None)
     ### the managers ride the database's pool: nothing opened beside it, nothing left held.
     assert (asyncpg_server.dedicated, asyncpg_server.held) == (0, 0)

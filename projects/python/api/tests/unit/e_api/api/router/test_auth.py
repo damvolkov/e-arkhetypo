@@ -14,8 +14,8 @@ if TYPE_CHECKING:
 
 def test_auth_me_names_the_caller(client: TestClient, ana_key: dict[str, str]) -> None:
     assert (client.get("/auth/me").json(), client.get("/auth/me", headers=ana_key).json()) == (
-        {"owner": "", "name": "", "role": "anonymous"},
-        {"owner": "ana", "name": "ana", "role": "user"},
+        {"owner": "", "name": "", "role": "anonymous", "segments": [], "delegate": False},
+        {"owner": "ana", "name": "ana", "role": "user", "segments": [], "delegate": False},
     )
 
 
@@ -38,6 +38,34 @@ def test_auth_revoke_ends_the_key(client: TestClient, root_key: dict[str, str]) 
     revoked = client.delete("/auth/accounts/carol/token", headers=root_key).json()
     after = client.get("/auth/me", headers={"Authorization": f"Bearer {issued['token']}"})
     assert (revoked, after.status_code) == ({"name": "carol", "revoked": 1}, 401)
+
+
+def test_auth_segments_are_set_by_the_admin_and_carried_by_the_key(
+    client: TestClient, ana_key: dict[str, str], root_key: dict[str, str]
+) -> None:
+    issued = client.post("/auth/accounts/carol/token", headers=root_key).json()
+    segmented = client.put("/auth/accounts/carol/segments", json={"segments": ["marketing"]}, headers=root_key)
+    again = client.post("/auth/accounts/carol/token", headers=root_key).json()
+    named = client.get("/auth/me", headers={"Authorization": f"Bearer {again['token']}"}).json()
+    refused = client.put("/auth/accounts/carol/segments", json={"segments": []}, headers=ana_key)
+    assert (issued["name"], segmented.json()["segments"], named["segments"], refused.status_code) == (
+        "carol", ["marketing"], ["marketing"], 403,
+    )  # fmt: skip
+
+
+def test_auth_a_delegate_is_named_by_the_admin_and_carried_by_the_key(
+    client: TestClient, root_key: dict[str, str]
+) -> None:
+    issued = client.post("/auth/accounts/agent/token", headers=root_key).json()
+    made = client.put("/auth/accounts/agent/delegate", json={"delegate": True}, headers=root_key)
+    named = client.get("/auth/me", headers={"Authorization": f"Bearer {issued['token']}"}).json()
+    unknown = client.put("/auth/accounts/nobody/delegate", json={"delegate": True}, headers=root_key)
+    assert (made.json()["delegate"], named["delegate"], unknown.status_code) == (True, True, 400)
+
+
+def test_auth_segments_of_no_account_is_a_400(client: TestClient, root_key: dict[str, str]) -> None:
+    answered = client.put("/auth/accounts/nobody/segments", json={"segments": ["x"]}, headers=root_key)
+    assert (answered.status_code, "issue it a key first" in answered.json()["detail"]) == (400, True)
 
 
 def test_auth_a_name_that_is_no_name_is_a_400(client: TestClient, root_key: dict[str, str]) -> None:

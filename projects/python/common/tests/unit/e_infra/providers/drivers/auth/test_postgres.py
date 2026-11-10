@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 
 ANA = Account(owner="o-ana", name="ana", role=Role.USER)
 NOW = datetime(2026, 10, 29, tzinfo=UTC)
-ROW = {"id": "o-ana", "name": "ana", "role": "user", "created": NOW}
+ROW = {"id": "o-ana", "name": "ana", "role": "user", "created": NOW, "segments": ["marketing"], "delegate": False}
 HELD = {**ROW, "digest": "d1", "kind": "key", "issued": NOW, "expires": NOW, "revoked": None}
 
 
@@ -36,6 +36,8 @@ async def test_postgres_open_creates_the_tables_under_the_advisory_lock(
         "CREATE TABLE IF NOT EXISTS auth_account",
         "CREATE TABLE IF NOT EXISTS auth_grant",
         "CREATE INDEX IF NOT EXISTS auth_grant_owner ON auth_grant",
+        "ALTER TABLE auth_account ADD COLUMN IF NOT EXISTS segments text[] NOT NULL DEFAULT '{}'",
+        "ALTER TABLE auth_account ADD COLUMN IF NOT EXISTS delegate boolean NOT NULL DEFAULT false",
     ]
 
 
@@ -113,3 +115,25 @@ async def test_postgres_database_failure_is_a_database_error(
     psqlpy.failures["auth_account"] = broken
     with pytest.raises(DatabaseError, match="reset"):
         await store.accounts()
+
+
+async def test_postgres_segment_sets_them_whole_or_names_no_account(
+    psqlpy: FakePsqlpyServer, store: PostgresAuthDriver
+) -> None:
+    psqlpy.answers["SET segments"] = [ROW]
+    account = await store.segment("o-ana", frozenset({"marketing"}))
+    assert (account and account.segments, psqlpy.statements[-1][1]) == (
+        frozenset({"marketing"}),
+        ["o-ana", ["marketing"]],
+    )
+    psqlpy.answers["SET segments"] = []
+    assert await store.segment("o-nobody", frozenset()) is None
+
+
+async def test_postgres_delegate_sets_it_or_names_no_account(
+    psqlpy: FakePsqlpyServer, store: PostgresAuthDriver
+) -> None:
+    psqlpy.answers["SET delegate"] = [{**ROW, "delegate": True}]
+    account = await store.delegate("o-ana", delegate=True)
+    psqlpy.answers["SET delegate"] = []
+    assert (account and account.delegate, await store.delegate("o-nobody", delegate=False)) == (True, None)

@@ -58,7 +58,7 @@ Databases, por modelo de datos:
 | `rdb` | relacional | postgres (pgvector), paradedb (pg_search BM25 + pgvector) |
 | `cdb` | cache / KV | redis |
 | `vdb` | vector | qdrant |
-| `gdb` | grafo | spanner (emulador de Spanner Graph) |
+| `gdb` | grafo | spanner (emulador de Spanner Graph), falkordb |
 | `ddb` | documento | — vacío |
 | `tdb` | serie temporal | — vacío |
 
@@ -103,6 +103,7 @@ Puerto = default en host (`:container`). GPU = necesita `nvidia` runtime.
 | rdb/postgres | pgvector/pgvector:pg18 | 5432 | | PostgreSQL 18, el major de Cloud SQL; la tag flota sobre la última pgvector. Desde 18 el volumen monta `/var/lib/postgresql` (datos en `18/docker`); un volumen de otro major no arranca |
 | rdb/paradedb | paradedb/paradedb:0.26.2-pg17 | 5433 | | Postgres + pg_search (BM25 sobre Tantivy, stemmers es/en) + pgvector; motor por defecto de e-gnosis (medido: scripts/bench.py) |
 | gdb/spanner | gcr.io/cloud-spanner-emulator/emulator:latest | 9010 / 9020 | | emulador oficial de Cloud Spanner: SQL + Spanner Graph (property graphs, GQL); los SDK oficiales lo usan con `SPANNER_EMULATOR_HOST=spanner:9010`. **En memoria**: instancias, schema y datos mueren con el contenedor; algoritmos de grafo validan pero devuelven vacío. Distroless, sin healthcheck |
+| gdb/falkordb | falkordb/falkordb:latest | 6379 / 3000 | | grafo de propiedades (openCypher) como módulo de Redis, el de FalkorDB Cloud (6.0.4 a 2026-11-10); backend de Graphiti; browser en `:3000`. Auth `FALKORDB_PASSWORD`, AOF, datos en `falkordb-data`. Choca en el host con `cdb/redis` y `watch/grafana`: `FALKORDB_PORT`, `FALKORDB_BROWSER_PORT` |
 | cdb/redis | redis:latest | 6379 | | `redis.conf` |
 | vdb/qdrant | qdrant/qdrant:latest | 6333 / 6334 | | `config.yaml` |
 | storage/gcs | fsouza/fake-gcs-server:latest | 4443 | | emulador de Google Cloud Storage (API JSON + XML, http); objetos en el volumen `gcs-data`; los SDK oficiales lo usan con `STORAGE_EMULATOR_HOST=http://gcs:4443`. `GCS_PUBLIC_HOST` = la dirección con que llegan los clientes |
@@ -145,7 +146,7 @@ Puerto = default en host (`:container`). GPU = necesita `nvidia` runtime.
 ## URLs entre servicios (red `stack`)
 
 ```
-redis:6379        postgres:5432     qdrant:6333      minio:9000      gcs:4443      spanner:9010
+redis:6379        postgres:5432     qdrant:6333      minio:9000      gcs:4443      spanner:9010      falkordb:6379
 llm:8000/v1          clef:8081  jev:45160  llamacpp:8080  llama:8082  ikllama:8083  ellm:80      embed:80/v1  reranker:80  gliner:5800
 kokoro:8880/v1    fwhisper:8000     evoice:80        speaches:8000
 searxng:8080      yacy:8090         docling:5001      playwright:3000  pipelines:9099

@@ -8,7 +8,7 @@ import anyio
 
 from e_infra.infra.errors import ProviderError, StoreError
 from e_infra.infra.logger import logger
-from e_infra.ports.provider import Isolation, Locality, ProviderSpec, Workload
+from e_infra.ports.provider import Isolation, Locality, Opened, ProviderSpec, Workload
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator, Generator
@@ -23,6 +23,7 @@ class SqliteDriver:
     """Same KV contract as redis, backed by one embedded database: a file with the semantics of a service."""
 
     spec: ClassVar[ProviderSpec] = ProviderSpec("sqlite", Locality.FILESYSTEM, Workload.IO_BOUND, Isolation.THREAD)
+    db = Opened[aiosqlite.Connection](StoreError)
 
     def __init__(self, *, path: Path, timeout: timedelta) -> None:
         self._path, self._timeout = path, timeout
@@ -39,14 +40,6 @@ class SqliteDriver:
         except aiosqlite.Error as error:
             logger.error("sqlite failed", error=str(error))
             raise StoreError(str(error)) from error
-
-    def _common_open(self) -> aiosqlite.Connection:
-        match self._db:
-            case None:
-                msg = "SqliteDriver is not open: the lifespan opens it, handlers never do"
-                raise StoreError(msg)
-            case db:
-                return db
 
     @staticmethod
     def _enter_mkdir(path: Path) -> None:
@@ -80,7 +73,7 @@ class SqliteDriver:
         """One trivial statement on the open file."""
         try:
             with self._common_guard():
-                async with self._common_open().execute("SELECT 1") as cursor:
+                async with self.db.execute("SELECT 1") as cursor:
                     await cursor.fetchone()
         except ProviderError as error:
             logger.warning("sqlite unhealthy", error=str(error))
@@ -90,27 +83,27 @@ class SqliteDriver:
     async def get(self, key: str) -> bytes | None:
         logger.debug("sqlite get", key=key)
         with self._common_guard():
-            async with self._common_open().execute("SELECT value FROM kv WHERE key = ?", (key,)) as cursor:
+            async with self.db.execute("SELECT value FROM kv WHERE key = ?", (key,)) as cursor:
                 row = await cursor.fetchone()
         return None if row is None else row[0]
 
     async def set(self, key: str, value: bytes) -> None:
         logger.debug("sqlite set", key=key, size=len(value))
         with self._common_guard():
-            await self._common_open().execute("INSERT OR REPLACE INTO kv (key, value) VALUES (?, ?)", (key, value))
-            await self._common_open().commit()
+            await self.db.execute("INSERT OR REPLACE INTO kv (key, value) VALUES (?, ?)", (key, value))
+            await self.db.commit()
 
     async def delete(self, key: str) -> None:
         logger.debug("sqlite delete", key=key)
         with self._common_guard():
-            await self._common_open().execute("DELETE FROM kv WHERE key = ?", (key,))
-            await self._common_open().commit()
+            await self.db.execute("DELETE FROM kv WHERE key = ?", (key,))
+            await self.db.commit()
 
     async def keys(self, prefix: str = "") -> AsyncIterator[str]:
         """Keys starting with `prefix`, streamed row by row in key order — no fetchall, no materialization."""
         logger.debug("sqlite keys", prefix=prefix)
         with self._common_guard():
-            async with self._common_open().execute(
+            async with self.db.execute(
                 "SELECT key FROM kv WHERE key LIKE ? ORDER BY key",
                 (f"{prefix}%",),
             ) as cursor:

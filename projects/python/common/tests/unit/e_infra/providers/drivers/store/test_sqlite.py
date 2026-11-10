@@ -94,7 +94,7 @@ async def test_sqlite_set_overwrites(tmp_path: Path) -> None:
 async def test_sqlite_error_translated_and_logged(tmp_path: Path, logs: Logs, call: str) -> None:
     """aiosqlite's own error never leaves the driver."""
     async with SqliteDriver(**sqlite_args(path=tmp_path / "kv.db")) as adapter:
-        await adapter._common_open().execute("DROP TABLE kv")
+        await adapter.db.execute("DROP TABLE kv")
         with pytest.raises(StoreError):
             await KV_CALLS[call](adapter)
     assert logs.at("error") == ["sqlite failed"]

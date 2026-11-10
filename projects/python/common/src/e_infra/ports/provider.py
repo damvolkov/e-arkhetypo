@@ -1,8 +1,9 @@
-"""ports/provider: the contract of everything the lifespan opens — lifecycle, health and an orienting spec."""
+"""ports/provider: the contract of everything the lifespan opens — lifecycle, health, an orienting spec, and the
+guard on what it holds once open."""
 
 from dataclasses import dataclass
 from enum import StrEnum, auto
-from typing import ClassVar, Protocol, Self, runtime_checkable
+from typing import ClassVar, Protocol, Self, overload, runtime_checkable
 
 
 ##### SPEC #####
@@ -60,3 +61,46 @@ class Provider(Protocol):
     async def __aexit__(self, *exc: object) -> None: ...
 
     async def health(self) -> bool: ...
+
+
+##### OPENED #####
+class Opened[T]:
+    """A provider's resource read through the provider: what its private slot `_<name>` holds once `__aenter__` set it,
+    and before that — or after `__aexit__` cleared it — the provider's own error, never a hand-written `case None:
+    raise`. Only the lifecycle writes the slot; every other reader goes through the descriptor."""
+
+    __slots__ = ("_error", "_slot")
+
+    def __init__(self, error: type[Exception]) -> None:
+        self._error = error
+
+    ##### PRIVATE #####
+
+    def _get_held[O](self, instance: O, owner: type[O]) -> T:
+        held: T | None = getattr(instance, self._slot, None)
+        match held:
+            case None:
+                msg = f"{owner.__name__} is not open: the lifespan opens it, callers never do"
+                raise self._error(msg)
+            case value:
+                return value
+
+    ############################################################
+
+    ##### PUBLIC #####
+
+    def __set_name__(self, owner: type, name: str) -> None:
+        self._slot = f"_{name}"
+
+    @overload
+    def __get__(self, instance: None, owner: type) -> Self: ...
+
+    @overload
+    def __get__[O](self, instance: O, owner: type[O]) -> T: ...
+
+    def __get__[O](self, instance: O | None, owner: type[O]) -> Self | T:
+        match instance:
+            case None:
+                return self
+            case _:
+                return self._get_held(instance, owner)

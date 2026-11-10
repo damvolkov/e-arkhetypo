@@ -17,11 +17,12 @@ import shutil
 import subprocess
 import sys
 import tempfile
+from enum import StrEnum, auto
 from fnmatch import fnmatchcase
 from itertools import chain
 from pathlib import Path, PurePosixPath
 from types import FunctionType, MappingProxyType, ModuleType
-from typing import TYPE_CHECKING, Any, Final
+from typing import TYPE_CHECKING, Final
 
 import eserde
 
@@ -37,6 +38,7 @@ from gates.models import (
     Shape,
     Syntax,
     Tree,
+    Verbatim,
     Violation,
 )
 
@@ -237,9 +239,9 @@ def gate_binary() -> str:
             raise GateError(msg)
 
 
-def gate_inline(rule: Syntax, files: Sequence[str], ignores: Sequence[str]) -> dict[str, Any]:
+def gate_inline(rule: Syntax, files: Sequence[str], ignores: Sequence[str]) -> Verbatim:
     """A syntax rule as ast-grep reads it, scoped to the files given."""
-    written = {
+    written: Verbatim = {
         "id": rule.id,
         "language": "python",
         "severity": "error",
@@ -253,7 +255,7 @@ def gate_inline(rule: Syntax, files: Sequence[str], ignores: Sequence[str]) -> d
     return {key: value for key, value in written.items() if value not in (None, [])}
 
 
-def gate_grep(root: Path, rules: Sequence[dict[str, Any]], paths: Sequence[str]) -> list[Violation]:
+def gate_grep(root: Path, rules: Sequence[Verbatim], paths: Sequence[str]) -> list[Violation]:
     """One ast-grep run of every rule over the paths: each match a violation; a broken run raises."""
     match rules, paths:
         case ([], _) | (_, []):
@@ -338,15 +340,22 @@ def gate_dunder(name: str) -> bool:
     return len(name) > 2 and name.startswith("_") and name.endswith("_")  # noqa: PLR2004 — the two underscores
 
 
-def gate_method(value: object) -> FunctionType | None:
-    """The function behind a class attribute — plain, static, class method or property getter — or None."""
-    inner = getattr(value, "__func__", None) or getattr(value, "fget", None) or value
+def gate_method(value: object) -> FunctionType | None:  # ast-grep-ignore: object-annotation
+    """The function behind a class attribute — plain, static, class method or property getter — or None. ### Any
+    attribute a class holds arrives here: anything at all is the contract."""
+    match value:
+        case staticmethod() | classmethod():
+            inner = value.__func__
+        case property():
+            inner = value.fget
+        case _:
+            inner = value
     return inner if inspect.isfunction(inner) else None
 
 
 def gate_written(cls: type, method: FunctionType) -> bool:
     """Whether a method's code is in its class's module file, not generated into it (`NamedTuple._make`)."""
-    return method.__code__.co_filename == getattr(sys.modules[cls.__module__], "__file__", None)
+    return method.__code__.co_filename == sys.modules[cls.__module__].__file__
 
 
 def gate_publics(cls: type) -> tuple[str, ...]:
@@ -483,11 +492,19 @@ def gate_print(violations: Sequence[Violation]) -> int:
     return int(bool(violations))
 
 
-COMMANDS: Final[Mapping[str, Callable[[Path, Sequence[str]], list[Violation]]]] = MappingProxyType(
+class Command(StrEnum):
+    """What the engine is asked to run."""
+
+    CHECK = auto()
+    SEMANTIC = auto()
+    TEST = auto()
+
+
+COMMANDS: Final[Mapping[Command, Callable[[Path, Sequence[str]], list[Violation]]]] = MappingProxyType(
     {
-        "check": gate_check,
-        "semantic": lambda root, _: gate_semantic(root),
-        "test": lambda root, _: gate_test(root),
+        Command.CHECK: gate_check,
+        Command.SEMANTIC: lambda root, _: gate_semantic(root),
+        Command.TEST: lambda root, _: gate_test(root),
     }
 )
 
@@ -495,10 +512,10 @@ COMMANDS: Final[Mapping[str, Callable[[Path, Sequence[str]], list[Violation]]]] 
 def gate_main(argv: Sequence[str]) -> int:
     """`check [paths...]`, `semantic` or `test`, from the project root."""
     match argv:
-        case [command, *paths] if command in COMMANDS:
-            return gate_print(COMMANDS[command](Path.cwd(), paths))
+        case [command, *paths] if command in Command:
+            return gate_print(COMMANDS[Command(command)](Path.cwd(), paths))
         case _:
-            sys.stderr.write(f"usage: python -m gates.engine {{{'|'.join(COMMANDS)}}} [paths...]\n")
+            sys.stderr.write(f"usage: python -m gates.engine {{{'|'.join(Command)}}} [paths...]\n")
             return 2
 
 

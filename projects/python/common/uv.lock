@@ -1,11 +1,12 @@
 version = 1
-revision = 5
+revision = 3
 requires-python = ">=3.14"
 
 [options]
-exclude-newer = "2026-10-21T00:00:00Z"
+exclude-newer = "2026-10-20T22:00:00Z"
 
 [options.exclude-newer-package]
+awa-pg = "2026-11-09T00:00:00Z"
 e-serde = "2100-01-01T00:00:00Z"
 rtrafilatura = "2100-01-01T00:00:00Z"
 
@@ -253,6 +254,21 @@ wheels = [
 ]
 
 [[package]]
+name = "ast-grep-cli"
+version = "0.51.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/ff/f0/35a93aed849db95dd85e93d06bb6f97fb6856b8828c56920b68c3a325109/ast_grep_cli-0.51.0.tar.gz", hash = "sha256:3c6b0b4fe358dab092f56e196974cf77bd19465162b8260c78b837f6d2e2ad2c", size = 292512, upload-time = "2026-10-15T15:15:38.312Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/e6/03/4db443e62eb26a638035ba94a2017e98fd5b7377cfd53cfe19b711ba11b7/ast_grep_cli-0.51.0-py3-none-macosx_10_12_x86_64.macosx_11_0_arm64.macosx_10_12_universal2.whl", hash = "sha256:17f288ed74bf4e5cc8bfa7fda0e7d23f658cef2e7257216720df0ccb958be9d1", size = 17096141, upload-time = "2026-10-15T15:15:17.528Z" },
+    { url = "https://files.pythonhosted.org/packages/e0/d3/6b3c252a0973af188cb2800786087f20734d5779df20c0da754f106215b2/ast_grep_cli-0.51.0-py3-none-macosx_10_12_x86_64.whl", hash = "sha256:ff724d3f03cf44b4f3567518acc325dcff3bd383b77778dc0753b66ce2080250", size = 8580103, upload-time = "2026-10-15T15:15:20.464Z" },
+    { url = "https://files.pythonhosted.org/packages/69/0c/8b09bc9bb0e8f0698e6f3022157bb88cce23bd10937551c4b4e8ebffcf47/ast_grep_cli-0.51.0-py3-none-manylinux_2_28_aarch64.whl", hash = "sha256:a134c0795d7e74b7d8530db96b06d82377784f4a30d488497c4fb1414e100c9f", size = 8389661, upload-time = "2026-10-15T15:15:23.26Z" },
+    { url = "https://files.pythonhosted.org/packages/b5/58/5f644df6460b0788871f9354b5a61797d0ac3adbeed2786fc872d79ced30/ast_grep_cli-0.51.0-py3-none-manylinux_2_28_x86_64.whl", hash = "sha256:17007574681fe872473850780304b3df57ca98ac575d88957972fea8c3810c26", size = 8753377, upload-time = "2026-10-15T15:15:26.026Z" },
+    { url = "https://files.pythonhosted.org/packages/06/4a/9e0e50f1296c7968854d627cb5c549ce428cc30679b70083048b7c8a023d/ast_grep_cli-0.51.0-py3-none-win32.whl", hash = "sha256:575f8d1a457e5dd1336a7c8db07cf4ae78cc3b8083f9529261016a2dd0510c9a", size = 16439070, upload-time = "2026-10-15T15:15:29.068Z" },
+    { url = "https://files.pythonhosted.org/packages/1e/30/5a2f0c8f11c456c93324884f4d037ade45e0db09919942e19a098f1994e9/ast_grep_cli-0.51.0-py3-none-win_amd64.whl", hash = "sha256:be2586df4192adb60fa808bd83c4f3a46c63315f48394400f07700f9e76f4dc6", size = 17490725, upload-time = "2026-10-15T15:15:32.511Z" },
+    { url = "https://files.pythonhosted.org/packages/7f/22/6ecdc66e8251f65bfc2a942ae71267d899766c8cbf07c147dc20cf369cd4/ast_grep_cli-0.51.0-py3-none-win_arm64.whl", hash = "sha256:0c2f59d7881d8b4584d319865e7be4e97fa1a26ec09c02b7d2095b30af9a56e4", size = 16729806, upload-time = "2026-10-15T15:15:35.823Z" },
+]
+
+[[package]]
 name = "asyncpg"
 version = "0.32.0"
 source = { registry = "https://pypi.org/simple" }
@@ -307,13 +323,13 @@ wheels = [
 
 [[package]]
 name = "awa-pg"
-version = "0.6.9"
+version = "0.6.15"
 source = { registry = "https://pypi.org/simple" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/29/2b/fba2f64be49e0457e3967e58c02c593d3d7ccb3de192c29d67ed4af4a1c3/awa_pg-0.6.9-cp310-abi3-macosx_10_12_x86_64.whl", hash = "sha256:c60cbbec8343519233ae3fd12b6f67d355c92c8fc8dc9e1e598923a81b1f2d80", size = 10996087, upload-time = "2026-09-14T11:35:16.286Z" },
-    { url = "https://files.pythonhosted.org/packages/1e/37/aac7f73a4eb00f43a275834ab15efe41a6f6754bc30d8825831678dd1529/awa_pg-0.6.9-cp310-abi3-macosx_11_0_arm64.whl", hash = "sha256:c1cd22e29bcd8ada23627ddb10b49fb16d74c829531d9976eda58410fe977f57", size = 10684733, upload-time = "2026-09-14T11:35:18.86Z" },
-    { url = "https://files.pythonhosted.org/packages/ef/e2/2e7ca19fcec968fd45b977c7efdfcb4a67c05e34b6a02cc18542619f0124/awa_pg-0.6.9-cp310-abi3-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:7806d0a1cad1dfb814b1f2b4d20e724e105ebbbcb6603cbfa07714e8f24305c9", size = 12472871, upload-time = "2026-09-14T11:35:21.177Z" },
-    { url = "https://files.pythonhosted.org/packages/14/1b/e14d11eb47ea55b3f43c807a6d404e8121b7972bcb01a3746ccd7de255c8/awa_pg-0.6.9-cp310-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:80b6e2bd2fb76923c78ab8a5c6bbcf30a99420968b2ba03b8f0b56c17a1aa681", size = 11672278, upload-time = "2026-09-14T11:35:23.476Z" },
+    { url = "https://files.pythonhosted.org/packages/f8/88/f2e0467ffbe85296cc950f760db26532b7c47b6073a3f6171e98ea4673f5/awa_pg-0.6.15-cp310-abi3-macosx_10_12_x86_64.whl", hash = "sha256:5ec79f861d5a91cbb45761c34b4de9fbe1aaf7b62702b1ef095a20472e318ec9", size = 12279784, upload-time = "2026-11-08T20:33:28.113Z" },
+    { url = "https://files.pythonhosted.org/packages/2f/bc/767fa964133627c57c7006450a10a6ab8804447fd618e12a0abccf0e40e9/awa_pg-0.6.15-cp310-abi3-macosx_11_0_arm64.whl", hash = "sha256:e28bde67248a2736b298be32ddb9a48a8cce85561e1a63d22455d3e25faf3a1c", size = 11920202, upload-time = "2026-11-08T20:33:31.136Z" },
+    { url = "https://files.pythonhosted.org/packages/ad/80/974581d315b044e7a47a59d7664603ba18d1cf260a09d8aab3b8d6b1f7eb/awa_pg-0.6.15-cp310-abi3-manylinux2014_aarch64.manylinux_2_17_aarch64.whl", hash = "sha256:735d4d7df931fa7a323c8fb00c3d66b243765e2d08fe2d3348f2a84840583cbf", size = 13697247, upload-time = "2026-11-08T20:33:33.645Z" },
+    { url = "https://files.pythonhosted.org/packages/a8/b9/4e9435c05f318e9be5f95817cf0647d3d92191277002d9625fa788649d42/awa_pg-0.6.15-cp310-abi3-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:3b5a1112668b71a79437539ab75ac34f230566476c6c0b85f0f0dd860d9aaed6", size = 12977748, upload-time = "2026-11-08T20:33:36.583Z" },
 ]
 
 [[package]]
@@ -782,6 +798,7 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "ast-grep-cli" },
     { name = "fakeredis" },
     { name = "httpx2" },
     { name = "mkdocstrings", extra = ["python"] },
@@ -831,7 +848,7 @@ requires-dist = [
     { name = "anyio", specifier = ">=4.15.1" },
     { name = "anytomd", extras = ["full"], specifier = ">=1.3.1.post2,<1.4" },
     { name = "argon2-cffi", specifier = ">=25.1.0" },
-    { name = "awa-pg", specifier = ">=0.6.9" },
+    { name = "awa-pg", specifier = ">=0.6.15" },
     { name = "bcrypt", specifier = ">=5.0.0" },
     { name = "beartype", specifier = ">=0.22.9" },
     { name = "croniter", specifier = ">=6.0" },
@@ -871,6 +888,7 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "ast-grep-cli", specifier = ">=0.40" },
     { name = "fakeredis", specifier = ">=2.40.0" },
     { name = "httpx2", specifier = ">=2.13" },
     { name = "mkdocstrings", extras = ["python"], specifier = ">=1.0.7" },

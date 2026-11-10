@@ -5,8 +5,9 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+from e_infra.infra.errors import StoreError
 from e_infra.ports.http import HTTPPort
-from e_infra.ports.provider import Isolation, Locality, Provider, ProviderSpec, Workload
+from e_infra.ports.provider import Isolation, Locality, Opened, Provider, ProviderSpec, Workload
 from e_infra.ports.store import StorePort
 from e_infra.providers.drivers.http.wreq import WreqDriver
 from e_infra.providers.drivers.store.redis import RedisDriver
@@ -47,3 +48,17 @@ async def test_a_class_without_lifecycle_is_no_provider() -> None:
         spec = ProviderSpec("bare", Locality.EMBEDDED, Workload.MIXED, Isolation.LOOP)
 
     assert not isinstance(Bare(), Provider)
+
+
+async def test_opened_raises_the_provider_error_before_open_and_after_close(tmp_path: Path) -> None:
+    driver = SqliteDriver(**sqlite_args(path=tmp_path / "kv.db"))
+    with pytest.raises(StoreError, match="SqliteDriver is not open"):
+        _ = driver.db
+    async with driver:
+        assert await (await driver.db.execute("SELECT 1")).fetchone() == (1,)
+    with pytest.raises(StoreError, match="SqliteDriver is not open"):
+        _ = driver.db
+
+
+def test_opened_read_on_the_class_is_the_descriptor() -> None:
+    assert isinstance(SqliteDriver.db, Opened)

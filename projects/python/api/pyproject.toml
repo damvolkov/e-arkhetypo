@@ -138,14 +138,15 @@ src = ["src", "tests"]
 select = [
     "F", "E", "W", "I", "N", "UP", "B", "A", "C4", "DTZ", "T10", "T20", "EM", "ISC",
     "PIE", "PT", "RET", "SIM", "TID", "TC", "ARG", "PTH", "PL", "PERF", "FURB",
-    "ASYNC", "S", "BLE", "FBT", "LOG", "G", "RUF",
+    "ASYNC", "S", "BLE", "FBT", "LOG", "G", "RUF", "ANN",
 ]
 ignore = ["E501", "ISC001", "PLR0913"]
 
 [tool.ruff.lint.per-file-ignores]
 ### the gates engine runs ast-grep: the binary resolved by path, the arguments ours.
 "gates/engine.py" = ["S603"]
-"tests/**" = ["S101", "S106", "PLR2004", "ARG", "FBT", "TID251"]
+### a test fake mirrors a vendor signature it stands in for; every other annotation rule holds in tests.
+"tests/**" = ["S101", "S106", "PLR2004", "ARG", "FBT", "TID251", "ANN401"]
 "scripts/**" = ["T20", "S603", "S607", "PTH"]
 ### litestar and msgspec resolve annotations at runtime — type-checking imports would break them.
 "src/e_api/api/**" = ["TC001", "TC002", "TC003"]

@@ -191,6 +191,7 @@ touches — `stack`, `systems`, `infra`. Lines under `[Unreleased]` are written 
 - CI holds common alone (Damien, 2026-11-10): the ecosystem job syncs and runs `make ci` in `projects/python/common`
   only; the frozen templates no longer run there (on #143 they failed on coverage and on graph's types against the new
   common, while common passed: 1429 tests).
+- common `e_infra.infra.logger`: `ELogger.setup(redact=...)` — optional PII-redaction stage (`type Redact = Callable[[EventDict], EventDict]`) injected by the composition root, run after context merge and exception rendering, before level/timestamp/renderer; the logger imports no patterns. Lesson from aivo-agents. Evidence: 3 new tests in `test_logger.py` (`redact_rewrites_prod_json`, `redact_rewrites_dev_text_and_exception` seen red first; `without_redact_leaves_the_line` guard), full unit suite green.
 
 ### stack
 

@@ -92,7 +92,7 @@ async def test_postgres_provision(pg_conf: dict[str, Any]) -> None:
 async def test_postgres_provision_race(pg_conf: dict[str, Any]) -> None:
     """A create that fails over a database now there lost a race to a twin: not an error. One that fails over none is."""
     adapter = PsqlpyDriver(**pg_conf)
-    async with PsqlpyDriver(**pg_conf) as admin, admin._common_pool().acquire() as connection:
+    async with PsqlpyDriver(**pg_conf) as admin, admin.pool.acquire() as connection:
         existing = str(pg_conf["dsn"].get_secret_value()).rpartition("/")[2]
         assert await adapter._provision_twin(connection, existing) is False
         with pytest.raises(DatabaseError, match="could not be created"):

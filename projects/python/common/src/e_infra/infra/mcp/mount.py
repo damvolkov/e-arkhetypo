@@ -2,12 +2,13 @@
 
 The mount finds the server on each request through `locate`, the door's own way to its branch."""
 
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 
 from litestar import Litestar, asgi
-
-### at run time: Litestar reads the forwarder's signature when it builds the route.
-from litestar.types import Receive, Scope, Send  # noqa: TC002
+from litestar.types import (
+    Scope,  # noqa: TC002 — at run time: Litestar reads the forwarder's signature when it builds the route
+)
+from starlette.types import Receive, Send  # noqa: TC002 — the same, for the SDK's ASGI contract the server speaks
 
 from e_infra.infra.logger import logger
 
@@ -16,6 +17,7 @@ if TYPE_CHECKING:
 
     from litestar.handlers import ASGIRouteHandler
 
+    from e_infra.infra.auth.models import Access
     from e_infra.infra.mcp.server import MCPServer
 
 
@@ -31,12 +33,12 @@ class MCPMount:
 
     async def _route_forward(self, scope: Scope, receive: Receive, send: Send) -> None:
         logger.debug("mcp mount forward", path=scope["path"])
-        await self._locate(Litestar.from_scope(scope))(cast("Scope", {**scope, "root_path": ""}), receive, send)
+        await self._locate(Litestar.from_scope(scope))({**scope, "root_path": ""}, receive, send)
 
     ############################################################
 
     ##### PUBLIC #####
 
-    def route(self, path: str, **opt: object) -> ASGIRouteHandler:
+    def route(self, path: str, **opt: Access | bool) -> ASGIRouteHandler:
         """The mount on `path`, exactly: a catch-all would shadow the app's own path-parameter routes."""
         return asgi(path, name="mcp", is_mount=True, copy_scope=True, opt=opt)(self._route_forward)

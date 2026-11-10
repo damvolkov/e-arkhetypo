@@ -10,6 +10,7 @@ manifest points at the old files — the same bytes, never copied. Every file re
 The engine keeps a reference to the store and its settings, nothing else."""
 
 import uuid
+from collections.abc import Mapping
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Final
 
@@ -26,7 +27,7 @@ from e_infra.infra.logger import logger
 from e_infra.ops.hash import hash_bytes
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncIterator, Mapping
+    from collections.abc import AsyncIterator
 
     from e_infra.ports.blob import BlobMeta, BlobPort
 
@@ -55,7 +56,7 @@ class Manifest(msgspec.Struct, frozen=True, kw_only=True):
     author: str
     approver: str | None
     created: datetime
-    graphs: dict[str, GraphEntry]
+    graphs: Mapping[str, GraphEntry]
     queries: GraphEntry
     rolled_back_from: str | None = None
 
@@ -69,7 +70,7 @@ class Release(msgspec.Struct, frozen=True, kw_only=True):
     """A release read back whole: its manifest, its graphs as canonical N-Triples, its queries."""
 
     manifest: Manifest
-    graphs: dict[str, bytes]
+    graphs: Mapping[str, bytes]
     queries: bytes
 
 

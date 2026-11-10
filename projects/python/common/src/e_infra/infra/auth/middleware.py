@@ -10,7 +10,7 @@ answer, the one table the doors raise from — a missing or bad key challenged a
 
 from functools import partial
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Any, Final
+from typing import TYPE_CHECKING, Final
 
 from litestar.exceptions import HTTPException, NotAuthorizedException, PermissionDeniedException
 from litestar.middleware import AbstractAuthenticationMiddleware, AuthenticationResult
@@ -23,13 +23,19 @@ if TYPE_CHECKING:
 
     from litestar import Litestar
     from litestar.connection import ASGIConnection
+    from litestar.datastructures import State
+    from litestar.handlers import BaseRouteHandler
     from litestar.types import ASGIApp
 
+    from e_infra.infra.auth.models import Caller
     from e_infra.infra.auth.resolver import CallerResolver
 
 ### the route option that keeps a route out of authentication: Litestar's own default key.
 EXCLUDED: Final[str] = "exclude_from_auth"
 CHALLENGE: Final[str] = "WWW-Authenticate"
+
+### a request at either door once the middleware ran: the route's handler, the resolved caller, no auth, the app's state.
+type Connection = ASGIConnection[BaseRouteHandler, Caller, None, State]
 
 REFUSALS: Final[Mapping[type[AuthError], Callable[..., HTTPException]]] = MappingProxyType({
     UnknownTokenError: partial(NotAuthorizedException, headers={CHALLENGE: 'Bearer error="invalid_token"'}),
@@ -45,7 +51,7 @@ class TokenMiddleware(AbstractAuthenticationMiddleware):
         super().__init__(app)
         self._locate = locate
 
-    async def authenticate_request(self, connection: ASGIConnection[Any, Any, Any, Any]) -> AuthenticationResult:
+    async def authenticate_request(self, connection: Connection) -> AuthenticationResult:
         resolver = self._locate(connection.app)
         try:
             caller = await resolver.resolve(connection.headers.get("authorization", ""))

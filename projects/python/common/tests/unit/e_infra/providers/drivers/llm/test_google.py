@@ -103,7 +103,8 @@ async def test_google_asks_under_the_schema_with_no_sampling(answered: Any) -> N
     answered()
     async with GoogleLLMDriver(**gemini()) as llm:
         assert await llm.structured("be exact", "read", SCHEMA) == {"a": 1}
-        asked = llm._client.aio.models.asked[0]
+        fake: Any = llm.client
+        asked = fake.aio.models.asked[0]
     config = asked["config"]
     assert (asked["model"], asked["contents"], config.system_instruction) == ("gemini-3.8-flash", "read", "be exact")
     assert (config.response_mime_type, config.response_json_schema, config.temperature) == (
@@ -138,7 +139,7 @@ async def test_google_closes_its_client_and_refuses_when_closed(answered: Any) -
     answered()
     driver = GoogleLLMDriver(**gemini())
     async with driver:
-        client = driver._client
+        client: Any = driver.client
         assert await driver.health()
     assert client.closed
     with pytest.raises(ModelError, match="not open"):

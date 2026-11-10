@@ -8,20 +8,22 @@ an `HTTPTimeoutError` — the bound covers the body too, where wreq says `BodyEr
 
 from contextlib import contextmanager
 from operator import methodcaller
-from typing import TYPE_CHECKING, Any, ClassVar, Final, Self, overload
+from typing import TYPE_CHECKING, ClassVar, Final, Self, overload
 
 import msgspec
 import wreq
 
 from e_infra.infra.errors import HTTPError, HTTPTimeoutError, ProviderError
 from e_infra.infra.logger import logger
-from e_infra.ports.provider import Isolation, Locality, ProviderSpec, Workload
+from e_infra.ports.provider import Isolation, Locality, Opened, ProviderSpec, Workload
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, Awaitable, Callable, Generator, Mapping
     from datetime import timedelta
 
     from pydantic import HttpUrl
+
+    from e_infra.infra.payload import JSON
 
 TIMED_OUT: Final = "TimedOut"
 WIRE: Final = (
@@ -42,6 +44,7 @@ class WreqDriver:
     """One wreq client per process: base_url and timeout are given, responses leave as data."""
 
     spec: ClassVar[ProviderSpec] = ProviderSpec("wreq", Locality.REMOTE, Workload.IO_BOUND, Isolation.LOOP, pooled=True)
+    client = Opened[wreq.Client](HTTPError)
 
     def __init__(self, *, base_url: HttpUrl, timeout: timedelta, agent: str, headers: Mapping[str, str]) -> None:
         self._base_url = str(base_url)
@@ -54,14 +57,6 @@ class WreqDriver:
     def _common_url(self, path: str) -> str:
         ### wreq 0.12 drops the client's base_url for relative paths (BadScheme): join here, one place, every verb.
         return path if path.startswith(("http://", "https://")) else f"{self._base_url.rstrip('/')}/{path.lstrip('/')}"
-
-    def _common_open(self) -> wreq.Client:
-        match self._client:
-            case None:
-                msg = "WreqDriver is not open: the lifespan opens it, handlers never do"
-                raise HTTPError(msg)
-            case client:
-                return client
 
     @staticmethod
     @contextmanager
@@ -84,7 +79,7 @@ class WreqDriver:
             raise HTTPError(str(error)) from error
 
     @staticmethod
-    def _common_decode[T](body: object, as_: type[T] | None) -> T | object:
+    def _common_decode[T](body: JSON, as_: type[T] | None) -> T | JSON:
         """The JSON body as-is, or converted to `as_` (msgspec, non-strict) when the caller names the shape."""
         try:
             return msgspec.convert(body, as_, strict=False) if as_ is not None else body
@@ -100,15 +95,15 @@ class WreqDriver:
         *,
         within: timedelta | None,
         headers: Mapping[str, str] | None,
-        **body: object,
+        **body: JSON | AsyncGenerator[bytes],
     ) -> R:
         """One request, its answer read; any 2xx, else `HTTPError` with the status. `body` is the verb's own: `json`, or
         a streamed `body`."""
-        client, url = self._common_open(), self._common_url(path)
+        client, url = self.client, self._common_url(path)
         logger.debug("wreq request", method=method.upper(), url=url)
-        options: dict[str, Any] = {
-            key: value for key, value in {"timeout": within, "headers": headers and dict(headers)}.items() if value
-        }
+        options: Mapping[str, timedelta | dict[str, str]] = ({"timeout": within} if within else {}) | (
+            {"headers": dict(headers)} if headers else {}
+        )
         with self._common_guard():
             response = await getattr(client, method)(url, **body, **options)
             match response.status.is_success():
@@ -122,7 +117,7 @@ class WreqDriver:
         return answer
 
     @staticmethod
-    async def _delete_read(response: wreq.Response) -> object:
+    async def _delete_read(response: wreq.Response) -> JSON:
         """A DELETE's answer: its JSON, or None for an empty body (204)."""
         raw = await response.bytes()
         return msgspec.json.decode(raw) if raw else None
@@ -149,7 +144,7 @@ class WreqDriver:
     async def health(self) -> bool:
         """The client is open: its base is anyone's service, never a dependency to probe."""
         try:
-            self._common_open()
+            _ = self.client
         except ProviderError as error:
             logger.warning("wreq unhealthy", error=str(error))
             raise
@@ -163,7 +158,7 @@ class WreqDriver:
     @overload
     async def get(
         self, path: str, *, as_: None = None, within: timedelta | None = None, headers: Mapping[str, str] | None = None
-    ) -> object: ...
+    ) -> JSON: ...
 
     async def get[T](
         self,
@@ -172,7 +167,7 @@ class WreqDriver:
         as_: type[T] | None = None,
         within: timedelta | None = None,
         headers: Mapping[str, str] | None = None,
-    ) -> T | object:
+    ) -> T | JSON:
         """GET: the JSON body, decoded to `as_` when named; non-2xx raises `HTTPError`, never a silent body."""
         body = await self._common_send(methodcaller("json"), "get", path, within=within, headers=headers)
         return self._common_decode(body, as_)
@@ -181,7 +176,7 @@ class WreqDriver:
     async def post[T](
         self,
         path: str,
-        payload: object,
+        payload: JSON,
         *,
         as_: type[T],
         within: timedelta | None = None,
@@ -192,22 +187,22 @@ class WreqDriver:
     async def post(
         self,
         path: str,
-        payload: object,
+        payload: JSON,
         *,
         as_: None = None,
         within: timedelta | None = None,
         headers: Mapping[str, str] | None = None,
-    ) -> object: ...
+    ) -> JSON: ...
 
     async def post[T](
         self,
         path: str,
-        payload: object,
+        payload: JSON,
         *,
         as_: type[T] | None = None,
         within: timedelta | None = None,
         headers: Mapping[str, str] | None = None,
-    ) -> T | object:
+    ) -> T | JSON:
         """POST with a JSON payload; same raise-and-decode contract as get()."""
         body = await self._common_send(methodcaller("json"), "post", path, within=within, headers=headers, json=payload)
         return self._common_decode(body, as_)
@@ -225,12 +220,12 @@ class WreqDriver:
         *,
         within: timedelta | None = None,
         headers: Mapping[str, str] | None = None,
-    ) -> object:
+    ) -> JSON:
         """POST a body streamed as it is produced — a file never held whole —; the JSON answer, same raise contract."""
         return await self._common_send(methodcaller("json"), "post", path, within=within, headers=headers, body=body)
 
     async def delete(
         self, path: str, *, within: timedelta | None = None, headers: Mapping[str, str] | None = None
-    ) -> object:
+    ) -> JSON:
         """DELETE: the JSON answer, or None for an empty one (204); same raise contract as get()."""
         return await self._common_send(self._delete_read, "delete", path, within=within, headers=headers)

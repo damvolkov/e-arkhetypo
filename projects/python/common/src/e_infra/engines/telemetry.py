@@ -10,12 +10,14 @@ outside a span, ignored when empty."""
 from contextlib import AbstractContextManager, contextmanager
 from contextvars import ContextVar
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Any, Final
+from typing import TYPE_CHECKING, Final
 
 from e_infra.infra.logger import logger
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Generator, Mapping, MutableMapping
+    from collections.abc import Callable, Generator, Mapping
+
+    from structlog.types import EventDict, WrappedLogger
 
     from e_infra.ports.telemetry import AttributeValue, SpanPort, SpanRole, SpanStatus, TelemetryPort
 
@@ -25,7 +27,7 @@ if TYPE_CHECKING:
 FAILED: Final[str] = "telemetry failed"
 NOTHING: Final[Mapping[str, AttributeValue]] = MappingProxyType({})
 ### the span open in the current task, as the provider gave it: None outside any span or without a provider.
-CURRENT: ContextVar[SpanPort | None] = ContextVar("telemetry_span", default=None)
+CURRENT: Final[ContextVar[SpanPort | None]] = ContextVar("telemetry_span", default=None)
 
 
 class TelemetryEngine:
@@ -38,8 +40,9 @@ class TelemetryEngine:
 
     ##### PRIVATE #####
 
+    ### Anything at all is a log field's contract: the value is kept as is when a span can hold it, else as text.
     @staticmethod
-    def _common_plain(value: object) -> AttributeValue:
+    def _common_plain(value: object) -> AttributeValue:  # ast-grep-ignore: object-annotation
         return value if isinstance(value, str | bool | int | float) else str(value)
 
     @staticmethod
@@ -89,7 +92,7 @@ class TelemetryEngine:
     ##### PUBLIC #####
 
     @classmethod
-    def guard(cls, what: str, call: Callable[[], Any]) -> Any:
+    def guard[T](cls, what: str, call: Callable[[], T]) -> T | None:
         """Run a provider call; a failure is said once and answered None."""
         try:
             return call()
@@ -119,7 +122,8 @@ class TelemetryEngine:
             case span:
                 self.guard("record", lambda: span.record(attributes))
 
-    def event(self, name: str, attributes: Mapping[str, object]) -> None:
+    ### Anything at all is a log field's contract; `_common_plain` writes what a span cannot hold as text.
+    def event(self, name: str, attributes: Mapping[str, object]) -> None:  # ast-grep-ignore: object-annotation
         """A timestamped point on the current span; values a provider cannot hold are written as text."""
         match CURRENT.get():
             case None:
@@ -128,7 +132,7 @@ class TelemetryEngine:
                 plain = {key: self._common_plain(value) for key, value in attributes.items() if value is not None}
                 self.guard("event", lambda: span.event(name, plain))
 
-    def status(self, status: SpanStatus, description: str = "") -> None:
+    def status(self, status: SpanStatus, description: str | None = None) -> None:
         match CURRENT.get():
             case None:
                 return
@@ -159,7 +163,7 @@ class TelemetryEngine:
                     self.guard("resume exit", lambda: manager.__exit__(None, None, None))
 
     @classmethod
-    def processor(cls, _: object, __: str, event_dict: MutableMapping[str, Any]) -> Mapping[str, Any]:
+    def processor(cls, _: WrappedLogger, __: str, event_dict: EventDict) -> EventDict:
         """structlog: a log line inside a span becomes one of its events and carries its ids; outside, untouched."""
         name = str(event_dict.get("event", ""))
         match CURRENT.get():

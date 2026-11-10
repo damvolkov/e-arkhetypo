@@ -22,6 +22,6 @@ class StorePort(Provider, Protocol):
         """Missing key is a no-op."""
         ...
 
-    def keys(self, prefix: str = "") -> AsyncIterator[str]:
-        """Keys starting with `prefix`, streamed lazily: an async generator, never a materialized list."""
+    def keys(self, prefix: str | None = None) -> AsyncIterator[str]:
+        """Keys starting with `prefix` (every key when None), streamed lazily: an async generator, never a materialized list."""
         ...

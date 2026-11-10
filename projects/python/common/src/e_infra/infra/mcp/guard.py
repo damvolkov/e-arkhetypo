@@ -2,21 +2,22 @@
 
 The mark is a scope key no client can send; anything else reaching a tool's path is refused before its access is read."""
 
-from typing import TYPE_CHECKING, Any, Final
+from typing import TYPE_CHECKING, Final
 
 from litestar.exceptions import PermissionDeniedException
 
 from e_infra.infra.logger import logger
 
 if TYPE_CHECKING:
-    from litestar.connection import ASGIConnection
     from litestar.handlers import BaseRouteHandler
+
+    from e_infra.infra.auth.middleware import Connection
 
 ### the scope key the bridge sets on the requests it makes: ASGI scopes are the server's, never a client's.
 MARK: Final[str] = "mcp.bridged"
 
 
-async def internal(connection: ASGIConnection[Any, Any, Any, Any], _handler: BaseRouteHandler) -> None:
+async def internal(connection: Connection, _handler: BaseRouteHandler) -> None:
     """Through the MCP endpoint, or refused."""
     match connection.scope.get(MARK):
         case True:

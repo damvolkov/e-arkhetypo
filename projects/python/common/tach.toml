@@ -35,22 +35,22 @@ depends_on = ["e_infra.ports", "e_infra.infra", "e_infra.infra.errors", "e_infra
 ### ports are the bottleneck of the import graph: they see infra and nothing else.
 [[modules]]
 path = "e_infra.ports"
-depends_on = ["e_infra.infra", "e_infra.infra.auth", "e_infra.infra.errors"]
+depends_on = ["e_infra.infra", "e_infra.infra.auth", "e_infra.infra.errors", "e_infra.infra.payload"]
 
 [[modules]]
 path = "e_infra.infra"
-depends_on = ["e_infra.ops", "e_infra.infra.errors"]
+depends_on = ["e_infra.ops", "e_infra.infra.errors", "e_infra.infra.payload"]
 
 ### the opt-in infra packages (a service that takes them lists them; cli, tui and graph exclude them) look only down: nothing
 ### in `infra` proper imports them, and the MCP engine rides the auth package, never the reverse. `ports`, `engines` and
 ### `providers.drivers` above declare `infra.auth` for the value types their auth contract speaks.
 [[modules]]
 path = "e_infra.infra.auth"
-depends_on = ["e_infra.infra", "e_infra.infra.errors"]
+depends_on = ["e_infra.infra", "e_infra.infra.errors", "e_infra.infra.payload"]
 
 [[modules]]
 path = "e_infra.infra.mcp"
-depends_on = ["e_infra.infra", "e_infra.infra.auth", "e_infra.infra.errors"]
+depends_on = ["e_infra.infra", "e_infra.infra.auth", "e_infra.infra.errors", "e_infra.infra.payload"]
 
 ### the error tree is the floor of the package: every module, `ops` included, raises from it and it imports nothing.
 [[modules]]
@@ -58,5 +58,9 @@ path = "e_infra.infra.errors"
 depends_on = []
 
 [[modules]]
+path = "e_infra.infra.payload"
+depends_on = []
+
+[[modules]]
 path = "e_infra.ops"
-depends_on = ["e_infra.infra.errors"]
+depends_on = ["e_infra.infra.errors", "e_infra.infra.payload"]

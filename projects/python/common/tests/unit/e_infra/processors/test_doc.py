@@ -24,7 +24,7 @@ from e_infra.ports.documents import DocumentConversion
 from e_infra.ports.markdown import MDConversion
 from e_infra.ports.pages import FastPage, PageBlock
 from e_infra.ports.provider import Isolation, Locality, ProviderSpec, Workload
-from e_infra.processors.doc import BREAK, EVERY, DocProcessor
+from e_infra.processors.doc import BREAK, EVERY, Body, DocProcessor, Node, Ref, Span
 from e_infra.processors.models import Backend, Document, Element, Section
 from e_infra.providers.adapters.markdown.anytomd import AnytomdAdapter
 from unit.e_infra.conftest import anytomd_args, doc_args
@@ -38,6 +38,7 @@ FILING = RESOURCES / "documents" / "filing.pdf"
 GOLDEN = msgspec.json.decode(
     gzip.decompress((RESOURCES / "conversions" / "filing.json.gz").read_bytes()), type=DocumentConversion
 )
+BODY = msgspec.convert(GOLDEN.document, Body, strict=False)
 TEXT, WORKFORCE, STATEMENT, SCAN = 1, 2, 3, 4
 DETECTOR = AnytomdAdapter(**anytomd_args())
 MARKDOWN = "# Title\n\nFirst paragraph.\n\n## Sub\n\nSecond,\nstill second."
@@ -62,7 +63,7 @@ class FakePort:
     async def health(self) -> bool:
         return True
 
-    async def convert(self, source: Any, *, filename: str = "", options: Any = None) -> DocumentConversion:
+    async def convert(self, source: Any, *, filename: str | None = None, options: Any = None) -> DocumentConversion:
         self.calls.append({"filename": filename, "options": dict(options or {}), "size": len(source)})
         self.flight += 1
         self.peak = max(self.peak, self.flight)
@@ -78,7 +79,7 @@ class FakePort:
                     msg = f"pages {first}-{last} refused"
                     raise DocumentError(msg)
                 case ((first, last), _):
-                    parts = GOLDEN.markdown.split(BREAK)[first - 1 : last]
+                    parts = (GOLDEN.markdown or "").split(BREAK)[first - 1 : last]
                     return msgspec.structs.replace(GOLDEN, markdown=BREAK.join(parts))
                 case other:
                     msg = f"no conversion scripted for {other}"
@@ -255,7 +256,7 @@ async def test_a_failed_span_falls_back_to_liteparse_with_its_reason_said_nowher
     pages = {page.number: page for page in document.pages}
     assert (pages[STATEMENT].backend, pages[SCAN].backend) == (Backend.DOCLING, Backend.LITEPARSE)
     assert pages[SCAN].fallback == "DocumentError: pages 4-4 refused"
-    assert (pages[STATEMENT].fallback, logs.at("warning")) == ("", [])
+    assert (pages[STATEMENT].fallback, logs.at("warning")) == (None, [])
 
 
 async def test_deep_requests_stay_within_the_concurrency_bound() -> None:
@@ -266,7 +267,7 @@ async def test_deep_requests_stay_within_the_concurrency_bound() -> None:
 
 async def test_a_span_with_unsplittable_markdown_keeps_liteparse_markdown() -> None:
     class Whole(FakePort):
-        async def convert(self, source: Any, *, filename: str = "", options: Any = None) -> DocumentConversion:
+        async def convert(self, source: Any, *, filename: str | None = None, options: Any = None) -> DocumentConversion:
             return msgspec.structs.replace(
                 await super().convert(source, filename=filename, options=options), markdown="one blob"
             )
@@ -298,7 +299,7 @@ def test_header_rows_fold_into_unique_padded_columns() -> None:
 
 def test_docling_pictures_decode_and_rank_classes() -> None:
     png = b"\x89PNG\r\n\x1a\n"
-    node = {
+    node: Node = {
         "image": {
             "mimetype": "image/png",
             "uri": "data:image/png;base64,iVBORw0KGgo=",
@@ -327,7 +328,7 @@ def test_docling_pictures_decode_and_rank_classes() -> None:
     [({}, (1, 9), 0), ({"prov": [{"page_no": 7}]}, (1, 9), 7), ({"prov": [{"page_no": 7}]}, (8, 9), 0), ({}, None, 1)],
     ids=["unplaced", "in-span", "off-span", "whole"],
 )
-def test_a_node_is_placed_on_its_page_in_the_span_or_on_none(node: dict[str, Any], span: Any, page: int) -> None:
+def test_a_node_is_placed_on_its_page_in_the_span_or_on_none(node: Node, span: Span | None, page: int) -> None:
     assert DocProcessor._process_place(node, span) == page
 
 
@@ -356,9 +357,9 @@ def test_a_fast_page_keeps_every_block_its_shared_kinds_named_as_docling_names_t
     [({"$ref": "#/groups/1"}, "slide"), ({"$ref": "#/body"}, ""), (None, "")],
     ids=["grouped", "body", "orphan"],
 )
-def test_a_deep_node_names_the_group_it_sits_in(parent: dict[str, str] | None, group: str) -> None:
-    document = {"groups": [{"label": "list"}, {"label": "slide"}]}
-    node = {"parent": parent, "self_ref": "#/texts/0", "label": "text"}
+def test_a_deep_node_names_the_group_it_sits_in(parent: Ref | None, group: str) -> None:
+    document: Body = {"groups": [{"label": "list"}, {"label": "slide"}]}
+    node: Node = {"parent": parent, "self_ref": "#/texts/0", "label": "text"}
     assert DocProcessor._process_item(document, node, "", 1)["group"] == group
 
 
@@ -367,7 +368,7 @@ def test_a_deep_node_names_the_group_it_sits_in(parent: dict[str, str] | None, g
 async def test_without_docling_every_pdf_page_is_liteparse_whatever_the_mode(mode: DocMode) -> None:
     document = await without_docling(mode=mode).process(FILING)
     assert {page.backend for page in document.pages} == {Backend.LITEPARSE}
-    assert (document.deep, {page.fallback for page in document.pages}) == ((), {""})
+    assert (document.deep, {page.fallback for page in document.pages}) == ((), {None})
     assert any(table.page == STATEMENT for table in document.tables)
 
 
@@ -384,8 +385,8 @@ async def test_a_format_docling_reads_goes_whole_to_docling(data: bytes, name: s
     assert ([(call["filename"], call["options"]) for call in port.calls], markdown.calls) == ([(name, {})], [])
     assert [(page.number, page.backend) for page in document.pages] == [(1, Backend.DOCLING)]
     assert (len(document.tables), len(document.pictures)) == (
-        len(GOLDEN.document["tables"]),
-        len(GOLDEN.document["pictures"]),
+        len(BODY.get("tables") or ()),
+        len(BODY.get("pictures") or ()),
     )
     assert set(document.items["backend"]) == {Backend.DOCLING}
     assert "data:" not in document.markdown

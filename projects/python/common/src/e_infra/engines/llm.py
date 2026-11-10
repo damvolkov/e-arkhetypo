@@ -20,7 +20,7 @@ import asyncio
 import hashlib
 from dataclasses import dataclass
 from enum import StrEnum, auto
-from typing import TYPE_CHECKING, Any, Final
+from typing import TYPE_CHECKING, Final
 from weakref import WeakValueDictionary
 
 import msgspec
@@ -32,6 +32,7 @@ from e_infra.infra.logger import logger
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable, Mapping, Sequence
 
+    from e_infra.infra.payload import JSON
     from e_infra.ports.cache import CachePort
     from e_infra.ports.embed import EmbedPort
     from e_infra.ports.llm import LLMPort
@@ -66,7 +67,7 @@ class Vectors(msgspec.Struct, frozen=True, kw_only=True):
 class ModelCache:
     """Where the engine keeps what the models answered: `answers` the replies that decoded, `vectors` one per text."""
 
-    answers: CachePort[Any]
+    answers: CachePort[JSON]
     vectors: CachePort[list[float]]
     mode: CacheMode
 
@@ -102,13 +103,18 @@ class LLMEngine:
     ##### PRIVATE #####
 
     @classmethod
-    def _run_schema(cls, output: type[Any]) -> dict[str, Any]:
+    def _run_schema[T](cls, output: type[T]) -> dict[str, JSON]:
         """The contract's JSON schema as sent: references inlined, the loose keywords left out."""
         schema = msgspec.json.schema(output)
-        return cls._run_inline(schema, schema.get("$defs", {}))
+        match cls._run_inline(schema, schema.get("$defs", {})):
+            case dict() as inlined:
+                return inlined
+            case other:
+                msg = f"the contract {output!r} has no object schema, got {other!r}"
+                raise ModelError(msg)
 
     @classmethod
-    def _run_inline(cls, node: Any, defs: Mapping[str, Any]) -> Any:
+    def _run_inline(cls, node: JSON, defs: Mapping[str, JSON]) -> JSON:
         """A schema node with every `$ref` replaced by its definition; `$defs` and the loose keywords dropped."""
         match node:
             case {"$ref": str() as ref}:
@@ -122,9 +128,16 @@ class LLMEngine:
             case _:
                 return node
 
-    async def _run_attempt(
-        self, model: LLMPort, *, instructions: str, prompt: str, output: type[Any], schema: Mapping[str, Any], left: int
-    ) -> Any:
+    async def _run_attempt[T](
+        self,
+        model: LLMPort,
+        *,
+        instructions: str,
+        prompt: str,
+        output: type[T],
+        schema: Mapping[str, JSON],
+        left: int,
+    ) -> JSON:
         """The first reply that decodes, as the model wrote it; on a decode error, the same request again with the error
         — while retries are left."""
         answer = await model.structured(instructions, prompt, schema)
@@ -144,7 +157,7 @@ class LLMEngine:
         return answer
 
     @staticmethod
-    def _common_key(*parts: object) -> str:
+    def _common_key(*parts: JSON) -> str:
         """A cache key: the sha256 of the parts, encoded deterministically, under the key version."""
         return hashlib.sha256(msgspec.msgpack.encode((KEY_VERSION, *parts), order="deterministic")).hexdigest()
 
@@ -168,14 +181,14 @@ class LLMEngine:
             logger.warning("llm cache write failed", keys=len(items), error=str(error))
 
     @staticmethod
-    def _common_missing(keys: Sequence[str], held: Mapping[str, object]) -> None:
+    def _common_missing[V](keys: Sequence[str], held: Mapping[str, V]) -> None:
         """In REPLAY, a key the cache lacks is an error: no model is asked."""
         match [key for key in keys if key not in held]:
             case [_, *_] as missing:
                 msg = f"{len(missing)} of {len(keys)} calls are not in the cache (REPLAY asks no model)"
                 raise ReplayMissError(msg)
 
-    async def _run_answer(self, key: str, ask: Callable[[], Awaitable[Any]]) -> Any:
+    async def _run_answer(self, key: str, ask: Callable[[], Awaitable[JSON]]) -> JSON:
         """The answer of a run by its key, as the cache mode decides."""
         match self._cache.mode:
             case CacheMode.OFF:
@@ -187,14 +200,14 @@ class LLMEngine:
             case CacheMode.RECORD:
                 return await self._run_record(key, ask)
 
-    async def _run_record(self, key: str, ask: Callable[[], Awaitable[Any]]) -> Any:
+    async def _run_record(self, key: str, ask: Callable[[], Awaitable[JSON]]) -> JSON:
         """Read, else ask and keep — under the key's lock, so a second miss of it reads what the first kept."""
         lock = self._locks.setdefault(key, asyncio.Lock())
         async with lock:
             held = await self._common_read(self._cache.answers, [key])
             return held[key] if key in held else await self._run_keep(key, await ask())
 
-    async def _run_keep(self, key: str, answer: Any) -> Any:
+    async def _run_keep(self, key: str, answer: JSON) -> JSON:
         await self._common_keep(self._cache.answers, {key: answer})
         return answer
 
@@ -224,7 +237,12 @@ class LLMEngine:
     async def run[T](self, tier: Tier, instructions: str, prompt: str, output: type[T]) -> T:
         """The tier's model answering `prompt` under `instructions`, as an instance of `output`."""
         model = self._tiers[tier]
-        logger.debug("llm run", tier=str(tier), model=model.model, output=getattr(output, "__name__", str(output)))
+        logger.debug(
+            "llm run",
+            tier=str(tier),
+            model=model.model,
+            output=output.__name__ if isinstance(output, type) else str(output),
+        )
         schema = self._run_schema(output)
         key = self._common_key("run", model.model, instructions, prompt, msgspec.json.schema(output))
         answer = await self._run_answer(

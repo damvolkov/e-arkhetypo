@@ -5,7 +5,10 @@ account, kind, issue, expiry and revocation). Opening the driver creates them wh
 renames it in place; `revoke` stamps every live grant of an account, never deletes one. The database is the lifespan's
 to open and close, not this driver's."""
 
+from datetime import datetime
 from typing import TYPE_CHECKING, ClassVar, Final, Self
+
+import msgspec
 
 from e_infra.infra.auth.models import Account, Grant, GrantKind, Role
 from e_infra.infra.errors import ProviderError
@@ -41,6 +44,26 @@ SELECT a.id, a.name, a.role, a.created, g.digest, g.kind, g.created AS issued, g
 FROM auth_grant g JOIN auth_account a ON a.id = g.owner WHERE g.digest = $1"""
 
 
+##### WIRE #####
+class PostgresAccount(msgspec.Struct, frozen=True, kw_only=True):
+    """The account columns of a row, as the database names them."""
+
+    id: str
+    name: str
+    role: Role
+    created: datetime | None = None
+
+
+class PostgresHolder(PostgresAccount, frozen=True, kw_only=True):
+    """A grant joined to its account: the grant's own columns (`issued` is its `created`)."""
+
+    digest: str
+    kind: GrantKind
+    issued: datetime | None = None
+    expires: datetime | None = None
+    revoked: datetime | None = None
+
+
 ##### DRIVER #####
 class PostgresAuthDriver:
     """Accounts and grants in the service's Postgres, over whichever `DatabasePort` it is handed."""
@@ -56,7 +79,8 @@ class PostgresAuthDriver:
 
     @staticmethod
     def _common_account(row: Row) -> Account:
-        return Account(owner=row["id"], name=row["name"], role=Role(row["role"]), created=row["created"])
+        found = msgspec.convert(row, PostgresAccount, strict=False)
+        return Account(owner=found.id, name=found.name, role=found.role, created=found.created)
 
     ############################################################
 
@@ -102,8 +126,9 @@ class PostgresAuthDriver:
             case None:
                 return None
             case row:
+                found = msgspec.convert(row, PostgresHolder, strict=False)
                 grant = Grant(
-                    digest=row["digest"], owner=row["id"], kind=GrantKind(row["kind"]), created=row["issued"],
-                    expires=row["expires"], revoked=row["revoked"],
+                    digest=found.digest, owner=found.id, kind=found.kind, created=found.issued,
+                    expires=found.expires, revoked=found.revoked,
                 )  # fmt: skip
                 return self._common_account(row), grant

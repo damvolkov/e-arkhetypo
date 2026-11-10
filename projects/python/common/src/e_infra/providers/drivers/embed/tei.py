@@ -13,7 +13,7 @@ from tokenizers import Tokenizer
 
 from e_infra.infra.errors import ModelError, ProviderError
 from e_infra.infra.logger import logger
-from e_infra.ports.provider import Isolation, Locality, ProviderSpec, Workload
+from e_infra.ports.provider import Isolation, Locality, Opened, ProviderSpec, Workload
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -31,6 +31,7 @@ class TEIEmbedDriver:
     spec: ClassVar[ProviderSpec] = ProviderSpec(
         "tei-embed", Locality.REMOTE, Workload.IO_BOUND, Isolation.LOOP, warmup=True
     )
+    tokenizer = Opened[Tokenizer](ModelError)
 
     __slots__ = ("_http", "_model", "_prefix", "_timeout", "_tokenizer", "_url")
 
@@ -46,14 +47,6 @@ class TEIEmbedDriver:
         payload = {"inputs": inputs, "normalize": True, "truncate": True}
         logger.debug("tei embed", texts=len(inputs))
         return await self._http.post(f"{self._url}/embed", payload, as_=list[list[float]], within=self._timeout)
-
-    def _common_tokenizer(self) -> Tokenizer:
-        match self._tokenizer:
-            case None:
-                msg = "TEIEmbedDriver is not open: the lifespan opens it, handlers never do"
-                raise ModelError(msg)
-            case tokenizer:
-                return tokenizer
 
     ############################################################
 
@@ -78,16 +71,11 @@ class TEIEmbedDriver:
         """TEI's own health route: 200 once the model answers."""
         try:
             await self._http.raw(f"{self._url}/health", within=self._timeout)
+            _ = self.tokenizer
         except ProviderError as error:
             logger.warning("tei embed unhealthy", error=str(error))
             raise
-        match self._tokenizer:
-            case None:
-                msg = "tei embed is not open: no tokenizer loaded"
-                logger.warning("tei embed unhealthy", error=msg)
-                raise ModelError(msg)
-            case _:
-                return True
+        return True
 
     async def embed(self, texts: Sequence[str], *, query: bool = False) -> list[list[float]]:
         """One vector per text, in order; a query carries EMBED_QUERY_PREFIX. No texts, no call (TEI rejects it)."""
@@ -100,4 +88,4 @@ class TEIEmbedDriver:
 
     def tokens(self, text: str) -> int:
         """Tokens the embedder sees, special tokens included — TEI appends them too."""
-        return len(self._common_tokenizer().encode(text))
+        return len(self.tokenizer.encode(text))

@@ -3,15 +3,36 @@
 Two capabilities, two ports: `DatabasePort` (the provider) and `ListenPort`, which a driver may meet as well; a consumer
 needing both — the durable queue — is handed the same provider typed as each."""
 
-from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
 from e_infra.ports.provider import Provider
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Sequence
+    from collections.abc import Callable, Mapping, Sequence
     from contextlib import AbstractAsyncContextManager
+    from datetime import date, datetime, time, timedelta
+    from decimal import Decimal
+    from uuid import UUID
 
-type Row = dict[str, Any]
+### what a statement binds and a row holds, as the drivers carry it; a `Vector` is a `Sequence[float]`, a JSON column a
+### mapping or a sequence.
+type Cell = (
+    str
+    | int
+    | float
+    | bool
+    | bytes
+    | datetime
+    | date
+    | time
+    | timedelta
+    | UUID
+    | Decimal
+    | Mapping[str, Cell]
+    | Sequence[Cell]
+    | None
+)
+type Row = Mapping[str, Cell]
 ### a NOTIFY's payload, handed to whoever listens on its channel.
 type Notify = Callable[[str], None]
 
@@ -32,13 +53,13 @@ class QueryPort(Protocol):
     session-level lock needs. A scope opened inside a scope is that scope. Every refusal is a `DatabaseError`; a
     vector column reads back as a list of floats through `::real[]`, on every driver."""
 
-    async def execute(self, query: str, params: Sequence[object] = ()) -> None: ...
+    async def execute(self, query: str, params: Sequence[Cell] = ()) -> None: ...
 
-    async def fetch(self, query: str, params: Sequence[object] = ()) -> list[Row]: ...
+    async def fetch(self, query: str, params: Sequence[Cell] = ()) -> Sequence[Row]: ...
 
-    async def row(self, query: str, params: Sequence[object] = ()) -> Row | None: ...
+    async def row(self, query: str, params: Sequence[Cell] = ()) -> Row | None: ...
 
-    async def many(self, query: str, params: Sequence[Sequence[object]]) -> None: ...
+    async def many(self, query: str, params: Sequence[Sequence[Cell]]) -> None: ...
 
     async def script(self, statements: str) -> None: ...
 

@@ -16,19 +16,29 @@ untouched — they are already parameterized; validation of the result belongs t
 
 import re
 import string
-from typing import TYPE_CHECKING, Any
+from collections.abc import Iterable, Mapping
+from typing import TYPE_CHECKING, Final, TypedDict, Unpack
 
 import eserde
 import msgspec
 from msgspec import Struct, field
 
 from e_infra.infra.errors import ComposeError
+from e_infra.infra.payload import JSON
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable, Mapping
     from pathlib import Path
 
 ##### TYPES #####
+
+
+class FieldsCompose(TypedDict, total=False):
+    """The policy fields a caller may replace: the keyword form of ``SpecCompose``."""
+
+    project: str | None
+    ports: str | None
+    network: str | None
+    volume_root: str
 
 
 class SpecCompose(Struct, frozen=True, kw_only=True):
@@ -67,18 +77,18 @@ class MergedCompose(Struct, frozen=True, kw_only=True):
     """The merged output model: services and shared resources, canonically ordered and ready to render."""
 
     name: str | None = None
-    services: dict[str, Any] = field(default_factory=dict)
-    volumes: dict[str, Any] = field(default_factory=dict)
-    networks: dict[str, Any] = field(default_factory=dict)
-    configs: dict[str, Any] = field(default_factory=dict)
-    secrets: dict[str, Any] = field(default_factory=dict)
-    extensions: dict[str, Any] = field(default_factory=dict)
+    services: Mapping[str, JSON] = field(default_factory=dict)
+    volumes: Mapping[str, JSON] = field(default_factory=dict)
+    networks: Mapping[str, JSON] = field(default_factory=dict)
+    configs: Mapping[str, JSON] = field(default_factory=dict)
+    secrets: Mapping[str, JSON] = field(default_factory=dict)
+    extensions: Mapping[str, JSON] = field(default_factory=dict)
 
-    def document(self) -> dict[str, Any]:
+    def document(self) -> dict[str, JSON]:
         """The compose-ready mapping: empty sections and the missing project name dropped, extensions back to ``x-`` keys."""
-        base = {k: v for k, v in msgspec.to_builtins(self).items() if v not in (None, {}, [])}
-        extensions = base.pop("extensions", {})
-        return {**base, **extensions}
+        base: dict[str, JSON] = {k: v for k, v in msgspec.to_builtins(self).items() if v not in (None, {}, [])}
+        base.pop("extensions", None)
+        return {**base, **self.extensions}
 
     def snapshot(self) -> bytes:
         """Canonical JSON of the model — the golden bytes the tests pin."""
@@ -87,12 +97,12 @@ class MergedCompose(Struct, frozen=True, kw_only=True):
 
 ##### RULES #####
 
-COMPOSE_FILE: str = "compose.yml"
-HOST: re.Pattern[str] = re.compile(r"://([a-z][a-z0-9._-]*)(?=[/:]|$)", re.MULTILINE)
-NON_SERVICE: frozenset[str] = frozenset({"localhost", "127.0.0.1", "0.0.0.0", "host.docker.internal"})
-PORT_FIELDS: frozenset[str] = frozenset({"name", "port", "host"})
-RESOURCES: tuple[str, ...] = ("volumes", "networks", "configs", "secrets")
-UNION_LISTS: frozenset[str] = frozenset(
+COMPOSE_FILE: Final = "compose.yml"
+HOST: Final[re.Pattern[str]] = re.compile(r"://([a-z][a-z0-9._-]*)(?=[/:]|$)", re.MULTILINE)
+NON_SERVICE: Final[frozenset[str]] = frozenset({"localhost", "127.0.0.1", "0.0.0.0", "host.docker.internal"})
+PORT_FIELDS: Final[frozenset[str]] = frozenset({"name", "port", "host"})
+RESOURCES: Final[tuple[str, ...]] = ("volumes", "networks", "configs", "secrets")
+UNION_LISTS: Final[frozenset[str]] = frozenset(
     {"ports", "expose", "dns", "dns_search", "extra_hosts", "devices", "group_add", "volumes"}
 )
 
@@ -106,7 +116,9 @@ class StackCompose:
 
     __slots__ = ("_root", "_spec")
 
-    def __init__(self, root: Path | None = None, *, spec: SpecCompose | None = None, **fields: Any) -> None:
+    def __init__(
+        self, root: Path | None = None, *, spec: SpecCompose | None = None, **fields: Unpack[FieldsCompose]
+    ) -> None:
         self._root = root
         base = spec if spec is not None else SpecCompose()
         self._spec = msgspec.structs.replace(base, **fields) if fields else base
@@ -139,21 +151,22 @@ class StackCompose:
         return tuple(sorted(hosts & known))
 
     def _merge_documents(
-        self, chosen: Iterable[str], documents: Iterable[Mapping[str, Any]]
-    ) -> tuple[dict[str, Any], dict[str, dict[str, Any]]]:
-        services: dict[str, Any] = {}
-        resources: dict[str, dict[str, Any]] = {section: {} for section in RESOURCES}
+        self, chosen: Iterable[str], documents: Iterable[Mapping[str, JSON]]
+    ) -> tuple[dict[str, dict[str, JSON]], dict[str, dict[str, JSON]]]:
+        services: dict[str, dict[str, JSON]] = {}
+        resources: dict[str, dict[str, JSON]] = {section: {} for section in RESOURCES}
         wanted: frozenset[str] | None = frozenset(chosen) or None
         for frag in documents:
             match frag:
                 case {"include": _}:
                     msg = "include is not supported: pass the included fragment in the list instead"
                     raise ComposeError(msg)
-            for name, svc in (frag.get("services") or {}).items():
-                services[name] = self._merge_service(services[name], svc) if name in services else dict(svc or {})
+            for name, svc in self._merge_dict(frag.get("services")).items():
+                body = self._merge_dict(svc)
+                services[name] = self._merge_service(services[name], body) if name in services else dict(body)
             for section in RESOURCES:
-                for key, val in (frag.get(section) or {}).items():
-                    resources[section][key] = {**(resources[section].get(key) or {}), **(val or {})}
+                for key, val in self._merge_dict(frag.get(section)).items():
+                    resources[section][key] = {**self._merge_dict(resources[section].get(key)), **self._merge_dict(val)}
         match wanted:
             case None:
                 return services, resources
@@ -166,10 +179,10 @@ class StackCompose:
                         msg = f"Unknown services requested: {missing}"
                         raise ComposeError(msg)
 
-    def _merge_load(self, entries: list[tuple[str, Path]]) -> list[dict[str, Any]]:
+    def _merge_load(self, entries: list[tuple[str, Path]]) -> list[Mapping[str, JSON]]:
         return [document for _, directory in entries for document in self._compose_of(directory / COMPOSE_FILE)]
 
-    def _compose_of(self, path: Path) -> list[dict[str, Any]]:
+    def _compose_of(self, path: Path) -> list[dict[str, JSON]]:
         """One compose file as documents, with ``include:`` spliced in the way docker compose does it:
         every included fragment first, the including body after — includes nest."""
         document = eserde.load(path, format="yaml")
@@ -183,17 +196,40 @@ class StackCompose:
                     *([body] if body else []),
                 ]
 
-    def _merge_service(self, base: dict[str, Any], over: Mapping[str, Any]) -> dict[str, Any]:
+    def _merge_service(self, base: dict[str, JSON], over: Mapping[str, JSON]) -> dict[str, JSON]:
         out = dict(base)
         for key, val in over.items():
             self._merge_rule(out, key, val)
         return out
 
-    def _merge_rule(self, out: dict[str, Any], key: str, val: Any) -> None:
+    @staticmethod
+    def _merge_dict(node: JSON) -> dict[str, JSON]:
+        match node:
+            case None:
+                return {}
+            case dict() as mapping:
+                return mapping
+            case other:
+                msg = f"Expected a mapping: {other!r}"
+                raise ComposeError(msg)
+
+    @staticmethod
+    def _merge_list(node: JSON) -> list[JSON]:
+        match node:
+            case None:
+                return []
+            case list() as items:
+                return items
+            case other:
+                msg = f"Expected a list: {other!r}"
+                raise ComposeError(msg)
+
+    def _merge_rule(self, out: dict[str, JSON], key: str, val: JSON) -> None:
         match (key, out.get(key), val):
-            case (k, a, b) if k in UNION_LISTS and isinstance(b, list):
-                seen = {repr(e) for e in a or ()}
-                out[key] = [*(a or []), *[e for e in b if repr(e) not in seen]]
+            case (k, a, list() as b) if k in UNION_LISTS:
+                base = self._merge_list(a)
+                seen = {repr(e) for e in base}
+                out[key] = [*base, *[e for e in b if repr(e) not in seen]]
             case ("environment", old, new):
                 out[key] = {**self._merge_env(old), **self._merge_env(new)}
             case ("networks", old, new):
@@ -204,7 +240,7 @@ class StackCompose:
                 out[key] = val
 
     @classmethod
-    def _merge_mapping(cls, a: Mapping[str, Any], b: Mapping[str, Any]) -> dict[str, Any]:
+    def _merge_mapping(cls, a: Mapping[str, JSON], b: Mapping[str, JSON]) -> dict[str, JSON]:
         out = dict(a)
         for key, val in b.items():
             match (out.get(key), val):
@@ -215,7 +251,7 @@ class StackCompose:
         return out
 
     @staticmethod
-    def _merge_env(env: Any) -> dict[str, str]:
+    def _merge_env(env: JSON) -> dict[str, str]:
         match env:
             case None:
                 return {}
@@ -228,7 +264,7 @@ class StackCompose:
                 raise ComposeError(msg)
 
     @staticmethod
-    def _merge_networks(nets: Any) -> dict[str, Any]:
+    def _merge_networks(nets: JSON) -> dict[str, JSON]:
         match nets:
             case None:
                 return {}
@@ -240,7 +276,7 @@ class StackCompose:
                 msg = f"Unsupported networks: {other!r}"
                 raise ComposeError(msg)
 
-    def _merge_port(self, name: str, entry: Any, pattern: str) -> Any:
+    def _merge_port(self, name: str, entry: JSON, pattern: str) -> JSON:
         match entry:
             case str() as text if "${" in text:
                 return entry
@@ -259,7 +295,7 @@ class StackCompose:
                 return f"{host_ip}:{published}:{target}" if host_ip else f"{published}:{target}"
 
     @staticmethod
-    def _merge_port_split(entry: Any) -> tuple[str, str, str]:
+    def _merge_port_split(entry: JSON) -> tuple[str, str, str]:
         match entry:
             case dict() as long:
                 return str(long.get("host_ip", "")), str(long.get("published", "")), str(long.get("target", ""))
@@ -275,7 +311,7 @@ class StackCompose:
                         msg = f"Unsupported port syntax: {parts}"
                         raise ComposeError(msg)
 
-    def _merge_volume(self, name: str, entry: Any, declared: frozenset[str]) -> Any:
+    def _merge_volume(self, name: str, entry: JSON, declared: frozenset[str]) -> JSON:
         source, tail = self._merge_volume_split(entry)
         match (entry, source):
             case ({"type": "tmpfs"}, _):
@@ -292,7 +328,7 @@ class StackCompose:
                 return entry
 
     @staticmethod
-    def _merge_volume_split(entry: Any) -> tuple[str, str]:
+    def _merge_volume_split(entry: JSON) -> tuple[str, str]:
         match entry:
             case dict() as long:
                 return str(long.get("source", "")), ""
@@ -301,7 +337,7 @@ class StackCompose:
                 return source, tail
 
     @staticmethod
-    def _merge_volume_join(source: str, tail: str, entry: Any) -> Any:
+    def _merge_volume_join(source: str, tail: str, entry: JSON) -> JSON:
         match entry:
             case dict() as long:
                 rest = {k: v for k, v in long.items() if k not in ("source", "type", "volume")}
@@ -309,7 +345,17 @@ class StackCompose:
             case _:
                 return f"{source}:{tail}" if tail else source
 
-    def _merge_policy(self, services: dict[str, Any], resources: dict[str, dict[str, Any]]) -> None:
+    @staticmethod
+    def _merge_policy_source(volume: JSON) -> str:
+        match volume:
+            case str() as short:
+                return short.partition(":")[0]
+            case {"source": source}:
+                return str(source)
+            case _:
+                return ""
+
+    def _merge_policy(self, services: dict[str, dict[str, JSON]], resources: dict[str, dict[str, JSON]]) -> None:
         declared = frozenset(resources["volumes"])
         for name, svc in services.items():
             svc["container_name"] = svc["hostname"] = name
@@ -327,21 +373,19 @@ class StackCompose:
                     nets = self._merge_networks(svc.get("networks"))
                     svc["networks"] = {net: next(iter(nets.values()), None) if len(nets) <= 1 else None}
         referenced = {
-            v.partition(":")[0] if isinstance(v, str) else str(v.get("source", ""))
-            for svc in services.values()
-            for v in svc.get("volumes") or ()
+            self._merge_policy_source(v) for svc in services.values() for v in self._merge_list(svc.get("volumes"))
         }
         resources["volumes"] = {k: v for k, v in resources["volumes"].items() if k in referenced}
         match self._spec.network:
             case str() as net:
-                keep = {**(next(iter(resources["networks"].values()), None) or {})}
+                keep = self._merge_dict(next(iter(resources["networks"].values()), None))
                 resources["networks"] = {net: keep or None}
 
     ############################################################
 
     ##### PUBLIC #####
 
-    def configure(self, **fields: Any) -> StackCompose:
+    def configure(self, **fields: Unpack[FieldsCompose]) -> StackCompose:
         """A new tool with the policy fields replaced — the original stays untouched."""
         return StackCompose(self._root, spec=msgspec.structs.replace(self._spec, **fields))
 
@@ -362,12 +406,16 @@ class StackCompose:
         )
 
     def merge(
-        self, chosen: Iterable[str] | None = None, *, documents: Iterable[Mapping[str, Any]] | None = None
+        self, chosen: Iterable[str] | None = None, *, documents: Iterable[Mapping[str, JSON]] | None = None
     ) -> MergedCompose:
         """One model from the tree (all, or the chosen names) or from in-memory fragments — policy and imposable laws applied."""
-        fragments = list(documents) if documents is not None else self._merge_load(self._discover_entries())
+        fragments: list[Mapping[str, JSON]] = (
+            list(documents) if documents is not None else self._merge_load(self._discover_entries())
+        )
         services, resources = self._merge_documents(chosen or (), fragments)
-        project = self._spec.project or next((name for frag in fragments if (name := frag.get("name"))), None)
+        project = self._spec.project or next(
+            (name for frag in fragments if isinstance(name := frag.get("name"), str) and name), None
+        )
         extensions = {k: v for frag in fragments for k, v in frag.items() if k.startswith("x-")}
         self._merge_policy(services, resources)
         return MergedCompose(

@@ -99,13 +99,13 @@ class SqliteDriver:
             await self.db.execute("DELETE FROM kv WHERE key = ?", (key,))
             await self.db.commit()
 
-    async def keys(self, prefix: str = "") -> AsyncIterator[str]:
+    async def keys(self, prefix: str | None = None) -> AsyncIterator[str]:
         """Keys starting with `prefix`, streamed row by row in key order — no fetchall, no materialization."""
         logger.debug("sqlite keys", prefix=prefix)
         with self._common_guard():
             async with self.db.execute(
                 "SELECT key FROM kv WHERE key LIKE ? ORDER BY key",
-                (f"{prefix}%",),
+                ("%" if prefix is None else f"{prefix}%",),
             ) as cursor:
                 async for row in cursor:
                     yield row[0]

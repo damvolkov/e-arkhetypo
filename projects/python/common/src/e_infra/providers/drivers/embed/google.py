@@ -6,14 +6,14 @@ GENAI_EMBED_DIMENSIONS asks, in batches of GENAI_EMBED_BATCH, in order. The toke
 
 import math
 from itertools import batched
-from typing import TYPE_CHECKING, Any, ClassVar, Final, Self
+from typing import TYPE_CHECKING, ClassVar, Final, Self
 
 import aiohttp
 from google.genai import Client, errors, types
 
 from e_infra.infra.errors import ModelError
 from e_infra.infra.logger import logger
-from e_infra.ports.provider import Isolation, Locality, ProviderSpec, Workload
+from e_infra.ports.provider import Isolation, Locality, Opened, ProviderSpec, Workload
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -32,6 +32,7 @@ class GoogleEmbedDriver:
     """gemini-embedding-001 behind `EmbedPort`."""
 
     spec: ClassVar[ProviderSpec] = ProviderSpec("google-embed", Locality.REMOTE, Workload.IO_BOUND, Isolation.LOOP)
+    client = Opened[Client](ModelError)
 
     __slots__ = (
         "_api_key",
@@ -67,28 +68,26 @@ class GoogleEmbedDriver:
             self._batch,
             self._timeout_ms,
         ) = api_key, enterprise, project, location, model, dimensions, batch, timeout_ms
-        self._client: Any = None
+        self._client: Client | None = None
 
     ##### PRIVATE #####
-
-    def _common_client(self) -> Any:
-        match self._client:
-            case None:
-                msg = "GoogleEmbedDriver is not open: the lifespan opens it, callers never do"
-                raise ModelError(msg)
-            case client:
-                return client
 
     async def _embed_batch(self, texts: Sequence[str], task: str) -> list[list[float]]:
         config = types.EmbedContentConfig(task_type=task, output_dimensionality=self._dimensions)
         try:
-            response = await self._common_client().aio.models.embed_content(
+            response = await self.client.aio.models.embed_content(
                 model=self._model, contents=list(texts), config=config
             )
         except FAILURES as error:
             logger.error("google-embed failed", model=self._model, error=str(error))
             raise ModelError(str(error)) from error
-        return [list(each.values) for each in response.embeddings]
+        match response.embeddings:
+            case None:
+                msg = "google-embed answered without embeddings"
+                logger.error("google-embed answered no embeddings", model=self._model)
+                raise ModelError(msg)
+            case found:
+                return [list(each.values or ()) for each in found]
 
     ############################################################
 

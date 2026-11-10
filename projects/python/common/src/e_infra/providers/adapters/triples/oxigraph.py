@@ -11,17 +11,17 @@ import asyncio
 from concurrent.futures import ThreadPoolExecutor
 from itertools import islice
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Any, ClassVar, Final, Self
+from typing import TYPE_CHECKING, ClassVar, Final, Self
 
 import pyoxigraph as ox
 
 from e_infra.infra.errors import TriplesError
 from e_infra.infra.logger import logger
-from e_infra.ports.provider import Isolation, Locality, ProviderSpec, Workload
+from e_infra.ports.provider import Isolation, Locality, Opened, ProviderSpec, Workload
 from e_infra.ports.triples import Binding, Serialization, Term, TermKind
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncGenerator, Mapping
+    from collections.abc import AsyncGenerator, Callable, Iterator, Mapping
 
 FORMATS: Final[Mapping[Serialization, ox.RdfFormat]] = MappingProxyType(
     {
@@ -43,6 +43,7 @@ class OxigraphTriplesAdapter:
     spec: ClassVar[ProviderSpec] = ProviderSpec(
         "oxigraph", Locality.EMBEDDED, Workload.CPU_BOUND, Isolation.THREAD, warmup=True
     )
+    store = Opened[ox.Store](TriplesError)
 
     __slots__ = ("_page", "_store", "_worker")
 
@@ -52,14 +53,6 @@ class OxigraphTriplesAdapter:
         self._worker: ThreadPoolExecutor | None = None
 
     ##### PRIVATE #####
-
-    def _common_store(self) -> ox.Store:
-        match self._store:
-            case None:
-                msg = "OxigraphTriplesAdapter is not open: the lifespan opens it, callers never do"
-                raise TriplesError(msg)
-            case store:
-                return store
 
     @staticmethod
     def _common_term(term: Term) -> ox.NamedNode | ox.Literal:
@@ -83,17 +76,17 @@ class OxigraphTriplesAdapter:
                 return f"{sparql}\nVALUES ({names}) {{ ({row}) }}"
 
     @staticmethod
-    def _select_value(node: Any) -> str:
+    def _select_value(node: ox.NamedNode | ox.BlankNode | ox.Literal) -> str:
         match node:
             case ox.BlankNode():
                 return f"_:{node.value}"
             case _:
                 return node.value
 
-    async def _common_run[T](self, work: Any, *args: Any) -> T:
+    async def _common_run[T](self, work: Callable[[], T]) -> T:
         """A store call on the adapter's own thread, its refusal as the port's error."""
         try:
-            return await asyncio.get_running_loop().run_in_executor(self._worker, work, *args)
+            return await asyncio.get_running_loop().run_in_executor(self._worker, work)
         except REFUSED as error:
             logger.warning("oxigraph refused", error=str(error))
             raise TriplesError(str(error)) from error
@@ -119,7 +112,7 @@ class OxigraphTriplesAdapter:
         return True
 
     async def load(self, graph: str, data: bytes, serialization: Serialization) -> int:
-        store, node = self._common_store(), ox.NamedNode(graph)
+        store, node = self.store, ox.NamedNode(graph)
 
         def run() -> int:
             store.load(data, format=FORMATS[serialization], to_graph=node)
@@ -133,19 +126,19 @@ class OxigraphTriplesAdapter:
         )
 
     async def dump(self, graph: str, serialization: Serialization = Serialization.NTRIPLES) -> bytes:
-        store = self._common_store()
+        store = self.store
         return await self._common_run(
             lambda: store.dump(format=FORMATS[serialization], from_graph=ox.NamedNode(graph)) or b""
         )
 
     async def clear(self, graph: str) -> None:
-        store = self._common_store()
+        store = self.store
         await self._common_run(
             lambda: store.remove_graph(ox.NamedNode(graph)) if ox.NamedNode(graph) in store.named_graphs() else None
         )
 
     async def graphs(self) -> dict[str, int]:
-        store = self._common_store()
+        store = self.store
 
         def run() -> dict[str, int]:
             counted = {
@@ -160,14 +153,18 @@ class OxigraphTriplesAdapter:
 
     async def select(self, sparql: str, substitutions: Mapping[str, Term] | None = None) -> AsyncGenerator[Binding]:
         """The solutions of a SELECT over the union of graphs, a page per hop to the store's thread."""
-        store, query = self._common_store(), self._common_bound(sparql, substitutions)
+        store, query = self.store, self._common_bound(sparql, substitutions)
         ### the cursor holds pyoxigraph's answer; only the store's thread fills it, reads it, and empties it.
-        cursor: dict[str, Any] = {}
+        cursor: dict[str, Iterator[ox.QuerySolution]] = {}
 
         def start() -> list[str]:
-            found: Any = store.query(query, use_default_graph_as_union=True)
-            cursor["rows"] = iter(found)
-            return [variable.value for variable in getattr(found, "variables", ())]
+            match store.query(query, use_default_graph_as_union=True):
+                case ox.QuerySolutions() as found:
+                    cursor["rows"] = iter(found)
+                    return [variable.value for variable in found.variables]
+                case _:
+                    msg = "select takes a SELECT query"
+                    raise TriplesError(msg)
 
         def page() -> list[Binding]:
             return [
@@ -189,9 +186,9 @@ class OxigraphTriplesAdapter:
             await self._common_run(cursor.clear)
 
     async def ask(self, sparql: str, substitutions: Mapping[str, Term] | None = None) -> bool:
-        store, query = self._common_store(), self._common_bound(sparql, substitutions)
+        store, query = self.store, self._common_bound(sparql, substitutions)
         return await self._common_run(lambda: bool(store.query(query, use_default_graph_as_union=True)))
 
     async def update(self, sparql: str) -> None:
-        store = self._common_store()
-        await self._common_run(store.update, sparql)
+        store = self.store
+        await self._common_run(lambda: store.update(sparql))

@@ -80,7 +80,7 @@ class SpanPort(Protocol):
         """A timestamped point inside the span."""
         ...
 
-    def status(self, status: SpanStatus, description: str = "") -> None:
+    def status(self, status: SpanStatus, description: str | None = None) -> None:
         """Settle the verdict explicitly; a clean exit settles OK, a raise settles ERROR on its own."""
         ...
 

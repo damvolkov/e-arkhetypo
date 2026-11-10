@@ -27,8 +27,8 @@ import pkgutil
 import re
 from enum import StrEnum, auto
 from pathlib import Path, PurePath
-from types import ModuleType
-from typing import TYPE_CHECKING, Any, Final
+from types import FunctionType, ModuleType
+from typing import TYPE_CHECKING, Final, TypeIs
 
 import anyio
 import msgspec
@@ -38,10 +38,14 @@ from tree_sitter_language_pack import detect_language, detect_language_from_cont
 from e_infra.infra.errors import FileError
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Mapping
 
 
 ##### TYPES #####
+type Owned = type | FunctionType
+type Member = Owned | ModuleType
+
+
 class Kind(StrEnum):
     MODULES = auto()
     CLASSES = auto()
@@ -178,11 +182,11 @@ class FileFinder:
         }
 
     @staticmethod
-    def _own(mod: ModuleType, predicate: Callable[[object], bool]) -> dict[str, Any]:
+    def _own[M: Owned](mod: ModuleType, predicate: Callable[[Owned], TypeIs[M]]) -> dict[str, M]:
         return {
             name: obj
             for name, obj in vars(mod).items()
-            if not name.startswith("_") and predicate(obj) and getattr(obj, "__module__", None) == mod.__name__
+            if not name.startswith("_") and predicate(obj) and obj.__module__ == mod.__name__
         }
 
     def _classes(self, modules: dict[str, ModuleType], of_base: type | None = None) -> dict[str, type]:
@@ -194,13 +198,18 @@ class FileFinder:
             if of_base is None or (issubclass(obj, of_base) and obj is not of_base)
         }
 
-    def _functions(self, modules: dict[str, ModuleType]) -> dict[str, Any]:
+    def _functions(self, modules: dict[str, ModuleType]) -> dict[str, FunctionType]:
         return {name: obj for module in modules.values() for name, obj in self._own(module, inspect.isfunction).items()}
 
-    def _select(self, target: Any, modules: dict[str, ModuleType], pattern: re.Pattern[str] | None) -> dict[str, Any]:
+    def _select(
+        self,
+        target: Kind | type | ModuleType | Callable[[Owned], bool],
+        modules: dict[str, ModuleType],
+        pattern: re.Pattern[str] | None,
+    ) -> dict[str, Member]:
         match target:
             case Kind.MODULES:
-                found: dict[str, Any] = modules
+                found: Mapping[str, Member] = modules
             case Kind.CLASSES:
                 found = self._classes(modules)
             case Kind.FUNCTIONS:
@@ -218,7 +227,7 @@ class FileFinder:
                 raise FileError(msg)
         match pattern:
             case None:
-                return found
+                return dict(found)
             case rx:
                 return {name: obj for name, obj in found.items() if rx.search(name)}
 
@@ -232,8 +241,8 @@ class FileFinder:
         return lines[0] if (lines := (inspect.getdoc(module) or "").splitlines()) else ""
 
     def discover(
-        self, target: Kind | type | ModuleType | Callable[[Any], bool], *, pattern: re.Pattern[str] | None = None
-    ) -> dict[str, Any]:
+        self, target: Kind | type | ModuleType | Callable[[Owned], bool], *, pattern: re.Pattern[str] | None = None
+    ) -> dict[str, Member]:
         """Return ``{name: object}`` for whatever ``target`` selects across the package's modules."""
         return self._select(target, self._modules(), pattern)
 
@@ -246,7 +255,7 @@ class FileFinder:
         return await anyio.to_thread.run_sync(self.summaries)
 
     async def adiscover(
-        self, target: Kind | type | ModuleType | Callable[[Any], bool], *, pattern: re.Pattern[str] | None = None
-    ) -> dict[str, Any]:
+        self, target: Kind | type | ModuleType | Callable[[Owned], bool], *, pattern: re.Pattern[str] | None = None
+    ) -> dict[str, Member]:
         """``discover`` off the event loop: the import walk is CPU/IO work, not async I/O."""
         return await anyio.to_thread.run_sync(functools.partial(self.discover, target, pattern=pattern))

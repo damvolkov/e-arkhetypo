@@ -14,7 +14,7 @@ from datetime import UTC, datetime, timedelta
 from enum import IntEnum, StrEnum
 from functools import partial
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Any, Final, Literal, Protocol, cast, runtime_checkable
+from typing import TYPE_CHECKING, Final, Literal, Protocol, runtime_checkable
 
 import anyio
 import argon2
@@ -31,8 +31,8 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from joserfc import jwe, jwk, jwt
 from joserfc.errors import JoseError
-from joserfc.jwk import ECKey, KeySet, OctKey, OKPKey, RSAKey
-from joserfc.jwt import JWTClaimsRegistry
+from joserfc.jwk import ECKey, KeySet, KeySetSerialization, OctKey, OKPKey, RSAKey
+from joserfc.jwt import Claims, ClaimsOption, JWTClaimsRegistry
 from pydantic import SecretStr
 
 from e_infra.infra.errors import CryptoError, TokenError, TokenFailure
@@ -63,7 +63,7 @@ class PasswordHasher(StrEnum):
     BCRYPT = "bcrypt"
 
 
-BCRYPT_ROUNDS: int = 12
+BCRYPT_ROUNDS: Final = 12
 
 
 @runtime_checkable
@@ -81,7 +81,7 @@ class CryptoConfig(Protocol):
     def enc(self) -> TokenEnc: ...
 
     @property
-    def private_key(self) -> str: ...
+    def private_key(self) -> str | None: ...
 
     @property
     def hasher(self) -> PasswordHasher: ...
@@ -97,7 +97,7 @@ class CryptoKeys:
     secret: SecretStr | None
     alg: TokenAlg = TokenAlg.HS256
     enc: TokenEnc = TokenEnc.A256GCM
-    private_key: str = ""
+    private_key: str | None = None
     hasher: PasswordHasher = PasswordHasher.ARGON2
     bcrypt_rounds: int = BCRYPT_ROUNDS
 
@@ -115,36 +115,36 @@ class AlgPrefix(StrEnum):
 
 
 ##### DEFAULTS #####
-SECRET_SIZE: int = 32  # bytes of entropy for the master secret
-IDENT_SIZE: int = 32  # hex chars of an identifier's id: 128 bits, never colliding, short enough for a log
-KEY_SIZE: int = 32  # HKDF output: one AES-256/HMAC-256 key per domain
-NONCE_SIZE: int = 12  # AES-GCM standard
-TAG_SIZE: int = 16
-RSA_SIZE: int = 4096
-RSA_EXPONENT: int = 65537
-BCRYPT_MAX_INPUT: int = 72
-ARGON2_MARKER: str = "$argon2"
-BCRYPT_MARKER: str = "$2"
-TOKEN_INFO: bytes = b"e-core/token"
-JWE_INFO: bytes = b"e-core/jwe"
-ENCRYPT_INFO: bytes = b"e-core/encrypt"
-SIGN_INFO: bytes = b"e-core/sign"
+SECRET_SIZE: Final = 32  # bytes of entropy for the master secret
+IDENT_SIZE: Final = 32  # hex chars of an identifier's id: 128 bits, never colliding, short enough for a log
+KEY_SIZE: Final = 32  # HKDF output: one AES-256/HMAC-256 key per domain
+NONCE_SIZE: Final = 12  # AES-GCM standard
+TAG_SIZE: Final = 16
+RSA_SIZE: Final = 4096
+RSA_EXPONENT: Final = 65537
+BCRYPT_MAX_INPUT: Final = 72
+ARGON2_MARKER: Final = "$argon2"
+BCRYPT_MARKER: Final = "$2"
+TOKEN_INFO: Final = b"e-core/token"
+JWE_INFO: Final = b"e-core/jwe"
+ENCRYPT_INFO: Final = b"e-core/encrypt"
+SIGN_INFO: Final = b"e-core/sign"
 ENC_KEY_SIZES: Final[Mapping[TokenEnc, int]] = MappingProxyType(
     {TokenEnc.A128GCM: 16, TokenEnc.A256GCM: 32}
 )  # dir mode: key IS the CEK
 JOSE_KEY_TYPES: Final[Mapping[AlgPrefix, Literal["RSA", "EC", "OKP"]]] = MappingProxyType(
     {AlgPrefix.RS: "RSA", AlgPrefix.PS: "RSA", AlgPrefix.ES: "EC", AlgPrefix.EDDSA: "OKP"}
 )  # alg prefix -> joserfc key_type
-MISSING_PRIVATE_KEY: str = "asymmetric engine needs a private_key PEM to sign tokens"
-NO_VERIFY_KEY: str = "engine needs a signing key or a public jwks set to verify"
-MISSING_ROOT: str = "crypto engine needs a secret: set CRYPTO__SECRET or pass CryptoKeys(secret=...)"
-UNSUPPORTED_KEY: str = "Unsupported signing key type"
-MALFORMED: str = "Not a JWS (3 parts) or JWE (5 parts) compact token"
-UNKNOWN_HASH: str = "Unrecognized password hash format"
-NO_PUBLIC_JWKS: str = "Symmetric (HS*) engines have no public set to export"
-ENCRYPT_FAILED: str = "Decryption failed: wrong key, corrupt payload or mismatched AAD"
-REJECTED: str = "Token rejected: {}"
-BCRYPT_TOO_LONG: str = f"bcrypt silently truncates past {BCRYPT_MAX_INPUT} bytes; choose a shorter password or argon2"
+MISSING_PRIVATE_KEY: Final = "asymmetric engine needs a private_key PEM to sign tokens"
+NO_VERIFY_KEY: Final = "engine needs a signing key or a public jwks set to verify"
+MISSING_ROOT: Final = "crypto engine needs a secret: set CRYPTO__SECRET or pass CryptoKeys(secret=...)"
+UNSUPPORTED_KEY: Final = "Unsupported signing key type"
+MALFORMED: Final = "Not a JWS (3 parts) or JWE (5 parts) compact token"
+UNKNOWN_HASH: Final = "Unrecognized password hash format"
+NO_PUBLIC_JWKS: Final = "Symmetric (HS*) engines have no public set to export"
+ENCRYPT_FAILED: Final = "Decryption failed: wrong key, corrupt payload or mismatched AAD"
+REJECTED: Final = "Token rejected: {}"
+BCRYPT_TOO_LONG: Final = f"bcrypt silently truncates past {BCRYPT_MAX_INPUT} bytes; choose a shorter password or argon2"
 
 
 ##### ENGINE #####
@@ -168,7 +168,7 @@ class Crypto:
         "_verify_key",
     )
 
-    def __init__(self, settings: CryptoConfig, *, jwks: dict[str, Any] | None = None) -> None:
+    def __init__(self, settings: CryptoConfig, *, jwks: KeySetSerialization | None = None) -> None:
         match settings.secret:
             case None:
                 raise CryptoError(MISSING_ROOT)
@@ -182,7 +182,7 @@ class Crypto:
         self._jwe_key = OctKey.import_key(self._common_derive(JWE_INFO, ENC_KEY_SIZES[settings.enc]))
         self._private_key = self._common_load_pem(settings.private_key)
         self._token_key = self._common_build_token_key(settings.alg, settings.private_key)
-        match KeySet.import_key_set(cast("Any", jwks)) if jwks else self._token_key:
+        match KeySet.import_key_set(jwks) if jwks else self._token_key:
             case None:
                 raise CryptoError(NO_VERIFY_KEY)
             case key:
@@ -194,9 +194,11 @@ class Crypto:
         return HKDF(algorithm=hashes.SHA256(), length=length, info=info, salt=None).derive(self._secret)
 
     @staticmethod
-    def _common_load_pem(pem: str) -> ed25519.Ed25519PrivateKey | RSAPrivateKey | ec.EllipticCurvePrivateKey | None:
+    def _common_load_pem(
+        pem: str | None,
+    ) -> ed25519.Ed25519PrivateKey | RSAPrivateKey | ec.EllipticCurvePrivateKey | None:
         match pem:
-            case "":
+            case None:
                 return None
             case _:
                 match serialization.load_pem_private_key(pem.encode(), password=None):
@@ -205,55 +207,61 @@ class Crypto:
                     case _:
                         raise CryptoError(UNSUPPORTED_KEY)
 
-    def _common_build_token_key(self, alg: TokenAlg, pem: str) -> OctKey | RSAKey | ECKey | OKPKey | None:
+    def _common_build_token_key(self, alg: TokenAlg, pem: str | None) -> OctKey | RSAKey | ECKey | OKPKey | None:
         match alg:
             case TokenAlg.HS256 | TokenAlg.HS384 | TokenAlg.HS512:
                 return OctKey.import_key(self._common_derive(TOKEN_INFO, int(alg.value[2:]) // 8))
             case _:
                 match pem:
-                    case "":
+                    case None:
                         return None
                     case _:
                         return jwk.import_key(pem, JOSE_KEY_TYPES[AlgPrefix(alg.value[:2])])
 
-    def _common_verify_claims(self, claims: dict[str, Any], issuer: str | None, audience: str | None) -> None:
-        options: dict[str, Any] = {"exp": {"essential": True}, "nbf": {}, "iat": {}}
-        match issuer:
+    @staticmethod
+    def _common_option(expected: str | None) -> ClaimsOption:
+        match expected:
             case str() as value:
-                options["iss"] = {"essential": True, "value": value}
+                return {"essential": True, "value": value}
             case _:
-                pass
-        match audience:
-            case str() as value:
-                options["aud"] = {"essential": True, "value": value}
-            case _:
-                pass
+                return {}
+
+    def _common_verify_claims(self, claims: Claims, issuer: str | None, audience: str | None) -> None:
         try:
-            JWTClaimsRegistry(**options).validate(claims)
+            JWTClaimsRegistry(
+                exp={"essential": True},
+                nbf={},
+                iat={},
+                iss=self._common_option(issuer),
+                aud=self._common_option(audience),
+            ).validate(claims)
         except JoseError as exc:
             raise TokenError(REJECTED.format(exc), kind=TokenFailure.INVALID_CLAIM) from exc
 
-    def _verify_token_jws(self, token: str) -> dict[str, Any]:
+    def _verify_token_jws(self, token: str) -> Claims:
         try:
             return dict(jwt.decode(token, self._verify_key, algorithms=[self._alg.value]).claims)
         except JoseError as exc:
             raise TokenError(REJECTED.format(exc), kind=TokenFailure.INVALID_CLAIM) from exc
 
-    def _verify_token_jwe(self, token: str) -> dict[str, Any]:
+    def _verify_token_jwe(self, token: str) -> Claims:
         try:
-            plaintext = jwe.decrypt_compact(token, self._jwe_key).plaintext
-            return msgspec.json.decode(cast("bytes", plaintext))
+            match jwe.decrypt_compact(token, self._jwe_key).plaintext:
+                case bytes() as plaintext:
+                    return msgspec.json.decode(plaintext)
+                case _:
+                    raise TokenError(REJECTED.format("empty plaintext"), kind=TokenFailure.INVALID_CLAIM)
         except (JoseError, msgspec.DecodeError) as exc:
             raise TokenError(REJECTED.format(exc), kind=TokenFailure.INVALID_CLAIM) from exc
 
-    def _create_token_jws(self, claims: dict[str, Any]) -> str:
+    def _create_token_jws(self, claims: Claims) -> str:
         match self._token_key:
             case None:
                 raise CryptoError(MISSING_PRIVATE_KEY)
             case key:
                 return jwt.encode({"alg": self._alg.value}, claims, key, algorithms=[self._alg.value])
 
-    def _create_token_jwe(self, claims: dict[str, Any]) -> str:
+    def _create_token_jwe(self, claims: Claims) -> str:
         protected = {"alg": "dir", "enc": self._enc.value}
         return jwe.encrypt_compact(protected, msgspec.json.encode(claims), self._jwe_key)
 
@@ -300,12 +308,14 @@ class Crypto:
             case TokenAlg.HS256 | TokenAlg.HS384 | TokenAlg.HS512:
                 return CryptoKeys(secret=secret, alg=alg)
             case TokenAlg.EDDSA:
-                key: Any = ed25519.Ed25519PrivateKey.generate()
+                signer: ed25519.Ed25519PrivateKey | ec.EllipticCurvePrivateKey | RSAPrivateKey = (
+                    ed25519.Ed25519PrivateKey.generate()
+                )
             case TokenAlg.ES256:
-                key = ec.generate_private_key(ec.SECP256R1())
+                signer = ec.generate_private_key(ec.SECP256R1())
             case _:
-                key = rsa.generate_private_key(public_exponent=RSA_EXPONENT, key_size=RSA_SIZE)
-        pem = key.private_bytes(
+                signer = rsa.generate_private_key(public_exponent=RSA_EXPONENT, key_size=RSA_SIZE)
+        pem = signer.private_bytes(
             encoding=serialization.Encoding.PEM,
             format=serialization.PrivateFormat.PKCS8,
             encryption_algorithm=serialization.NoEncryption(),
@@ -354,7 +364,7 @@ class Crypto:
 
     def create_token(
         self,
-        payload: dict[str, Any],
+        payload: Claims,
         *,
         expires_in: timedelta | None = None,
         encrypted: bool = False,
@@ -368,7 +378,7 @@ class Crypto:
                 pass
         return self._create_token_jwe(claims) if encrypted else self._create_token_jws(claims)
 
-    def verify_token(self, token: str, *, issuer: str | None = None, audience: str | None = None) -> dict[str, Any]:
+    def verify_token(self, token: str, *, issuer: str | None = None, audience: str | None = None) -> Claims:
         """Decode JWS or JWE by shape, pin the configured alg, then enforce exp/nbf/iat and optional iss/aud."""
         match token.count("."):
             case TokenShape.JWS:
@@ -380,13 +390,13 @@ class Crypto:
         self._common_verify_claims(claims, issuer, audience)
         return claims
 
-    def public_jwks(self) -> dict[str, Any]:
+    def public_jwks(self) -> KeySetSerialization:
         """The public verification set for other services, servable as-is at /.well-known/jwks.json."""
         match self._token_key:
             case OctKey() | None:
                 raise CryptoError(NO_PUBLIC_JWKS)
             case key:
-                return dict(KeySet([key]).as_dict())
+                return KeySet([key]).as_dict()
 
     ##### SIGNATURES #####
 

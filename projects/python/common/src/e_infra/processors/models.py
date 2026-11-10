@@ -45,7 +45,7 @@ class Page:
     backend: Backend
     signals: tuple[DocSignal, ...]
     markdown: str
-    fallback: str = ""
+    fallback: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

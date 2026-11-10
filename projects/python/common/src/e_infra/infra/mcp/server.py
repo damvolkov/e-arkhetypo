@@ -6,12 +6,13 @@ The SDK negotiates every protocol version a client speaks (the legacy `initializ
 checks Host and Origin, keeps the sessions; `tools/list` is the registry's, `tools/call` the bridge's. The server is
 an ASGI app: the MCP endpoint's mount hands it the request whole."""
 
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Protocol
 
 from mcp import types
 from mcp.server.lowlevel import Server
 from mcp.server.streamable_http_manager import StreamableHTTPSessionManager
 from mcp.server.transport_security import TransportSecuritySettings
+from starlette.requests import Request
 
 from e_infra.infra.logger import logger
 from e_infra.infra.mcp.bridge import MCPBridge
@@ -20,10 +21,17 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
     from contextlib import AbstractAsyncContextManager
 
-    from litestar.types import Receive, Scope, Send
+    from starlette.types import Receive, Scope, Send
 
     from e_infra.infra.mcp.models import MCPEntry
     from e_infra.infra.mcp.registry import MCPRegistry
+
+
+class ToolContext(Protocol):
+    """What a call reads of the SDK's request context: the HTTP request its transport attached, if any."""
+
+    @property
+    def request(self) -> Request | None: ...
 
 
 class MCPServer:
@@ -66,31 +74,32 @@ class MCPServer:
             name=tool.name,
             title=tool.title,
             description=tool.description,
-            input_schema=entry.arguments,
-            output_schema=entry.answer,
+            input_schema=dict(entry.arguments),
+            output_schema=None if entry.answer is None else dict(entry.answer),
             annotations=hints,
         )
 
-    async def _list_tools(self, _ctx: Any, _params: Any) -> types.ListToolsResult:
+    async def _list_tools(
+        self, _ctx: ToolContext, _params: types.PaginatedRequestParams | None
+    ) -> types.ListToolsResult:
         return types.ListToolsResult(tools=[self._list_tool(entry) for entry in self._registry])
 
-    async def _call_tool(self, ctx: Any, params: types.CallToolRequestParams) -> types.CallToolResult:
+    async def _call_tool(self, ctx: ToolContext, params: types.CallToolRequestParams) -> types.CallToolResult:
         ### the HTTP request the transport attached: the endpoint's, its scope the caller's.
-        request: Any = getattr(ctx, "request", None)
-        match (params.name in self._registry, request):
+        match (params.name in self._registry, ctx.request):
             case (False, _):
                 return self._call_refused(f"no tool {params.name!r}: tools/list names them")
-            case (_, None):
-                return self._call_refused("a tool is called over HTTP, through the MCP endpoint")
-            case _:
+            case (_, Request() as request):
                 entry = self._registry[params.name]
                 answer = await self._bridge.call(request.scope, entry.path, params.arguments or {})
                 _ = answer.error and logger.warning("mcp tool refused", tool=params.name, reason=answer.text)
                 return types.CallToolResult(
                     content=[types.TextContent(type="text", text=answer.text)],
-                    structured_content=answer.value,
+                    structured_content=None if answer.value is None else dict(answer.value),
                     is_error=answer.error,
                 )
+            case _:
+                return self._call_refused("a tool is called over HTTP, through the MCP endpoint")
 
     @staticmethod
     def _call_refused(text: str) -> types.CallToolResult:
@@ -114,5 +123,5 @@ class MCPServer:
         return self._manager.run()
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
-        ### the same ASGI contract, typed by Litestar on this side and by Starlette on the SDK's.
-        await self._manager.handle_request(cast("Any", scope), cast("Any", receive), cast("Any", send))
+        ### the SDK speaks Starlette's ASGI types: the mount hands the request over typed as its contract.
+        await self._manager.handle_request(scope, receive, send)

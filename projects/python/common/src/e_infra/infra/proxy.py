@@ -19,6 +19,6 @@ class LazyProxy[T]:
     def __init__(self, build: Callable[[], T]) -> None:
         self._get = functools.cache(build)
 
-    def __getattr__(self, name: str) -> Any:
+    def __getattr__(self, name: str) -> Any:  # noqa: ANN401 — the proxy forwards whatever attribute `T` has
         ### only reached for names absent on the proxy itself: `_get` is a slot, so no recursion here.
         return getattr(self._get(), name)

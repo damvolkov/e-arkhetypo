@@ -1,5 +1,4 @@
-"""ports/provider: the contract of everything the lifespan opens — lifecycle, health, an orienting spec, and the
-guard on what it holds once open."""
+"""ports/provider: the contract of everything the lifespan opens — lifecycle, health, spec, the open guard."""
 
 from dataclasses import dataclass
 from enum import StrEnum, auto

@@ -15,7 +15,7 @@ from e_infra.infra.config.processors import DocSignal
 from e_infra.infra.errors import ParseError, ProviderError
 from e_infra.infra.logger import logger
 from e_infra.ports.pages import FastPage, PageBlock
-from e_infra.ports.provider import Isolation, Locality, ProviderSpec, Workload
+from e_infra.ports.provider import Isolation, Locality, Opened, ProviderSpec, Workload
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -34,6 +34,7 @@ class LiteparseAdapter:
     spec: ClassVar[ProviderSpec] = ProviderSpec(
         "liteparse", Locality.EMBEDDED, Workload.CPU_BOUND, Isolation.THREAD, fork_safe=True
     )
+    parser = Opened[LiteParse](ParseError)
 
     __slots__ = ("_ocr", "_ocr_language", "_parser", "_tessdata", "_workers")
 
@@ -52,14 +53,6 @@ class LiteparseAdapter:
         except LiteparseError as error:
             logger.error("liteparse failed", error=str(error))
             raise ParseError(str(error)) from error
-
-    def _common_parser(self) -> LiteParse:
-        match self._parser:
-            case None:
-                msg = "LiteparseAdapter is not open: the lifespan opens it, callers never do"
-                raise ParseError(msg)
-            case parser:
-                return parser
 
     def _enter_parser(self) -> LiteParse:
         return LiteParse(
@@ -99,7 +92,7 @@ class LiteparseAdapter:
         return tuple(
             PageBlock(
                 kind=block.kind,
-                text=block.text or "\n".join(block.lines or ()),
+                text=block.text or "\n".join(block.lines or ()) or None,
                 level=block.level if block.kind == "heading" else None,
                 header=tuple(cell.text or "" for cell in block.header) if block.header else (),
                 rows=tuple(tuple(cell.text or "" for cell in row) for row in block.rows or ()),
@@ -122,7 +115,7 @@ class LiteparseAdapter:
 
     async def health(self) -> bool:
         try:
-            self._common_parser()
+            _ = self.parser
         except ProviderError as error:
             logger.warning("liteparse unhealthy", error=str(error))
             raise
@@ -131,7 +124,7 @@ class LiteparseAdapter:
     async def parse(self, data: bytes) -> tuple[FastPage, ...]:
         logger.debug("liteparse parse", size=len(data))
         with self._common_guard():
-            read = await self._common_parser().aparse(data)
+            read = await self.parser.aparse(data)
         pages = (read.get_page(number) for number in range(1, read.num_pages + 1))
         return tuple(
             FastPage(

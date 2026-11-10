@@ -9,7 +9,7 @@ from theine import Cache
 
 from e_infra.infra.errors import CacheError, ProviderError
 from e_infra.infra.logger import logger
-from e_infra.ports.provider import Isolation, Locality, ProviderSpec, Workload
+from e_infra.ports.provider import Isolation, Locality, Opened, ProviderSpec, Workload
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
@@ -21,24 +21,13 @@ class TheineAdapter[T]:
     """Values of type T in memory, at most `size`, each kept `ttl` (None: until evicted)."""
 
     spec: ClassVar[ProviderSpec] = ProviderSpec("theine", Locality.EMBEDDED, Workload.CPU_BOUND, Isolation.LOOP)
+    store = Opened[Cache[str, T]](CacheError)
 
     __slots__ = ("_size", "_store", "_ttl")
 
     def __init__(self, *, size: int, ttl: timedelta | None) -> None:
         self._size, self._ttl = size, ttl
         self._store: Cache[str, T] | None = None
-
-    ##### PRIVATE #####
-
-    def _common_open(self) -> Cache[str, T]:
-        match self._store:
-            case None:
-                msg = "TheineAdapter is not open: the lifespan opens it, callers never do"
-                raise CacheError(msg)
-            case store:
-                return store
-
-    ############################################################
 
     ##### PUBLIC #####
 
@@ -53,19 +42,19 @@ class TheineAdapter[T]:
 
     async def health(self) -> bool:
         try:
-            self._common_open()
+            _ = self.store
         except ProviderError as error:
             logger.warning("theine unhealthy", error=str(error))
             raise
         return True
 
     async def get(self, key: str) -> T | None:
-        value, found = self._common_open().get(key)
+        value, found = self.store.get(key)
         logger.debug("theine get", key=key, hit=found)
         return value if found else None
 
     async def many(self, keys: Sequence[str]) -> dict[str, T]:
-        store = self._common_open()
+        store = self.store
         found = ((key, store.get(key)) for key in keys)
         hits = {key: value for key, (value, hit) in found if hit and value is not None}
         logger.debug("theine many", keys=len(keys), hits=len(hits))
@@ -73,9 +62,9 @@ class TheineAdapter[T]:
 
     async def put(self, key: str, value: T) -> None:
         logger.debug("theine put", key=key)
-        self._common_open().set(key, value, self._ttl)
+        self.store.set(key, value, self._ttl)
 
     async def put_many(self, items: Mapping[str, T]) -> None:
-        store = self._common_open()
+        store = self.store
         logger.debug("theine put many", keys=len(items))
         _ = [store.set(key, value, self._ttl) for key, value in items.items()]

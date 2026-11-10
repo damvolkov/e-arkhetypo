@@ -271,7 +271,7 @@ async def test_pgqueuer_manager_restarted(
                 raise ConnectionResetError(msg)
             case _:
                 again.set()
-                await self._closing.wait()
+                await self.closing.wait()
 
     monkeypatch.setattr(PgqueuerDriver, "_start_manage", dies)
     with anyio.fail_after(10):
@@ -321,7 +321,7 @@ async def test_pgqueuer_scheduler_restarted(
                 raise ConnectionResetError(msg)
             case _:
                 again.set()
-                await self._closing.wait()
+                await self.closing.wait()
 
     async def fire() -> None:
         """Never due in this test."""

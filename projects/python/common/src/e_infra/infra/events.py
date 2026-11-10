@@ -10,7 +10,7 @@ adapter of the same port. The engine is entered by its lifespan: entering starts
 is still waiting and stops."""
 
 from collections import defaultdict
-from typing import TYPE_CHECKING, Any, Final, Protocol, Self, runtime_checkable
+from typing import TYPE_CHECKING, Final, Protocol, Self, runtime_checkable
 
 import anyio
 
@@ -25,7 +25,9 @@ if TYPE_CHECKING:
 ### events that may wait for delivery before publishing waits too.
 CAPACITY: Final[int] = 1000
 
-type EventsHandler = Callable[[Any], Awaitable[None]]
+### an event is anything at all: the publisher knows no listener, and a listener names the type it takes.
+type Event = object  # ast-grep-ignore: object-annotation
+type EventsHandler = Callable[[Event], Awaitable[None]]
 
 
 ##### PORTS #####
@@ -33,7 +35,7 @@ type EventsHandler = Callable[[Any], Awaitable[None]]
 class EventsPort(Protocol):
     """What a producer may ask: announce one event, never waiting on a listener's work."""
 
-    async def publish(self, event: object) -> None: ...
+    async def publish(self, event: Event) -> None: ...
 
 
 ##### MEMORY #####
@@ -43,20 +45,20 @@ class MemoryEvents:
     __slots__ = ("_group", "_handlers", "_receive", "_send")
 
     def __init__(self, capacity: int = CAPACITY) -> None:
-        self._send, self._receive = anyio.create_memory_object_stream[Any](capacity)
+        self._send, self._receive = anyio.create_memory_object_stream[Event](capacity)
         self._handlers: defaultdict[type, list[EventsHandler]] = defaultdict(list)
         self._group: TaskGroup | None = None
 
     ##### PRIVATE #####
 
     @staticmethod
-    async def _start_one(handler: EventsHandler, event: object) -> None:
+    async def _start_one(handler: EventsHandler, event: Event) -> None:
         try:
             await handler(event)
         except Exception as error:  # noqa: BLE001 — a listener's failure is its own, never the publisher's
             logger.warning("event handler failed", kind=type(event).__name__, error=f"{type(error).__name__}: {error}")
 
-    async def _start_each(self, event: object) -> None:
+    async def _start_each(self, event: Event) -> None:
         """One event to every handler of its type, in subscription order."""
         _ = [await self._start_one(handler, event) for handler in tuple(self._handlers.get(type(event), ()))]
 
@@ -72,9 +74,14 @@ class MemoryEvents:
 
     def subscribe[T](self, kind: type[T], handler: Callable[[T], Awaitable[None]]) -> None:
         """Every event of `kind` delivered to `handler`, after the handlers subscribed before it."""
-        self._handlers[kind].append(handler)
 
-    async def publish(self, event: object) -> None:
+        async def narrowed(event: Event) -> None:
+            ### the table is keyed by type, so only a `kind` reaches here: the check narrows what the key proved.
+            _ = isinstance(event, kind) and await handler(event)
+
+        self._handlers[kind].append(narrowed)
+
+    async def publish(self, event: Event) -> None:
         """Hand the event over for delivery; waits only when CAPACITY events already wait."""
         await self._send.send(event)
 

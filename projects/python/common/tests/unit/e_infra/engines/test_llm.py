@@ -44,6 +44,14 @@ def engine(
 
 
 ##### RUN #####
+async def test_run_schema_not_an_object_is_refused(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("e_infra.engines.llm.msgspec.json.schema", lambda _: {"$ref": "#/$defs/x", "$defs": {"x": []}})
+    llm, model = engine(GOOD)
+    with pytest.raises(ModelError, match="no object schema"):
+        await llm.run(Tier.LOW, "s", "p", Code)
+    assert model.calls == []
+
+
 async def test_run_answers_the_contract_type() -> None:
     llm, model = engine(GOOD)
     assert await llm.run(Tier.MEDIUM, "be exact", "read", Code) == Code(

@@ -1,9 +1,10 @@
 """infra/config/providers: the edges of the providers — one block per driver and adapter, every field its variable."""
 
+from collections.abc import Mapping
 from datetime import timedelta
 from enum import StrEnum, auto
 from pathlib import Path
-from typing import Annotated, Any, ClassVar, Self
+from typing import Annotated, ClassVar, Self
 
 from pydantic import (
     ByteSize,
@@ -21,6 +22,7 @@ from pydantic import (
 )
 
 from e_infra.infra.config.base import BaseSettings
+from e_infra.infra.payload import JSON
 
 
 ##### ENUMS #####
@@ -141,7 +143,7 @@ class ProviderSettings(BaseSettings):
     ### sites that serve robots ask who asks and where to reach them: Wikimedia answers 403 without.
     HTTP_AGENT: str = "e-infra/1 (+https://github.com/damvolkov/e-arkhetypo)"
     ### sent to every service the process reaches: never one service's credential, which travels per call.
-    HTTP_HEADERS: dict[str, str] = Field(default_factory=dict)
+    HTTP_HEADERS: Mapping[str, str] = Field(default_factory=dict)
 
     ### OPENAI
     LLM_URL: HttpUrl = HttpUrl("http://127.0.0.1:45100/v1")
@@ -154,7 +156,7 @@ class ProviderSettings(BaseSettings):
     ### the stack's served alias (`stack/llm/vllm`: `--served-model-name … demian-model`): stable across the models.
     LLM_MODEL: str = "demian-model"
     ### a provider's own body fields, merged into every chat-completions request.
-    LLM_EXTRA: dict[str, Any] = Field(default_factory=dict)
+    LLM_EXTRA: Mapping[str, JSON] = Field(default_factory=dict)
 
     ### GLINER
     GLINER_URL: HttpUrl | None = HttpUrl("http://127.0.0.1:45120")
@@ -172,20 +174,20 @@ class ProviderSettings(BaseSettings):
     DB_TIMEOUT: timedelta = timedelta(seconds=5)
 
     ### OTEL
-    ### a collector's base, or gRPC's `host:port`: not always a URL. Empty, spans are minted and never exported.
-    OTEL_ENDPOINT: str = ""
+    ### a collector's base, or gRPC's `host:port`: not always a URL. Unset, spans are minted and never exported.
+    OTEL_ENDPOINT: str | None = None
     OTEL_PROTOCOL: OTelProtocol = OTelProtocol.HTTP
-    OTEL_HEADERS: dict[str, SecretStr] = Field(default_factory=dict)
+    OTEL_HEADERS: Mapping[str, SecretStr] = Field(default_factory=dict)
     OTEL_TIMEOUT: timedelta = timedelta(seconds=10)
     OTEL_FLUSH: timedelta = timedelta(seconds=5)
     OTEL_SERVICE: str = "e-stack"
-    OTEL_ATTRIBUTES: dict[str, str] = Field(default_factory=dict)
+    OTEL_ATTRIBUTES: Mapping[str, str] = Field(default_factory=dict)
     OTEL_SAMPLE: Annotated[float, Field(ge=0.0, le=1.0)] = 1.0
 
     ### GCS
     ### the bucket, and where under it this deployment's keys live (`test/run/` in tests).
     GCS_BUCKET: str = "local"
-    GCS_PREFIX: str = ""
+    GCS_PREFIX: str | None = None
     ### the emulator's base; unset for Google with ADC. STORAGE_EMULATOR_HOST wins over GCS_API_ROOT.
     STORAGE_EMULATOR_HOST: str | None = None
     GCS_API_ROOT: str | None = None
@@ -248,7 +250,7 @@ class ProviderSettings(BaseSettings):
 
     @field_validator("RERANK_URL", "GLINER_URL", mode="before")
     @classmethod
-    def _url_none(cls, value: object) -> object:
+    def _url_none(cls, value: JSON) -> JSON:
         ### the string `none` is the service off, as the variable always said.
         return None if value == "none" else value
 

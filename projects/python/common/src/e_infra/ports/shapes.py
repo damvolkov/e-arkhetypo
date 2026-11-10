@@ -13,24 +13,27 @@ from e_infra.ports.provider import Provider
 from e_infra.ports.triples import Serialization
 
 
-def _local(iri: str) -> str:
-    return iri.rsplit("#", 1)[-1].rsplit("/", 1)[-1]
+def _local(iri: str | None) -> str:
+    return (iri or "").rsplit("#", 1)[-1].rsplit("/", 1)[-1]
 
 
 class Violation(msgspec.Struct, frozen=True, kw_only=True):
     """One broken constraint: the node it fell on, the shape's message, the shape, its component, the path."""
 
     focus_node: str
-    message: str = ""
-    source_shape: str = ""
-    component: str = ""
-    path: str = ""
+    message: str | None = None
+    source_shape: str | None = None
+    component: str | None = None
+    path: str | None = None
 
     @property
     def key(self) -> str:
         """What fired, engine-neutral."""
-        named = self.source_shape.startswith(("http://", "https://", "urn:"))
-        return _local(self.source_shape) if named else f"{_local(self.component)}@{_local(self.path)}"
+        match self.source_shape:
+            case str() as shape if shape.startswith(("http://", "https://", "urn:")):
+                return _local(shape)
+            case _:
+                return f"{_local(self.component)}@{_local(self.path)}"
 
 
 class Report(msgspec.Struct, frozen=True, kw_only=True):

@@ -40,7 +40,7 @@ async def test_asyncpg_open_builds_the_pool_from_settings_and_close_closes_it(
                 "init": AsyncpgStatements._common_born,
             },
         )
-        assert asyncpg_driver._common_pool() is pool
+        assert asyncpg_driver.pool is pool
     assert pool.closed
     assert logs.at("info") == ["asyncpg opened", "asyncpg closed"]
     await asyncpg_driver.__aexit__(None, None, None)
@@ -55,7 +55,7 @@ async def test_asyncpg_unopened_calls_are_database_errors(asyncpg_driver: Asyncp
         with pytest.raises(DatabaseError, match="not open"):
             await call
     with pytest.raises(DatabaseError, match="not open"):
-        _ = asyncpg_driver._common_pool()
+        _ = asyncpg_driver.pool
 
 
 @pytest.mark.parametrize(

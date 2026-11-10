@@ -59,7 +59,7 @@ async def test_database_types_are_one_shape(db: PsqlpyDriver | AsyncpgDriver) ->
         "j": dict, "u": str, "t": datetime, "f": float, "n": Decimal, "a": list, "b": bool, "s": int, "by": bytes,
         "none": type(None),
     }  # fmt: skip
-    assert (found["j"], found["u"], found["t"].tzinfo is not None) == (
+    assert (found["j"], found["u"], isinstance(stamp := found["t"], datetime) and stamp.tzinfo is not None) == (
         {"a": 1},
         "7d5c2f3e-0d1b-4c5a-9f6e-1a2b3c4d5e6f",
         True,

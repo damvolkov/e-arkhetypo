@@ -19,17 +19,23 @@ validated it); `CheckedStruct.convert` is that decode for values already parsed,
 
 from contextlib import contextmanager
 from contextvars import ContextVar
-from typing import TYPE_CHECKING, Any, Final, overload
+from typing import TYPE_CHECKING, Final, overload
 
 import msgspec
 from msgspec.structs import force_setattr
 
 if TYPE_CHECKING:
     from collections.abc import Generator
+    from types import UnionType
+
+    from e_infra.infra.payload import JSON
 
 ### the builtins a checked type may extend: msgspec encodes them natively, and builds them from their decoded form.
 BUILTINS: Final[tuple[type, ...]] = (dict, list, tuple, str, int, float)
 TRUSTED: Final[ContextVar[bool]] = ContextVar("struct_trusted", default=False)
+
+### an instance of whichever checked model or type the caller names: anything at all is the contract.
+type Checked = object  # ast-grep-ignore: object-annotation
 
 
 class CheckedStruct(msgspec.Struct, frozen=True):
@@ -52,7 +58,7 @@ class CheckedStruct(msgspec.Struct, frozen=True):
     ############################################################
 
     @staticmethod
-    def dec_hook(kind: type, value: Any) -> Any:
+    def dec_hook(kind: type, value: JSON) -> Checked:
         """Decode a checked type: built — and so validated — from its decoded form."""
         match kind:
             case type() if issubclass(kind, BUILTINS):
@@ -62,7 +68,7 @@ class CheckedStruct(msgspec.Struct, frozen=True):
                 raise TypeError(msg)
 
     @staticmethod
-    def enc_hook(value: Any) -> Any:
+    def enc_hook(value: Checked) -> JSON:
         """Encode a checked type as the builtin it extends."""
         match [base for base in type(value).__mro__ if base in BUILTINS]:
             case [builtin, *_]:
@@ -73,14 +79,14 @@ class CheckedStruct(msgspec.Struct, frozen=True):
 
     @overload
     @classmethod
-    def convert[T](cls, value: Any, kind: type[T]) -> T: ...
+    def convert[T](cls, value: JSON, kind: type[T]) -> T: ...
 
     @overload
     @classmethod
-    def convert(cls, value: Any, kind: Any) -> Any: ...
+    def convert(cls, value: JSON, kind: UnionType) -> Checked: ...
 
     @classmethod
-    def convert(cls, value: Any, kind: Any) -> Any:
+    def convert(cls, value: JSON, kind: type | UnionType) -> Checked:
         """Decode builtins (a parsed dict, a row) into a checked model — or a union of them, as msgspec types it:
         the hook passed, the decode trusted."""
         with cls.trusted():

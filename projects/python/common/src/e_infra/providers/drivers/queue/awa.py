@@ -14,12 +14,13 @@ answers again awa reconnects by itself. A cancel lands in storage at once; a han
 `QUEUE_DRAIN`, then releases the pool, all within `QUEUE_DRAIN` + `QUEUE_TIMEOUT`: past it, a `QueueError`."""
 
 import json
+from collections.abc import Mapping
 from contextlib import AsyncExitStack
 from dataclasses import dataclass
 from datetime import datetime
 from functools import partial
 from itertools import count
-from typing import TYPE_CHECKING, Any, ClassVar, Final, Self
+from typing import TYPE_CHECKING, ClassVar, Final, Self
 
 import anyio
 import msgspec
@@ -29,15 +30,16 @@ from awa import DatabaseError as AwaDatabaseError
 from e_infra.infra.background import BackgroundJob, BackgroundState
 from e_infra.infra.errors import ProviderError, QueueError
 from e_infra.infra.logger import logger
-from e_infra.ports.provider import Isolation, Locality, ProviderSpec, Workload
+from e_infra.ports.provider import Isolation, Locality, Opened, ProviderSpec, Workload
 
 if TYPE_CHECKING:
-    from collections.abc import Awaitable, Callable, Mapping
+    from collections.abc import Awaitable, Callable, Sequence
     from datetime import timedelta
 
     from pydantic import PostgresDsn, Secret
 
     from e_infra.infra.background import BackgroundHandler
+    from e_infra.infra.payload import JSON
 
 SCHEMA: Final[tuple[str, ...]] = (
     "CREATE SCHEMA IF NOT EXISTS background",
@@ -50,6 +52,8 @@ REPORT: Final[str] = (
     "INSERT INTO background.progress (job, snapshot) VALUES ($1, $2::jsonb) "
     "ON CONFLICT (job) DO UPDATE SET snapshot = EXCLUDED.snapshot, updated = now()"
 )
+type AwaJob = Job[dict[str, JSON]]
+
 ### awa binds no array parameter: the ids travel as one JSON array.
 SNAPSHOTS: Final[str] = (
     "SELECT job, snapshot FROM background.progress WHERE job IN (SELECT jsonb_array_elements_text($1::jsonb)::bigint)"
@@ -61,9 +65,9 @@ class AwaRun:
     """A job in flight on awa: the job as it was claimed, and the writer of its snapshot."""
 
     job: BackgroundJob
-    write: Callable[[Mapping[str, Any]], Awaitable[None]]
+    write: Callable[[Mapping[str, JSON]], Awaitable[None]]
 
-    async def report(self, progress: Mapping[str, Any]) -> None:
+    async def report(self, progress: Mapping[str, JSON]) -> None:
         await self.write(progress)
 
 
@@ -71,6 +75,7 @@ class AwaDriver:
     """An awa client behind `QueuePort`."""
 
     spec: ClassVar[ProviderSpec] = ProviderSpec("awa", Locality.REMOTE, Workload.IO_BOUND, Isolation.LOOP, pooled=True)
+    client = Opened[AsyncClient](QueueError)
 
     __slots__ = ("_client", "_drain", "_dsn", "_poll", "_pool", "_timeout")
 
@@ -93,7 +98,7 @@ class AwaDriver:
         async with AsyncExitStack() as stack:
             _ = [await stack.enter_async_context(await client.transaction()) for _ in range(self._pool)]
 
-    async def _register_run(self, handler: BackgroundHandler, job: Job[dict[str, Any]]) -> Cancel | None:
+    async def _register_run(self, handler: BackgroundHandler, job: AwaJob) -> Cancel | None:
         try:
             async with anyio.create_task_group() as group:
                 group.start_soon(self._register_watch, job, group.cancel_scope)
@@ -105,30 +110,39 @@ class AwaDriver:
         ### a cancel caught mid-work is settled as one: returning plainly would claim the work completed.
         return Cancel() if job.is_cancelled() else None
 
-    async def _register_report(self, job: int, progress: Mapping[str, Any]) -> None:
+    async def _register_report(self, job: int, progress: Mapping[str, JSON]) -> None:
         await self._common_execute(REPORT, job, json.dumps(progress))
 
-    async def _register_watch(self, job: Job[dict[str, Any]], scope: anyio.CancelScope) -> None:
+    async def _register_watch(self, job: AwaJob, scope: anyio.CancelScope) -> None:
         _ = await anext(tick for tick in count() if await self._register_cancelled(job))
         scope.cancel()
 
-    async def _register_cancelled(self, job: Job[dict[str, Any]]) -> bool:
+    async def _register_cancelled(self, job: AwaJob) -> bool:
         await anyio.sleep(self._poll.total_seconds())
         return job.is_cancelled()
 
-    async def _common_snapshots(self, ids: list[int]) -> dict[int, dict[str, Any]]:
+    async def _common_snapshots(self, ids: list[int]) -> dict[int, Mapping[str, JSON]]:
         rows = await self._common_fetch(SNAPSHOTS, json.dumps(ids)) if ids else []
-        return {row["job"]: row["snapshot"] for row in rows}
+        return dict(map(self._common_snapshot, rows))
 
-    async def _common_execute(self, query: str, *params: object, bounded: bool = True) -> None:
+    @staticmethod
+    def _common_snapshot(row: Mapping[str, JSON]) -> tuple[int, Mapping[str, JSON]]:
+        match row:
+            case {"job": int() as job, "snapshot": Mapping() as snapshot}:
+                return job, snapshot
+            case _:
+                msg = f"a progress row of awa is not (job, snapshot): {dict(row)}"
+                raise QueueError(msg)
+
+    async def _common_execute(self, query: str, *params: JSON, bounded: bool = True) -> None:
         async def run(client: AsyncClient) -> None:
             async with await client.transaction() as tx:
                 await tx.execute(query, *params)
 
         await self._common_call(run, bounded=bounded)
 
-    async def _common_fetch(self, query: str, *params: object) -> list[dict[str, Any]]:
-        async def run(client: AsyncClient) -> list[dict[str, Any]]:
+    async def _common_fetch(self, query: str, *params: JSON) -> Sequence[Mapping[str, JSON]]:
+        async def run(client: AsyncClient) -> Sequence[Mapping[str, JSON]]:
             ### returned after the block: awa's transaction may swallow an exit, so the type checker wants the rows bound.
             async with await client.transaction() as tx:
                 rows = await tx.fetch_all(query, *params)
@@ -141,7 +155,7 @@ class AwaDriver:
         `QueueError`."""
         try:
             with anyio.fail_after(self._timeout.total_seconds() if bounded else None):
-                return await call(self._common_client())
+                return await call(self.client)
         except AwaDatabaseError as error:
             logger.error("awa database failed", error=str(error))
             raise QueueError(str(error)) from error
@@ -150,9 +164,7 @@ class AwaDriver:
             logger.error("awa call timed out", timeout=str(self._timeout))
             raise QueueError(msg) from error
 
-    async def _common_found(
-        self, call: Callable[[AsyncClient], Awaitable[Job[dict[str, Any]] | None]]
-    ) -> BackgroundJob | None:
+    async def _common_found(self, call: Callable[[AsyncClient], Awaitable[AwaJob | None]]) -> BackgroundJob | None:
         """The job a call returns with its snapshot, or None when its id is unknown to awa."""
         try:
             found = await self._common_call(call)
@@ -169,7 +181,7 @@ class AwaDriver:
                 return self._common_job(job, (await self._common_snapshots([job.id])).get(job.id))
 
     @staticmethod
-    def _common_job(job: Job[dict[str, Any]], progress: Mapping[str, Any] | None) -> BackgroundJob:
+    def _common_job(job: AwaJob, progress: Mapping[str, JSON] | None) -> BackgroundJob:
         return BackgroundJob(
             id=str(job.id),
             kind=job.kind,
@@ -182,14 +194,6 @@ class AwaDriver:
             errors=tuple(str(error.get("error", "")).partition("\n")[0] for error in job.errors),
             finished=datetime.fromisoformat(job.finalized_at) if job.finalized_at else None,
         )
-
-    def _common_client(self) -> AsyncClient:
-        match self._client:
-            case None:
-                msg = "AwaDriver is not open: the lifespan opens it, callers never do"
-                raise QueueError(msg)
-            case client:
-                return client
 
     ############################################################
 
@@ -238,14 +242,14 @@ class AwaDriver:
                     self._client = None
 
     def register(self, kind: str, queue: str, handler: BackgroundHandler) -> None:
-        _ = self._common_client().task(dict, kind=kind, queue=queue)(partial(self._register_run, handler))
+        _ = self.client.task(dict, kind=kind, queue=queue)(partial(self._register_run, handler))
 
     async def start(self, slots: Mapping[str, int]) -> None:
         poll = int(self._poll.total_seconds() * 1000)
         logger.debug("awa start", queues=len(slots))
         await self._common_call(lambda client: client.start(list(slots.items()), poll_interval_ms=poll))
 
-    async def enqueue(self, kind: str, args: Mapping[str, Any], *, queue: str, attempts: int) -> BackgroundJob:
+    async def enqueue(self, kind: str, args: Mapping[str, JSON], *, queue: str, attempts: int) -> BackgroundJob:
         ### awa takes JSON types only: a tuple (any sequence field of a struct's builtins) goes through as a list.
         plain = msgspec.json.decode(msgspec.json.encode(args))
         job = await self._common_call(

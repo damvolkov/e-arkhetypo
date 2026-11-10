@@ -26,7 +26,7 @@ if TYPE_CHECKING:
 
 
 @get("/who", sync_to_thread=False)
-def who(request: Request[Caller, None, Any]) -> dict[str, str]:
+def who(request: Request[Caller, None, Any]) -> dict[str, str | None]:
     return {"name": request.user.name, "role": request.user.role}
 
 

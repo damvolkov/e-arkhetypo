@@ -14,17 +14,24 @@ Accepting a snapshot is a human act: ``--snapshot-update`` regenerates the SVGs 
 review the diff, commit. The gate then fails on any visual drift. Materialized only into tui services
 (api and cli exclude this file at materialize time)."""
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Final, Protocol
 
 import pytest
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable, Mapping, Sequence
 
+    from _pytest.mark.structures import ParameterSet
     from textual.app import App
 
 ##### DEFAULTS #####
-DEFAULT_SIZES: tuple[tuple[int, int], ...] = ((80, 24), (140, 50))
+DEFAULT_SIZES: Final[tuple[tuple[int, int], ...]] = ((80, 24), (140, 50))
+
+
+class SnapCompare(Protocol):
+    """The ``snap_compare`` fixture of pytest-textual-snapshot: render an app at a size, compare it to the stored snapshot."""
+
+    def __call__(self, app: App[None], *, terminal_size: tuple[int, int]) -> bool: ...
 
 
 class GallerySnap:
@@ -35,7 +42,9 @@ class GallerySnap:
         self._sizes = tuple(sizes)
 
     @staticmethod
-    def shoot(snap_compare: Any, apps: Mapping[str, Callable[[], App[Any]]], name: str, size: tuple[int, int]) -> bool:
+    def shoot(
+        snap_compare: SnapCompare, apps: Mapping[str, Callable[[], App[None]]], name: str, size: tuple[int, int]
+    ) -> bool:
         """Build the named architecture fresh and compare its render against the stored snapshot."""
         return snap_compare(apps[name](), terminal_size=size)
 
@@ -43,7 +52,7 @@ class GallerySnap:
 
     ##### PUBLIC #####
 
-    def cases(self) -> list[Any]:
+    def cases(self) -> list[ParameterSet]:
         """One param per (architecture, size), id `<name>-<w>x<h>`."""
         return [
             pytest.param(name, size, id=f"{name}-{size[0]}x{size[1]}") for name in self._names for size in self._sizes

@@ -307,7 +307,7 @@ def test_settings_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_generate_keys_symmetric_has_no_pem() -> None:
     settings = Crypto.generate_keys()
     assert settings.alg is TokenAlg.HS256
-    assert settings.private_key == ""
+    assert settings.private_key is None
 
 
 ##### IDENTIFIERS #####

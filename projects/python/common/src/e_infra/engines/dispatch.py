@@ -31,7 +31,7 @@ from contextlib import AsyncExitStack, contextmanager
 from dataclasses import dataclass
 from functools import partial
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Any, Final, Protocol, Self
+from typing import TYPE_CHECKING, Final, Protocol, Self
 
 import anyio
 from croniter import croniter
@@ -47,12 +47,14 @@ from e_infra.infra.background import (
 from e_infra.infra.errors import DispatchError, QueueError, ScheduleError, UnknownWorkError
 from e_infra.infra.logger import logger
 from e_infra.ports.queue import QueuePort, SchedulePort
-from e_infra.ports.telemetry import SpanKey, SpanRole
+from e_infra.ports.telemetry import AttributeValue, SpanKey, SpanRole
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable, Generator
     from contextlib import AbstractContextManager
     from types import TracebackType
+
+    from e_infra.infra.payload import JSON
 
     type Engine = QueuePort | Background
 
@@ -72,7 +74,7 @@ class DispatchTelemetry(Protocol):
 
     def record(self, attributes: Mapping[str, str | bool | int | float]) -> None: ...
 
-    def event(self, name: str, attributes: Mapping[str, object]) -> None: ...
+    def event(self, name: str, attributes: Mapping[str, AttributeValue | None]) -> None: ...
 
     def carrier(self) -> dict[str, str]: ...
 
@@ -95,7 +97,7 @@ class DispatchUntraced:
 
     def record(self, attributes: Mapping[str, str | bool | int | float]) -> None: ...
 
-    def event(self, name: str, attributes: Mapping[str, object]) -> None: ...
+    def event(self, name: str, attributes: Mapping[str, AttributeValue | None]) -> None: ...
 
     def carrier(self) -> dict[str, str]:
         return {}
@@ -115,7 +117,7 @@ class BackgroundSchedule:
     name: str
     cron: str
     kind: str
-    args: Mapping[str, Any]
+    args: Mapping[str, JSON]
 
 
 class DispatchEngine:
@@ -159,7 +161,7 @@ class DispatchEngine:
         job, telemetry = run.job, self._telemetry
         args = {key: value for key, value in job.args.items() if key != TRACE}
         reporter = BackgroundReport(run, self._throttle)
-        last: list[Mapping[str, Any]] = [{}]
+        last: list[Mapping[str, JSON]] = [{}]
         named = {
             SpanKey.INPUT: self._submit_plain(args),
             "job.id": job.id,
@@ -167,7 +169,7 @@ class DispatchEngine:
             "job.attempt": job.attempt,
         }
 
-        async def report(progress: Mapping[str, Any]) -> None:
+        async def report(progress: Mapping[str, JSON]) -> None:
             last[0] = progress
             telemetry.event("progress", self._register_flat(progress))
             await reporter.report(progress)
@@ -181,10 +183,15 @@ class DispatchEngine:
                     await reporter.flush()
 
     @staticmethod
-    def _register_flat(progress: Mapping[str, Any]) -> dict[str, Any]:
+    def _register_scalar(value: JSON) -> AttributeValue | None:
+        """What a span holds of a value: itself when it is a scalar, else its text."""
+        return value if value is None or isinstance(value, str | bool | int | float) else str(value)
+
+    @classmethod
+    def _register_flat(cls, progress: Mapping[str, JSON]) -> dict[str, AttributeValue | None]:
         """A snapshot one level deep as dotted keys (`tally.ingested`), a sequence as its length: what a span holds."""
         return {
-            f"{key}.{inner}" if inner else key: value
+            f"{key}.{inner}" if inner else key: cls._register_scalar(value)
             for key, held in progress.items()
             for inner, value in (held.items() if isinstance(held, Mapping) else (("", held),))
         } | {key: len(held) for key, held in progress.items() if isinstance(held, list | tuple)}
@@ -192,7 +199,7 @@ class DispatchEngine:
     async def _schedule_fire(self, schedule: BackgroundSchedule) -> None:
         """One tick: the schedule's kind submitted, coalesced; a tick that cannot be submitted is said and skipped."""
         try:
-            job = await self.submit(schedule.kind, coalesce=True, **schedule.args)
+            job = await self._submit_job(schedule.kind, schedule.args, attempts=1, coalesce=True)
         except Exception as failure:  # noqa: BLE001 — a tick that failed is skipped, never the end of the clock
             logger.warning(
                 "schedule fired in vain", schedule=schedule.name, error=f"{type(failure).__name__}: {failure}"
@@ -249,19 +256,19 @@ class DispatchEngine:
                 return durable
 
     @staticmethod
-    def _submit_plain(args: Mapping[str, Any]) -> str:
+    def _submit_plain(args: Mapping[str, JSON]) -> str:
         """Arguments as a queue keeps them — JSON, keys sorted, the trace left out —: what tells the same submit from
         another."""
         kept = {key: value for key, value in args.items() if key != TRACE}
         return json.dumps(json.loads(json.dumps(kept, default=str)), sort_keys=True)
 
-    async def _submit_waiting(self, kind: str, args: Mapping[str, Any]) -> BackgroundJob | None:
+    async def _submit_waiting(self, kind: str, args: Mapping[str, JSON]) -> BackgroundJob | None:
         """The same kind and arguments already queued and not yet started, if any."""
         plain = self._submit_plain(args)
         waiting = await self.jobs(kind=kind, state=BackgroundState.AVAILABLE, limit=WAITING)
         return next((job for job in waiting if self._submit_plain(job.args) == plain), None)
 
-    async def _submit_durable(self, kind: str, args: Mapping[str, Any], attempts: int) -> BackgroundJob | None:
+    async def _submit_durable(self, kind: str, args: Mapping[str, JSON], attempts: int) -> BackgroundJob | None:
         queue = self._works[kind][0]
         match self._durable:
             case None:
@@ -272,6 +279,13 @@ class DispatchEngine:
                 except QueueError as error:
                     logger.warning("background enqueue fell back to memory", kind=kind, error=str(error))
                     return None
+
+    async def _submit_job(self, kind: str, args: Mapping[str, JSON], *, attempts: int, coalesce: bool) -> BackgroundJob:
+        """The job queued — the durable queue's, else memory's — or, coalesced, the twin already waiting."""
+        traced = {**args, TRACE: carrier} if (carrier := self._telemetry.carrier()) else args
+        waiting = await self._submit_waiting(kind, args) if coalesce else None
+        durable = waiting or await self._submit_durable(kind, traced, attempts)
+        return durable or await self._memory.enqueue(kind, traced, queue=self._works[kind][0], attempts=attempts)
 
     async def _common_read[T](self, read: Callable[[QueuePort], Awaitable[T]], empty: T) -> T:
         """A read of the durable queue, or `empty` when there is none or it fails — with a warning."""
@@ -323,7 +337,7 @@ class DispatchEngine:
         self._common_open(f"kind {kind!r}")
         self._works[kind] = (queue, work)
 
-    def schedule(self, name: str, cron: str, kind: str, /, **args: Any) -> None:
+    def schedule(self, name: str, cron: str, kind: str, /, **args: JSON) -> None:
         """Put a registered kind on a cron (five fields, or six with seconds first): each tick submits it with `args`,
         coalesced. A name is one schedule; registering it again replaces it."""
         self._common_open(f"schedule {name!r}")
@@ -337,13 +351,10 @@ class DispatchEngine:
             case _:
                 self._schedules[name] = BackgroundSchedule(name=name, cron=cron, kind=kind, args=args)
 
-    async def submit(self, kind: str, /, *, attempts: int = 1, coalesce: bool = False, **args: Any) -> BackgroundJob:
+    async def submit(self, kind: str, /, *, attempts: int = 1, coalesce: bool = False, **args: JSON) -> BackgroundJob:
         """Queue a job of `kind` whose work receives `args`; it comes back queued. Coalesced, the same kind and
         arguments already waiting to start is the job: one pending at most, however often asked."""
-        traced = {**args, TRACE: carrier} if (carrier := self._telemetry.carrier()) else args
-        waiting = await self._submit_waiting(kind, args) if coalesce else None
-        durable = waiting or await self._submit_durable(kind, traced, attempts)
-        return durable or await self._memory.enqueue(kind, traced, queue=self._works[kind][0], attempts=attempts)
+        return await self._submit_job(kind, args, attempts=attempts, coalesce=coalesce)
 
     async def job(self, job: str) -> BackgroundJob | None:
         """One job by id, from memory or the durable queue; None when unknown."""

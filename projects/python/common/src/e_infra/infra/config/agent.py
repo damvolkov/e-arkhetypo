@@ -15,16 +15,15 @@ Tiers (AGENT_HIGH / AGENT_MEDIUM / AGENT_LOW) are typed values, one `AgentTier` 
 declared is validated at load — a provider outside the table or a missing model fails the boot, while a tier left
 unset fails only the call that asks for it."""
 
+from collections.abc import Mapping
 from datetime import timedelta
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Any, Final, Literal
+from typing import Final, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, NonNegativeInt, SecretStr
 
 from e_infra.infra.config.base import BaseSettings
-
-if TYPE_CHECKING:
-    from collections.abc import Mapping
+from e_infra.infra.payload import JSON
 
 type EnvNames = tuple[str, ...]
 
@@ -99,7 +98,7 @@ class AgentTier(BaseModel):
     model: str = Field(min_length=1)
     api_base: str | None = None
     api_key: SecretStr | None = None
-    options: dict[str, Any] = Field(default_factory=dict)
+    options: Mapping[str, JSON] = Field(default_factory=dict)
 
 
 ##### SETTINGS #####

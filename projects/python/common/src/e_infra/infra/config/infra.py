@@ -31,6 +31,6 @@ class InfraSettings(BaseSettings):
     CRYPTO__SECRET: SecretStr | None = None
     CRYPTO__ALG: TokenAlg = TokenAlg.HS256
     CRYPTO__ENC: TokenEnc = TokenEnc.A256GCM
-    CRYPTO__PRIVATE_KEY: SecretStr = SecretStr("")
+    CRYPTO__PRIVATE_KEY: SecretStr | None = None
     CRYPTO__HASHER: PasswordHasher = PasswordHasher.ARGON2
     CRYPTO__BCRYPT_ROUNDS: PositiveInt = BCRYPT_ROUNDS

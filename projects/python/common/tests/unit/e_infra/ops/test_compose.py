@@ -40,7 +40,7 @@ async def test_merge_tree_imposes_identity_and_volumes(tool: StackCompose, snap:
     """Chosen names merge from the tree; the imposable laws always apply: identity and ./data/<service>/ volumes."""
     merged = tool.merge(["openwebui", "postgres", "redis"])
     snap("merge_tree", merged.snapshot())
-    doc = merged.document()
+    doc = eserde.loads(merged.snapshot(), format="json")
     assert all((s["container_name"], s["hostname"]) == (n, n) for n, s in doc["services"].items())
     assert "./data/postgres/postgres-data:/var/lib/postgresql/data" in doc["services"]["postgres"]["volumes"]
     assert (
@@ -70,13 +70,14 @@ async def test_merge_documents_unions_and_collides(
         ]
     )
     snap("merge_documents", merged.snapshot())
-    api = merged.services["api"]
+    services = eserde.loads(merged.snapshot(), format="json")["services"]
+    api = services["api"]
     assert api["image"] == "example/api:2.0"
     assert api["ports"].count("9999:9999/udp") == 1
     assert api["environment"]["LOG"] == "debug"
     assert api["environment"]["DATABASE_URL"] == "postgres://db:5432/app"
     assert api["labels"] == {"tier": "frontend", "owner": "platform"}
-    assert merged.services["worker"]["environment"]["API_URL"] == "http://web:80"
+    assert services["worker"]["environment"]["API_URL"] == "http://web:80"
     assert "x-common" in merged.extensions
 
 
@@ -105,7 +106,7 @@ async def test_policy_configures_ports_network_and_volumes(
     policed = tool.configure(ports="127.0.0.1:{host}", network="mynet", volume_root="/srv/data", project="prod")
     merged = policed.merge()
     snap("policy_all", merged.snapshot())
-    doc = merged.document()
+    doc = eserde.loads(merged.snapshot(), format="json")
     assert doc["name"] == "prod"
     assert all(set(s["networks"]) == {"mynet"} for s in doc["services"].values())
     assert doc["networks"] == {"mynet": {"name": "stack"}}
@@ -115,7 +116,7 @@ async def test_policy_configures_ports_network_and_volumes(
 async def test_policy_ports(fragments: dict[str, dict]) -> None:
     """Interpolated entries pass through; literal ones take the pattern, protocol and ip bindings respected."""
     merged = StackCompose(ports="127.0.0.1:{host}").merge(documents=[fragments["ports_variants"]])
-    ports = merged.services["matrix"]["ports"]
+    ports = eserde.loads(merged.snapshot(), format="json")["services"]["matrix"]["ports"]
     assert "${MATRIX_PORT:-7880}:7880" in ports
     entry = next(p for p in ports if isinstance(p, dict))
     assert entry["host_ip"] == "127.0.0.1"
@@ -136,8 +137,8 @@ async def test_spec_rejects_bad_policy(kwargs: dict, reason: str) -> None:
 async def test_configure_is_pure(tool: StackCompose) -> None:
     """configure answers a new tool; the original keeps its policy."""
     altered = tool.configure(network="other")
-    assert tool.merge(["redis"]).document()["networks"] == {"stack": {"name": "stack"}}
-    assert altered.merge(["redis"]).document()["networks"] == {"other": {"name": "stack"}}
+    assert eserde.loads(tool.merge(["redis"]).snapshot(), format="json")["networks"] == {"stack": {"name": "stack"}}
+    assert eserde.loads(altered.merge(["redis"]).snapshot(), format="json")["networks"] == {"other": {"name": "stack"}}
 
 
 ##### OUTPUT MODEL #####

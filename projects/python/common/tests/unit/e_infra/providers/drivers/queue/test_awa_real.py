@@ -149,7 +149,7 @@ async def test_awa_outage(awa_conf: dict[str, Any], queue: str) -> None:
     adapter = AwaDriver(**awa_conf)
     await adapter.__aenter__()
     job = await adapter.enqueue("annotate", {}, queue=queue, attempts=1)
-    await adapter._common_client().close()
+    await adapter.client.close()
     with pytest.raises(QueueError):
         await adapter.enqueue("annotate", {}, queue=queue, attempts=1)
     with pytest.raises(QueueError):

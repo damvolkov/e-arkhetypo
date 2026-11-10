@@ -12,20 +12,24 @@ Scales to the available width and height in integer steps, never overflows the t
 and falls back to a framed compact line when not even the minimum scale fits."""
 
 from functools import lru_cache
+from typing import TYPE_CHECKING, Final
 
 from rich.style import Style
 from rich.text import Text
 from textual.reactive import reactive
 from textual.widget import Widget
 
+if TYPE_CHECKING:
+    from textual.geometry import Size
+
 ##### DEFAULTS #####
-COLOR: str = "#0277bd"  # dark sky blue: letters and frame
-MAX_SCALE: int = 40
-MIN_WIDTH: int = 5
-SUB_RATIO: int = 4  # the tagline is a quarter of the title height: a tagline, not a second logo
+COLOR: Final = "#0277bd"  # dark sky blue: letters and frame
+MAX_SCALE: Final = 40
+MIN_WIDTH: Final = 5
+SUB_RATIO: Final = 4  # the tagline is a quarter of the title height: a tagline, not a second logo
 
 ##### FONTS #####
-UPPER_SPEC: str = """
+UPPER_SPEC: Final = """
 A .#./#.#/###/#.#/#.#
 B ##./#.#/##./#.#/##.
 C .##/#../#../#../.##
@@ -68,16 +72,16 @@ Z ###/..#/.#./#../###
 : .../.#./.../.#./...
 + .../.#./###/.#./...
 """
-UPPER: dict[str, tuple[str, ...]] = {
+UPPER: Final[dict[str, tuple[str, ...]]] = {
     key: tuple(rows.split("/")) for item in UPPER_SPEC.split("\n") if item for key, rows in [item.split(" ", 1)]
 }
 UPPER[" "] = ("..",) * 5
 UPPER["/"] = ("..#", "..#", ".#.", "#..", "#..")
 
-BLANK: tuple[str, ...] = ("..",) * 5
+BLANK: Final[tuple[str, ...]] = ("..",) * 5
 ### the tagline font below a half-block quarter: 3 pixels tall, drawn in sextants (2x3 pixels per cell) so one
 ### text row holds a whole glyph — square pixels where half-blocks would need 2.5 rows.
-SMALL_SPEC: str = """
+SMALL_SPEC: Final = """
 A .#./###/#.#
 B #../###/###
 C ###/#../###
@@ -120,19 +124,19 @@ Z ##./.#./.##
 + .#./###/.#.
 / ..#/.#./#..
 """
-SMALL: dict[str, tuple[str, ...]] = {
+SMALL: Final[dict[str, tuple[str, ...]]] = {
     key: tuple(rows.split("/")) for item in SMALL_SPEC.split("\n") if item for key, rows in [item.split(" ", 1)]
 }
-SMALL_BLANK: tuple[str, ...] = ("..",) * 3
+SMALL_BLANK: Final[tuple[str, ...]] = ("..",) * 3
 SMALL[" "] = SMALL_BLANK
 ### a sextant's six pixels as bits (top-left = 1 … bottom-right = 32): the block skips the four patterns that
 ### already exist elsewhere — empty, full, left half, right half.
-SEXTANT_REUSED: dict[int, str] = {0: " ", 21: "▌", 42: "▐", 63: "█"}
+SEXTANT_REUSED: Final[dict[int, str]] = {0: " ", 21: "▌", 42: "▐", 63: "█"}
 
-SEXTANT: dict[int, str] = SEXTANT_REUSED | {
+SEXTANT: Final[dict[int, str]] = SEXTANT_REUSED | {
     bits: chr(0x1FB00 + offset) for offset, bits in enumerate(bits for bits in range(64) if bits not in SEXTANT_REUSED)
 }
-HALF: dict[tuple[bool, bool], str] = {
+HALF: Final[dict[tuple[bool, bool], str]] = {
     (False, False): " ",
     (True, False): "▀",
     (False, True): "▄",
@@ -332,7 +336,7 @@ class HeaderTui(Widget):
     def validate_main(self, value: str) -> str:
         return value.upper()
 
-    def get_content_height(self, container, viewport, width: int) -> int:  # noqa: ARG002 — textual's sizing contract
+    def get_content_height(self, container: Size, viewport: Size, width: int) -> int:  # noqa: ARG002 — textual's sizing contract
         return len(self._common_lines(width))
 
     def render(self) -> Text:

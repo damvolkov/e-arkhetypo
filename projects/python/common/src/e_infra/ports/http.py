@@ -8,6 +8,8 @@ if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, Mapping
     from datetime import timedelta
 
+    from e_infra.infra.payload import JSON
+
 
 @runtime_checkable
 class HTTPPort(Provider, Protocol):
@@ -24,13 +26,13 @@ class HTTPPort(Provider, Protocol):
     @overload
     async def get(
         self, path: str, *, as_: None = None, within: timedelta | None = None, headers: Mapping[str, str] | None = None
-    ) -> object: ...
+    ) -> JSON: ...
 
     @overload
     async def post[T](
         self,
         path: str,
-        payload: object,
+        payload: JSON,
         *,
         as_: type[T],
         within: timedelta | None = None,
@@ -41,12 +43,12 @@ class HTTPPort(Provider, Protocol):
     async def post(
         self,
         path: str,
-        payload: object,
+        payload: JSON,
         *,
         as_: None = None,
         within: timedelta | None = None,
         headers: Mapping[str, str] | None = None,
-    ) -> object: ...
+    ) -> JSON: ...
 
     async def raw(
         self, path: str, *, within: timedelta | None = None, headers: Mapping[str, str] | None = None
@@ -59,8 +61,8 @@ class HTTPPort(Provider, Protocol):
         *,
         within: timedelta | None = None,
         headers: Mapping[str, str] | None = None,
-    ) -> object: ...
+    ) -> JSON: ...
 
     async def delete(
         self, path: str, *, within: timedelta | None = None, headers: Mapping[str, str] | None = None
-    ) -> object: ...
+    ) -> JSON: ...

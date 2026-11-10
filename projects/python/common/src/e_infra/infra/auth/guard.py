@@ -7,12 +7,12 @@ A public entry is kept out of the middleware too: nothing is resolved for it. Li
 access and says only which methods a path takes: anyone's. Any other entry without an access fails loud, never open."""
 
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Any, Final
+from typing import TYPE_CHECKING, Final
 
 from litestar.enums import HttpMethod
 
 from e_infra.infra.auth.middleware import EXCLUDED, REFUSALS
-from e_infra.infra.auth.models import Access, Caller
+from e_infra.infra.auth.models import Access
 from e_infra.infra.auth.policy import AuthPolicy
 from e_infra.infra.errors import RefusedError
 from e_infra.infra.logger import logger
@@ -20,8 +20,9 @@ from e_infra.infra.logger import logger
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
-    from litestar.connection import ASGIConnection
     from litestar.handlers import BaseRouteHandler
+
+    from e_infra.infra.auth.middleware import Connection
 
 ### the option an entry's access is declared under, and each level's options, as an entry spells them: `opt=OPT[...]`;
 ### a public entry's options keep it out of authentication as well.
@@ -31,7 +32,7 @@ OPT: Final[Mapping[Access, Mapping[str, Access | bool]]] = MappingProxyType(
 )
 
 
-async def guard(connection: ASGIConnection[Any, Caller, Any, Any], handler: BaseRouteHandler) -> None:
+async def guard(connection: Connection, handler: BaseRouteHandler) -> None:
     """The entry's declared access, met by the user the middleware resolved — or the refusal it earns."""
     declared = handler.opt.get(ACCESS)
     match (connection.scope.get("method"), declared):

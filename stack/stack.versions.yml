@@ -81,6 +81,16 @@ images:
   vanished: false
   build: false
   parked: false
+- ref: "falkordb/falkordb:latest"
+  service: "falkordb"
+  category: "gdb"
+  registry: "docker.io"
+  tag: "latest"
+  digest: "sha256:bef8acb1d8ed9ff8d2ea251767e75c6c05cfa759f7c6bc7e1c122f27d0ea4d7f"
+  floating: true
+  vanished: false
+  build: false
+  parked: false
 - ref: "fedirz/faster-whisper-server:latest-cuda"
   service: "fwhisper"
   category: "speech"

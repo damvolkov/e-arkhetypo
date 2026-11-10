@@ -4,6 +4,7 @@ categories:
 - agent
 - cdb
 - front
+- gdb
 - llm
 - media
 - mem
@@ -14,8 +15,21 @@ categories:
 - tools
 - vdb
 - watch
-inputs_hash: a4713c30051ad3c3dfee619ba5e01dbdc62d43910c117c4d13ecaba5f0abbd7f
+inputs_hash: ccb23870f9dad85a60451e6fdfc0bf7e4555d1ab0e6241a426886128793db361
 services:
+- name: hermes
+  category: agent
+  compose: stack/agent/hermes/compose.yml
+  files:
+  - stack/agent/hermes/.env.example
+  - stack/agent/hermes/Dockerfile
+  - stack/agent/hermes/README.md
+  - stack/agent/hermes/hermes.service
+  port: 9119
+  depends: []
+  dependents: []
+  closure: []
+  level: 0
 - name: openhuman
   category: agent
   compose: stack/agent/openhuman/compose.yml
@@ -77,6 +91,24 @@ services:
   - vllm
   - yacy
   level: 3
+- name: falkordb
+  category: gdb
+  compose: stack/gdb/falkordb/compose.yml
+  files: []
+  port: 6379
+  depends: []
+  dependents: []
+  closure: []
+  level: 0
+- name: spanner
+  category: gdb
+  compose: stack/gdb/spanner/compose.yml
+  files: []
+  port: 9010
+  depends: []
+  dependents: []
+  closure: []
+  level: 0
 - name: ejev
   category: llm
   compose: stack/llm/ejev/compose.yml
@@ -122,12 +154,39 @@ services:
   dependents: []
   closure: []
   level: 0
+- name: ikllama
+  category: llm
+  compose: stack/llm/ikllama/compose.yml
+  files: []
+  port: 8083
+  depends: []
+  dependents: []
+  closure: []
+  level: 0
+- name: llama
+  category: llm
+  compose: stack/llm/llama/compose.yml
+  files: []
+  port: 8082
+  depends: []
+  dependents: []
+  closure: []
+  level: 0
 - name: llamacpp
   category: llm
   compose: stack/llm/llamacpp/compose.yml
   files:
   - stack/llm/llamacpp/setup.sh
   port: 8080
+  depends: []
+  dependents: []
+  closure: []
+  level: 0
+- name: reranker
+  category: llm
+  compose: stack/llm/reranker/compose.yml
+  files: []
+  port: 80
   depends: []
   dependents: []
   closure: []
@@ -197,6 +256,18 @@ services:
   closure:
   - embed
   level: 1
+- name: egnosis
+  category: mem
+  compose: stack/mem/egnosis/compose.yml
+  files:
+  - stack/mem/egnosis/.env.example
+  - stack/mem/egnosis/README.md
+  - stack/mem/egnosis/egnosis.service
+  port: 45200
+  depends: []
+  dependents: []
+  closure: []
+  level: 0
 - name: mem0
   category: mem
   compose: stack/mem/mem0/compose.yml
@@ -334,11 +405,47 @@ services:
   dependents: []
   closure: []
   level: 0
+- name: gcs
+  category: storage
+  compose: stack/storage/gcs/compose.yml
+  files: []
+  port: 4443
+  depends: []
+  dependents: []
+  closure: []
+  level: 0
 - name: minio
   category: storage
   compose: stack/storage/minio/compose.yml
   files: []
   port: 9000
+  depends: []
+  dependents: []
+  closure: []
+  level: 0
+- name: jsoncrack
+  category: tools
+  compose: stack/tools/jsoncrack/compose.yml
+  files:
+  - stack/tools/jsoncrack/.env.example
+  - stack/tools/jsoncrack/README.md
+  - stack/tools/jsoncrack/jsoncrack
+  - stack/tools/jsoncrack/jsoncrack.service
+  - stack/tools/jsoncrack/nginx.conf
+  port: 45840
+  depends: []
+  dependents: []
+  closure: []
+  level: 0
+- name: organon
+  category: tools
+  compose: stack/tools/organon/compose.yml
+  files:
+  - stack/tools/organon/.env.example
+  - stack/tools/organon/README.md
+  - stack/tools/organon/organon.service
+  - stack/tools/organon/profiles.yaml
+  port: 45190
   depends: []
   dependents: []
   closure: []

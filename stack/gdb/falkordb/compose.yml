@@ -1,0 +1,36 @@
+services:
+  falkordb:
+    # FalkorDB: property graph (openCypher) as a Redis module — Graphiti's graph store; the browser ships in the image.
+    # Clients reach it through redis://:${FALKORDB_PASSWORD}@falkordb:6379. Module defaults kept as the image sets them
+    # (FALKORDB_ARGS: MAX_QUEUED_QUERIES 25 TIMEOUT 1000 RESULTSET_SIZE 10000), the same as FalkorDB Cloud's.
+    image: falkordb/falkordb:latest
+    container_name: falkordb
+    hostname: falkordb
+    restart: unless-stopped
+    labels:
+      stack.category: "gdb"
+      stack.port: "6379"
+    ports:
+      # default 6379 Redis protocol / 3000 browser — collide with cdb/redis and watch/grafana: override when both run
+      - "${FALKORDB_PORT:-6379}:6379"
+      - "${FALKORDB_BROWSER_PORT:-3000}:3000"
+    volumes:
+      - falkordb-data:/var/lib/falkordb/data
+    environment:
+      - FALKORDB_PASSWORD=${FALKORDB_PASSWORD:-falkordb}
+      - REDIS_ARGS=--requirepass ${FALKORDB_PASSWORD:-falkordb} --appendonly yes
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$$FALKORDB_PASSWORD\" --no-auth-warning ping | grep -q PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - stack
+
+volumes:
+  falkordb-data:
+
+networks:
+  stack:
+    name: stack

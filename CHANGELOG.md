@@ -165,6 +165,7 @@ touches — `stack`, `systems`, `infra`. Lines under `[Unreleased]` are written 
 - Default runs: common 1416 passed and 0 skipped (5 red already on main: `ast-grep-cli` missing from `uv.lock`,
   `test_compose::test_full_stack` snapshot drift); api 170, cli 88, tui 179 passed; graph 770 passed + 21
   acceptance errors (no Chromium installed locally, an error and not a skip).
+- systems (common · api): an account carries `segments` (the tenant's cuts it reads beyond the general) and `delegate` (a service the admin trusts to act for the people it serves, naming each call's subject); `Caller` carries both from the key. `AuthPort.segment` and `AuthPort.delegate` set them (None: no account); the Postgres driver adds both columns in place (`ADD COLUMN IF NOT EXISTS`) and an account enrolled again keeps them; `PUT /auth/accounts/{name}/segments` and `PUT /auth/accounts/{name}/delegate` (ADMIN) in the api template. Back from findr-ground, where it was built and measured (TODO_govern, PRs #72 · #73); a materialization no longer reverts it.
 
 ### stack
 

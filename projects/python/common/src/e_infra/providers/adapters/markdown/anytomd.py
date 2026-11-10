@@ -21,7 +21,7 @@ from anytomd import (
 from e_infra.infra.errors import ParseError, ProviderError
 from e_infra.infra.logger import logger
 from e_infra.ports.markdown import MDConversion
-from e_infra.ports.provider import Isolation, Locality, ProviderSpec, Workload
+from e_infra.ports.provider import Isolation, Locality, Opened, ProviderSpec, Workload
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -34,6 +34,7 @@ class AnytomdAdapter:
     """One anytomd converter per process: `convert` renders bytes of a named format, PDF and image descriptions included."""
 
     spec: ClassVar[ProviderSpec] = ProviderSpec("anytomd", Locality.EMBEDDED, Workload.MIXED, Isolation.LOOP)
+    pdf = Opened[PdfConverter](ParseError)
 
     __slots__ = (
         "_describer",
@@ -82,14 +83,6 @@ class AnytomdAdapter:
             logger.error("anytomd failed", error=str(error))
             raise ParseError(str(error)) from error
 
-    def _common_pdf(self) -> PdfConverter:
-        match self._pdf:
-            case None:
-                msg = "AnytomdAdapter is not open: the lifespan opens it, callers never do"
-                raise ParseError(msg)
-            case pdf:
-                return pdf
-
     def _common_vision(self) -> AsyncOpenAIDescriber:
         base, key, model, prompt = self._vision
         return AsyncOpenAIDescriber(
@@ -100,7 +93,7 @@ class AnytomdAdapter:
         )
 
     async def _convert_pdf(self, data: bytes) -> MDConversion:
-        document = await self._common_pdf().convert_bytes_async(data)
+        document = await self.pdf.convert_bytes_async(data)
         return MDConversion(markdown=document.markdown, warnings=document.warnings)
 
     async def _convert_text(self, data: bytes, extension: str) -> MDConversion:
@@ -127,12 +120,12 @@ class AnytomdAdapter:
         return self
 
     async def __aexit__(self, *exc: object) -> None:
-        match getattr(self._describer, "aclose", None):
-            case None:
-                pass
-            case aclose:
+        match self._describer:
+            case AsyncOpenAIDescriber() as describer:
                 ### releases the vision client's sockets.
-                await aclose()
+                await describer.aclose()
+            case _:
+                pass
         self._pdf = None
         self._describer = None
         logger.info("anytomd closed")
@@ -140,7 +133,7 @@ class AnytomdAdapter:
     async def health(self) -> bool:
         """The engine renders a line of text, and the PDF converter is open."""
         try:
-            self._common_pdf()
+            _ = self.pdf
             await self.convert(b"ping", extension="txt")
         except ProviderError as error:
             logger.warning("anytomd unhealthy", error=str(error))

@@ -5,7 +5,7 @@ graphs and validates on a worker thread — one at a time: rdflib's SPARQL parse
 validations at once fail inside it (`Param.postParse2`, measured). What it says is what the other engines must say."""
 
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Any, ClassVar, Final, Self
+from typing import TYPE_CHECKING, ClassVar, Final, Self
 
 import anyio
 from pyshacl import validate
@@ -20,6 +20,8 @@ from e_infra.ports.triples import Serialization
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
+
+    from rdflib.term import Node
 
 FORMATS: Final[Mapping[Serialization, str]] = MappingProxyType(
     {
@@ -54,19 +56,28 @@ class PyshaclShapesAdapter:
         except Exception as error:
             msg = f"{type(error).__name__}: {error}"
             raise ShapesError(msg) from error
-        conforms, results, _ = validate(graph, shacl_graph=rules, advanced=True)
-        report: Any = results
+        conforms, report, _ = validate(graph, shacl_graph=rules, advanced=True)
+        match report:
+            case Graph():
+                pass
+            case _:
+                msg = f"pyshacl answered a report that is not a graph: {type(report).__name__}"
+                raise ShapesError(msg)
         violations = tuple(
             Violation(
                 focus_node=str(report.value(each, SH.focusNode)),
-                message=str(report.value(each, SH.resultMessage) or ""),
-                source_shape=str(report.value(each, SH.sourceShape)),
-                component=str(report.value(each, SH.sourceConstraintComponent) or ""),
-                path=str(report.value(each, SH.resultPath) or ""),
+                message=PyshaclShapesAdapter._validate_text(report.value(each, SH.resultMessage)),
+                source_shape=PyshaclShapesAdapter._validate_text(report.value(each, SH.sourceShape)),
+                component=PyshaclShapesAdapter._validate_text(report.value(each, SH.sourceConstraintComponent)),
+                path=PyshaclShapesAdapter._validate_text(report.value(each, SH.resultPath)),
             )
             for each in report.objects(None, SH.result)
         )
         return Report(conforms=bool(conforms), violations=violations)
+
+    @staticmethod
+    def _validate_text(found: Node | None) -> str | None:
+        return None if found is None else str(found)
 
     ############################################################
 

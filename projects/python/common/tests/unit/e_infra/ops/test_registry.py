@@ -21,7 +21,7 @@ def registry(repo: Path) -> CodeRegistry:
 def test_every_level_of_the_hierarchy_is_registered_by_path(registry: CodeRegistry) -> None:
     assert registry["e_infra"].kind is Kind.PACKAGE
     assert registry["e_infra.ops.file"].kind is Kind.MODULE
-    assert registry["e_infra.ops.file"].doc.startswith("ops/file: what a file is")
+    assert str(registry["e_infra.ops.file"].doc).startswith("ops/file: what a file is")
     finder = registry["e_infra.ops.file.FileFinder"]
     assert finder.kind is Kind.CLASS
     assert finder.parent == "e_infra.ops.file"
@@ -35,11 +35,13 @@ def test_every_level_of_the_hierarchy_is_registered_by_path(registry: CodeRegist
 def test_module_facts_read_the_source_without_importing(registry: CodeRegistry) -> None:
     settings = registry["e_infra.infra.settings"]
     assert settings.kind is Kind.MODULE
-    assert settings.doc.startswith("infra/settings: the one `Settings`")
+    assert str(settings.doc).startswith("infra/settings: the one `Settings`")
     assert {"e_infra.infra.config.infra", "e_infra.infra.config.providers"} <= set(settings.imports)
     crypto = registry["e_infra.ops.crypto.Crypto.hash_password"]
     assert crypto.signature == "async def hash_password(self, password: str) -> str"
-    assert registry["e_infra.ops.file.FileFinder.adiscover"].signature.startswith("async def adiscover(self, target")
+    assert str(registry["e_infra.ops.file.FileFinder.adiscover"].signature).startswith(
+        "async def adiscover(self, target"
+    )
     assert (
         registry["e_infra.infra.proxy.LazyProxy"].bases == ()
     )  ### PEP 695 generics: the parameters live in the name, not the bases.
@@ -50,7 +52,7 @@ def test_discover_sweeps_selects_and_filters(registry: CodeRegistry) -> None:
     found = registry.discover("BaseSettings")
     assert "e_infra.infra.config.infra.InfraSettings" in found
     assert "e_infra.infra.state.State" not in found  ### syntactic bases only: State names nothing.
-    async_defs = registry.discover(lambda sym: sym.signature.startswith("async def"))
+    async_defs = registry.discover(lambda sym: str(sym.signature).startswith("async def"))
     assert "e_infra.ops.file.FileFinder.adiscover" in async_defs
     assert set(registry.discover(Kind.MODULE, pattern=re.compile("^file$"))) == {"e_infra.ops.file"}
     with pytest.raises(RegistryError, match="Unsupported discover target"):

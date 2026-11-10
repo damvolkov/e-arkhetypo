@@ -5,6 +5,7 @@
 `Project` is the document the store keeps. Constrained aliases (`ProjectName`, `EnvKey`) name a rule once
 and reuse it wherever the value travels."""
 
+from collections.abc import Mapping
 from datetime import datetime
 from enum import StrEnum
 from typing import Annotated
@@ -32,7 +33,7 @@ class ProjectSpec(Struct, frozen=True, kw_only=True, forbid_unknown_fields=True)
     """Input: everything `project create` accepts, validated by `msgspec.convert` before the core sees it."""
 
     name: ProjectName
-    description: Description = ""
+    description: Description | None = None
     state: ProjectState = ProjectState.DRAFT
 
 
@@ -40,7 +41,7 @@ class Project(Struct, frozen=True, kw_only=True):
     """Record: one JSON document per project in the store — the spec, when it was born, its variables."""
 
     name: ProjectName
-    description: Description = ""
+    description: Description | None = None
     state: ProjectState = ProjectState.DRAFT
     created: datetime
-    env: dict[EnvKey, str] = field(default_factory=dict)
+    env: Mapping[EnvKey, str] = field(default_factory=dict)

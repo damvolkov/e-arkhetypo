@@ -9,7 +9,7 @@ token middleware resolved to the handlers that take it.
 """
 
 from enum import StrEnum, auto
-from typing import Any
+from typing import Final
 
 import msgspec
 from asgi_correlation_id import correlation_id as correlation_id_var
@@ -23,7 +23,7 @@ from e_api.infra.state import State
 from e_api.models.user import User, UserRecord
 from e_api.ports.store import StorePort
 
-USER_KEY: str = "user:"
+USER_KEY: Final[str] = "user:"
 
 
 ##### DEPENDENCY KEYS — the wiring vocabulary: a typo is an attribute error at import, never a silent runtime miss #####
@@ -52,7 +52,7 @@ def auth(graph: NamedDependency[State]) -> AuthEngine:
     return graph.engines.auth
 
 
-def caller(request: Request[Caller, None, Any]) -> Caller:
+def caller(request: Request[Caller, None, AppState]) -> Caller:
     """Who is asking: the user the token middleware resolved, carried into the handler. Chain: request."""
     return request.user
 

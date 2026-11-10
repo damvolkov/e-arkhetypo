@@ -6,6 +6,7 @@ import pytest
 
 from e_tui.flow.graph import Graph
 from e_tui.flow.page import Page
+from e_tui.infra.state import State
 from e_tui.models.error import FlowError
 from e_tui.models.object import Commit, ConfirmSpec
 
@@ -68,10 +69,10 @@ def test_graph_follows_resolves_declaration_order_and_the_end() -> None:
 
 def test_graph_next_of_prefers_the_declared_next_over_order() -> None:
     flow = _graph(_page("a", next="c"), _page("b"), _page("c"))
-    assert flow.next_of(flow.page("a"), Commit(), {}) == "c"
-    assert flow.next_of(flow.page("b"), Commit(), {}) == "c"
+    assert flow.next_of(flow.page("a"), Commit(), State()) == "c"
+    assert flow.next_of(flow.page("b"), Commit(), State()) == "c"
 
 
 def test_graph_next_of_lets_a_route_decide_alone() -> None:
     flow = _graph(_page("a", next="b", route=lambda c, s: "c"), _page("b"), _page("c"))
-    assert flow.next_of(flow.page("a"), Commit(), {}) == "c"
+    assert flow.next_of(flow.page("a"), Commit(), State()) == "c"

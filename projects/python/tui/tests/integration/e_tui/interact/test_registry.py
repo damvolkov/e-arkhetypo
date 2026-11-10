@@ -34,4 +34,5 @@ async def test_registry_builds_the_object_for_each_kind(spec: Spec, cls: type) -
 
 async def test_registry_refuses_an_unmapped_spec() -> None:
     with pytest.raises(InteractError, match="no interactive object"):
-        build(Odd())
+        ### Odd lies outside the Spec union on purpose: the gap guard is what is under test.
+        build(Odd())  # ty: ignore[invalid-argument-type]

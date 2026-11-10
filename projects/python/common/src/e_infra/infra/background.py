@@ -18,7 +18,7 @@ from datetime import UTC, datetime
 from enum import StrEnum, auto
 from itertools import islice
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Any, ClassVar, Final, Protocol, Self, runtime_checkable
+from typing import TYPE_CHECKING, ClassVar, Final, Protocol, Self, runtime_checkable
 
 import anyio
 from croniter import croniter
@@ -31,6 +31,8 @@ if TYPE_CHECKING:
     from types import TracebackType
 
     from anyio.abc import TaskGroup
+
+    from e_infra.infra.payload import JSON
 
 ### seconds between two progress writes of one job: a fast work must not become a write storm.
 THROTTLE: Final[float] = 0.5
@@ -58,6 +60,9 @@ SETTLED: Final[frozenset[BackgroundState]] = frozenset(
 )
 
 
+type BackgroundFields = Mapping[str, JSON]
+
+
 @dataclass(frozen=True, slots=True)
 class BackgroundJob:
     """One job as its engine holds it: `args` the work's kwargs, `progress` its latest snapshot, `errors` one message
@@ -68,15 +73,15 @@ class BackgroundJob:
     queue: str
     state: BackgroundState
     attempt: int
-    args: Mapping[str, Any]
+    args: BackgroundFields
     created: datetime
-    progress: Mapping[str, Any] | None = None
+    progress: BackgroundFields | None = None
     errors: tuple[str, ...] = ()
     finished: datetime | None = None
 
 
-type BackgroundReporter = Callable[[Mapping[str, Any]], Awaitable[None]]
-type BackgroundWork = Callable[[Mapping[str, Any], BackgroundReporter], Awaitable[None]]
+type BackgroundReporter = Callable[[BackgroundFields], Awaitable[None]]
+type BackgroundWork = Callable[[BackgroundFields, BackgroundReporter], Awaitable[None]]
 type BackgroundFire = Callable[[], Awaitable[None]]
 
 
@@ -87,7 +92,7 @@ class BackgroundRun(Protocol):
     @property
     def job(self) -> BackgroundJob: ...
 
-    async def report(self, progress: Mapping[str, Any]) -> None: ...
+    async def report(self, progress: BackgroundFields) -> None: ...
 
 
 type BackgroundHandler = Callable[[BackgroundRun], Awaitable[None]]
@@ -102,7 +107,7 @@ class BackgroundTask:
     scope: anyio.CancelScope = field(default_factory=anyio.CancelScope)
     done: anyio.Event = field(default_factory=anyio.Event)
 
-    async def report(self, progress: Mapping[str, Any]) -> None:
+    async def report(self, progress: BackgroundFields) -> None:
         self.job = dataclasses.replace(self.job, progress=progress)
 
 
@@ -214,7 +219,7 @@ class Background:
         group = self._enqueue_group()
         _ = [group.start_soon(self._start_tick, name, cron, fire) for name, (cron, fire) in self._schedules.items()]
 
-    async def enqueue(self, kind: str, args: Mapping[str, Any], *, queue: str, attempts: int) -> BackgroundJob:
+    async def enqueue(self, kind: str, args: BackgroundFields, *, queue: str, attempts: int) -> BackgroundJob:
         group, handler = self._enqueue_group(), self._handlers[kind]
         job = BackgroundJob(
             id=uuid.uuid7().hex,
@@ -256,10 +261,10 @@ class BackgroundReport:
 
     run: BackgroundRun
     throttle: float
-    pending: Mapping[str, Any] | None = None
+    pending: BackgroundFields | None = None
     written: float = float("-inf")
 
-    async def report(self, progress: Mapping[str, Any]) -> None:
+    async def report(self, progress: BackgroundFields) -> None:
         self.pending = progress
         _ = await self.flush() if anyio.current_time() - self.written >= self.throttle else None
 

@@ -104,7 +104,7 @@ class Mast(msgspec.Struct, frozen=True, kw_only=True, omit_defaults=True):
     terminal, so a resize shrinks the bitmap in integer steps and never overflows the box."""
 
     main: str
-    sub: str = ""
+    sub: str | None = None
     max_height: float = 0.35
 
 

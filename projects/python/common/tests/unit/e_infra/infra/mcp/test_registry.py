@@ -1,6 +1,7 @@
 """tests/unit/e_infra/infra/mcp/registry: the tools read off their routes — each a POST taking one Struct, named once —
 and the start refused for a route that cannot be a tool."""
 
+import msgspec
 import pytest
 from litestar import get, post
 
@@ -16,10 +17,11 @@ async def bare() -> dict[str, str]:
 
 def test_registry_reads_a_tool() -> None:
     (entry,) = MCPRegistry([ECHO.route(Access.ANONYMOUS, **NO)(echo)])
+    schema = msgspec.json.decode(msgspec.json.encode(entry.arguments))
     assert (
         entry.path,
-        entry.arguments["required"],
-        entry.arguments["properties"]["times"],
+        schema["required"],
+        schema["properties"]["times"],
         entry.answer is not None,
         entry.tool.read_only,
     ) == ("/mcp/tools/probe_echo", ["text"], {"type": "integer", "default": 1}, True, True)

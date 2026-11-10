@@ -4,6 +4,7 @@ keys are a fake auth store, reached by the SDK's own client: none is nobody, `an
 `app` is the probe app, `client` runs its lifespans, `connect` is the SDK client on `/mcp`; `ana` and `root` are the
 `Authorization` headers of an account and the admin."""
 
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 import pytest
@@ -21,7 +22,14 @@ if TYPE_CHECKING:
 
     from litestar import Litestar
 
-__all__ = ["ana", "app", "client", "connect", "root"]
+__all__ = ["Detached", "ana", "app", "client", "connect", "detached", "root"]
+
+
+@dataclass(frozen=True, slots=True)
+class Detached:
+    """A tool call's context with no HTTP request behind it, as an in-process transport hands it."""
+
+    request: None = None
 
 
 @pytest.fixture
@@ -51,3 +59,8 @@ def ana() -> dict[str, str]:
 @pytest.fixture
 def root() -> dict[str, str]:
     return {"Authorization": "Bearer t-root"}
+
+
+@pytest.fixture
+def detached() -> Detached:
+    return Detached()

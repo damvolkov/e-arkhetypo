@@ -129,12 +129,16 @@ src = ["src", "tests"]
 select = [
     "F", "E", "W", "I", "N", "UP", "B", "A", "C4", "DTZ", "T10", "T20", "EM", "ISC",
     "PIE", "PT", "RET", "SIM", "TID", "TC", "ARG", "PTH", "PL", "PERF", "FURB",
-    "ASYNC", "S", "BLE", "FBT", "LOG", "G", "RUF",
+    "ASYNC", "S", "BLE", "FBT", "LOG", "G", "RUF", "ANN",
 ]
 ignore = ["E501", "ISC001", "PLR0913"]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**" = ["S101", "S106", "PLR2004", "ARG", "FBT", "TC001", "TC002", "TC003", "TID251"]
+### the gates engine runs ast-grep: the binary resolved by path, the arguments ours.
+"gates/engine.py" = ["S603"]
+### a test fake mirrors a vendor signature it stands in for; every other annotation rule holds in tests.
+"tests/**" = ["S101", "S106", "PLR2004", "ARG", "FBT", "TC001", "TC002", "TC003", "ANN401"]
+### TID251 stays on over tests/: it bans the pytest ghosts.
 "scripts/**" = ["T20", "S603", "S607", "PTH"]
 ### the entrypoint prints the version to stdout: that IS its job.
 "src/e_tui/__main__.py" = ["T20"]
@@ -158,7 +162,7 @@ ignore = ["E501", "ISC001", "PLR0913"]
 "unittest.skip".msg = "a red is never hidden: a test that cannot run errors (e-nous test-py-tdd rule 2)"
 
 [tool.ruff.lint.isort]
-known-first-party = ["e_tui", "scripts", "gates"]
+known-first-party = ["e_tui", "gates"]
 
 [tool.ruff.lint.flake8-type-checking]
 ### pydantic and msgspec resolve these classes' annotations at runtime: their imports must stay real.
@@ -180,7 +184,7 @@ docstring-code-format = true
 python-version = "3.14"
 
 [tool.ty.src]
-include = ["src", "tests", "scripts/gate.py", "gates"]
+include = ["src", "tests", "gates"]
 
 [tool.ty.terminal]
 error-on-warning = true

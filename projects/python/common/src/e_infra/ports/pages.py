@@ -13,7 +13,7 @@ class PageBlock(msgspec.Struct, frozen=True, kw_only=True):
     a heading, a table's header and rows of cell texts."""
 
     kind: str
-    text: str = ""
+    text: str | None = None
     level: int | None = None
     header: tuple[str, ...] = ()
     rows: tuple[tuple[str, ...], ...] = ()

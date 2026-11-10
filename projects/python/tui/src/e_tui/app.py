@@ -17,7 +17,7 @@ viewer is dumb — every move answers a typed `Move` and it simply matches it.
 """
 
 from collections.abc import Callable, Iterable, Mapping
-from typing import TYPE_CHECKING, ClassVar, Final, cast
+from typing import TYPE_CHECKING, ClassVar, Final
 
 from textual.app import App, ComposeResult
 from textual.binding import Binding
@@ -26,6 +26,7 @@ from textual.widgets import Static
 
 from e_tui.flow.walk import Finished, Move, OnPage, Walker
 from e_tui.infra.settings import settings as st
+from e_tui.infra.state import State
 from e_tui.interact.registry import build
 from e_tui.layout.frame import Colors
 from e_tui.layout.render import SLOT_CLASS, LayoutRender
@@ -34,12 +35,12 @@ from e_tui.templates.standard import StandardTemplate
 
 if TYPE_CHECKING:
     from e_tui.flow.graph import Graph
-    from e_tui.interact.ports import ObjectPort
+    from e_tui.interact.registry import ObjectWidget
     from e_tui.layout.spec import Box
 
 ##### RESULT #####
 
-ResultView = Callable[[Mapping[str, object]], Iterable[Widget]]
+ResultView = Callable[[State], Iterable[Widget]]
 """What the host wants to see once the walk finishes — the shared state turned into widgets."""
 
 
@@ -118,7 +119,7 @@ class WizardApp(LayoutApp):
         super().__init__(spec)
         self._walk = Walker(graph)
         self._result = result
-        self._object: ObjectPort | None = None
+        self._object: ObjectWidget | None = None
 
     ############################################################
 
@@ -148,8 +149,7 @@ class WizardApp(LayoutApp):
     def _render(self) -> None:
         """Show the page under the cursor: its object in content, the walked trail as the timeline."""
         page = self._walk.here()
-        self._object = build(page.spec, self._walk.state.values_for(page.id))
-        view = cast("Widget", self._object)  ### every interactive object the registry makes is also a Textual Widget.
+        self._object = view = build(page.spec, self._walk.state.values_for(page.id))
         self.fill("content", view)
         self.fill("steps", Static(self._timeline(), markup=False))  # the brackets are literal, not Rich markup
         self.set_focus(view)

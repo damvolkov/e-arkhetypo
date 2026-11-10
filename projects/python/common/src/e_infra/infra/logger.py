@@ -4,8 +4,13 @@ Nothing loads at import: `setup` and the `logger` singleton run on first use, ex
 
 import logging
 import sys
-from collections.abc import Callable, Sequence  # noqa: TC003 — beartype resolves ELogger's annotations at runtime
-from typing import Any, ClassVar, Protocol, TextIO, runtime_checkable
+from collections.abc import (  # noqa: TC003 — beartype resolves ELogger's annotations at runtime
+    Callable,
+    Mapping,
+    Sequence,
+)
+from types import MappingProxyType
+from typing import ClassVar, Final, Protocol, TextIO, TypedDict, Unpack, runtime_checkable
 
 import beartype
 import msgspec
@@ -29,32 +34,46 @@ class TextSink(Protocol):
     def isatty(self) -> bool: ...
 
 
+### a value a log line carries, or a serializer's fallback hands back: anything at all is the contract.
+type Value = object  # ast-grep-ignore: object-annotation
+
+
+class RendererOptions(TypedDict, total=False):
+    """The dev renderer's own knobs, as `ELogger` takes them (`order` and `stream` are `setup`'s)."""
+
+    sep: str
+    head_sep: str
+    kv_fmt: str
+    level_width: int
+    colors: bool
+
+
 ##### DEFAULTS #####
-DEFAULT_ENV: Env = Env.DEV
-DEFAULT_LEVEL: int = logging.INFO
-DEFAULT_ORDER: Sequence[str] = ()
-DEFAULT_SEP: str = " || "
-DEFAULT_HEAD_SEP: str = " | "
-DEFAULT_KV_FMT: str = "{key}: {value}"
-DEFAULT_LEVEL_WIDTH: int = 8
-DEFAULT_STREAM: TextIO = sys.stdout
+DEFAULT_ENV: Final[Env] = Env.DEV
+DEFAULT_LEVEL: Final[int] = logging.INFO
+DEFAULT_ORDER: Final[Sequence[str]] = ()
+DEFAULT_SEP: Final[str] = " || "
+DEFAULT_HEAD_SEP: Final[str] = " | "
+DEFAULT_KV_FMT: Final[str] = "{key}: {value}"
+DEFAULT_LEVEL_WIDTH: Final[int] = 8
+DEFAULT_STREAM: Final[TextIO] = sys.stdout
 
 ##### EVENT DICT KEYS (SET BY STRUCTLOG PROCESSORS) #####
-TIMESTAMP_KEY = "timestamp"
-LEVEL_KEY = "level"
-EVENT_KEY = "event"
-EXCEPTION_KEY = "exception"
+TIMESTAMP_KEY: Final[str] = "timestamp"
+LEVEL_KEY: Final[str] = "level"
+EVENT_KEY: Final[str] = "event"
+EXCEPTION_KEY: Final[str] = "exception"
 
 ##### ANSI #####
-RESET = "\033[0m"
-DIM = "\033[2m"
-LEVEL_COLORS: dict[str, str] = {
+RESET: Final[str] = "\033[0m"
+DIM: Final[str] = "\033[2m"
+LEVEL_COLORS: Final[Mapping[str, str]] = MappingProxyType({
     "debug": "\033[36m",
     "info": "\033[32m",
     "warning": "\033[33m",
     "error": "\033[31m",
     "critical": "\033[1;31m",
-}
+})  # fmt: skip
 
 
 ##### RENDERER #####
@@ -104,7 +123,7 @@ class ELogger:
     ##### BOOTSTRAP #####
 
     @staticmethod
-    def encode_json(event_dict: EventDict, default: Callable[[Any], Any] | None = None) -> bytes:
+    def encode_json(event_dict: EventDict, default: Callable[[Value], Value] | None = None) -> bytes:
         """msgspec (C-backed) serializer, json.dumps-compatible: structlog's `default` hook is msgspec's `enc_hook`."""
         return msgspec.json.encode(event_dict, enc_hook=default)
 
@@ -117,7 +136,7 @@ class ELogger:
         order: Sequence[str] = DEFAULT_ORDER,
         stream: TextIO = DEFAULT_STREAM,
         extra: Sequence[Processor] = (),
-        **renderer_kwargs: Any,
+        **options: Unpack[RendererOptions],
     ) -> None:
         """Configure structlog for the given env — the first call marks the process configured. `extra` processors run
         before the renderer, after the shared ones: the composition root hands the tracer's there (a log line inside a
@@ -133,9 +152,11 @@ class ELogger:
         match env.lower():
             case Env.PROD:
                 renderer: Processor = structlog.processors.JSONRenderer(serializer=cls.encode_json)
-                factory: Any = structlog.BytesLoggerFactory(file=stream.buffer)  # msgspec emits bytes
+                factory: Callable[..., WrappedLogger] = structlog.BytesLoggerFactory(
+                    file=stream.buffer
+                )  # msgspec emits bytes
             case Env.DEV | Env.LOCAL:
-                renderer = ELogger(order=order, stream=stream, **renderer_kwargs)
+                renderer = ELogger(order=order, stream=stream, **options)
                 factory = structlog.PrintLoggerFactory(file=stream)
             case unknown:
                 msg = f"Unknown env {unknown!r}; expected one of {[e.value for e in Env]}"
@@ -150,7 +171,7 @@ class ELogger:
         cls._configured = True
 
     @classmethod
-    def load(cls) -> Any:
+    def load(cls) -> BindableLogger:
         """The process logger: an unconfigured process is set up with the default env here, on first use, never at import;
         a composition root that reads APP_ENV calls `setup` first.
 

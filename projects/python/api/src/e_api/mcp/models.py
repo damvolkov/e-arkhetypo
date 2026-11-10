@@ -3,6 +3,7 @@
 The registry tells a client their JSON Schema; the answers are the API's own models, save the readiness one. Creating a user takes the API's own
 `UserCreate`; reading, updating and deleting one name it by `user_id`, which a route takes from its path."""
 
+from collections.abc import Sequence
 from datetime import date
 from decimal import Decimal
 from typing import Annotated
@@ -37,4 +38,4 @@ class Status(msgspec.Struct, frozen=True, kw_only=True):
     """Whether the service is ready — every required provider answers — and each provider's verdict."""
 
     ready: bool
-    providers: list[ProviderHealth]
+    providers: Sequence[ProviderHealth]

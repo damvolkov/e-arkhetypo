@@ -16,7 +16,7 @@ error, it was just not this one that created it. psqlpy's own errors are `Databa
 
 import re
 from contextlib import asynccontextmanager, contextmanager
-from typing import TYPE_CHECKING, Any, ClassVar, Final, Self
+from typing import TYPE_CHECKING, ClassVar, Final, Self
 from urllib.parse import urlsplit
 
 from psqlpy import Connection, ConnectionPool, Listener, Transaction
@@ -26,16 +26,16 @@ from psqlpy.extra_types import PgVector
 from e_infra.infra.errors import DatabaseError, ProviderError
 from e_infra.infra.logger import logger
 from e_infra.ports.database import Row, Vector
-from e_infra.ports.provider import Isolation, Locality, ProviderSpec, Workload
+from e_infra.ports.provider import Isolation, Locality, Opened, ProviderSpec, Workload
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncGenerator, Callable, Coroutine, Generator, Sequence
+    from collections.abc import AsyncGenerator, Awaitable, Callable, Coroutine, Generator, Sequence
     from contextlib import AbstractAsyncContextManager
     from datetime import timedelta
 
     from pydantic import PostgresDsn, Secret
 
-    from e_infra.ports.database import Notify, QueryPort
+    from e_infra.ports.database import Cell, Notify, QueryPort
 
 ### psqlpy refuses a pool of one connection.
 FLOOR: Final[int] = 2
@@ -79,12 +79,12 @@ class PsqlpyStatements:
             raise PsqlpyStatements._common_error(error) from error
 
     @staticmethod
-    def _common_params(params: Sequence[object]) -> list[object]:
+    def _common_params(params: Sequence[Cell]) -> list[Cell | PgVector]:
         """Parameters as psqlpy takes them: a `Vector` as a pgvector value."""
         return [PgVector(list(value)) if isinstance(value, Vector) else value for value in params]
 
     @classmethod
-    async def _common_call[T](cls, call: Coroutine[Any, Any, T]) -> T:
+    async def _common_call[T](cls, call: Awaitable[T]) -> T:
         """One driver call, its refusal a `DatabaseError`."""
         with cls._common_guard():
             return await call
@@ -97,16 +97,16 @@ class PsqlpyStatements:
 
     ##### PUBLIC #####
 
-    async def execute(self, query: str, params: Sequence[object] = ()) -> None:
+    async def execute(self, query: str, params: Sequence[Cell] = ()) -> None:
         await self._common_call(self._on.execute(query, self._common_params(params)))
 
-    async def fetch(self, query: str, params: Sequence[object] = ()) -> list[Row]:
+    async def fetch(self, query: str, params: Sequence[Cell] = ()) -> Sequence[Row]:
         return (await self._common_call(self._on.fetch(query, self._common_params(params)))).result()
 
-    async def row(self, query: str, params: Sequence[object] = ()) -> Row | None:
+    async def row(self, query: str, params: Sequence[Cell] = ()) -> Row | None:
         return next(iter(await self.fetch(query, params)), None)
 
-    async def many(self, query: str, params: Sequence[Sequence[object]]) -> None:
+    async def many(self, query: str, params: Sequence[Sequence[Cell]]) -> None:
         await self._common_call(self._on.execute_many(query, [self._common_params(each) for each in params]))
 
     async def script(self, statements: str) -> None:
@@ -126,6 +126,7 @@ class PsqlpyDriver:
     spec: ClassVar[ProviderSpec] = ProviderSpec(
         "psqlpy", Locality.REMOTE, Workload.IO_BOUND, Isolation.LOOP, pooled=True
     )
+    pool = Opened[ConnectionPool](DatabaseError)
 
     __slots__ = ("_channels", "_dsn", "_generation", "_listener", "_pool", "_size", "_timeout")
 
@@ -162,18 +163,10 @@ class PsqlpyDriver:
             case _:
                 return False
 
-    def _common_pool(self) -> ConnectionPool:
-        match self._pool:
-            case None:
-                msg = "PsqlpyDriver is not open: the lifespan opens it, callers never do"
-                raise DatabaseError(msg)
-            case pool:
-                return pool
-
     @asynccontextmanager
     async def _common_held(self, transactional: bool) -> AsyncGenerator[QueryPort]:  # noqa: FBT001 — two scopes, one body
         with PsqlpyStatements._common_guard():
-            async with self._common_pool().acquire() as connection:
+            async with self.pool.acquire() as connection:
                 match transactional:
                     case True:
                         async with connection.transaction() as transaction:
@@ -184,7 +177,7 @@ class PsqlpyDriver:
     async def _listen_renewed(self) -> None:
         """A listener holding every channel, started; the one it replaces stopped after it, never before."""
         generation = self._generation + 1
-        listener = self._common_pool().listener()
+        listener = self.pool.listener()
         _ = [
             await PsqlpyStatements._common_call(
                 listener.add_callback(channel, self._listen_fanout(channel, generation))
@@ -199,7 +192,7 @@ class PsqlpyDriver:
 
     def _listen_fanout(
         self, channel: str, generation: int
-    ) -> Callable[[Connection, str, str, int], Coroutine[Any, Any, None]]:
+    ) -> Callable[[Connection, str, str, int], Coroutine[None, None, None]]:
         async def fanout(_connection: Connection, payload: str, _channel: str, _process: int) -> None:
             _ = generation == self._generation and [callback(payload) for callback in tuple(self._channels[channel])]
 
@@ -257,20 +250,20 @@ class PsqlpyDriver:
         finally:
             admin.close()
 
-    async def execute(self, query: str, params: Sequence[object] = ()) -> None:
+    async def execute(self, query: str, params: Sequence[Cell] = ()) -> None:
         logger.debug("psqlpy execute", params=len(params))
         async with self.connection() as held:
             await held.execute(query, params)
 
-    async def fetch(self, query: str, params: Sequence[object] = ()) -> list[Row]:
+    async def fetch(self, query: str, params: Sequence[Cell] = ()) -> Sequence[Row]:
         logger.debug("psqlpy fetch", params=len(params))
         async with self.connection() as held:
             return await held.fetch(query, params)
 
-    async def row(self, query: str, params: Sequence[object] = ()) -> Row | None:
+    async def row(self, query: str, params: Sequence[Cell] = ()) -> Row | None:
         return next(iter(await self.fetch(query, params)), None)
 
-    async def many(self, query: str, params: Sequence[Sequence[object]]) -> None:
+    async def many(self, query: str, params: Sequence[Sequence[Cell]]) -> None:
         logger.debug("psqlpy many", sets=len(params))
         async with self.connection() as held:
             await held.many(query, params)

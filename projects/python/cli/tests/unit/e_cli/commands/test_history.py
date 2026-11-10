@@ -1,21 +1,26 @@
 """tests/unit/e_cli/commands/history: the journal as a user sees it — list, undo in order, failed runs never filed."""
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from tests.unit.e_cli.conftest import Ecli
+
 TOKEN = ("--token", "tk-test-0001")
 
 
-def test_history_list_empty_says_so(ecli) -> None:
+def test_history_list_empty_says_so(ecli: Ecli) -> None:
     _, out, _ = ecli("history", "list")
     assert "nothing recorded" in out
 
 
-def test_history_list_shows_runs_newest_first(ecli) -> None:
+def test_history_list_shows_runs_newest_first(ecli: Ecli) -> None:
     ecli(*TOKEN, "project", "create", "demo")
     ecli(*TOKEN, "project", "env", "set", "demo", "KEY", "v")
     _, out, _ = ecli("history", "list")
     assert out.index("project env set") < out.index("project create")
 
 
-def test_history_undo_walks_back_one_run_at_a_time(ecli) -> None:
+def test_history_undo_walks_back_one_run_at_a_time(ecli: Ecli) -> None:
     ecli(*TOKEN, "project", "create", "demo")
     ecli(*TOKEN, "project", "env", "set", "demo", "KEY", "v")
     assert "undid `project env set`" in ecli("history", "undo")[1]
@@ -26,7 +31,7 @@ def test_history_undo_walks_back_one_run_at_a_time(ecli) -> None:
     assert "nothing to undo" in err
 
 
-def test_history_failed_run_is_never_filed(ecli) -> None:
+def test_history_failed_run_is_never_filed(ecli: Ecli) -> None:
     ecli(*TOKEN, "project", "create", "demo")
     ecli(*TOKEN, "project", "create", "demo")
     _, out, _ = ecli("history", "list")

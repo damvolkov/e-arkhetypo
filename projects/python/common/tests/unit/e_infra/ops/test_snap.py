@@ -1,6 +1,6 @@
 """tests/unit/e_infra/ops/snap: GallerySnap — the matrix is the product, the shoot is a pass-through."""
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from textual.app import App
 
@@ -10,7 +10,7 @@ if TYPE_CHECKING:
 from e_infra.ops.snap import DEFAULT_SIZES, GallerySnap
 
 
-def _apps() -> dict[str, Callable[[], App[Any]]]:
+def _apps() -> dict[str, Callable[[], App[None]]]:
     return {"alpha": App[None], "beta": App[None]}
 
 
@@ -26,9 +26,9 @@ def test_snap_case_ids_name_architecture_and_viewport() -> None:
 
 
 def test_snap_shoot_builds_the_named_app_and_returns_the_verdict() -> None:
-    seen: list[tuple[Any, tuple[int, int]]] = []
+    seen: list[tuple[App[None], tuple[int, int]]] = []
 
-    def fake_compare(app: App[object], terminal_size: tuple[int, int]) -> bool:
+    def fake_compare(app: App[None], terminal_size: tuple[int, int]) -> bool:
         seen.append((app, terminal_size))
         return True
 

@@ -8,9 +8,10 @@ mounted command is a coroutine function; the only sync callables the tree resolv
 (help on a bare group), which run as they are, outside any lifespan."""
 
 import inspect
-from collections.abc import Callable, Coroutine, Iterable, Mapping
+from collections.abc import Iterable, Mapping
 from inspect import BoundArguments
-from typing import Annotated, Any
+from types import FunctionType
+from typing import Annotated
 
 from cyclopts import App, Parameter
 from rich.console import Console
@@ -21,6 +22,7 @@ from e_cli.models.command import CommandCard
 from e_cli.models.error import CLIError
 from e_cli.models.identity import Identity, IdentityOrigin
 from e_cli.models.session import Session
+from e_cli.runtime.deps import Provided
 from e_cli.runtime.lifespan import lifespan
 
 
@@ -36,22 +38,21 @@ class Launcher:
 
     ##### PRIVATE METHODS #####
 
-    def _run_path(self, command: Callable[..., object]) -> str:
-        name = getattr(command, "__name__", "")
-        return self._paths.get(f"{command.__module__}:{name}", name)
+    def _run_path(self, command: FunctionType) -> str:
+        return self._paths.get(f"{command.__module__}:{command.__name__}", command.__name__)
 
     @staticmethod
-    def _run_identity(token: str) -> Identity | None:
+    def _run_identity(token: str | None) -> Identity | None:
         """The flag beats CLI_TOKEN; neither leaves the stored login to `Deps`."""
         env = st.CLI_TOKEN
-        offered = ((token, IdentityOrigin.FLAG), ("" if env is None else env.get_secret_value(), IdentityOrigin.ENV))
+        offered = ((token, IdentityOrigin.FLAG), (None if env is None else env.get_secret_value(), IdentityOrigin.ENV))
         return next((Identity(origin=origin, token=value) for value, origin in offered if value), None)
 
     @staticmethod
     async def _run_command(
-        command: Callable[..., Coroutine[Any, Any, None]],
+        command: FunctionType,
         bound: BoundArguments,
-        injected: Mapping[str, type],
+        injected: Mapping[str, type[Provided]],
         session: Session,
     ) -> int:
         """One run: the lifespan around the awaited command, its injected parameters resolved, the error boundary."""
@@ -71,7 +72,7 @@ class Launcher:
     async def run(
         self,
         *tokens: Annotated[str, Parameter(show=False, allow_leading_hyphen=True)],
-        token: str = "",
+        token: str | None = None,
         verbose: bool = False,
     ) -> int:
         """Global options, valid before any command.
@@ -81,8 +82,8 @@ class Launcher:
             verbose: diagnostics on stderr at debug level.
         """
         command, bound, injected = self._app.parse_args(tokens)
-        match inspect.iscoroutinefunction(command):
-            case True:
+        match command:
+            case FunctionType() if inspect.iscoroutinefunction(command):
                 session = Session(command=self._run_path(command), verbose=verbose, identity=self._run_identity(token))
                 return await self._run_command(command, bound, injected, session)
             case _:

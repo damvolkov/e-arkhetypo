@@ -7,9 +7,12 @@ assertion, at the cheapest level that sees it whole: `Tree` reads directories, `
 `ast`, `Syntax` is an ast-grep rule with its own cases, `Genealogy` the imported classes, `Parity` an enum against the
 files it names. The template's defaults come first in the file; the project's own follow."""
 
-from typing import Any
+from collections.abc import Mapping
 
 from msgspec import Struct
+
+### ast-grep's own rule schema, handed through untouched: msgspec cannot analyse a recursive JSON alias (RecursionError).
+type Verbatim = Mapping[str, object]  # ast-grep-ignore: object-annotation
 
 
 class GateError(Exception):
@@ -75,8 +78,8 @@ class Syntax(Rule, frozen=True, kw_only=True, tag="syntax"):
 
     files: tuple[str, ...]
     ignores: tuple[str, ...] = ()
-    rule: dict[str, Any]
-    constraints: dict[str, Any] | None = None
+    rule: Verbatim
+    constraints: Verbatim | None = None
     valid: tuple[str, ...] = ()
     invalid: tuple[str, ...] = ()
 

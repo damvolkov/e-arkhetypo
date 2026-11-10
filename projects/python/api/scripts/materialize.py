@@ -23,16 +23,16 @@ import libcst as cst
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-API_ROOT: Path = Path(__file__).resolve().parents[1]
-COMMON_SRC: Path = API_ROOT.parent / "common" / "src" / "e_infra"
+API_ROOT: Final[Path] = Path(__file__).resolve().parents[1]
+COMMON_SRC: Final[Path] = API_ROOT.parent / "common" / "src" / "e_infra"
 PACKAGE: Final[str] = "e_api"
-SECTIONS: tuple[str, ...] = ("infra", "ops", "ports", "providers", "engines", "processors")
+SECTIONS: Final[tuple[str, ...]] = ("infra", "ops", "ports", "providers", "engines", "processors")
 ### the TUI header belongs to the boilerplate wizard, not to a running service: same topology as the old sed.
 ### the compose tool belongs to stack management (e-taxis materializes the whole ops area), not to a running service.
 ### the durable queue rides in only for a service that runs one: drop the queue row, add pgqueuer[asyncpg] and awa-pg,
 ### and the composition root names the class that fills `QueuePort`. Tracing, the cache and the model edges are opt-in
 ### the same way; postgres rides in always — the db lifespan provisions every database the settings name.
-EXCLUDES: frozenset[str] = frozenset(
+EXCLUDES: Final[frozenset[str]] = frozenset(
     {
         "ops/tui.py",
         "ops/snap.py",
@@ -113,7 +113,7 @@ def _reroot_e_infra(name: cst.BaseExpression) -> cst.BaseExpression:
     return _dotted([PACKAGE, *parts[1:]]) if hit else name
 
 
-def _reroot_alias(alias: object) -> object:
+def _reroot_alias(alias: cst.CSTNode) -> cst.CSTNode:
     """One `import a.b [as c]` alias, stripped whatever its wrapper shape; anything else passes through."""
     match alias:
         case cst.ImportAlias(name=name):

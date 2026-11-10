@@ -86,7 +86,7 @@ class LayoutRender:
 
     def _mast(self, mast: Mast) -> Widget:
         """The declared pixel masthead, drawn by the house engine in the corporate hue."""
-        return HeaderTui(mast.main, mast.sub, color=self._colors.corporate.hex, max_height=mast.max_height)
+        return HeaderTui(mast.main, mast.sub or "", color=self._colors.corporate.hex, max_height=mast.max_height)
 
     def _label(self, line: Line) -> Widget:
         """One static line: plain text in corporate, emphasis mapped to the house styles."""

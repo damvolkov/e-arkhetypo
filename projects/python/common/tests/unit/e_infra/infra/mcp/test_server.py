@@ -15,6 +15,7 @@ if TYPE_CHECKING:
     from litestar.testing import AsyncTestClient
 
     from support.mcp import Connect
+    from unit.e_infra.infra.mcp.conftest import Detached
 
 HEADERS: Final = {"accept": "application/json, text/event-stream", "content-type": "application/json"}
 INIT: Final = {
@@ -89,10 +90,10 @@ async def test_server_unknown_tool(connect: Connect) -> None:
     assert await refused(connect, "probe_ghost", {}) == "no tool 'probe_ghost': tools/list names them"
 
 
-async def test_server_a_call_off_http_is_refused(client: AsyncTestClient[Litestar]) -> None:
+async def test_server_a_call_off_http_is_refused(client: AsyncTestClient[Litestar], detached: Detached) -> None:
     """A call with no HTTP request behind it (an in-process transport) has no caller to carry: refused, never anonymous."""
     server = client.app.state["mcp"]
-    result = await server._call_tool(object(), types.CallToolRequestParams(name="probe_echo", arguments={}))
+    result = await server._call_tool(detached, types.CallToolRequestParams(name="probe_echo", arguments={}))
     assert (result.is_error, result.content[0].text) == (True, "a tool is called over HTTP, through the MCP endpoint")
 
 

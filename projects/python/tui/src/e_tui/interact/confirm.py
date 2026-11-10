@@ -5,6 +5,7 @@ walker turns into a `Declined` (the walk stays put, the step can be re-answered)
 step's route decide where the fork leads. The `detail` line is where the "this deletes X" warning goes."""
 
 from collections.abc import Sequence
+from typing import Final
 
 from textual.containers import Horizontal, Vertical
 from textual.widgets import Button, Label, Static
@@ -12,8 +13,8 @@ from textual.widgets import Button, Label, Static
 from e_tui.models.object import Commit, ConfirmSpec
 
 ##### LABELS #####
-YES: str = "yes"
-NO: str = "no"
+YES: Final = "yes"
+NO: Final = "no"
 
 
 class Confirm(Vertical):

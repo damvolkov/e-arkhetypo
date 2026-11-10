@@ -21,7 +21,7 @@ import wreq
 from e_infra.infra.errors import HTTPError, ModelError, ProviderError
 from e_infra.infra.logger import logger
 from e_infra.ports.ner import NEREntity
-from e_infra.ports.provider import Isolation, Locality, ProviderSpec, Workload
+from e_infra.ports.provider import Isolation, Locality, Opened, ProviderSpec, Workload
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator, Generator, Iterator, Sequence
@@ -57,7 +57,7 @@ class GlinerCard(msgspec.Struct, frozen=True):
 class GlinerAnswer(msgspec.Struct, frozen=True):
     """One line of a batch answer: a text's entities by its id, or an error on an item (`id`) or a line (`line`)."""
 
-    id: str = ""
+    id: str | None = None
     line: int = 0
     entities: tuple[NEREntity, ...] = ()
     error: str | None = None
@@ -68,6 +68,7 @@ class GlinerDriver:
     """One wreq client per process, behind `NERPort`; the served model is read on `refresh`."""
 
     spec: ClassVar[ProviderSpec] = ProviderSpec("gliner", Locality.REMOTE, Workload.IO_BOUND, Isolation.LOOP)
+    client = Opened[wreq.Client](ModelError)
 
     __slots__ = ("_annotator", "_batch", "_client", "_timeout", "_url")
 
@@ -91,14 +92,6 @@ class GlinerDriver:
             logger.error("gliner failed", error=str(error))
             raise HTTPError(str(error)) from error
 
-    def _common_open(self) -> wreq.Client:
-        match self._client:
-            case None:
-                msg = "GlinerDriver is not open: the lifespan opens it, annotators never do"
-                raise ModelError(msg)
-            case client:
-                return client
-
     @staticmethod
     def _entities_body(texts: Sequence[str], labels: Sequence[str], threshold: float) -> Iterator[bytes]:
         """The header, then one item a text, each line encoded only when the service reads it."""
@@ -112,7 +105,8 @@ class GlinerDriver:
         rest = b""
         ### an async stream is consumed by a loop: each frame's whole lines go out, the partial one waits;
         ### wreq's stub declares `__aiter__` as a coroutine; the stream is named for what it yields at runtime.
-        async for frame in cast("AsyncIterator[bytes | memoryview]", stream):
+        ### ty: not-iterable — `Streamer.__aiter__` returns a coroutine in the stub, `Streamer` itself at runtime.
+        async for frame in cast("AsyncIterator[bytes | memoryview]", stream):  # ast-grep-ignore: cast
             match frame:
                 case memoryview() | bytes():
                     *lines, rest = (rest + bytes(frame)).split(NEWLINE)
@@ -125,7 +119,7 @@ class GlinerDriver:
     def _entities_check(answers: Sequence[GlinerAnswer], count: int) -> dict[str, tuple[NEREntity, ...]]:
         """The entities by id, once every text is answered and no line was refused."""
         refused = [f"{answer.id or f'line {answer.line}'}: {answer.error}" for answer in answers if answer.error]
-        found = {answer.id: answer.entities for answer in answers if answer.error is None}
+        found = {answer.id: answer.entities for answer in answers if answer.error is None and answer.id is not None}
         match (refused, len(found)):
             case ([], answered) if answered == count:
                 return found
@@ -140,7 +134,7 @@ class GlinerDriver:
         """One request: the texts' entities, in order."""
         logger.debug("gliner batch", texts=len(texts), labels=len(labels))
         with self._common_guard():
-            response = await self._common_open().post(
+            response = await self.client.post(
                 f"{self._url}/ner/batch",
                 body=self._entities_body(texts, labels, threshold),
                 headers={"content-type": NDJSON},
@@ -188,7 +182,7 @@ class GlinerDriver:
         """The service's readiness route: 200 once the model is loaded, 503 before."""
         try:
             with self._common_guard():
-                response = await self._common_open().get(f"{self._url}/ready")
+                response = await self.client.get(f"{self._url}/ready")
                 response.raise_for_status()
         except ProviderError as error:
             logger.warning("gliner unhealthy", error=str(error))
@@ -198,7 +192,7 @@ class GlinerDriver:
     async def refresh(self) -> str:
         """The served model, read now; the last one read stays when the service cannot answer (and this raises)."""
         with self._common_guard():
-            response = await self._common_open().get(f"{self._url}/models")
+            response = await self.client.get(f"{self._url}/models")
             response.raise_for_status()
             body = await response.bytes()
         card = msgspec.json.decode(body, type=GlinerCard)

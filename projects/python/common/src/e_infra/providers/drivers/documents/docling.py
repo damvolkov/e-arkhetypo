@@ -16,36 +16,52 @@ docling is optional to whoever reads documents: `present` is how a composition r
 the root's exit stack, when `url` names a server that answers; None otherwise, said once and why."""
 
 import base64
+from collections.abc import Mapping
 from datetime import timedelta
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, ClassVar, Final, Self, TypedDict, Unpack
+from typing import TYPE_CHECKING, ClassVar, Final, Self, TypedDict, Unpack
 
 import anyio
+import msgspec
 
 from e_infra.infra.config.providers import DoclingImages
-from e_infra.infra.errors import DocumentError, HTTPTimeoutError, ProviderError
+from e_infra.infra.errors import DocumentError, HTTPError, HTTPTimeoutError, ProviderError
 from e_infra.infra.logger import logger
-from e_infra.ports.documents import DocumentConversion
+from e_infra.ports.documents import Document, DocumentConversion
 from e_infra.ports.provider import Isolation, Locality, ProviderSpec, Workload
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
     from contextlib import AsyncExitStack
 
     from pydantic import HttpUrl
 
     from e_infra.infra.config.providers import DoclingBackend, DoclingFormat, DoclingTables
+    from e_infra.infra.payload import JSON
     from e_infra.ports.http import HTTPPort
 
 DONE: Final[frozenset[str]] = frozenset({"success", "partial_success"})
 FAILED: Final[frozenset[str]] = frozenset({"failure", "skipped"})
-FORMS: Final[Mapping[str, str]] = {
-    "markdown": "md_content",
-    "document": "json_content",
-    "html": "html_content",
-    "text": "text_content",
-    "doctags": "doctags_content",
-}
+
+
+##### WIRE #####
+class DoclingContent(msgspec.Struct, frozen=True, kw_only=True):
+    """The forms of a converted document, under docling-serve's own names; the ones not asked for are absent."""
+
+    filename: str | None = None
+    md_content: str | None = None
+    json_content: Document | None = None
+    html_content: str | None = None
+    text_content: str | None = None
+    doctags_content: str | None = None
+
+
+class DoclingResult(msgspec.Struct, frozen=True, kw_only=True):
+    """The slice of a task's result this driver reads; every other field is ignored."""
+
+    status: str | None = None
+    document: DoclingContent | None = None
+    errors: tuple[Document, ...] | None = None
+    processing_time: float | None = None
 
 
 ##### OPTIONS #####
@@ -91,7 +107,7 @@ class DoclingDriver:
 
     ##### PRIVATE METHODS #####
 
-    async def _convert_source(self, source: str | bytes | Path, filename: str) -> dict[str, Any]:
+    async def _convert_source(self, source: str | bytes | Path, filename: str | None) -> dict[str, JSON]:
         """The source as docling-serve takes it: a URL it fetches, or the bytes inline."""
         match source:
             case str():
@@ -106,14 +122,14 @@ class DoclingDriver:
                 raise TypeError(msg)
 
     @staticmethod
-    def _convert_inline(raw: bytes, filename: str) -> dict[str, Any]:
+    def _convert_inline(raw: bytes, filename: str) -> dict[str, JSON]:
         return {"kind": "file", "base64_string": base64.b64encode(raw).decode(), "filename": filename}
 
-    def _convert_options(self, overrides: Mapping[str, object] | None) -> dict[str, Any]:
+    def _convert_options(self, overrides: Mapping[str, JSON] | None) -> dict[str, JSON]:
         """The configured conversion in docling-serve's names, the call's overrides on top."""
         conf = self._conf
         timeout = conf["page_timeout"]
-        configured = {
+        configured: dict[str, JSON] = {
             "to_formats": [str(form) for form in conf["formats"]],
             "image_export_mode": str(conf["images"]),
             "include_images": conf["images"] is not DoclingImages.PLACEHOLDER,
@@ -150,20 +166,24 @@ class DoclingDriver:
                     await anyio.sleep(min(interval, self._common_remaining(deadline)))
 
     @staticmethod
-    def _convert_result(body: dict[str, Any]) -> DocumentConversion:
-        document = body.get("document") or {}
-        forms = {field: document.get(key) for field, key in FORMS.items()}
+    def _convert_result(body: Mapping[str, JSON]) -> DocumentConversion:
+        result = msgspec.convert(body, DoclingResult, strict=False)
+        document = result.document or DoclingContent()
         return DocumentConversion(
-            filename=document.get("filename", ""),
-            status=str(body.get("status", "")),
-            **{field: value for field, value in forms.items() if value is not None},
-            errors=tuple(body.get("errors") or ()),
-            seconds=float(body.get("processing_time") or 0.0),
+            filename=document.filename,
+            status=result.status,
+            markdown=document.md_content,
+            document=document.json_content or {},
+            html=document.html_content,
+            text=document.text_content,
+            doctags=document.doctags_content,
+            errors=result.errors or (),
+            seconds=result.processing_time or 0.0,
         )
 
     async def _common_call(
-        self, method: str, path: str, deadline: float | None = None, payload: object = None
-    ) -> dict[str, Any]:
+        self, method: str, path: str, deadline: float | None = None, payload: JSON = None
+    ) -> Mapping[str, JSON]:
         """One call to the server, JSON both ways, bounded by DOCLING_TIMEOUT and what is left of the deadline.
 
         The bound travels as the request's own timeout, never as a cancellation: a Rust future cancelled
@@ -172,15 +192,19 @@ class DoclingDriver:
         limit = self._conf["timeout"].total_seconds()
         within = timedelta(seconds=min(limit, self._common_remaining(deadline)) if deadline is not None else limit)
         try:
-            return await (
-                self._http.post(url, payload, as_=dict[str, Any], within=within)
-                if method == "POST"
-                else self._http.get(url, as_=dict[str, Any], within=within)
+            body = await (
+                self._http.post(url, payload, within=within) if method == "POST" else self._http.get(url, within=within)
             )
         except HTTPTimeoutError as error:
             msg = f"docling {method} {path} timed out after {within.total_seconds():.1f}s"
             logger.error("docling timed out", method=method, path=path, seconds=within.total_seconds())
             raise HTTPTimeoutError(msg) from error
+        match body:
+            case Mapping():
+                return body
+            case _:
+                msg = f"docling {method} {path} answered a body that is not an object"
+                raise HTTPError(msg)
 
     @staticmethod
     def _common_remaining(deadline: float) -> float:
@@ -206,7 +230,7 @@ class DoclingDriver:
         logger.info("docling closed")
 
     async def convert(
-        self, source: str | bytes | Path, *, filename: str = "", options: Mapping[str, object] | None = None
+        self, source: str | bytes | Path, *, filename: str | None = None, options: Mapping[str, JSON] | None = None
     ) -> DocumentConversion:
         """Convert one document as a server task, within DOCLING_DEADLINE: submit, wait, fetch."""
         request = {
@@ -215,10 +239,14 @@ class DoclingDriver:
             "target": {"kind": "inbody"},
         }
         deadline = anyio.current_time() + self._conf["deadline"].total_seconds()
-        task = (await self._common_call("POST", "/v1/convert/source/async", deadline, request))["task_id"]
-        logger.debug("docling submitted", task=task, filename=filename)
-        await self._convert_wait(task, deadline)
-        return self._convert_result(await self._common_call("GET", f"/v1/result/{task}", deadline))
+        match await self._common_call("POST", "/v1/convert/source/async", deadline, request):
+            case {"task_id": str() as task}:
+                logger.debug("docling submitted", task=task, filename=filename)
+                await self._convert_wait(task, deadline)
+                return self._convert_result(await self._common_call("GET", f"/v1/result/{task}", deadline))
+            case submitted:
+                msg = f"docling accepted the conversion without a task id: {dict(submitted)}"
+                raise DocumentError(msg)
 
     @classmethod
     async def present(

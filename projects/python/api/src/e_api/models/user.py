@@ -7,16 +7,16 @@ and its hash physically do not exist on `User`, so no serializer can leak them. 
 
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Annotated
+from typing import Annotated, Final
 from uuid import UUID
 
 import msgspec
 
 ##### CONSTANTS #####
-REDACTED: str = "**********"
-USERNAME_PATTERN: str = r"^[a-z][a-z0-9_]{2,31}$"
-EMAIL_PATTERN: str = r"^[^@\s]+@[^@\s]+\.[^@\s]+$"
-PASSWORD_MIN: int = 12
+REDACTED: Final[str] = "**********"
+USERNAME_PATTERN: Final[str] = r"^[a-z][a-z0-9_]{2,31}$"
+EMAIL_PATTERN: Final[str] = r"^[^@\s]+@[^@\s]+\.[^@\s]+$"
+PASSWORD_MIN: Final[int] = 12
 
 
 ##### TYPES #####

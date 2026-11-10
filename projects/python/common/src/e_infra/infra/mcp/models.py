@@ -7,18 +7,18 @@ A tool is a Litestar route whose options carry its `MCPTool` under `TOOL`, at it
 on `PATH/<name>`: POST, out of the OpenAPI spec, its options the access, the tool, and authentication left out — the
 caller rides in from the MCP endpoint's own request, resolved there once."""
 
+from collections.abc import Mapping
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Any, Final
+from typing import TYPE_CHECKING, Final
 
 import msgspec
 from litestar import post
 
 from e_infra.infra.auth.guard import ACCESS
 from e_infra.infra.auth.middleware import EXCLUDED
+from e_infra.infra.payload import JSON
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
-
     from litestar.di import Provide
     from litestar.handlers import HTTPRouteHandler
     from litestar.types import ExceptionHandlersMap
@@ -39,7 +39,7 @@ class MCPTool(msgspec.Struct, frozen=True, kw_only=True):
     read_only: bool = True
     destructive: bool = False
 
-    def opt(self, access: Access) -> Mapping[str, object]:
+    def opt(self, access: Access) -> Mapping[str, Access | bool | MCPTool]:
         """The route's options for this tool at `access`: kept out of authentication, the caller handed in."""
         return MappingProxyType({ACCESS: access, EXCLUDED: True, TOOL: self})
 
@@ -67,13 +67,13 @@ class MCPEntry(msgspec.Struct, frozen=True, kw_only=True):
 
     tool: MCPTool
     path: str
-    arguments: dict[str, Any]
-    answer: dict[str, Any] | None = None
+    arguments: Mapping[str, JSON]
+    answer: Mapping[str, JSON] | None = None
 
 
 class MCPAnswer(msgspec.Struct, frozen=True, kw_only=True):
     """A tool's answer: its text, its value when it is an object, or the refusal as the route gave it."""
 
     text: str
-    value: dict[str, Any] | None = None
+    value: Mapping[str, JSON] | None = None
     error: bool = False

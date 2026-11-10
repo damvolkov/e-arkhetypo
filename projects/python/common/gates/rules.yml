@@ -1,7 +1,7 @@
 ### gates/rules.yml — every rule no existing tool states by name; imports, `print`, `os.environ`, layers and forbidden
 ### files live in ruff, tach and prek. One list, each rule tagged by its level: tree (directories), shape (a module's top
 ### level), syntax (ast-grep, with its cases), genealogy and parity (the imported program, run by the unit suite).
-### The template's defaults come first; the project's own follow, under PROJECT. `python -m scripts.gate check|semantic|test`.
+### The template's defaults come first; the project's own follow, under PROJECT. `python -m gates.engine check|semantic|test`.
 
 roots: [src, tests, scripts, gates]
 
@@ -370,5 +370,212 @@ rules:
     invalid:
       - "sql = cast(LiteralString, text)"
       - "sql = typing.cast(LiteralString, text)"
+
+  ##### TYPES — no invalid state representable (law 13); ruff ANN holds what it names: annotations present, Any atop a signature #####
+  - level: syntax
+    id: any-annotation
+    law: "13"
+    message: "Any hides the type: name it — ruff ANN401 holds a signature's top level, this rule a field, a variable and a type argument"
+    files: ["src/**/*.py", "scripts/**/*.py", "gates/**/*.py"]
+    rule:
+      all:
+        - any:
+            - {kind: identifier, regex: '^Any$'}
+            - {kind: attribute, regex: '^typing\.Any$'}
+        - inside: {kind: type, stopBy: end}
+        - not:
+            inside:
+              kind: type
+              any:
+                - inside: {kind: typed_parameter}
+                - inside: {kind: typed_default_parameter}
+                - inside: {kind: function_definition, field: return_type}
+    valid:
+      - "def f(x: Any) -> Any: ..."
+      - "def f(*args: Any, **kwargs: Any) -> None: ..."
+      - "x: Mapping[str, Branch]"
+      - 'y = cast("Any", z)'
+    invalid:
+      - "x: Any = None"
+      - "class A:\n    rule: dict[str, Any]\n"
+      - "def f(x: Mapping[str, Any]) -> None: ..."
+      - "def f() -> list[Any]: ..."
+      - "type Row = Mapping[str, typing.Any]"
+
+  - level: syntax
+    id: object-annotation
+    law: "13"
+    message: "object is avoidable: a generic that hides the type — name it, bind a type parameter or a Protocol; where anything at all is the contract, `# ast-grep-ignore: object-annotation` and the reason"
+    files: ["src/**/*.py", "scripts/**/*.py", "gates/**/*.py"]
+    rule:
+      all:
+        - {kind: identifier, regex: '^object$'}
+        - inside: {kind: type, stopBy: end}
+        - not:
+            inside:
+              kind: function_definition
+              stopBy: end
+              has: {field: name, regex: '^__(eq|ne|contains|exit|aexit|setattr)__$'}
+    valid:
+      - "def __eq__(self, other: object) -> bool: ..."
+      - "async def __aexit__(self, *exc: object) -> None: ..."
+      - "def f[T](x: T) -> T: ..."
+    invalid:
+      - "def f(x: object) -> None: ..."
+      - "x: Mapping[str, object]"
+      - "def f() -> object: ..."
+      - "def f(*args: object) -> None: ..."
+
+  - level: syntax
+    id: cast
+    law: "13"
+    message: "no cast: it tells the checker what is not proven — narrow, type the source or fix the stub; one that survives carries `# ast-grep-ignore: cast` and the checker's diagnostic"
+    files: ["src/**/*.py", "scripts/**/*.py", "gates/**/*.py"]
+    rule:
+      kind: call
+      has: {field: function, regex: '^(typing\.)?cast$'}
+      not:
+        has: {field: arguments, regex: '^\(\s*"?LiteralString"?\s*,'}
+    valid:
+      - "x = convert(value, T)"
+      - "sql = cast(LiteralString, text)"
+    invalid:
+      - 'x = cast("Any", state)'
+      - "x = typing.cast(int, y)"
+
+  - level: syntax
+    id: literal-alias
+    law: "26"
+    message: "a closed set of words is a StrEnum, never a Literal alias"
+    files: ["src/**/*.py", "scripts/**/*.py", "gates/**/*.py"]
+    rule:
+      any:
+        - all:
+            - kind: type_alias_statement
+            - regex: 'Literal\['
+        - all:
+            - kind: assignment
+            - inside: {kind: expression_statement, inside: {kind: module}}
+            - has: {field: right, regex: '^(typing\.)?Literal\['}
+    valid:
+      - "type Postcode = Annotated[str, Meta(pattern='x')]"
+      - "class Feed(StrEnum):\n    NONE = auto()\n"
+      - "def f(mode: Literal['r']) -> None: ..."
+    invalid:
+      - 'type Feed = Literal["none", "name"]'
+      - 'Feed = Literal["none", "name"]'
+
+  - level: syntax
+    id: empty-sentinel
+    law: "13"
+    message: 'absence is a type, never a value: `X | None = None` when it may be absent, a non-empty type when it may not — never `""`'
+    files: ["src/**/*.py", "scripts/**/*.py", "gates/**/*.py"]
+    rule:
+      any:
+        - all:
+            - kind: assignment
+            - has: {field: type, kind: type}
+            - has: {field: right, kind: string, regex: '^(""|'''')$'}
+        - all:
+            - kind: typed_default_parameter
+            - has: {field: value, kind: string, regex: '^(""|'''')$'}
+        - all:
+            - kind: call
+            - has: {field: function, regex: '^(SecretStr|Secret)$'}
+            - has: {field: arguments, regex: '^\((""|'''')\)$'}
+    valid:
+      - "ask: Said | None = None"
+      - 'sep: str = " | "'
+      - 'x = ""'
+      - "def f(a: str | None = None) -> None: ..."
+      - "KEY: SecretStr | None = None"
+    invalid:
+      - 'ask: str = ""'
+      - "code: str = ''"
+      - 'def f(a: str = "") -> None: ...'
+      - 'KEY: SecretStr = SecretStr("")'
+
+  - level: syntax
+    id: final-constant
+    law: "1"
+    message: "a module-level constant is Final"
+    files: ["src/**/*.py", "scripts/**/*.py", "gates/**/*.py"]
+    rule:
+      kind: assignment
+      inside: {kind: expression_statement, inside: {kind: module}}
+      has: {field: left, kind: identifier, regex: '^[A-Z][A-Z0-9_]*$'}
+      not:
+        has: {field: type, kind: type, regex: 'Final'}
+    valid:
+      - "LIMIT: Final = 30"
+      - "ELogger = beartype(ELogger)"
+      - "MORNING, NIGHT = 6, 21"
+    invalid:
+      - "PLACEHOLDER_KEY = 'EMPTY'"
+      - "OPEN_TIMEOUT: float = 10.0"
+      - "COLORS: Mapping[str, str] = MappingProxyType({})"
+
+  - level: syntax
+    id: mutable-field
+    law: "13"
+    message: "a field is read-only at its surface: Mapping, Sequence or tuple, frozenset — never dict, list or set"
+    files: ["src/**/*.py", "scripts/**/*.py", "gates/**/*.py"]
+    rule:
+      kind: assignment
+      inside: {kind: expression_statement, inside: {kind: block, inside: {kind: class_definition}}}
+      has: {field: type, kind: type, regex: '^(dict|list|set)\['}
+    valid:
+      - "class A:\n    m: Mapping[str, int]\n"
+      - "class A:\n    messages: Annotated[list[AnyMessage], add_messages]\n"
+      - "class A:\n    def f(self) -> None:\n        x: dict[str, int] = {}\n"
+    invalid:
+      - "class A:\n    m: dict[str, int]\n"
+      - "class A(BaseSettings):\n    ROUTE: dict[Line, Brand] = Field(default_factory=dict)\n"
+
+  - level: syntax
+    id: string-getattr
+    law: "13"
+    message: "an attribute is named by the code, not by a string: getattr, hasattr, setattr or delattr with a literal name is banned"
+    files: ["src/**/*.py", "scripts/**/*.py", "gates/**/*.py"]
+    rule:
+      kind: call
+      all:
+        - has: {field: function, regex: '^(getattr|hasattr|setattr|delattr)$'}
+        - has: {field: arguments, has: {kind: string, nthChild: 2}}
+    valid:
+      - "getattr(state, str(slot))"
+    invalid:
+      - 'getattr(cls, "run", None)'
+      - 'hasattr(kind, "_is_protocol")'
+
+  - level: syntax
+    id: type-ignore
+    law: "13"
+    message: "never silence the checker: `# type: ignore` and `# ty: ignore` hide the failure — fix the annotation; an upstream gap is a marked cast with the diagnostic as its reason"
+    files: ["src/**/*.py", "scripts/**/*.py", "gates/**/*.py"]
+    rule:
+      kind: comment
+      regex: '^#\s*(type|ty|pyright|mypy):\s*ignore'
+    valid:
+      - "x = 1  # noqa: E501 — the URL"
+      - "### the type is ignored upstream."
+    invalid:
+      - "x = f()  # type: ignore"
+      - "x = f()  # ty: ignore[invalid-type-form]"
+      - "x = f()  # pyright: ignore"
+
+  - level: syntax
+    id: not-open
+    law: "8"
+    message: "a provider's resource read before open is an `Opened[T]` descriptor (ports/provider), never a hand-written `case None: raise`"
+    files: ["src/*/providers/**/*.py", "src/*/engines/**/*.py"]
+    rule:
+      all:
+        - kind: string
+        - regex: 'is not open'
+    valid:
+      - 'msg = f"cannot open {name}: {failure}"'
+    invalid:
+      - 'msg = "AzdDriver is not open: the lifespan opens it"'
 
   ##### PROJECT #####

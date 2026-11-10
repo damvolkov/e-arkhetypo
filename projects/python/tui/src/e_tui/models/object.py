@@ -19,7 +19,7 @@ class Field(msgspec.Struct, frozen=True, kw_only=True, omit_defaults=True):
 
     key: str
     label: str
-    detail: str = ""
+    detail: str | None = None
 
 
 class Commit(msgspec.Struct, frozen=True, kw_only=True, omit_defaults=True):
@@ -35,7 +35,7 @@ class Commit(msgspec.Struct, frozen=True, kw_only=True, omit_defaults=True):
 class ToggleSpec(msgspec.Struct, frozen=True, kw_only=True, omit_defaults=True, tag="toggle", tag_field="kind"):
     """Many switches: `defaults` start on, `locked` cannot be turned off (the house 'required' rule)."""
 
-    prompt: str = ""
+    prompt: str | None = None
     fields: tuple[Field, ...] = ()
     defaults: tuple[str, ...] = ()
     locked: tuple[str, ...] = ()
@@ -44,7 +44,7 @@ class ToggleSpec(msgspec.Struct, frozen=True, kw_only=True, omit_defaults=True, 
 class ChoiceSpec(msgspec.Struct, frozen=True, kw_only=True, omit_defaults=True, tag="choice", tag_field="kind"):
     """Pick exactly one: nothing commits until a radio answers, `selected` pre-picks."""
 
-    prompt: str = ""
+    prompt: str | None = None
     fields: tuple[Field, ...] = ()
     selected: str | None = None
 
@@ -52,22 +52,22 @@ class ChoiceSpec(msgspec.Struct, frozen=True, kw_only=True, omit_defaults=True, 
 class InputSpec(msgspec.Struct, frozen=True, kw_only=True, omit_defaults=True, tag="input", tag_field="kind"):
     """One line of text; empty never commits. `secret` masks it as a password."""
 
-    prompt: str = ""
-    placeholder: str = ""
+    prompt: str | None = None
+    placeholder: str | None = None
     secret: bool = False
 
 
 class ConfirmSpec(msgspec.Struct, frozen=True, kw_only=True, omit_defaults=True, tag="confirm", tag_field="kind"):
     """A fork with a consequence: yes advances, no commits `ok=False` and the walk stays put."""
 
-    prompt: str = ""
-    detail: str = ""
+    prompt: str | None = None
+    detail: str | None = None
 
 
 class ReportSpec(msgspec.Struct, frozen=True, kw_only=True, omit_defaults=True, tag="report", tag_field="kind"):
     """A page to read: static lines, it always and instantly commits."""
 
-    prompt: str = ""
+    prompt: str | None = None
     lines: tuple[str, ...] = ()
 
 

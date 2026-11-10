@@ -56,7 +56,7 @@ class Echoed(msgspec.Struct, frozen=True, kw_only=True):
 class Who(msgspec.Struct, frozen=True, kw_only=True):
     """The caller a tool saw."""
 
-    name: str
+    name: str | None
     role: str
 
 

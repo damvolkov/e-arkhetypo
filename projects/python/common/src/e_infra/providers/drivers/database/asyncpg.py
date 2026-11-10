@@ -15,7 +15,7 @@ project picks one at its root; PgQueuer rides either through the ports."""
 
 import json
 from contextlib import asynccontextmanager, contextmanager
-from typing import TYPE_CHECKING, Any, ClassVar, Final, Self
+from typing import TYPE_CHECKING, ClassVar, Final, Self
 from urllib.parse import urlsplit
 
 import anyio
@@ -24,16 +24,16 @@ import asyncpg
 from e_infra.infra.errors import DatabaseError, ProviderError
 from e_infra.infra.logger import logger
 from e_infra.ports.database import Row, Vector
-from e_infra.ports.provider import Isolation, Locality, ProviderSpec, Workload
+from e_infra.ports.provider import Isolation, Locality, Opened, ProviderSpec, Workload
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncGenerator, Callable, Coroutine, Generator, Sequence
+    from collections.abc import AsyncGenerator, Awaitable, Callable, Generator, Sequence
     from contextlib import AbstractAsyncContextManager
     from datetime import timedelta
 
     from pydantic import PostgresDsn, Secret
 
-    from e_infra.ports.database import Notify, QueryPort
+    from e_infra.ports.database import Cell, Notify, QueryPort
 
 ### the errors that are the driver's own, not the caller's: the server's refusal, a closed connection, the network, a
 ### command past its timeout.
@@ -41,6 +41,8 @@ WIRE: Final[tuple[type[BaseException], ...]] = (asyncpg.PostgresError, asyncpg.I
 ### every Postgres server has it: where a database that does not exist yet is created from.
 MAINTENANCE: Final[str] = "postgres"
 FOUND: Final[str] = "SELECT 1 FROM pg_database WHERE datname = $1"
+
+type Fanout = Callable[[asyncpg.Connection, int, str, str], None]
 
 
 ##### STATEMENTS #####
@@ -58,11 +60,12 @@ class AsyncpgStatements:
     @staticmethod
     def _common_error(error: BaseException) -> DatabaseError:
         """asyncpg's error as the tree's: its message, the server's SQLSTATE and constraint when it named them."""
-        return DatabaseError(
-            str(error) or type(error).__name__,
-            sqlstate=getattr(error, "sqlstate", None),
-            constraint_name=getattr(error, "constraint_name", None),
-        )
+        message = str(error) or type(error).__name__
+        match error:
+            case asyncpg.PostgresError(sqlstate=state, constraint_name=constraint):
+                return DatabaseError(message, sqlstate=state, constraint_name=constraint)
+            case _:
+                return DatabaseError(message)
 
     @staticmethod
     @contextmanager
@@ -75,7 +78,7 @@ class AsyncpgStatements:
             raise AsyncpgStatements._common_error(error) from error
 
     @staticmethod
-    def _common_params(params: Sequence[object]) -> list[object]:
+    def _common_params(params: Sequence[Cell]) -> list[Cell]:
         """Parameters as asyncpg takes them: a `Vector` as pgvector's text form."""
         return [
             f"[{','.join(str(float(each)) for each in value)}]" if isinstance(value, Vector) else value
@@ -83,13 +86,13 @@ class AsyncpgStatements:
         ]
 
     @classmethod
-    async def _common_call[T](cls, call: Coroutine[Any, Any, T]) -> T:
+    async def _common_call[T](cls, call: Awaitable[T]) -> T:
         """One driver call, its refusal a `DatabaseError`."""
         with cls._common_guard():
             return await call
 
     @staticmethod
-    def _common_json(value: object) -> str:
+    def _common_json(value: Cell) -> str:
         """A JSON parameter: a Python value encoded; text passed as the JSON it already is — asyncpg's own contract,
         which the libraries riding this driver (PgQueuer) were written against."""
         return value if isinstance(value, str) else json.dumps(value)
@@ -113,17 +116,17 @@ class AsyncpgStatements:
 
     ##### PUBLIC #####
 
-    async def execute(self, query: str, params: Sequence[object] = ()) -> None:
+    async def execute(self, query: str, params: Sequence[Cell] = ()) -> None:
         ### always the extended protocol, as psqlpy prepares: one statement, and a comment-only one is no error.
         _ = await self._common_call(self._on.fetch(query, *self._common_params(params)))
 
-    async def fetch(self, query: str, params: Sequence[object] = ()) -> list[Row]:
+    async def fetch(self, query: str, params: Sequence[Cell] = ()) -> Sequence[Row]:
         return [dict(record) for record in await self._common_call(self._on.fetch(query, *self._common_params(params)))]
 
-    async def row(self, query: str, params: Sequence[object] = ()) -> Row | None:
+    async def row(self, query: str, params: Sequence[Cell] = ()) -> Row | None:
         return next(iter(await self.fetch(query, params)), None)
 
-    async def many(self, query: str, params: Sequence[Sequence[object]]) -> None:
+    async def many(self, query: str, params: Sequence[Sequence[Cell]]) -> None:
         await self._common_call(self._on.executemany(query, [self._common_params(each) for each in params]))
 
     async def script(self, statements: str) -> None:
@@ -143,6 +146,7 @@ class AsyncpgDriver:
     spec: ClassVar[ProviderSpec] = ProviderSpec(
         "asyncpg", Locality.REMOTE, Workload.IO_BOUND, Isolation.LOOP, pooled=True
     )
+    pool = Opened[asyncpg.Pool](DatabaseError)
 
     __slots__ = ("_channels", "_dsn", "_fanouts", "_listener", "_max", "_min", "_pool", "_timeout")
 
@@ -152,7 +156,7 @@ class AsyncpgDriver:
         self._listener: asyncpg.pool.PoolConnectionProxy | None = None
         self._channels: dict[str, list[Notify]] = {}
         ### asyncpg removes a listener by identity: each channel's one fan-out, kept to remove it.
-        self._fanouts: dict[str, Callable[[object, object, object, object], None]] = {}
+        self._fanouts: dict[str, Fanout] = {}
 
     ##### PRIVATE #####
 
@@ -180,18 +184,10 @@ class AsyncpgDriver:
             case _:
                 return False
 
-    def _common_pool(self) -> asyncpg.Pool:
-        match self._pool:
-            case None:
-                msg = "AsyncpgDriver is not open: the lifespan opens it, callers never do"
-                raise DatabaseError(msg)
-            case pool:
-                return pool
-
     @asynccontextmanager
     async def _common_held(self, transactional: bool) -> AsyncGenerator[QueryPort]:  # noqa: FBT001 — two scopes, one body
         with AsyncpgStatements._common_guard():
-            async with self._common_pool().acquire() as connection:
+            async with self.pool.acquire() as connection:
                 match transactional:
                     case True:
                         async with connection.transaction():
@@ -203,14 +199,14 @@ class AsyncpgDriver:
         """The connection LISTEN holds, taken with the first channel."""
         match self._listener:
             case None:
-                self._listener = await AsyncpgStatements._common_call(self._common_pool().acquire())
+                self._listener = await AsyncpgStatements._common_call(self.pool.acquire())
                 return self._listener
             case listener:
                 return listener
 
-    def _listen_fanout(self, channel: str) -> Callable[[object, object, object, object], None]:
-        def fanout(_connection: object, _process: object, _channel: object, payload: object) -> None:
-            _ = [callback(str(payload)) for callback in tuple(self._channels.get(channel, ()))]
+    def _listen_fanout(self, channel: str) -> Fanout:
+        def fanout(_connection: asyncpg.Connection, _process: int, _channel: str, payload: str) -> None:
+            _ = [callback(payload) for callback in tuple(self._channels.get(channel, ()))]
 
         return self._fanouts.setdefault(channel, fanout)
 
@@ -281,20 +277,20 @@ class AsyncpgDriver:
         finally:
             await admin.close()
 
-    async def execute(self, query: str, params: Sequence[object] = ()) -> None:
+    async def execute(self, query: str, params: Sequence[Cell] = ()) -> None:
         logger.debug("asyncpg execute", params=len(params))
         async with self.connection() as held:
             await held.execute(query, params)
 
-    async def fetch(self, query: str, params: Sequence[object] = ()) -> list[Row]:
+    async def fetch(self, query: str, params: Sequence[Cell] = ()) -> Sequence[Row]:
         logger.debug("asyncpg fetch", params=len(params))
         async with self.connection() as held:
             return await held.fetch(query, params)
 
-    async def row(self, query: str, params: Sequence[object] = ()) -> Row | None:
+    async def row(self, query: str, params: Sequence[Cell] = ()) -> Row | None:
         return next(iter(await self.fetch(query, params)), None)
 
-    async def many(self, query: str, params: Sequence[Sequence[object]]) -> None:
+    async def many(self, query: str, params: Sequence[Sequence[Cell]]) -> None:
         logger.debug("asyncpg many", sets=len(params))
         async with self.connection() as held:
             await held.many(query, params)

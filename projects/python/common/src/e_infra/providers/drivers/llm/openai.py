@@ -8,7 +8,8 @@ invention. It speaks through an `HTTPPort` received by constructor, the bearer r
 
 import asyncio
 import time
-from typing import TYPE_CHECKING, Any, ClassVar, Self
+from collections.abc import Sequence
+from typing import TYPE_CHECKING, ClassVar, Self
 
 import msgspec
 
@@ -22,6 +23,7 @@ if TYPE_CHECKING:
 
     from pydantic import HttpUrl, SecretStr
 
+    from e_infra.infra.payload import JSON
     from e_infra.ports.http import HTTPPort
 
 
@@ -38,7 +40,7 @@ class OpenaiChoice(msgspec.Struct, frozen=True):
 class OpenaiCompletion(msgspec.Struct, frozen=True):
     """The slice of an OpenAI chat completion this driver reads; every other field is ignored."""
 
-    choices: list[OpenaiChoice]
+    choices: Sequence[OpenaiChoice]
 
 
 ##### RATE #####
@@ -82,7 +84,7 @@ class OpenaiDriver:
         rpm: int,
         max_tokens: int,
         model: str,
-        extra: Mapping[str, Any],
+        extra: Mapping[str, JSON],
     ) -> None:
         self._http = http
         self._url = str(url).rstrip("/")
@@ -92,7 +94,7 @@ class OpenaiDriver:
 
     ##### PRIVATE #####
 
-    def _structured_payload(self, system: str, prompt: str, schema: Mapping[str, Any]) -> dict[str, Any]:
+    def _structured_payload(self, system: str, prompt: str, schema: Mapping[str, JSON]) -> dict[str, JSON]:
         """The OpenAI chat-completions body, the provider's own fields (`extra`) merged over it."""
         return {
             "model": self._model,
@@ -111,7 +113,7 @@ class OpenaiDriver:
         return {"Authorization": f"Bearer {key.get_secret_value()}"} if key is not None else {}
 
     @staticmethod
-    def _structured_answer(body: object) -> Any:
+    def _structured_answer(body: JSON) -> JSON:
         """The first choice's content, decoded; any other shape is a `ModelError`."""
         try:
             completion = msgspec.convert(body, OpenaiCompletion)
@@ -160,7 +162,7 @@ class OpenaiDriver:
             raise
         return True
 
-    async def structured(self, system: str, prompt: str, schema: Mapping[str, Any]) -> Any:
+    async def structured(self, system: str, prompt: str, schema: Mapping[str, JSON]) -> JSON:
         """The model's answer to `prompt` under `system`, decoded from JSON constrained by `schema`."""
         url = f"{self._url}/chat/completions"
         logger.debug("openai structured", model=self._model, prompt_chars=len(prompt))

@@ -15,6 +15,6 @@ class SecuritySchemeName(StrEnum):
     BEARER = "bearerAuth"
 
 
-BEARER_SCHEME = SecurityScheme(type="http", scheme="bearer", bearer_format="opaque")
+BEARER_SCHEME: Final = SecurityScheme(type="http", scheme="bearer", bearer_format="opaque")
 ### OpenAPI requirement maps key by scheme id: the enum owns the vocabulary, `.value` is the str edge litestar types.
 SECURITY: Final[list[dict[str, list[str]]]] = [{SecuritySchemeName.BEARER.value: []}]

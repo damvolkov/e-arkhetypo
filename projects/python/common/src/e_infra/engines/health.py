@@ -33,7 +33,7 @@ class ProviderHealth(msgspec.Struct, frozen=True, kw_only=True):
     required: bool
     ok: bool
     latency: float
-    reason: str = ""
+    reason: str | None = None
 
 
 ##### ENGINE #####
@@ -61,10 +61,12 @@ class HealthEngine:
         except Exception as error:  # noqa: BLE001 — a health check's failure is its verdict, never the caller's
             reason = f"{type(error).__name__}: {error}"
         else:
-            reason = "" if up else "unhealthy"
+            reason = None if up else "unhealthy"
         latency = round((time.perf_counter() - start) * MS, 2)
         _ = reason and logger.warning("provider down", provider=name, reason=reason, latency=latency)
-        return ProviderHealth(name=name, required=name in self._required, ok=not reason, latency=latency, reason=reason)
+        return ProviderHealth(
+            name=name, required=name in self._required, ok=reason is None, latency=latency, reason=reason
+        )
 
     def _survey_failed(self, name: str, error: BaseException) -> ProviderHealth:
         """The verdict of a check that escaped `_survey_one` — a cancellation — never timed."""

@@ -6,12 +6,12 @@ once on entry and once on exit; inside the block `ms` is the live elapsed time, 
 is frozen — so a failure path can report how long it ran before raising."""
 
 import time
-from typing import TYPE_CHECKING, Self
+from typing import TYPE_CHECKING, Final, Self
 
 if TYPE_CHECKING:
     from types import TracebackType
 
-NS_PER_MS: float = 1_000_000.0
+NS_PER_MS: Final = 1_000_000.0
 
 
 ##### TYPES #####

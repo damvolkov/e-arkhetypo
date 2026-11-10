@@ -10,7 +10,7 @@ needs a login. Adding an injectable is one builder and one row in the table."""
 from collections.abc import Awaitable, Callable, Mapping
 from contextlib import AsyncExitStack
 from types import MappingProxyType
-from typing import Annotated, ClassVar, TypeVar, cast
+from typing import Annotated, ClassVar, TypeVar
 
 from cyclopts import Parameter
 from rich.console import Console
@@ -25,11 +25,12 @@ from e_cli.ports.store import StorePort
 from e_cli.providers.drivers.store.sqlite import SqliteDriver
 from e_cli.runtime.journal import StoreJournal
 
-T = TypeVar("T")
 ### cyclopts reads `Annotated` metadata but does not unwrap PEP 695 `type` aliases: the classic generic alias is what it sees.
-Inject = Annotated[T, Parameter(parse=False)]
+Kind = TypeVar("Kind")
+Inject = Annotated[Kind, Parameter(parse=False)]
 
-type Builder = Callable[[Deps], Awaitable[object]]
+type Provided = State | Console | StorePort | StoreJournal | ProjectStorePort | AuthStorePort | Identity
+type Builder = Callable[[Deps], Awaitable[Provided]]
 
 
 ##### TYPES #####
@@ -41,7 +42,7 @@ class Deps:
     def __init__(self, stack: AsyncExitStack, state: State) -> None:
         self._stack = stack
         self._state = state
-        self._built: dict[Builder, object] = {}
+        self._built: dict[Builder, Provided] = {}
 
     ##### PRIVATE METHODS #####
 
@@ -94,8 +95,13 @@ class Deps:
                 self._built[build] = await build(self)
             case _:
                 pass
-        return cast("K", self._built[build])
+        match self._built[build]:
+            case kind() as built:
+                return built
+            case other:
+                msg = f"the provider for {kind.__name__} built a {type(other).__name__}"
+                raise TypeError(msg)
 
-    async def inject(self, wanted: Mapping[str, type]) -> dict[str, object]:
+    async def inject(self, wanted: Mapping[str, type[Provided]]) -> dict[str, Provided]:
         """Every non-parsed parameter of a command, by name, resolved from its declared type."""
         return {name: await self.resolve(kind) for name, kind in wanted.items()}

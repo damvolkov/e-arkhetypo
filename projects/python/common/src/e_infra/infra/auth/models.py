@@ -42,8 +42,8 @@ class GrantKind(StrEnum):
 class Caller(msgspec.Struct, frozen=True, kw_only=True):
     """Who is asking: an account's id, name, role, segments and whether it acts for others, or nobody."""
 
-    owner: str = ""
-    name: str = ""
+    owner: str | None = None
+    name: str | None = None
     role: Role = Role.ANONYMOUS
     segments: frozenset[str] = frozenset()
     delegate: bool = False

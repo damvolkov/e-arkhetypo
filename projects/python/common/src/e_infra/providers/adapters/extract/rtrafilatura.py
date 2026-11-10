@@ -50,10 +50,10 @@ class RtrafilaturaAdapter:
             raise ParseError(str(error)) from error
 
     @staticmethod
-    def _extract_sync(html: bytes, url: str) -> str | None:
+    def _extract_sync(html: bytes, url: str | None) -> str | None:
         return rtrafilatura.extract(
             html,
-            url=url or None,
+            url=url,
             output_format="markdown",
             with_metadata=True,
             include_links=True,
@@ -84,7 +84,7 @@ class RtrafilaturaAdapter:
             raise
         return True
 
-    async def extract(self, html: bytes, *, url: str = "") -> str | None:
+    async def extract(self, html: bytes, *, url: str | None = None) -> str | None:
         """The page's main content as Markdown, its facts as front matter; None when it holds none."""
         logger.debug("rtrafilatura extract", size=len(html), url=url)
         with self._common_guard():

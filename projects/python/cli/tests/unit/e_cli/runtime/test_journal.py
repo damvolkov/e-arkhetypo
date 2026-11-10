@@ -1,24 +1,29 @@
 """tests/unit/e_cli/runtime/journal: the StorePort decorator — first value kept, clean exits filed, depth bounded."""
 
+from typing import TYPE_CHECKING
+
 import pytest
 
 from e_cli.models.error import JournalError
 from e_cli.ports.store import StorePort
 from e_cli.runtime.journal import PREFIX, StoreJournal
 
+if TYPE_CHECKING:
+    from tests.unit.e_cli.conftest import MemoryStore
 
-def test_journal_satisfies_the_store_port(store) -> None:
+
+def test_journal_satisfies_the_store_port(store: MemoryStore) -> None:
     assert isinstance(StoreJournal(store, command="x", depth=5), StorePort)
 
 
-async def test_journal_health_is_the_inner_store_health(store) -> None:
+async def test_journal_health_is_the_inner_store_health(store: MemoryStore) -> None:
     journal = StoreJournal(store, command="x", depth=5)
     assert await journal.health()
     store.healthy = False
     assert not await journal.health()
 
 
-async def test_journal_undo_restores_the_value_before_the_first_write(store) -> None:
+async def test_journal_undo_restores_the_value_before_the_first_write(store: MemoryStore) -> None:
     store.data["k"] = b"orig"
     async with StoreJournal(store, command="edit", depth=5) as journal:
         await journal.set("k", b"one")
@@ -29,7 +34,7 @@ async def test_journal_undo_restores_the_value_before_the_first_write(store) -> 
     assert store.data == {"k": b"orig"}
 
 
-async def test_journal_undo_of_a_delete_brings_the_key_back(store) -> None:
+async def test_journal_undo_of_a_delete_brings_the_key_back(store: MemoryStore) -> None:
     store.data["k"] = b"orig"
     async with StoreJournal(store, command="rm", depth=5) as journal:
         await journal.delete("k")
@@ -37,21 +42,21 @@ async def test_journal_undo_of_a_delete_brings_the_key_back(store) -> None:
     assert store.data["k"] == b"orig"
 
 
-async def test_journal_files_nothing_when_the_run_fails(store) -> None:
+async def test_journal_files_nothing_when_the_run_fails(store: MemoryStore) -> None:
     journal = StoreJournal(store, command="boom", depth=5)
     await journal.set("k", b"v")
     await journal.__aexit__(RuntimeError, RuntimeError(), None)
     assert not [key async for key in store.keys(PREFIX)]
 
 
-async def test_journal_files_nothing_for_a_read_only_run(store) -> None:
+async def test_journal_files_nothing_for_a_read_only_run(store: MemoryStore) -> None:
     async with StoreJournal(store, command="read", depth=5) as journal:
         await journal.get("k")
         assert [key async for key in journal.keys("any")] == []
     assert await StoreJournal(store, command="list", depth=5).entries() == []
 
 
-async def test_journal_keeps_only_the_newest_depth_runs(store) -> None:
+async def test_journal_keeps_only_the_newest_depth_runs(store: MemoryStore) -> None:
     for step in range(3):
         async with StoreJournal(store, command=f"run {step}", depth=2) as journal:
             await journal.set("k", str(step).encode())
@@ -59,6 +64,6 @@ async def test_journal_keeps_only_the_newest_depth_runs(store) -> None:
     assert [entry.command for entry in entries] == ["run 2", "run 1"]
 
 
-async def test_journal_undo_on_empty_is_refused(store) -> None:
+async def test_journal_undo_on_empty_is_refused(store: MemoryStore) -> None:
     with pytest.raises(JournalError, match="nothing to undo"):
         await StoreJournal(store, command="undo", depth=5).undo()

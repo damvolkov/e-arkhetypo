@@ -45,9 +45,9 @@ COMMON_ROOT ?= ../common
 common: ## materialize shared infra/ ops/ ports/ providers/ engines/ processors/ from projects/python/common (source of truth) via a structural rewrite, and the shared root files into the project root
 	@uv run python scripts/materialize.py
 	@cp $(COMMON_ROOT)/prek.toml prek.toml
-	@mkdir -p gates scripts
+	@mkdir -p gates
 	@cp $(COMMON_ROOT)/gates/models.py gates/models.py
-	@cp $(COMMON_ROOT)/scripts/gate.py scripts/gate.py
+	@cp $(COMMON_ROOT)/gates/engine.py gates/engine.py
 	@{ cat $(COMMON_ROOT)/gates/rules.yml; sed '1,/##### PROJECT #####/d' gates/rules.yml 2>/dev/null; } > gates/rules.yml.new && mv gates/rules.yml.new gates/rules.yml
 	@cp $(COMMON_ROOT)/.gitattributes .gitattributes
 	@cp $(COMMON_ROOT)/.python-version .python-version
@@ -58,7 +58,7 @@ common-check: ## fail if the materialized sections or the shared root files drif
 	@uv run python scripts/materialize.py --check
 	@diff $(COMMON_ROOT)/prek.toml prek.toml \
 	 && diff $(COMMON_ROOT)/gates/models.py gates/models.py \
-	 && diff $(COMMON_ROOT)/scripts/gate.py scripts/gate.py \
+	 && diff $(COMMON_ROOT)/gates/engine.py gates/engine.py \
 	 && sed '/##### PROJECT #####/q' gates/rules.yml | diff $(COMMON_ROOT)/gates/rules.yml - \
 	 && diff $(COMMON_ROOT)/.gitattributes .gitattributes \
 	 && diff $(COMMON_ROOT)/.python-version .python-version \
@@ -84,7 +84,7 @@ harden: ## zizmor audit of GitHub Actions workflows (templates assemble them at 
 	@test -d .github/workflows && uv run zizmor --persona=regular .github/workflows || echo "no workflows assembled: e-taxis writes them"
 
 gates: ## gates/rules.yml, the house laws no tool names (e-nous law 21): rules against their cases, tree/shape/syntax, genealogy/parity
-	@failed=0; for phase in test check semantic; do echo "== $$phase"; uv run python -m scripts.gate $$phase || failed=1; done; exit $$failed
+	@failed=0; for phase in test check semantic; do echo "== $$phase"; uv run python -m gates.engine $$phase || failed=1; done; exit $$failed
 
 hooks: ## run all prek hooks on every file (ruff, ty, tach, zizmor, gitleaks)
 	@uv run prek run --all-files

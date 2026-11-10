@@ -23,15 +23,15 @@ import libcst as cst
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-ROOT: Path = Path(__file__).resolve().parents[1]
-COMMON_SRC: Path = ROOT.parent / "common" / "src" / "e_infra"
+ROOT: Final = Path(__file__).resolve().parents[1]
+COMMON_SRC: Final = ROOT.parent / "common" / "src" / "e_infra"
 PACKAGE: Final[str] = "e_cli"
-SECTIONS: tuple[str, ...] = ("infra", "ops", "ports", "providers", "engines", "processors")
+SECTIONS: Final = ("infra", "ops", "ports", "providers", "engines", "processors")
 ### the TUI header belongs to the boilerplate wizard, not to a running service: same topology as the old sed.
 ### the compose tool belongs to stack management (e-taxis materializes the whole ops area), not to a running service.
 ### the Postgres drivers (psqlpy, asyncpg) and the durable queue drivers (awa, pgqueuer) ride in only for a service that
 ### runs them: add psqlpy / pgqueuer[asyncpg] / awa-pg, drop the exclusions (the composition root hands one to DispatchEngine).
-EXCLUDES: frozenset[str] = frozenset(
+EXCLUDES: Final = frozenset(
     {
         "ops/tui.py",
         "ops/snap.py",
@@ -108,7 +108,7 @@ def _reroot_e_infra(name: cst.BaseExpression) -> cst.BaseExpression:
     return _dotted([PACKAGE, *parts[1:]]) if hit else name
 
 
-def _reroot_alias(alias: object) -> object:
+def _reroot_alias(alias: cst.ImportAlias | cst.Element) -> cst.ImportAlias | cst.Element:
     """One `import a.b [as c]` alias, stripped whatever its wrapper shape; anything else passes through."""
     match alias:
         case cst.ImportAlias(name=name):

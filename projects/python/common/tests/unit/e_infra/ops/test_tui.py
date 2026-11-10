@@ -3,6 +3,7 @@
 from typing import TYPE_CHECKING
 
 import pytest
+from textual.geometry import Size
 
 from e_infra.ops.tui import HeaderTui
 
@@ -37,7 +38,7 @@ async def test_tui_render_never_overflows(host_app: Callable[[HeaderTui], App[No
         assert lines
         assert all(len(line) <= width for line in lines)
         assert len(lines) <= height
-        assert header.get_content_height(0, 0, width) == len(lines)
+        assert header.get_content_height(Size(0, 0), Size(0, 0), width) == len(lines)
 
 
 @pytest.mark.parametrize(("width", "height"), FRAMED, ids=["huge", "medium", "compact"])
@@ -59,9 +60,9 @@ async def test_tui_sub_is_a_tagline_not_a_second_logo(host_app: Callable[[Header
     bare = host_app(HeaderTui("AB", "", max_height=1))
     tagged = host_app(HeaderTui("AB", "cd", max_height=1))
     async with bare.run_test(size=(120, 40)):
-        title_rows = bare.screen.query_one(HeaderTui).get_content_height(0, 0, 120)
+        title_rows = bare.screen.query_one(HeaderTui).get_content_height(Size(0, 0), Size(0, 0), 120)
     async with tagged.run_test(size=(120, 40)):
-        full_rows = tagged.screen.query_one(HeaderTui).get_content_height(0, 0, 120)
+        full_rows = tagged.screen.query_one(HeaderTui).get_content_height(Size(0, 0), Size(0, 0), 120)
     assert 0 < full_rows - title_rows < title_rows
 
 

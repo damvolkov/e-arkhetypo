@@ -39,6 +39,8 @@ class FakeDescriber:
         DESC_KW.clear()
         DESC_KW.update(kwargs)
 
+    async def aclose(self) -> None: ...
+
 
 class Result:
     markdown = "# A"

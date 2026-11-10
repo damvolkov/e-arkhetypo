@@ -37,6 +37,14 @@ CACHE_PUT: Final[str] = (
 )
 
 
+##### WIRE #####
+class PostgresEntry(msgspec.Struct, frozen=True):
+    """The slice of a `cache` row this driver reads."""
+
+    key: str
+    value: bytes
+
+
 ##### DRIVER #####
 class PostgresCacheDriver[T]:
     """Values of type `kind` under `namespace` in the database's `cache` table — durable, shared by every process —,
@@ -115,7 +123,8 @@ class PostgresCacheDriver[T]:
         logger.debug("cache postgres many", namespace=self._namespace, keys=len(keys))
         with self._common_guard():
             rows = await self._db.fetch(CACHE_GET, [self._namespace, list(keys)]) if keys else []
-        return {row["key"]: value for row in rows if (value := self._common_decoded(row["value"])) is not None}
+        entries = [msgspec.convert(row, PostgresEntry) for row in rows]
+        return {entry.key: value for entry in entries if (value := self._common_decoded(entry.value)) is not None}
 
     async def put(self, key: str, value: T) -> None:
         await self.put_many({key: value})

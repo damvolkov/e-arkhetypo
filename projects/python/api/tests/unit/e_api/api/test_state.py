@@ -7,12 +7,17 @@ processors, infra's wrappers, builtins, mappings, third parties) are no node of 
 (`shared`, `providers`, `engines`) are walked, their own classes never placed. The blueprint mounts no stratum yet: the
 gate holds for the first one a project adds. And one object, one path: nothing the system holds lives at two."""
 
+from typing import TYPE_CHECKING
+
 import pytest
 from litestar import Litestar
 
 from e_api.api.state import AppState
 from e_api.infra.state import State
 from e_api.main import create_app
+
+if TYPE_CHECKING:
+    from litestar.testing import TestClient
 
 
 def test_state_create_app_installs_the_typed_state() -> None:
@@ -26,7 +31,7 @@ def test_state_of_refuses_a_foreign_state() -> None:
         AppState.of(Litestar())
 
 
-async def test_state_reserved_state_kwarg_builds_the_typed_class(client) -> None:
+async def test_state_reserved_state_kwarg_builds_the_typed_class(client: TestClient) -> None:
     """What Litestar injects for `state: AppState`: the subclass, over the same entries — the same system."""
     injected = AppState(client.app.state)
     assert injected.system is client.app.state.system

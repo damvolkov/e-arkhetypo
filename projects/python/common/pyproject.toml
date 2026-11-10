@@ -122,9 +122,10 @@ dev = [
 [tool.uv]
 required-version = ">=0.12"
 default-groups = ["dev"]
-exclude-newer = "2026-10-20"
+### an instant, not a date: uv reads a bare date in the local zone, so a laptop and CI locked different cutoffs.
+exclude-newer = "2026-10-21T00:00:00Z"
 ### e-serde is first-party (the compose loader) and rtrafilatura ships fast; exempt both from the freshness window.
-exclude-newer-package = { "e-serde" = "2100-01-01T00:00:00Z", "rtrafilatura" = "2100-01-01T00:00:00Z" }
+exclude-newer-package = { "e-serde" = "2100-01-01T00:00:00Z", "rtrafilatura" = "2100-01-01T00:00:00Z", "awa-pg" = "2026-11-09T00:00:00Z" }
 cache-keys = [{ file = "pyproject.toml" }, { git = { commit = true, tags = true } }]
 
 ##### VERSION #####
@@ -153,12 +154,15 @@ src = ["src", "tests"]
 select = [
     "F", "E", "W", "I", "N", "UP", "B", "A", "C4", "DTZ", "T10", "T20", "EM", "ISC",
     "PIE", "PT", "RET", "SIM", "TID", "TC", "ARG", "PTH", "PL", "PERF", "FURB",
-    "ASYNC", "S", "BLE", "FBT", "LOG", "G", "RUF",
+    "ASYNC", "S", "BLE", "FBT", "LOG", "G", "RUF", "ANN",
 ]
 ignore = ["E501", "ISC001", "PLR0913"]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**" = ["S101", "S106", "PLR2004", "ARG", "FBT"]
+### the gates engine runs ast-grep: the binary resolved by path, the arguments ours.
+"gates/engine.py" = ["S603"]
+### a test fake mirrors a vendor signature it stands in for; every other annotation rule holds in tests.
+"tests/**" = ["S101", "S106", "PLR2004", "ARG", "FBT", "ANN401"]
 ### TID251 stays on over tests/ — it is the ghost gate; only these files reach a vendor or the environment on purpose.
 "tests/unit/e_infra/conftest.py" = ["TID251"]
 "tests/unit/e_infra/infra/config/conftest.py" = ["TID251"]
@@ -178,7 +182,7 @@ ignore = ["E501", "ISC001", "PLR0913"]
 "src/e_infra/providers/**" = ["TID251"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["e_infra", "scripts", "gates"]
+known-first-party = ["e_infra", "gates"]
 
 [tool.ruff.lint.flake8-type-checking]
 ### pydantic and msgspec resolve these classes' annotations at runtime: their imports must stay real.
@@ -219,7 +223,7 @@ docstring-code-format = true
 python-version = "3.14"
 
 [tool.ty.src]
-include = ["src", "tests", "scripts/gate.py", "gates"]
+include = ["src", "tests", "gates"]
 
 [tool.ty.terminal]
 error-on-warning = true

@@ -33,13 +33,15 @@ and no state per document: `process` returns a `Document` whose objects are engi
 
 import base64
 import re
+from collections.abc import Sequence  # noqa: TC003 — msgspec resolves the TypedDict hints below at runtime
 from itertools import chain, pairwise, takewhile
 from operator import attrgetter
-from pathlib import PurePath
+from pathlib import Path, PurePath
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Any, Final, NamedTuple
+from typing import TYPE_CHECKING, Final, NamedTuple, NotRequired, TypedDict
 
 import anyio
+import msgspec
 import polars as pl
 
 from e_infra.infra.config.processors import DocMode, DocSignal
@@ -58,17 +60,16 @@ from e_infra.processors.models import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable, Mapping, Sequence
-    from pathlib import Path
+    from collections.abc import Iterable, Mapping
 
     from e_infra.infra.config.providers import DoclingTables
+    from e_infra.infra.payload import JSON
     from e_infra.ports.documents import DocumentPort
     from e_infra.ports.markdown import MarkdownPort
     from e_infra.ports.pages import FastPage, PagesPort
 
-type Node = dict[str, Any]
 type Span = tuple[int, int]
-type Row = dict[str, Any]
+type Row = Mapping[str, str | int | None]
 type Signals = Mapping[int, tuple[DocSignal, ...]]
 
 ### pages a lane must keep for a second request to pay off: measured ~1.8 s a request, ~1.7 s a routed page, x1.35 from
@@ -105,7 +106,7 @@ NEEDS: Final[Mapping[Element, frozenset[DocSignal]]] = MappingProxyType(
     }
 )
 ### what docling is told not to run when an element is not asked: TableFormer without tables, image export without pictures.
-DROPS: Final[Mapping[Element, Mapping[str, object]]] = MappingProxyType(
+DROPS: Final[Mapping[Element, Mapping[str, JSON]]] = MappingProxyType(
     {
         Element.TABLES: MappingProxyType({"do_table_structure": False}),
         Element.PICTURES: MappingProxyType({"image_export_mode": "placeholder", "include_images": False}),
@@ -127,13 +128,75 @@ ITEMS: Final[Mapping[str, pl.DataType]] = MappingProxyType(
 )
 
 
+##### DOCLING — the keys of its document JSON this reader uses; the rest is left unread #####
+Ref = TypedDict("Ref", {"$ref": str})
+
+
+class Provenance(TypedDict):
+    page_no: int
+
+
+class Cell(TypedDict):
+    text: NotRequired[str]
+    column_header: NotRequired[bool]
+
+
+class Grid(TypedDict):
+    grid: NotRequired[Sequence[Sequence[Cell]] | None]
+
+
+class Size(TypedDict):
+    width: NotRequired[float]
+    height: NotRequired[float]
+
+
+class Image(TypedDict):
+    uri: NotRequired[str | None]
+    mimetype: NotRequired[str]
+    size: NotRequired[Size | None]
+
+
+class Prediction(TypedDict):
+    class_name: str
+    confidence: NotRequired[float]
+
+
+class Annotation(TypedDict):
+    kind: NotRequired[str]
+    predicted_classes: NotRequired[Sequence[Prediction] | None]
+
+
+class Node(TypedDict):
+    """A text, a table, a picture or a group of the document: the keys that kind has."""
+
+    self_ref: NotRequired[str]
+    label: NotRequired[str]
+    text: NotRequired[str]
+    level: NotRequired[int | None]
+    hyperlink: NotRequired[str | None]
+    content_layer: NotRequired[str]
+    parent: NotRequired[Ref | None]
+    prov: NotRequired[Sequence[Provenance] | None]
+    captions: NotRequired[Sequence[Ref] | None]
+    data: NotRequired[Grid]
+    image: NotRequired[Image | None]
+    annotations: NotRequired[Sequence[Annotation] | None]
+
+
+class Body(TypedDict):
+    texts: NotRequired[Sequence[Node] | None]
+    tables: NotRequired[Sequence[Node] | None]
+    pictures: NotRequired[Sequence[Node] | None]
+    groups: NotRequired[Sequence[Node] | None]
+
+
 class Reading(NamedTuple):
     """What one engine read on some pages, each object carrying its page: text items, tables, pictures, formulas."""
 
-    rows: list[Row]
-    tables: list[Table]
-    pictures: list[Picture]
-    formulas: list[Formula]
+    rows: Sequence[Row]
+    tables: Sequence[Table]
+    pictures: Sequence[Picture]
+    formulas: Sequence[Formula]
 
 
 class DocProcessor:
@@ -221,7 +284,7 @@ class DocProcessor:
             case _:
                 return runs
 
-    def _process_options(self, span: Span, signals: Signals, elements: frozenset[Element]) -> dict[str, object]:
+    def _process_options(self, span: Span, signals: Signals, elements: frozenset[Element]) -> dict[str, JSON]:
         """What docling runs on the span, by what its pages showed and what is asked: OCR only for scans, pictures only
         for figures, table structure only for tables."""
         seen = {signal for page in range(span[0], span[1] + 1) for signal in signals.get(page, ())}
@@ -235,7 +298,7 @@ class DocProcessor:
         }
 
     @staticmethod
-    def _process_drops(elements: frozenset[Element]) -> dict[str, object]:
+    def _process_drops(elements: frozenset[Element]) -> dict[str, JSON]:
         """The docling options that switch off what no asked element needs."""
         return {key: value for element, drop in DROPS.items() if element not in elements for key, value in drop.items()}
 
@@ -306,7 +369,7 @@ class DocProcessor:
                 return [page for page, _ in reads], [read for _, read in reads]
 
     @classmethod
-    def _process_fast(cls, page: FastPage, fallback: str = "") -> tuple[Page, Reading]:
+    def _process_fast(cls, page: FastPage, fallback: str | None = None) -> tuple[Page, Reading]:
         """A fast page read by liteparse: its text items and tables, in block order, and why docling's did not stand."""
         number = page.number
         blocks = list(enumerate(page.blocks))
@@ -315,7 +378,7 @@ class DocProcessor:
                 "ref": f"liteparse:p{number}/b{index}",
                 "page": number,
                 "label": KINDS.get(block.kind, block.kind),
-                "text": block.text,
+                "text": block.text or "",
                 "level": block.level,
                 "backend": Backend.LITEPARSE,
                 "group": "",
@@ -344,7 +407,7 @@ class DocProcessor:
     def _process_breaks(conversion: DocumentConversion, span: Span) -> dict[int, str]:
         """The span's markdown split back into its pages, when docling wrote one break per page — none when it wrote
         nothing — every embedded picture left as a marker."""
-        text = EMBEDDED.sub(IMAGE, conversion.markdown)
+        text = EMBEDDED.sub(IMAGE, conversion.markdown or "")
         parts = [part.strip() for part in text.split(BREAK)] if text.strip() else []
         pages = range(span[0], span[1] + 1)
         return dict(zip(pages, parts, strict=True)) if len(parts) == len(pages) else {}
@@ -355,7 +418,7 @@ class DocProcessor:
     def _process_deep(cls, conversion: DocumentConversion, prefix: str, span: Span | None) -> Reading:
         """A docling conversion's objects, each placed on its page in one pass — off the span or unplaced, dropped —,
         their refs under `prefix`."""
-        document = conversion.document
+        document = msgspec.convert(conversion.document, Body, strict=False)
         texts = [(node, page) for node in document.get("texts") or () if (page := cls._process_place(node, span))]
         tables = [(node, page) for node in document.get("tables") or () if (page := cls._process_place(node, span))]
         pictures = [(node, page) for node in document.get("pictures") or () if (page := cls._process_place(node, span))]
@@ -370,7 +433,7 @@ class DocProcessor:
             formulas=[
                 Formula(ref=f"{prefix}{node['self_ref']}", page=page, text=node.get("text", ""))
                 for node, page in texts
-                if node["label"] == "formula"
+                if node.get("label") == "formula"
             ],
         )
 
@@ -386,12 +449,12 @@ class DocProcessor:
                 return page if span[0] <= page <= span[1] else 0
 
     @staticmethod
-    def _process_item(document: Node, node: Node, prefix: str, page: int) -> Row:
+    def _process_item(document: Body, node: Node, prefix: str, page: int) -> Row:
         """A docling text node as an item, with the label of the group it sits in (`list`, `slide`…; empty in the
         body)."""
         match (node.get("parent") or {}).get("$ref", "").split("/"):
             case ["#", "groups", index]:
-                group = document["groups"][int(index)].get("label", "")
+                group = (document.get("groups") or ())[int(index)].get("label", "")
             case _:
                 group = ""
         return {
@@ -406,7 +469,7 @@ class DocProcessor:
         }
 
     @classmethod
-    def _process_table(cls, document: Node, node: Node, prefix: str, page: int) -> Table:
+    def _process_table(cls, document: Body, node: Node, prefix: str, page: int) -> Table:
         """A docling table: its grid as a frame, leading all-header rows as the column names."""
         grid = node["data"].get("grid") or []
         rows = [[cell.get("text", "") for cell in row] for row in grid]
@@ -420,7 +483,7 @@ class DocProcessor:
         )
 
     @classmethod
-    def _process_picture(cls, document: Node, node: Node, prefix: str, page: int) -> Picture:
+    def _process_picture(cls, document: Body, node: Node, prefix: str, page: int) -> Picture:
         """A docling picture: its bytes when embedded (none for a placeholder), its size, the classifier's classes most
         likely first (none unless classification ran)."""
         image = node.get("image") or {}
@@ -444,10 +507,12 @@ class DocProcessor:
         )
 
     @staticmethod
-    def _process_caption(document: Node, node: Node) -> str:
-        """A node's captions, resolved through their JSON pointers (`#/texts/80`) by index."""
-        refs = (caption["$ref"].split("/") for caption in node.get("captions") or ())
-        return " ".join(document[collection][int(index)]["text"] for _, collection, index in refs)
+    def _process_caption(document: Body, node: Node) -> str:
+        """A node's captions, resolved through their JSON pointers (`#/texts/80`) by index: docling captions are texts."""
+        texts = document.get("texts") or ()
+        return " ".join(
+            texts[int(caption["$ref"].rpartition("/")[2])].get("text", "") for caption in node.get("captions") or ()
+        )
 
     @staticmethod
     def _process_frame(heads: Sequence[Sequence[str]], body: Sequence[Sequence[str]]) -> pl.DataFrame:
@@ -480,11 +545,14 @@ class DocProcessor:
                     logger.debug("docling document failed, anytomd reads it", name=name, error=reason)
                     return await self._process_anytomd(raw, name, fmt, fallback=reason)
                 page = Page(
-                    number=1, backend=Backend.DOCLING, signals=(), markdown=EMBEDDED.sub(IMAGE, conversion.markdown)
+                    number=1,
+                    backend=Backend.DOCLING,
+                    signals=(),
+                    markdown=EMBEDDED.sub(IMAGE, conversion.markdown or ""),
                 )
                 return self._process_document(name, [page], [self._process_deep(conversion, "docling:", None)])
 
-    async def _process_anytomd(self, raw: bytes, name: str, fmt: str, *, fallback: str = "") -> Document:
+    async def _process_anytomd(self, raw: bytes, name: str, fmt: str, *, fallback: str | None = None) -> Document:
         """anytomd's reading of a whole document: one page, its Markdown cut into heading and text items.
 
         The engine wants the concrete extension — the name's own suffix when it has one, else the detected format."""
@@ -536,10 +604,12 @@ class DocProcessor:
 
     ##### PUBLIC #####
 
-    async def process(self, source: bytes | Path, *, name: str = "", elements: frozenset[Element] = EVERY) -> Document:
+    async def process(
+        self, source: bytes | Path, *, name: str | None = None, elements: frozenset[Element] = EVERY
+    ) -> Document:
         """Read one document — the `elements` asked, every one by default —, refused before any engine when too big or
         of no format a reader takes."""
-        name = name or (getattr(source, "name", "") or "document")
+        name = name or (source.name if isinstance(source, Path) else None) or "document"
         raw = await self._process_read(source, name)
         logger.debug("doc process", name=name, size=len(raw), mode=str(self._mode), deep=self._port is not None)
         match self._md.detect(name, raw):
@@ -551,22 +621,22 @@ class DocProcessor:
             case fmt:
                 return await self._process_whole(raw, name, fmt, elements)
 
-    async def text(self, source: bytes | Path, *, name: str = "") -> str:
+    async def text(self, source: bytes | Path, *, name: str | None = None) -> str:
         """The document as markdown, docling asked only for the scans."""
         return (await self.process(source, name=name, elements=frozenset({Element.TEXT}))).markdown
 
-    async def tables(self, source: bytes | Path, *, name: str = "") -> tuple[Table, ...]:
+    async def tables(self, source: bytes | Path, *, name: str | None = None) -> tuple[Table, ...]:
         """The document's tables, docling asked only for table pages and scans, no picture exported."""
         return (await self.process(source, name=name, elements=frozenset({Element.TABLES}))).tables
 
-    async def pictures(self, source: bytes | Path, *, name: str = "") -> tuple[Picture, ...]:
+    async def pictures(self, source: bytes | Path, *, name: str | None = None) -> tuple[Picture, ...]:
         """The document's pictures — docling's alone, on its figure pages, no table structure run."""
         return (await self.process(source, name=name, elements=frozenset({Element.PICTURES}))).pictures
 
-    async def formulas(self, source: bytes | Path, *, name: str = "") -> tuple[Formula, ...]:
+    async def formulas(self, source: bytes | Path, *, name: str | None = None) -> tuple[Formula, ...]:
         """The document's formulas — docling's alone, on every routed page, no table structure or picture run."""
         return (await self.process(source, name=name, elements=frozenset({Element.FORMULAS}))).formulas
 
-    async def sections(self, source: bytes | Path, *, name: str = "") -> list[Section]:
+    async def sections(self, source: bytes | Path, *, name: str | None = None) -> list[Section]:
         """Every heading with the body text under it, read as `text` reads."""
         return (await self.process(source, name=name, elements=frozenset({Element.TEXT}))).sections

@@ -40,7 +40,7 @@ async def status(data: JSONBody[NoArgs], graph: NamedDependency[State]) -> Statu
 
 
 ##### ROUTES #####
-ROUTES: tuple[HTTPRouteHandler, ...] = (
+ROUTES: Final[tuple[HTTPRouteHandler, ...]] = (
     HEALTH.route(Access.ANONYMOUS, dependencies={}, exception_handlers=REFUSALS)(alive),
     STATUS.route(Access.ANONYMOUS, dependencies=router.READY_DEPS, exception_handlers=REFUSALS)(status),
 )

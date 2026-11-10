@@ -27,20 +27,19 @@ from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, SimpleSpanProcessor, SpanExporter, SpanProcessor
 from opentelemetry.sdk.trace.sampling import ParentBased, TraceIdRatioBased
-from opentelemetry.trace import Status, StatusCode
+from opentelemetry.trace import Status, StatusCode, Tracer
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 
 from e_infra.infra.config.providers import OTelProtocol
 from e_infra.infra.errors import TelemetryError
 from e_infra.infra.logger import logger
-from e_infra.ports.provider import Isolation, Locality, ProviderSpec, Workload
+from e_infra.ports.provider import Isolation, Locality, Opened, ProviderSpec, Workload
 from e_infra.ports.telemetry import SpanKey, SpanKind, SpanRole, SpanStatus
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Generator, Mapping
     from datetime import timedelta
 
-    from opentelemetry.trace import Tracer
     from pydantic import SecretStr
 
     from e_infra.ports.telemetry import AttributeValue
@@ -160,7 +159,7 @@ class OTelSpan:
     def event(self, name: str, attributes: Mapping[str, AttributeValue]) -> None:
         self._span.add_event(name, self._common_named(self._role, attributes))
 
-    def status(self, status: SpanStatus, description: str = "") -> None:
+    def status(self, status: SpanStatus, description: str | None = None) -> None:
         ### OTel accepts a description on ERROR only: anything else would be dropped with a warning.
         self._span.set_status(Status(STATUSES[status], description if status is SpanStatus.ERROR else None))
         self._settled = True
@@ -171,6 +170,8 @@ class OTelDriver:
     """Spans on a private provider: open with `span`, write through the yielded `OTelSpan`, flushed on close."""
 
     spec: ClassVar[ProviderSpec] = ProviderSpec("otel", Locality.REMOTE, Workload.IO_BOUND, Isolation.LOOP)
+    provider = Opened[TracerProvider](TelemetryError)
+    tracer = Opened[Tracer](TelemetryError)
 
     def __init__(
         self,
@@ -224,14 +225,6 @@ class OTelDriver:
                 held, convention = ROLES[role]
                 return held, {SPAN_KIND: convention, **OTelSpan._common_named(role, attributes)}
 
-    def _common_open(self) -> Tracer:
-        match self._tracer:
-            case None:
-                msg = "OTelDriver is not open: the lifespan opens it, handlers never do"
-                raise TelemetryError(msg)
-            case tracer:
-                return tracer
-
     ############################################################
 
     ##### PUBLIC #####
@@ -265,17 +258,16 @@ class OTelDriver:
         """The provider is open and flushes what it holds to its exporter within `timeout` (none set: nothing to
         flush, it answers at once)."""
         timeout = int(self._timeout.total_seconds() * MS_PER_SECOND)
-        match self._provider:
-            case None:
-                msg = "OTelDriver is not open"
-                logger.warning("otel unhealthy", error=msg)
-                raise TelemetryError(msg)
-            case provider if not await asyncio.to_thread(provider.force_flush, timeout):
-                msg = f"spans not flushed to the exporter within {self._timeout}"
-                logger.warning("otel unhealthy", error=msg)
-                raise TelemetryError(msg)
-            case _:
-                return True
+        try:
+            match await asyncio.to_thread(self.provider.force_flush, timeout):
+                case True:
+                    return True
+                case _:
+                    msg = f"spans not flushed to the exporter within {self._timeout}"
+                    raise TelemetryError(msg)
+        except TelemetryError as error:
+            logger.warning("otel unhealthy", error=str(error))
+            raise
 
     @contextmanager
     def span(
@@ -288,7 +280,7 @@ class OTelDriver:
     ) -> Generator[OTelSpan]:
         """A current span around the block: a raise is recorded and settles ERROR, a clean exit settles OK. A role
         picks the kind and the OpenInference convention, and names the keys."""
-        tracer = self._common_open()
+        tracer = self.tracer
         kind, named = self._span_shaped(kind, role, attributes)
         logger.debug("otel span", name=name, kind=str(kind), role=str(role or ""))
         with tracer.start_as_current_span(name, kind=KINDS[kind], attributes=named) as raw:

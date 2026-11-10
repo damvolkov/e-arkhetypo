@@ -22,7 +22,7 @@ class CacheEngine[T]:
 
     __slots__ = ("_durable", "_fast", "_namespace")
 
-    def __init__(self, fast: CachePort[T], durable: CachePort[T], namespace: str = "") -> None:
+    def __init__(self, fast: CachePort[T], durable: CachePort[T], namespace: str | None = None) -> None:
         self._fast = fast
         self._durable = durable
         self._namespace = namespace

@@ -1,6 +1,6 @@
 """ports/queue: a durable job queue — kinds bound to handlers on named queues, jobs enqueued, read and cancelled."""
 
-from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
 from e_infra.ports.provider import Provider
 
@@ -8,6 +8,7 @@ if TYPE_CHECKING:
     from collections.abc import Mapping
 
     from e_infra.infra.background import BackgroundFire, BackgroundHandler, BackgroundJob, BackgroundState
+    from e_infra.infra.payload import JSON
 
 
 @runtime_checkable
@@ -20,7 +21,7 @@ class QueuePort(Provider, Protocol):
 
     async def start(self, slots: Mapping[str, int]) -> None: ...
 
-    async def enqueue(self, kind: str, args: Mapping[str, Any], *, queue: str, attempts: int) -> BackgroundJob: ...
+    async def enqueue(self, kind: str, args: Mapping[str, JSON], *, queue: str, attempts: int) -> BackgroundJob: ...
 
     async def job(self, job: str) -> BackgroundJob | None: ...
 

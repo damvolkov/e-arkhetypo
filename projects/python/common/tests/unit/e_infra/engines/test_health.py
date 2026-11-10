@@ -22,8 +22,8 @@ async def test_survey_every_provider() -> None:
     """One verdict per provider, in mapping order, `required` read off the set."""
     engine = HealthEngine({"store": StubProvider(), "http": StubProvider()}, REQUIRED, LIMIT)
     assert [(h.name, h.required, h.ok, h.reason) for h in await engine.survey()] == [
-        ("store", True, True, ""),
-        ("http", False, True, ""),
+        ("store", True, True, None),
+        ("http", False, True, None),
     ]
 
 

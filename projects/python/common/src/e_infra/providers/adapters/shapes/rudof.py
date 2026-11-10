@@ -58,7 +58,7 @@ class RudofShapesAdapter:
                 message=str(each.message).strip('"'),
                 source_shape=str(each.source_shape),
                 component=str(each.constraint_component),
-                path="" if each.path is None else str(each.path),
+                path=None if each.path is None else str(each.path),
             )
             for each in report.violations
         )

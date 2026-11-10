@@ -50,11 +50,11 @@ class Symbol(Struct, frozen=True, kw_only=True):
     file: str
     line: int
     parent: str | None = None
-    doc: str = ""
+    doc: str | None = None
     bases: tuple[str, ...] = ()
     decorators: tuple[str, ...] = ()
-    signature: str = ""
-    value: str = ""
+    signature: str | None = None
+    value: str | None = None
     imports: tuple[str, ...] = ()
 
     @property
@@ -208,8 +208,8 @@ class CodeRegistry(Mapping[str, Symbol]):
         return ".".join(pkg.split(".")[: len(pkg.split(".")) - level + 1])
 
     @staticmethod
-    def _first(doc: str | None) -> str:
-        return (doc or "").partition("\n")[0]
+    def _first(doc: str | None) -> str | None:
+        return doc.partition("\n")[0] if doc else None
 
     ##### SYMBOLS #####
 
@@ -276,7 +276,7 @@ class CodeRegistry(Mapping[str, Symbol]):
                 file=rel,
                 line=stmt.lineno,
                 parent=parent,
-                value=ast.unparse(value) if value is not None else "",
+                value=ast.unparse(value) if value is not None else None,
             )
             for node in named
         }

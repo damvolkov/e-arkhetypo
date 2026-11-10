@@ -9,14 +9,16 @@ With no `route` a page falls to `next`, and with no `next` to declaration order;
 terminal. `route` reads a live value at walk time; `condition` reads declared presence at add time — the
 boundary between them is what keeps the walk free of structural errors (see `e_tui.flow.pages`)."""
 
-from collections.abc import Callable, Mapping, MutableMapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 
+from e_tui.infra.payload import JSON
+from e_tui.infra.state import State
 from e_tui.models.object import Commit, Spec
 
-Route = Callable[[Commit, Mapping[str, object]], "str | None"]
-Condition = Callable[[Mapping[str, object]], bool]
-Hook = Callable[[Commit, MutableMapping[str, object]], None]
+Route = Callable[[Commit, State], "str | None"]
+Condition = Callable[[State], bool]
+Hook = Callable[[Commit, State], None]
 
 
 @dataclass(frozen=True, slots=True)
@@ -32,4 +34,4 @@ class Page:
     next: str | None = None
     route: Route | None = None
     on_commit: Hook | None = None
-    meta: Mapping[str, object] = field(default_factory=dict)
+    meta: Mapping[str, JSON] = field(default_factory=dict)

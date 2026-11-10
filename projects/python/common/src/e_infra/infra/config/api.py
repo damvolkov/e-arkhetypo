@@ -1,5 +1,6 @@
 """infra/config/api: the HTTP edge of this app — CORS, and where the OpenAPI pages live."""
 
+from collections.abc import Sequence
 from enum import StrEnum
 from typing import Self
 
@@ -34,20 +35,17 @@ class ApiSettings(BaseSettings):
     on load: absolute paths, no alias repeating the root, at least one renderer."""
 
     ### CORS
-    ALLOW_ORIGINS: list[str] = Field(default_factory=lambda: ["*"])
-    ALLOW_METHODS: list[HTTPMethod] = Field(
-        default_factory=lambda: [HTTPMethod.GET, HTTPMethod.POST, HTTPMethod.PATCH, HTTPMethod.DELETE]
-    )
+    ALLOW_ORIGINS: Sequence[str] = ("*",)
+    ALLOW_METHODS: Sequence[HTTPMethod] = (HTTPMethod.GET, HTTPMethod.POST, HTTPMethod.PATCH, HTTPMethod.DELETE)
 
     ### DOCS
     ### the canonical docs root.
     DOCS_PATH: str = "/docs"
     ### extra roots that redirect there, subpath kept.
-    DOCS_ALIASES: list[str] = Field(default_factory=lambda: ["/schema"])
+    DOCS_ALIASES: Sequence[str] = ("/schema",)
     ### the pages served, the first one at the root itself.
-    DOCS_RENDERERS: list[DocsRenderer] = Field(
-        default_factory=lambda: [DocsRenderer.SWAGGER, DocsRenderer.REDOC, DocsRenderer.ELEMENTS, DocsRenderer.RAPIDOC],
-        min_length=1,
+    DOCS_RENDERERS: Sequence[DocsRenderer] = Field(
+        default=(DocsRenderer.SWAGGER, DocsRenderer.REDOC, DocsRenderer.ELEMENTS, DocsRenderer.RAPIDOC), min_length=1
     )
 
     @field_validator("DOCS_PATH")
@@ -63,7 +61,7 @@ class ApiSettings(BaseSettings):
 
     @field_validator("DOCS_ALIASES")
     @classmethod
-    def _docs_aliases_absolute(cls, value: list[str]) -> list[str]:
+    def _docs_aliases_absolute(cls, value: Sequence[str]) -> Sequence[str]:
         match [alias for alias in value if not alias.startswith("/")]:
             case []:
                 return [alias.rstrip("/") for alias in value]

@@ -22,12 +22,14 @@ schedule; the fire runs in this process."""
 
 import asyncio
 import json
+from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import timedelta
+from datetime import datetime, timedelta
 from functools import partial
-from typing import TYPE_CHECKING, Any, ClassVar, Final, Self
+from typing import TYPE_CHECKING, ClassVar, Final, Self, cast
 
 import anyio
+import msgspec
 from pgqueuer.adapters.persistence.queries import Queries
 from pgqueuer.core.qm import QueueManager
 from pgqueuer.core.sm import SchedulerManager
@@ -38,7 +40,7 @@ from pgqueuer.domain.types import JobId
 from e_infra.infra.background import BackgroundJob, BackgroundState
 from e_infra.infra.errors import DatabaseError, ProviderError, QueueError
 from e_infra.infra.logger import logger
-from e_infra.ports.provider import Isolation, Locality, ProviderSpec, Workload
+from e_infra.ports.provider import Isolation, Locality, Opened, ProviderSpec, Workload
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable, Mapping
@@ -47,7 +49,8 @@ if TYPE_CHECKING:
     from pgqueuer.ports.driver import NotifyCallback
 
     from e_infra.infra.background import BackgroundFire, BackgroundHandler
-    from e_infra.ports.database import DatabasePort, ListenPort, QueryPort
+    from e_infra.infra.payload import JSON
+    from e_infra.ports.database import Cell, DatabasePort, ListenPort, QueryPort, Row
 
 ### a cron with a seconds field: six fields.
 SECONDS: Final[int] = 6
@@ -114,11 +117,25 @@ class PgqueuerBridge:
         self._shutdown = asyncio.Event()
         self._heard: list[tuple[str, NotifyCallback]] = []
 
-    async def fetch(self, query: str, *args: object) -> list[dict[str, object]]:
-        return await self._on.fetch(query, args)
+    ##### PRIVATE #####
 
-    async def execute(self, query: str, *args: object) -> str:
-        _ = await (self._on.execute(query, args) if args else self._on.script(query))
+    ### PgQueuer's `Driver` hands `object`; ty cannot know that what it binds is a `Cell` (invalid-argument-type).
+    @staticmethod
+    def _common_cells(args: tuple[object, ...]) -> Sequence[Cell]:  # ast-grep-ignore: object-annotation
+        """What PgQueuer binds, as the port takes it."""
+        return cast("Sequence[Cell]", args)  # ast-grep-ignore: cast
+
+    ############################################################
+
+    ##### PUBLIC #####
+
+    ### PgQueuer's `Driver` fixes `object` for what it binds and returns.
+    async def fetch(self, query: str, *args: object) -> list[dict[str, object]]:  # ast-grep-ignore: object-annotation
+        return [dict(row) for row in await self._on.fetch(query, self._common_cells(args))]
+
+    ### same: the `Driver` port's own signature.
+    async def execute(self, query: str, *args: object) -> str:  # ast-grep-ignore: object-annotation
+        _ = await (self._on.execute(query, self._common_cells(args)) if args else self._on.script(query))
         return ""
 
     async def notify(self, channel: str, payload: str) -> None:
@@ -148,14 +165,30 @@ class PgqueuerBridge:
         _ = [await self._listen.unlisten(channel, callback) for channel, callback in heard]
 
 
+class PgqueuerRow(msgspec.Struct, frozen=True, kw_only=True):
+    """The columns of `READ` this driver reads; `args` and `progress` are JSON text."""
+
+    id: int
+    kind: str
+    queue: str
+    state: str
+    args: str
+    created: datetime
+    live: str | None = None
+    picks: int | None = None
+    progress: str | None = None
+    errors: Sequence[str] | None = None
+    finished: datetime | None = None
+
+
 @dataclass(frozen=True, slots=True)
 class PgqueuerRun:
     """A job in flight on PgQueuer: the job as it was picked, and the writer of its snapshot."""
 
     job: BackgroundJob
-    write: Callable[[Mapping[str, Any]], Awaitable[None]]
+    write: Callable[[Mapping[str, JSON]], Awaitable[None]]
 
-    async def report(self, progress: Mapping[str, Any]) -> None:
+    async def report(self, progress: Mapping[str, JSON]) -> None:
         await self.write(progress)
 
 
@@ -166,6 +199,8 @@ class PgqueuerDriver:
     spec: ClassVar[ProviderSpec] = ProviderSpec(
         "pgqueuer", Locality.REMOTE, Workload.IO_BOUND, Isolation.LOOP, pooled=True
     )
+    ### the event a close sets: held from the open to the close's end, it is what "entered" means.
+    closing = Opened[anyio.Event](QueueError)
 
     __slots__ = (
         "_closing",
@@ -175,7 +210,6 @@ class PgqueuerDriver:
         "_heartbeat",
         "_listen",
         "_managers",
-        "_open",
         "_poll",
         "_restart",
         "_scheduler",
@@ -204,14 +238,13 @@ class PgqueuerDriver:
         )
         self._db = database
         self._listen = listen
-        self._open = False
         self._handlers: dict[str, tuple[str, BackgroundHandler]] = {}
         self._managers: dict[str, QueueManager] = {}
         self._schedules: dict[str, tuple[str, BackgroundFire]] = {}
         self._scheduler: SchedulerManager | None = None
         ### plain tasks, not a task group: a group entered in `__aenter__` cannot be left under `__aexit__`'s deadline.
         self._supervisors: set[asyncio.Task[None]] = set()
-        self._closing = anyio.Event()
+        self._closing: anyio.Event | None = None
 
     ##### PRIVATE #####
 
@@ -229,7 +262,8 @@ class PgqueuerDriver:
 
     async def _start_supervise(self, queue: str, slots: int) -> None:
         """One manager for `queue`, started again whenever it dies, until close."""
-        while not self._closing.is_set():
+        closing = self.closing
+        while not closing.is_set():
             try:
                 await self._start_manage(queue, slots)
             except Exception as error:  # noqa: BLE001 — a dead manager is restarted, never a crash of the engine
@@ -237,7 +271,7 @@ class PgqueuerDriver:
                     "pgqueuer manager died, restarting", queue=queue, error=f"{type(error).__name__}: {error}"
                 )
             with anyio.move_on_after(self._restart.total_seconds()):
-                await self._closing.wait()
+                await closing.wait()
 
     async def _start_manage(self, queue: str, slots: int) -> None:
         manager = QueueManager(self._common_queries())
@@ -245,7 +279,7 @@ class PgqueuerDriver:
         self._managers[queue] = manager
         logger.debug("pgqueuer manager started", queue=queue, slots=slots)
         ### a close that came while starting must still stop this manager.
-        _ = self._closing.is_set() and manager.shutdown.set()
+        _ = self.closing.is_set() and manager.shutdown.set()
         try:
             await manager.run(
                 dequeue_timeout=self._poll,
@@ -258,13 +292,14 @@ class PgqueuerDriver:
 
     async def _start_clock(self) -> None:
         """The scheduler for every schedule, started again whenever it dies, until close."""
-        while not self._closing.is_set():
+        closing = self.closing
+        while not closing.is_set():
             try:
                 await self._start_schedule()
             except Exception as error:  # noqa: BLE001 — a dead scheduler is restarted, never a crash of the engine
                 logger.warning("pgqueuer scheduler died, restarting", error=f"{type(error).__name__}: {error}")
             with anyio.move_on_after(self._restart.total_seconds()):
-                await self._closing.wait()
+                await closing.wait()
 
     async def _start_schedule(self) -> None:
         scheduler = SchedulerManager(self._common_queries())
@@ -274,7 +309,7 @@ class PgqueuerDriver:
         ]
         self._scheduler = scheduler
         logger.debug("pgqueuer scheduler started", schedules=len(self._schedules))
-        _ = self._closing.is_set() and scheduler.shutdown.set()
+        _ = self.closing.is_set() and scheduler.shutdown.set()
         try:
             await scheduler.run()
         finally:
@@ -333,7 +368,7 @@ class PgqueuerDriver:
         await queries.driver.execute(queries.qbq.build_log_job_query(), [job], ["canceled"], [None])
         await queries.notify_job_cancellation([job])
 
-    async def _register_report(self, job: int, progress: Mapping[str, Any]) -> None:
+    async def _register_report(self, job: int, progress: Mapping[str, JSON]) -> None:
         ### a JSON parameter travels as a Python value: each driver binds it as jsonb (text would bind as a JSON string).
         await self._common_call(lambda: self._db.execute(REPORT, [job, json.loads(json.dumps(progress))]))
 
@@ -351,28 +386,20 @@ class PgqueuerDriver:
             logger.error("pgqueuer database failed", error=str(error))
             raise QueueError(str(error)) from error
 
-    def _common_ready(self) -> None:
-        """Entered, or the call cannot run: a `QueueError`, never a manager dying in a loop."""
-        match self._open:
-            case False:
-                msg = "pgqueuer is not open: the lifespan opens it, callers never do"
-                raise QueueError(msg)
-            case True:
-                pass
-
     @staticmethod
-    def _common_job(row: Mapping[str, Any]) -> BackgroundJob:
+    def _common_job(row: Row) -> BackgroundJob:
+        found = msgspec.convert(row, PgqueuerRow, strict=False)
         return BackgroundJob(
-            id=str(row["id"]),
-            kind=row["kind"],
-            queue=row["queue"],
-            state=BackgroundState(row["state"]),
-            attempt=max(row["picks"] or 0, 1 if row["live"] == "picked" else 0),
-            args=json.loads(row["args"]),
-            created=row["created"],
-            progress=json.loads(row["progress"]) if row["progress"] else None,
-            errors=tuple(row["errors"] or ()),
-            finished=row["finished"] if row["state"] in {"completed", "failed", "cancelled"} else None,
+            id=str(found.id),
+            kind=found.kind,
+            queue=found.queue,
+            state=BackgroundState(found.state),
+            attempt=max(found.picks or 0, 1 if found.live == "picked" else 0),
+            args=json.loads(found.args),
+            created=found.created,
+            progress=json.loads(found.progress) if found.progress else None,
+            errors=tuple(found.errors or ()),
+            finished=found.finished if found.state in {"completed", "failed", "cancelled"} else None,
         )
 
     ############################################################
@@ -382,14 +409,13 @@ class PgqueuerDriver:
     async def __aenter__(self) -> Self:
         await self._common_call(self._enter_schema)
         self._closing = anyio.Event()
-        self._open = True
         logger.info("pgqueuer opened")
         return self
 
     async def health(self) -> bool:
         """The driver is entered and its database answers one query within QUEUE_TIMEOUT."""
         try:
-            self._common_ready()
+            _ = self.closing
             await self._common_call(lambda: self._db.fetch("SELECT 1"))
         except ProviderError as error:
             logger.warning("pgqueuer unhealthy", error=str(error))
@@ -399,8 +425,7 @@ class PgqueuerDriver:
     async def __aexit__(self, *exc: object) -> None:
         """Managers stop picking and drain for QUEUE_DRAIN; past it their jobs are cancelled. The database is its
         owner's, closed with it. The whole is bounded by QUEUE_DRAIN + 2 QUEUE_TIMEOUT."""
-        self._closing.set()
-        self._open = False
+        self.closing.set()
         _ = [manager.shutdown.set() for manager in tuple(self._managers.values())]
         _ = self._scheduler and self._scheduler.shutdown.set()
         limit = self._drain + self._timeout * 2
@@ -411,6 +436,8 @@ class PgqueuerDriver:
             msg = f"pgqueuer close timed out after {limit}"
             logger.error("pgqueuer close timed out", limit=str(limit))
             raise QueueError(msg) from error
+        finally:
+            self._closing = None
         logger.info("pgqueuer closed")
 
     def register(self, kind: str, queue: str, handler: BackgroundHandler) -> None:
@@ -426,13 +453,13 @@ class PgqueuerDriver:
         return " ".join([*fields[1:], fields[0]]) if len(fields) == SECONDS else cron
 
     async def start(self, slots: Mapping[str, int]) -> None:
-        self._common_ready()
+        _ = self.closing
         self._supervisors |= {
             asyncio.create_task(self._start_supervise(queue, count)) for queue, count in slots.items()
         }
         self._supervisors |= {asyncio.create_task(self._start_clock())} if self._schedules else set()
 
-    async def enqueue(self, kind: str, args: Mapping[str, Any], *, queue: str, attempts: int) -> BackgroundJob:
+    async def enqueue(self, kind: str, args: Mapping[str, JSON], *, queue: str, attempts: int) -> BackgroundJob:
         plain = json.loads(json.dumps(args))
 
         async def insert() -> int:

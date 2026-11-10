@@ -1,5 +1,7 @@
 """commands.history: driving adapter for the undo journal — every run that wrote to the store, and the way back from the last one."""
 
+from typing import Final
+
 from rich.console import Console
 from rich.table import Table
 
@@ -7,7 +9,7 @@ from e_cli.runtime.deps import Inject
 from e_cli.runtime.journal import StoreJournal
 
 ##### DEFAULTS #####
-HEADER: str = "bold #6f9bff"
+HEADER: Final = "bold #6f9bff"
 
 
 async def listing(*, journal: Inject[StoreJournal], console: Inject[Console]) -> None:

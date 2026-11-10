@@ -33,6 +33,6 @@ class Choice(Vertical):
     ##### PRIVATE #####
 
     @staticmethod
-    def _headed(prompt: str, rows: Sequence[Widget]) -> list[Widget]:
+    def _headed(prompt: str | None, rows: Sequence[Widget]) -> list[Widget]:
         """The optional prompt above the choices."""
         return [Label(prompt), *rows] if prompt else list(rows)

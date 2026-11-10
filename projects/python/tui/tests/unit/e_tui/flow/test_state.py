@@ -2,7 +2,7 @@
 
 from e_tui.flow.graph import Graph
 from e_tui.flow.page import Page
-from e_tui.flow.state import FlowState, has, seed
+from e_tui.flow.state import PRESENCE, FlowState, has, seed
 from e_tui.infra.state import State
 from e_tui.models.object import ConfirmSpec
 
@@ -48,28 +48,28 @@ def test_has_is_false_on_a_missing_path() -> None:
 
 def test_has_is_true_once_a_top_level_path_is_seeded() -> None:
     bag = State()
-    seed(bag, "system", object())
+    seed(bag, "system", PRESENCE)
     assert has(bag, "system") is True
 
 
 def test_seed_grows_a_branch_for_a_dotted_path() -> None:
     bag = State()
-    seed(bag, "system.template", object())
+    seed(bag, "system.template", PRESENCE)
     assert has(bag, "system")
     assert has(bag, "system.template")
 
 
 def test_seed_reuses_an_existing_branch_for_a_sibling() -> None:
     bag = State()
-    seed(bag, "system.template", object())
-    seed(bag, "system.name", object())
+    seed(bag, "system.template", PRESENCE)
+    seed(bag, "system.name", PRESENCE)
     assert has(bag, "system.template")
     assert has(bag, "system.name")
 
 
 def test_has_a_value_that_is_not_a_branch_hides_deeper_paths() -> None:
     bag = State()
-    seed(bag, "system", object())  # a leaf, not a branch
+    seed(bag, "system", PRESENCE)  # a leaf, not a branch
     assert has(bag, "system") is True
     assert has(bag, "system.template") is False
 

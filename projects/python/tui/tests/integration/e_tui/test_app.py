@@ -5,6 +5,7 @@ bindings; the page's own widgets (a radio, a confirm's yes/no) are exercised dir
 
 from collections.abc import Iterable, Mapping
 
+from textual.pilot import Pilot
 from textual.widgets import Button, RadioButton, Static
 
 from e_tui.app import LayoutApp, WizardApp
@@ -30,17 +31,17 @@ def _flow() -> Graph:
     )
 
 
-async def _key(pilot, name: str) -> None:
+async def _key(pilot: Pilot[None], name: str) -> None:
     await pilot.press(name)
     await pilot.pause()
 
 
-async def _pick(app: WizardApp, pilot, key: str) -> None:
+async def _pick(app: WizardApp, pilot: Pilot[None], key: str) -> None:
     app.query_one(f"#{key}", RadioButton).value = True
     await pilot.pause()
 
 
-async def _answer(app: WizardApp, pilot, yes: bool) -> None:
+async def _answer(app: WizardApp, pilot: Pilot[None], yes: bool) -> None:
     app.query_one("#yes" if yes else "#no", Button).press()
     await pilot.pause()
 

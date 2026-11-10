@@ -13,9 +13,12 @@ expects one. Attribute names that collide with mapping methods (`keys`, `items`)
 from collections.abc import Iterator, MutableMapping
 from typing import Any
 
+### a leaf of the graph: stores, engines, lists — anything at all is what the tree holds.
+type Leaf = object  # ast-grep-ignore: object-annotation
+
 
 ##### TYPES #####
-class State(MutableMapping[str, object]):
+class State(MutableMapping[str, Leaf]):
     """A node of the graph: attribute- and item-access to a dict that deepens on demand while open.
 
     The attribute surface (`__getattr__`) stays dynamic `Any` — auto-vivification is its contract;
@@ -23,15 +26,15 @@ class State(MutableMapping[str, object]):
 
     __slots__ = ("_nodes", "_sealed")
 
-    def __init__(self, **nodes: object) -> None:
+    def __init__(self, **nodes: Leaf) -> None:
         object.__setattr__(self, "_nodes", dict(nodes))
         object.__setattr__(self, "_sealed", False)
 
     ##### MAPPING CORE #####
-    def __getitem__(self, name: str) -> object:
+    def __getitem__(self, name: str) -> Leaf:
         return self._nodes[name]
 
-    def __setitem__(self, name: str, value: object) -> None:
+    def __setitem__(self, name: str, value: Leaf) -> None:
         self._check_writable()
         self._nodes[name] = value
 
@@ -46,7 +49,7 @@ class State(MutableMapping[str, object]):
         return len(self._nodes)
 
     ##### ATTRIBUTE SURFACE #####
-    def __getattr__(self, name: str) -> Any:
+    def __getattr__(self, name: str) -> Any:  # noqa: ANN401 — auto-vivification: any node, any leaf
         if name.startswith("_"):
             raise AttributeError(name)
         try:

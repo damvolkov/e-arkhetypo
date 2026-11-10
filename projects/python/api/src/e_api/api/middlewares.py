@@ -5,7 +5,7 @@ translates it into litestar behaviour and owns the house middleware.
 """
 
 import time
-from typing import TYPE_CHECKING, Final
+from typing import TYPE_CHECKING, Final, cast
 
 from asgi_correlation_id import CorrelationIdMiddleware
 from litestar import Litestar
@@ -13,7 +13,7 @@ from litestar.config.cors import CORSConfig
 from litestar.enums import HttpMethod as LitestarHttpMethod
 from litestar.exceptions import HTTPException
 from litestar.middleware import DefineMiddleware
-from litestar.types import ASGIApp
+from litestar.types import ASGIApp, Middleware
 
 from e_api.api.state import AppState
 from e_api.infra.auth.middleware import TokenMiddleware
@@ -22,7 +22,7 @@ from e_api.infra.config.api import HTTPMethod
 from e_api.infra.logger import logger
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Callable, Sequence
 
     from litestar.types import Message, Receive, Scope, Send
 
@@ -83,12 +83,11 @@ def resolver(app: Litestar) -> CallerResolver:
     return AppState.of(app).system.engines.auth
 
 
-type MiddlewareClass = type[CorrelationIdMiddleware] | type[AccessLogMiddleware] | DefineMiddleware
-### the honest union of what this stack ships, outermost first: the caller resolved inside the access log, so a refused
-### key is logged; litestar's own `Middleware` alias is looser, and asgi_correlation_id types its scope narrower than
-### the protocol — the wiring edge is main.py.
-MIDDLEWARES: Final[tuple[MiddlewareClass, ...]] = (
-    CorrelationIdMiddleware,
+### outermost first: the caller resolved inside the access log, so a refused key is logged.
+### ty invalid-argument-type: asgi_correlation_id types its scope `MutableMapping[str, Any]`, Litestar's is a TypedDict.
+CORRELATION: Final = cast("Callable[[ASGIApp], ASGIApp]", CorrelationIdMiddleware)  # ast-grep-ignore: cast
+MIDDLEWARES: Final[tuple[Middleware, ...]] = (
+    DefineMiddleware(CORRELATION),
     AccessLogMiddleware,
     DefineMiddleware(TokenMiddleware, locate=resolver),
 )

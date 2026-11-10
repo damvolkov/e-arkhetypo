@@ -15,76 +15,135 @@ Tiers (AGENT_HIGH / AGENT_MEDIUM / AGENT_LOW) are typed values, one `AgentTier` 
 declared is validated at load — a provider outside the table or a missing model fails the boot, while a tier left
 unset fails only the call that asks for it."""
 
+from collections.abc import Mapping
 from datetime import timedelta
+from enum import StrEnum, auto
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Any, Final, Literal
+from typing import Final
 
 from pydantic import BaseModel, ConfigDict, Field, NonNegativeInt, SecretStr
 
 from e_infra.infra.config.base import BaseSettings
-
-if TYPE_CHECKING:
-    from collections.abc import Mapping
+from e_infra.infra.payload import JSON
 
 type EnvNames = tuple[str, ...]
 
+
+class Provider(StrEnum):
+    """Every provider the agent can reach, by the name any-llm gives it."""
+
+    ANTHROPIC = auto()
+    BEDROCK = auto()
+    AZURE = auto()
+    AZUREANTHROPIC = auto()
+    AZUREOPENAI = auto()
+    ATLASCLOUD = auto()
+    CASCADIA = auto()
+    CEREBRAS = auto()
+    COHERE = auto()
+    DATABRICKS = auto()
+    DEEPSEEK = auto()
+    FIREWORKS = auto()
+    GEMINI = auto()
+    GITHUB = auto()
+    GMI = auto()
+    GROQ = auto()
+    HUGGINGFACE = auto()
+    INCEPTION = auto()
+    KENARI = auto()
+    LLAMA = auto()
+    LMSTUDIO = auto()
+    LLAMAFILE = auto()
+    LLAMACPP = auto()
+    META = auto()
+    MISTRAL = auto()
+    MOONSHOT = auto()
+    MZAI = auto()
+    NEOSANTARA = auto()
+    NEBIUS = auto()
+    OLLAMA = auto()
+    OPENAI = auto()
+    OTARI = auto()
+    OPENROUTER = auto()
+    PORTKEY = auto()
+    QINIU = auto()
+    REQUESTY = auto()
+    SAMBANOVA = auto()
+    SAGEMAKER = auto()
+    TOGETHER = auto()
+    VERTEXAI = auto()
+    VERTEXAIANTHROPIC = auto()
+    VLLM = auto()
+    VOYAGE = auto()
+    WATSONX = auto()
+    XAI = auto()
+    PERPLEXITY = auto()
+    MINIMAX = auto()
+    DASHSCOPE = auto()
+    DEEPINFRA = auto()
+    EDENAI = auto()
+    ZAI = auto()
+    TELNYX = auto()
+    CUSTOM = auto()
+
+
 ### provider → (key variables, base variables), first name wins; read 2026-10-13 from any-llm-sdk 1.30 (its
 ### ENV_API_KEY_NAME / ENV_API_BASE_NAME), the convention where it declares none; `()` = no key, cloud credentials.
-PROVIDERS: Final[MappingProxyType[str, tuple[EnvNames, EnvNames]]] = MappingProxyType(
+PROVIDERS: Final[MappingProxyType[Provider, tuple[EnvNames, EnvNames]]] = MappingProxyType(
     {
-        "anthropic": (("ANTHROPIC_API_KEY",), ("ANTHROPIC_BASE_URL",)),
-        "bedrock": (("AWS_BEARER_TOKEN_BEDROCK",), ("AWS_ENDPOINT_URL_BEDROCK_RUNTIME",)),
-        "azure": (("AZURE_API_KEY",), ("AZURE_AI_CHAT_ENDPOINT",)),
-        "azureanthropic": (("AZURE_ANTHROPIC_API_KEY",), ("AZURE_ANTHROPIC_API_BASE",)),
-        "azureopenai": (("AZURE_OPENAI_API_KEY",), ("AZURE_OPENAI_ENDPOINT",)),
-        "atlascloud": (("ATLASCLOUD_API_KEY",), ("ATLASCLOUD_API_BASE",)),
-        "cascadia": (("CASCADIA_API_KEY",), ("CASCADIA_API_BASE",)),
-        "cerebras": (("CEREBRAS_API_KEY",), ("CEREBRAS_API_BASE",)),
-        "cohere": (("COHERE_API_KEY",), ("COHERE_BASE_URL",)),
-        "databricks": (("DATABRICKS_TOKEN", "DATABRICKS_API_KEY"), ("DATABRICKS_HOST", "DATABRICKS_API_BASE")),
-        "deepseek": (("DEEPSEEK_API_KEY",), ("DEEPSEEK_API_BASE",)),
-        "fireworks": (("FIREWORKS_API_KEY",), ("FIREWORKS_API_BASE",)),
-        "gemini": (("GEMINI_API_KEY", "GOOGLE_API_KEY"), ("GOOGLE_GEMINI_BASE_URL",)),
-        "github": (("GITHUB_TOKEN",), ("GITHUB_MODELS_API_BASE",)),
-        "gmi": (("GMI_API_KEY",), ("GMI_API_BASE",)),
-        "groq": (("GROQ_API_KEY",), ("GROQ_BASE_URL",)),
-        "huggingface": (("HF_TOKEN",), ("HUGGINGFACE_API_BASE",)),
-        "inception": (("INCEPTION_API_KEY",), ("INCEPTION_API_BASE",)),
-        "kenari": (("KENARI_API_KEY",), ("KENARI_API_BASE",)),
-        "llama": (("LLAMA_API_KEY",), ("LLAMA_API_BASE",)),
-        "lmstudio": (("LM_STUDIO_API_KEY",), ("LM_STUDIO_API_BASE",)),
-        "llamafile": (("LLAMAFILE_API_KEY",), ("LLAMAFILE_API_BASE",)),
-        "llamacpp": (("LLAMACPP_API_KEY",), ("LLAMACPP_API_BASE",)),
-        "meta": (("MODEL_API_KEY",), ("META_API_BASE",)),
-        "mistral": (("MISTRAL_API_KEY",), ("MISTRAL_API_BASE",)),
-        "moonshot": (("MOONSHOT_API_KEY",), ("MOONSHOT_API_BASE",)),
-        "mzai": (("MZAI_API_KEY",), ("MZAI_API_BASE",)),
-        "neosantara": (("NEOSANTARA_API_KEY",), ("NEOSANTARA_API_BASE",)),
-        "nebius": (("NEBIUS_API_KEY",), ("NEBIUS_API_BASE",)),
-        "ollama": (("OLLAMA_API_KEY",), ("OLLAMA_HOST",)),
-        "openai": (("OPENAI_API_KEY",), ("OPENAI_BASE_URL", "OPENAI_API_BASE")),
-        "otari": (("OTARI_API_KEY",), ("OTARI_API_BASE",)),
-        "openrouter": (("OPENROUTER_API_KEY",), ("OPENROUTER_API_BASE",)),
-        "portkey": (("PORTKEY_API_KEY",), ("PORTKEY_API_BASE",)),
-        "qiniu": (("QINIU_API_KEY",), ("QINIU_API_BASE",)),
-        "requesty": (("REQUESTY_API_KEY",), ("REQUESTY_API_BASE",)),
-        "sambanova": (("SAMBANOVA_API_KEY",), ("SAMBANOVA_API_BASE",)),
-        "sagemaker": ((), ("SAGEMAKER_ENDPOINT_URL",)),
-        "together": (("TOGETHER_API_KEY",), ("TOGETHER_API_BASE",)),
-        "vertexai": ((), ("VERTEXAI_API_BASE",)),
-        "vertexaianthropic": ((), ("VERTEXAI_ANTHROPIC_API_BASE",)),
-        "vllm": (("VLLM_API_KEY",), ("VLLM_API_BASE",)),
-        "voyage": (("VOYAGE_API_KEY",), ("VOYAGE_API_BASE",)),
-        "watsonx": (("WATSONX_API_KEY",), ("WATSONX_URL",)),
-        "xai": (("XAI_API_KEY",), ("XAI_API_BASE",)),
-        "perplexity": (("PERPLEXITY_API_KEY",), ("PERPLEXITY_API_BASE",)),
-        "minimax": (("MINIMAX_API_KEY",), ("MINIMAX_API_BASE",)),
-        "dashscope": (("DASHSCOPE_API_KEY",), ("DASHSCOPE_API_BASE",)),
-        "deepinfra": (("DEEPINFRA_API_KEY",), ("DEEPINFRA_API_BASE",)),
-        "edenai": (("EDENAI_API_KEY",), ("EDENAI_API_BASE",)),
-        "zai": (("ZAI_API_KEY",), ("ZAI_BASE_URL",)),
-        "telnyx": (("TELNYX_API_KEY",), ("TELNYX_API_BASE",)),
-        "custom": (("CUSTOM_API_KEY",), ("CUSTOM_API_BASE",)),
+        Provider.ANTHROPIC: (("ANTHROPIC_API_KEY",), ("ANTHROPIC_BASE_URL",)),
+        Provider.BEDROCK: (("AWS_BEARER_TOKEN_BEDROCK",), ("AWS_ENDPOINT_URL_BEDROCK_RUNTIME",)),
+        Provider.AZURE: (("AZURE_API_KEY",), ("AZURE_AI_CHAT_ENDPOINT",)),
+        Provider.AZUREANTHROPIC: (("AZURE_ANTHROPIC_API_KEY",), ("AZURE_ANTHROPIC_API_BASE",)),
+        Provider.AZUREOPENAI: (("AZURE_OPENAI_API_KEY",), ("AZURE_OPENAI_ENDPOINT",)),
+        Provider.ATLASCLOUD: (("ATLASCLOUD_API_KEY",), ("ATLASCLOUD_API_BASE",)),
+        Provider.CASCADIA: (("CASCADIA_API_KEY",), ("CASCADIA_API_BASE",)),
+        Provider.CEREBRAS: (("CEREBRAS_API_KEY",), ("CEREBRAS_API_BASE",)),
+        Provider.COHERE: (("COHERE_API_KEY",), ("COHERE_BASE_URL",)),
+        Provider.DATABRICKS: (("DATABRICKS_TOKEN", "DATABRICKS_API_KEY"), ("DATABRICKS_HOST", "DATABRICKS_API_BASE")),
+        Provider.DEEPSEEK: (("DEEPSEEK_API_KEY",), ("DEEPSEEK_API_BASE",)),
+        Provider.FIREWORKS: (("FIREWORKS_API_KEY",), ("FIREWORKS_API_BASE",)),
+        Provider.GEMINI: (("GEMINI_API_KEY", "GOOGLE_API_KEY"), ("GOOGLE_GEMINI_BASE_URL",)),
+        Provider.GITHUB: (("GITHUB_TOKEN",), ("GITHUB_MODELS_API_BASE",)),
+        Provider.GMI: (("GMI_API_KEY",), ("GMI_API_BASE",)),
+        Provider.GROQ: (("GROQ_API_KEY",), ("GROQ_BASE_URL",)),
+        Provider.HUGGINGFACE: (("HF_TOKEN",), ("HUGGINGFACE_API_BASE",)),
+        Provider.INCEPTION: (("INCEPTION_API_KEY",), ("INCEPTION_API_BASE",)),
+        Provider.KENARI: (("KENARI_API_KEY",), ("KENARI_API_BASE",)),
+        Provider.LLAMA: (("LLAMA_API_KEY",), ("LLAMA_API_BASE",)),
+        Provider.LMSTUDIO: (("LM_STUDIO_API_KEY",), ("LM_STUDIO_API_BASE",)),
+        Provider.LLAMAFILE: (("LLAMAFILE_API_KEY",), ("LLAMAFILE_API_BASE",)),
+        Provider.LLAMACPP: (("LLAMACPP_API_KEY",), ("LLAMACPP_API_BASE",)),
+        Provider.META: (("MODEL_API_KEY",), ("META_API_BASE",)),
+        Provider.MISTRAL: (("MISTRAL_API_KEY",), ("MISTRAL_API_BASE",)),
+        Provider.MOONSHOT: (("MOONSHOT_API_KEY",), ("MOONSHOT_API_BASE",)),
+        Provider.MZAI: (("MZAI_API_KEY",), ("MZAI_API_BASE",)),
+        Provider.NEOSANTARA: (("NEOSANTARA_API_KEY",), ("NEOSANTARA_API_BASE",)),
+        Provider.NEBIUS: (("NEBIUS_API_KEY",), ("NEBIUS_API_BASE",)),
+        Provider.OLLAMA: (("OLLAMA_API_KEY",), ("OLLAMA_HOST",)),
+        Provider.OPENAI: (("OPENAI_API_KEY",), ("OPENAI_BASE_URL", "OPENAI_API_BASE")),
+        Provider.OTARI: (("OTARI_API_KEY",), ("OTARI_API_BASE",)),
+        Provider.OPENROUTER: (("OPENROUTER_API_KEY",), ("OPENROUTER_API_BASE",)),
+        Provider.PORTKEY: (("PORTKEY_API_KEY",), ("PORTKEY_API_BASE",)),
+        Provider.QINIU: (("QINIU_API_KEY",), ("QINIU_API_BASE",)),
+        Provider.REQUESTY: (("REQUESTY_API_KEY",), ("REQUESTY_API_BASE",)),
+        Provider.SAMBANOVA: (("SAMBANOVA_API_KEY",), ("SAMBANOVA_API_BASE",)),
+        Provider.SAGEMAKER: ((), ("SAGEMAKER_ENDPOINT_URL",)),
+        Provider.TOGETHER: (("TOGETHER_API_KEY",), ("TOGETHER_API_BASE",)),
+        Provider.VERTEXAI: ((), ("VERTEXAI_API_BASE",)),
+        Provider.VERTEXAIANTHROPIC: ((), ("VERTEXAI_ANTHROPIC_API_BASE",)),
+        Provider.VLLM: (("VLLM_API_KEY",), ("VLLM_API_BASE",)),
+        Provider.VOYAGE: (("VOYAGE_API_KEY",), ("VOYAGE_API_BASE",)),
+        Provider.WATSONX: (("WATSONX_API_KEY",), ("WATSONX_URL",)),
+        Provider.XAI: (("XAI_API_KEY",), ("XAI_API_BASE",)),
+        Provider.PERPLEXITY: (("PERPLEXITY_API_KEY",), ("PERPLEXITY_API_BASE",)),
+        Provider.MINIMAX: (("MINIMAX_API_KEY",), ("MINIMAX_API_BASE",)),
+        Provider.DASHSCOPE: (("DASHSCOPE_API_KEY",), ("DASHSCOPE_API_BASE",)),
+        Provider.DEEPINFRA: (("DEEPINFRA_API_KEY",), ("DEEPINFRA_API_BASE",)),
+        Provider.EDENAI: (("EDENAI_API_KEY",), ("EDENAI_API_BASE",)),
+        Provider.ZAI: (("ZAI_API_KEY",), ("ZAI_BASE_URL",)),
+        Provider.TELNYX: (("TELNYX_API_KEY",), ("TELNYX_API_BASE",)),
+        Provider.CUSTOM: (("CUSTOM_API_KEY",), ("CUSTOM_API_BASE",)),
     }
 )
 
@@ -95,11 +154,11 @@ class AgentTier(BaseModel):
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
-    provider: Literal[tuple(PROVIDERS)]  # ty: ignore[invalid-type-form] — the table is the closed set
+    provider: Provider
     model: str = Field(min_length=1)
     api_base: str | None = None
     api_key: SecretStr | None = None
-    options: dict[str, Any] = Field(default_factory=dict)
+    options: Mapping[str, JSON] = Field(default_factory=dict)
 
 
 ##### SETTINGS #####
@@ -329,7 +388,7 @@ class AgentSettings(BaseSettings):
 
     ##### VIEWS — what the root hands the agent #####
 
-    def agent_credentials(self) -> Mapping[str, tuple[SecretStr | None, str | None]]:
+    def agent_credentials(self) -> Mapping[Provider, tuple[SecretStr | None, str | None]]:
         """Every provider's key and base, each the first of its variables that is set."""
         return MappingProxyType(
             {

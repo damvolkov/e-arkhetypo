@@ -17,7 +17,9 @@ class TextInput(Vertical):
     """A prompt over a single-line input; `commit` reports the text, or None while it is blank."""
 
     def __init__(self, spec: InputSpec, previous: Sequence[str] = ()) -> None:
-        self._input = Input(value=next(iter(previous), "") or None, placeholder=spec.placeholder, password=spec.secret)
+        self._input = Input(
+            value=next(iter(previous), "") or None, placeholder=spec.placeholder or "", password=spec.secret
+        )
         super().__init__(*self._headed(spec.prompt, [self._input]))
 
     ############################################################
@@ -30,6 +32,6 @@ class TextInput(Vertical):
     ##### PRIVATE #####
 
     @staticmethod
-    def _headed(prompt: str, rows: Sequence[Widget]) -> list[Widget]:
+    def _headed(prompt: str | None, rows: Sequence[Widget]) -> list[Widget]:
         """The optional prompt above the field."""
         return [Label(prompt), *rows] if prompt else list(rows)

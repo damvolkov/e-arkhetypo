@@ -2,9 +2,10 @@
 
 Nothing loads at import: `setup` and the `logger` singleton run on first use, exactly once per process."""
 
+import functools
 import logging
 import sys
-from collections.abc import (  # noqa: TC003 — beartype resolves ELogger's annotations at runtime
+from collections.abc import (
     Callable,
     Mapping,
     Sequence,
@@ -15,7 +16,7 @@ from typing import ClassVar, Final, Protocol, TextIO, TypedDict, Unpack, runtime
 import beartype
 import msgspec
 import structlog
-from structlog.typing import (  # noqa: TC002 — beartype resolves ELogger's annotations at runtime
+from structlog.typing import (
     BindableLogger,
     EventDict,
     Processor,
@@ -36,6 +37,10 @@ class TextSink(Protocol):
 
 ### a value a log line carries, or a serializer's fallback hands back: anything at all is the contract.
 type Value = object  # ast-grep-ignore: object-annotation
+
+
+### what a composition root hands `setup` to mask every line before it is rendered: a line in, a line out.
+type Redact = Callable[[EventDict], EventDict]
 
 
 class RendererOptions(TypedDict, total=False):
@@ -118,6 +123,10 @@ class ELogger:
         line = self._sep.join((head, *(self._kv_fmt.format(key=k, value=event_dict[k]) for k in keys)))
         return "\n".join(filter(None, (line, exc)))
 
+    @staticmethod
+    def _setup_redact(redact: Redact, _logger: WrappedLogger, _method: str, event_dict: EventDict) -> EventDict:
+        return redact(event_dict)
+
     ############################################################
 
     ##### BOOTSTRAP #####
@@ -136,17 +145,21 @@ class ELogger:
         order: Sequence[str] = DEFAULT_ORDER,
         stream: TextIO = DEFAULT_STREAM,
         extra: Sequence[Processor] = (),
+        redact: Redact | None = None,
         **options: Unpack[RendererOptions],
     ) -> None:
         """Configure structlog for the given env — the first call marks the process configured. `extra` processors run
         before the renderer, after the shared ones: the composition root hands the tracer's there (a log line inside a
-        span becomes one of its events), so this module never imports what it hands."""
+        span becomes one of its events), so this module never imports what it hands. `redact`, when given, runs over every
+        line after its context is merged and its exception rendered, before the level, the timestamp and the renderer:
+        what it masks never reaches a stream; the patterns are the root's data, never this module's."""
         shared: list[Processor] = [
             structlog.contextvars.merge_contextvars,
-            structlog.processors.add_log_level,
-            structlog.processors.TimeStamper(fmt="iso", utc=True),
             structlog.processors.StackInfoRenderer(),
             structlog.processors.format_exc_info,
+            *([functools.partial(cls._setup_redact, redact)] if redact is not None else []),
+            structlog.processors.add_log_level,
+            structlog.processors.TimeStamper(fmt="iso", utc=True),
             *extra,
         ]
         match env.lower():

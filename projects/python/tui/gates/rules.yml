@@ -1,0 +1,374 @@
+### gates/rules.yml — every rule no existing tool states by name; imports, `print`, `os.environ`, layers and forbidden
+### files live in ruff, tach and prek. One list, each rule tagged by its level: tree (directories), shape (a module's top
+### level), syntax (ast-grep, with its cases), genealogy and parity (the imported program, run by the unit suite).
+### The template's defaults come first; the project's own follow, under PROJECT. `python -m scripts.gate check|semantic|test`.
+
+roots: [src, tests, scripts, gates]
+
+rules:
+  ##### DEFAULTS #####
+
+  - level: syntax
+    id: comment-form
+    law: "6"
+    message: "comments are banned: only `##### SECTION #####`, a bare `#` rule, `### One-line reason.` and tool pragmas"
+    files: ["**/*.py"]
+    rule:
+      kind: comment
+      not:
+        regex: '^(#+|#{5} .+ #{5}|### \S.*|#!.*|# ?(noqa|type: ?ignore|ty: ?ignore|fmt: ?(skip|off|on)|pragma|nosec|nosemgrep|ast-grep-ignore)\b.*)$'
+    valid:
+      - "##### PUBLIC #####"
+      - "#"
+      - "### The bucket stores raw frames."
+      - "x = 1  # noqa: E501 — the URL"
+      - "x = (1, 2)  # fmt: skip"
+    invalid:
+      - "# a chatty comment"
+      - "x = 1  # explains the obvious"
+      - "## half a section"
+
+  - level: syntax
+    id: module-function
+    law: "4"
+    message: "logic lives in its class: a module-level function exists only in ops/, operational/ or as a dispatch handler"
+    files: ["src/**/*.py"]
+    ignores: ["**/ops/**", "**/operational/**"]
+    rule:
+      kind: function_definition
+      any:
+        - inside: {kind: module}
+        - inside:
+            kind: decorated_definition
+            inside: {kind: module}
+            not:
+              has: {kind: decorator, regex: '^@(ovld|dispatch|singledispatch|\w+\.register)\b'}
+    valid:
+      - "class A:\n    def run(self): ...\n"
+      - "@ovld\ndef render(node: Text) -> str: ...\n"
+      - "@render.register\ndef text(node: Text) -> str: ...\n"
+    invalid:
+      - "def helper(): ..."
+      - "async def fetch(): ..."
+      - "@cache\ndef helper(): ...\n"
+
+  - level: syntax
+    id: private-function
+    law: "1"
+    message: "no loose private helpers: a module-level function is public, or it is a private method of its class"
+    files: ["src/**/*.py", "scripts/**/*.py", "gates/**/*.py"]
+    rule:
+      kind: function_definition
+      has: {field: name, regex: '^_'}
+      any:
+        - inside: {kind: module}
+        - inside: {kind: decorated_definition, inside: {kind: module}}
+    valid:
+      - "def text_clean(): ..."
+      - "class A:\n    def _run_fetch(self): ...\n"
+    invalid:
+      - "def _helper(): ..."
+      - "@cache\ndef _helper(): ...\n"
+
+  - level: syntax
+    id: elif
+    law: "5"
+    message: "if/elif is a decision table nobody wrote down: typed dispatch, a frozen mapping or match-case"
+    files: ["src/**/*.py", "scripts/**/*.py", "gates/**/*.py"]
+    rule: {kind: elif_clause}
+    valid:
+      - "x = a if b else c"
+    invalid:
+      - "if a:\n    x = 1\nelif b:\n    x = 2\n"
+
+  - level: syntax
+    id: if-else
+    law: "5"
+    message: "if/else is never a statement: a ternary, match-case or dispatch"
+    files: ["src/**/*.py", "scripts/**/*.py", "gates/**/*.py"]
+    rule:
+      kind: if_statement
+      has: {field: alternative, kind: else_clause}
+    valid:
+      - "x = a if b else c"
+      - "if not ok:\n    raise Error\n"
+    invalid:
+      - "if a:\n    x = 1\nelse:\n    x = 2\n"
+      - "if a:\n    x = 1\nelse:\n    if b:\n        x = 2\n"
+
+  - level: syntax
+    id: if-nested
+    law: "5"
+    message: "never an if inside an if: the cascade is a table — dispatch or match-case"
+    files: ["src/**/*.py", "scripts/**/*.py", "gates/**/*.py"]
+    rule:
+      kind: if_statement
+      inside: {kind: if_statement, stopBy: end}
+    valid:
+      - "if a:\n    raise Error\n"
+    invalid:
+      - "if a:\n    if b:\n        raise Error\n"
+
+  - level: syntax
+    id: if-twice
+    law: "5"
+    message: "two ifs in a row mean the mechanism is wrong: dispatch or match-case"
+    files: ["src/**/*.py", "scripts/**/*.py", "gates/**/*.py"]
+    rule:
+      kind: if_statement
+      follows: {kind: if_statement}
+    valid:
+      - "if a:\n    raise Error\nx = 1\n"
+    invalid:
+      - "if a:\n    raise A\nif b:\n    raise B\n"
+
+  - level: syntax
+    id: if-block
+    law: "5"
+    message: "an if holds one statement (a guard); more is a branch — dispatch or match-case"
+    files: ["src/**/*.py", "scripts/**/*.py", "gates/**/*.py"]
+    rule:
+      kind: if_statement
+      has:
+        field: consequence
+        has: {nthChild: {position: 2, ofRule: {not: {kind: comment}}}}
+      not:
+        has: {field: condition, regex: '^(TYPE_CHECKING|__name__ == "__main__")$'}
+    valid:
+      - "if not ok:\n    # why\n    raise Error\n"
+      - "if TYPE_CHECKING:\n    from a import b\n    from c import d\n"
+    invalid:
+      - "if ok:\n    a = 1\n    b = 2\n"
+
+  - level: syntax
+    id: ternary-nested
+    law: "5"
+    message: "a ternary never nests: a cascade of them is a table — dispatch or match-case"
+    files: ["src/**/*.py", "scripts/**/*.py", "gates/**/*.py"]
+    rule:
+      kind: conditional_expression
+      inside: {kind: conditional_expression, stopBy: end}
+    valid:
+      - "x = a if b else c"
+    invalid:
+      - "x = a if b else c if d else e"
+      - "x = (a if b else c) if d else e"
+
+  - level: syntax
+    id: loop
+    law: "7"
+    message: "no for, no while: comprehensions and functional operators"
+    files: ["src/**/*.py", "scripts/**/*.py", "gates/**/*.py"]
+    rule:
+      any: [{kind: for_statement}, {kind: while_statement}]
+    valid:
+      - "y = [v for v in xs]"
+    invalid:
+      - "for x in xs:\n    f(x)\n"
+      - "while running:\n    step()\n"
+      - "async def a():\n    async for x in xs:\n        f(x)\n"
+
+  - level: syntax
+    id: isinstance-chain
+    law: "5"
+    message: "an isinstance chain is hand-written multiple dispatch: ovld, or class patterns in match-case"
+    files: ["src/**/*.py", "scripts/**/*.py", "gates/**/*.py"]
+    rule:
+      pattern: isinstance($X, $A) or isinstance($X, $B)
+    valid:
+      - "ok = isinstance(x, (A, B))"
+      - "ok = isinstance(node, Constant) and isinstance(node.value, str)"
+    invalid:
+      - "ok = isinstance(x, A) or isinstance(x, B)"
+
+  - level: syntax
+    id: constant-case
+    law: "1"
+    message: "a module-level constant (a literal, or anything Final) is named in CAPITALS"
+    files: ["src/**/*.py", "scripts/**/*.py", "gates/**/*.py"]
+    rule:
+      kind: assignment
+      inside: {kind: expression_statement, inside: {kind: module}}
+      all:
+        - any:
+            - has: {field: type, kind: type, regex: 'Final'}
+            - has: {field: right, any: [{kind: integer}, {kind: float}, {kind: string}, {kind: concatenated_string}, {kind: 'true'}, {kind: 'false'}, {kind: tuple}, {kind: unary_operator}, {kind: expression_list, not: {has: {any: [{kind: call}, {kind: identifier}, {kind: attribute}]}}}, {kind: call, has: {field: function, regex: '^(frozenset|MappingProxyType)$'}}]}
+        - has:
+            field: left
+            any:
+              - {kind: identifier, not: {regex: '^(__\w+__|[A-Z][A-Z0-9_]*)$'}}
+              - {has: {kind: identifier, not: {regex: '^(__\w+__|[A-Z][A-Z0-9_]*)$'}}}
+    valid:
+      - "LIMIT: Final = 30"
+      - "MORNING, NIGHT = 6, 21"
+      - "settings = Settings()"
+      - "first, second = make(), make()"
+      - "setup = ELogger.setup"
+      - "ELogger = beartype(ELogger)"
+    invalid:
+      - "limit = 30"
+      - "label: Final = Text.GREETING"
+      - "morning, NIGHT = 6, 21"
+      - "names = frozenset({'a'})"
+
+  - level: syntax
+    id: mutable-global
+    law: "22"
+    message: "no mutable module state: a frozen value (tuple, frozenset, MappingProxyType) or a branch of the state tree"
+    files: ["src/**/*.py", "scripts/**/*.py", "gates/**/*.py"]
+    rule:
+      kind: assignment
+      inside: {kind: expression_statement, inside: {kind: module}}
+      has:
+        field: right
+        any:
+          - {kind: list}
+          - {kind: dictionary}
+          - {kind: set}
+          - {kind: list_comprehension}
+          - {kind: dictionary_comprehension}
+          - {kind: set_comprehension}
+          - {kind: call, has: {field: function, regex: '^(list|dict|set|defaultdict|deque|Counter|OrderedDict)$'}}
+      not:
+        has: {field: left, regex: '^__\w+__$'}
+    valid:
+      - "NAMES = frozenset({'a'})"
+      - "TABLE = MappingProxyType({'a': 1})"
+      - "__all__ = ['a']"
+    invalid:
+      - "CACHE = {}"
+      - "seen = set()"
+      - "ITEMS: list[str] = []"
+
+  - level: syntax
+    id: settings-case
+    law: "16"
+    message: "a setting is named as its environment variable: in CAPITALS"
+    files: ["src/*/infra/config/**/*.py", "src/*/infra/settings.py"]
+    rule:
+      kind: assignment
+      inside:
+        kind: expression_statement
+        inside:
+          kind: block
+          inside: {kind: class_definition, has: {field: superclasses, regex: 'Settings'}}
+      all:
+        - has: {field: type, kind: type}
+        - has:
+            field: left
+            kind: identifier
+            not: {regex: '^(model_config|[A-Z][A-Z0-9_]*)$'}
+    valid:
+      - "class S(BaseSettings):\n    APP_ENV: str = 'dev'\n    model_config = SettingsConfigDict()\n"
+      - "class AgentTier(BaseModel):\n    api_base: str | None = None\n"
+    invalid:
+      - "class S(BaseSettings):\n    app_env: str = 'dev'\n"
+      - "class SecretsEnv(SettingsBase):\n    app_env: str = 'dev'\n"
+
+  - level: genealogy
+    id: private-genealogy
+    law: "3"
+    message: a private method is _<public>_<what> or _common_<what>, and the privates come before the publics
+    files: ["src/**/*.py"]
+    order: true
+
+  - level: syntax
+    id: bank-sql-inline
+    law: "26"
+    message: "SQL outside its bank: a statement is a member of the consumer's statement enum (query.py), with its description and parameter types"
+    files: ["**/*.py"]
+    ignores: ["tests/**", "**/tests/**", "**/query.py", "**/queries.py", "**/migrations/**"]
+    rule:
+      any:
+        - kind: concatenated_string
+        - kind: string
+          not: {inside: {kind: concatenated_string}}
+      regex: '(?s)^[rbuRBUfF]*["'']+\s*(SELECT\s+(\d|.+[\s"'']FROM\s)|INSERT\s+INTO\s|UPDATE\s+\S+\s+SET\s|DELETE\s+FROM\s|CREATE\s+(TABLE|INDEX|SCHEMA|EXTENSION)\b|ALTER\s+TABLE\s|DROP\s+(TABLE|SCHEMA|INDEX)\b|TRUNCATE\s|WITH\s+\w+\s+AS\s*\()'
+    valid:
+      - "label = 'select a plan'"
+      - "x = 'SELECT is a keyword'"
+    invalid:
+      - "q = 'SELECT 1'"
+      - "q = f'DELETE FROM t WHERE id = {i}'"
+      - "q = (\n    'SELECT a '\n    'FROM t'\n)\n"
+
+  - level: syntax
+    id: bank-prose-pattern
+    law: "26"
+    message: "a pattern over human language inline: it is a member of a rule bank keyed by (label, language), with its description, hits and misses"
+    files: ["**/*.py"]
+    ignores: ["tests/**", "**/tests/**"]
+    rule:
+      any:
+        - pattern: re.$F($PAT)
+        - pattern: re.$F($PAT, $$$)
+    constraints:
+      F: {regex: '^(compile|search|match|fullmatch|findall|finditer|sub|split)$'}
+      PAT: {regex: '(?is).*?([^\W\d_]{4,}[^|]*\|){2,}'}
+    valid:
+      - "SLOT = re.compile(r'\\{(\\w+)\\}')"
+    invalid:
+      - "HELLO = re.compile(r'hola|buenas|saludos', re.I)"
+      - "found = re.search(r'\\bseguro\\s+de\\s+vida|salud|decesos', text)"
+      - "ABSOLUTE = re.compile(r'\\b(MUST|NEVER|ALWAYS|FORBIDDEN)\\b')"
+      - "SKIP = re.compile(\n    r'(?:^|/)(?:tests?/resources|fixtures?|vendor)'\n    r'|\\.?venv|\\.tox|site-packages'\n)\n"
+
+  - level: syntax
+    id: bank-prose-literal
+    law: "26"
+    message: "a prompt or prose written in code: it lives in a versioned bank (an agent file, a text table per language)"
+    files: ["**/*.py"]
+    ignores: ["tests/**", "**/tests/**"]
+    rule:
+      kind: assignment
+      has:
+        field: right
+        regex: '^\(?\s*[rbu]*["''](?:[^\s"'']+[\s"'']+){40,}'
+    valid:
+      - "LABEL = 'a short line'"
+    invalid:
+      - "PROMPT = 'word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word'"
+
+  - level: syntax
+    id: bank-port-takes-text
+    law: "26"
+    message: "a port that admits a raw string for a statement or a command: it takes the bank's member type"
+    files: ["**/*.py"]
+    ignores: ["tests/**", "**/tests/**"]
+    rule:
+      kind: function_definition
+      inside:
+        kind: class_definition
+        stopBy: end
+        has: {field: superclasses, regex: '\bProtocol\b'}
+      has:
+        field: parameters
+        has:
+          any: [{kind: typed_parameter}, {kind: typed_default_parameter}]
+          all:
+            - has: {kind: identifier, regex: '^(sql|statement|query|cmd|command)$'}
+            - has: {field: type, regex: '^str$'}
+    valid:
+      - "class DatabasePort(Protocol):\n    async def fetch(self, query: Query) -> list[Row]: ...\n"
+      - "class Client:\n    def run(self, sql: str) -> None: ...\n"
+    invalid:
+      - "class DatabasePort(Protocol):\n    async def fetch(self, sql: str) -> list[Row]: ...\n"
+
+  - level: syntax
+    id: bank-literalstring-cast
+    law: "26"
+    message: "a cast to LiteralString defeats the statement bank: allowed once, where a statement arrives as data, marked `# ast-grep-ignore: bank-literalstring-cast` and the reason"
+    files: ["**/*.py"]
+    ignores: ["tests/**", "**/tests/**"]
+    rule:
+      any:
+        - pattern: cast("LiteralString", $$$)
+        - pattern: cast(LiteralString, $$$)
+        - pattern: typing.cast(LiteralString, $$$)
+    valid:
+      - "sql = Query(text, 'migration')"
+    invalid:
+      - "sql = cast(LiteralString, text)"
+      - "sql = typing.cast(LiteralString, text)"
+
+  ##### PROJECT #####

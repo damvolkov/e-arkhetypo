@@ -38,7 +38,9 @@ templates:
             - {file: pyproject.toml, pattern: '^    ##### http #####\n    "wreq>=[^"]*",\n'}
     materials: &materials
       - {src: projects/python/common/prek.toml, dst: prek.toml}
-      - {src: projects/python/common/semgrep.yml, dst: semgrep.yml}
+      - {src: projects/python/common/gates/rules.yml, dst: gates/rules.yml}
+      - {src: projects/python/common/gates/models.py, dst: gates/models.py}
+      - {src: projects/python/common/scripts/gate.py, dst: scripts/gate.py}
       - {src: projects/python/common/.gitattributes, dst: .gitattributes}
       - {src: projects/python/common/.python-version, dst: .python-version}
       - {src: projects/python/common/.github/dependabot.yml, dst: .github/dependabot.yml}

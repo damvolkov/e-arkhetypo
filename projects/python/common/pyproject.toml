@@ -112,6 +112,7 @@ docs = [
     "zensical>=0.0.70",
 ]
 dev = [
+    "ast-grep-cli>=0.40",
     { include-group = "lint" },
     { include-group = "test" },
     { include-group = "docs" },
@@ -169,7 +170,7 @@ ignore = ["E501", "ISC001", "PLR0913"]
 "src/e_infra/providers/**" = ["TID251"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["e_infra"]
+known-first-party = ["e_infra", "scripts", "gates"]
 
 [tool.ruff.lint.flake8-type-checking]
 ### pydantic and msgspec resolve these classes' annotations at runtime: their imports must stay real.
@@ -184,6 +185,8 @@ runtime-evaluated-base-classes = [
 ban-relative-imports = "all"
 
 [tool.ruff.lint.flake8-tidy-imports.banned-api]
+"os.environ".msg = "config is an injected contract: pydantic-settings, never os.environ (e-nous law 16)"
+"os.getenv".msg = "config is an injected contract: pydantic-settings, never os.getenv (e-nous law 16)"
 "mcp.server".msg = "the MCP SDK's server is the engine's protocol (infra/mcp/server): an upgrade touches that one module"
 "lingua".msg = "lingua is the language adapter's (providers/adapters/language/lingua, LanguagePort): ask the port"
 "watchfiles".msg = "watchfiles is the watch adapter's (providers/adapters/watch/watchfiles, WatchPort): ask the port"
@@ -201,7 +204,7 @@ docstring-code-format = true
 python-version = "3.14"
 
 [tool.ty.src]
-include = ["src", "tests"]
+include = ["src", "tests", "scripts/gate.py", "gates"]
 
 [tool.ty.terminal]
 error-on-warning = true
@@ -212,7 +215,7 @@ minversion = "9.0"
 testpaths = ["tests"]
 addopts = ["--import-mode=importlib", "-ra"]
 ### tests on the path, not tests/unit: the mirror stays out of the `e_infra` namespace (`from unit.e_infra.conftest import settled`).
-pythonpath = ["src", "tests"]
+pythonpath = ["src", "tests", "."]
 strict = true
 filterwarnings = [
     "error",

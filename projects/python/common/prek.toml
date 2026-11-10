@@ -7,7 +7,8 @@ hooks = [
     { id = "ty", name = "ty type check", entry = "uv run ty check", language = "system", types = ["python"], pass_filenames = false },
     { id = "tach", name = "tach architecture check", entry = "uv run tach check", language = "system", pass_filenames = false },
     { id = "changelog", name = "CHANGELOG.md is written by the fold", entry = "sh -c 'git diff --cached --quiet -- CHANGELOG.md || [ \"$CHANGELOG_FOLD\" = 1 ] || { echo \"CHANGELOG.md is written only by the fold PR and by a release. Record your change in .changelog.d/<branch, / as ->.md; see .changelog.d/README.md.\" >&2; exit 1; }'", language = "system", always_run = true, pass_filenames = false },
-    { id = "banks", name = "literals live in banks (Semgrep, e-nous law 26)", entry = "uvx --from semgrep==1.184.0 semgrep scan --config semgrep.yml --metrics off --quiet --error .", language = "system", types = ["python"], pass_filenames = false, stages = ["manual"] },
+    { id = "no-init", name = "no __init__.py: the tree is a namespace package (e-nous law 1)", entry = "__init__.py is never created", language = "fail", files = "(^|/)__init__\\.py$" },
+    { id = "gates", name = "the house laws no tool names (gates/rules.yml, e-nous law 21)", entry = "uv run python -m scripts.gate check", language = "system", stages = ["manual"] },
     { id = "zizmor", name = "workflow hardening scan", entry = "uv run zizmor --persona=regular .github/workflows", language = "system", files = "^\\.github/workflows/.*\\.ya?ml$", pass_filenames = false },
 ]
 

@@ -83,6 +83,7 @@ test = [
     "pytest-resources>=0.3.2",
 ]
 dev = [
+    "ast-grep-cli>=0.40",
     { include-group = "lint" },
     { include-group = "test" },
     "prek>=0.4",
@@ -133,7 +134,7 @@ select = [
 ignore = ["E501", "ISC001", "PLR0913"]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**" = ["S101", "S106", "PLR2004", "ARG", "FBT", "TC001", "TC002", "TC003"]
+"tests/**" = ["S101", "S106", "PLR2004", "ARG", "FBT", "TC001", "TC002", "TC003", "TID251"]
 "scripts/**" = ["T20", "S603", "S607", "PTH"]
 ### the entrypoint prints the version to stdout: that IS its job.
 "src/e_tui/__main__.py" = ["T20"]
@@ -145,8 +146,12 @@ ignore = ["E501", "ISC001", "PLR0913"]
 "src/e_tui/models/**" = ["TC001", "TC002", "TC003", "UP037"]
 "src/e_tui/templates/**" = ["TC001", "TC002", "TC003"]
 
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+"os.environ".msg = "config is an injected contract: pydantic-settings, never os.environ (e-nous law 16)"
+"os.getenv".msg = "config is an injected contract: pydantic-settings, never os.getenv (e-nous law 16)"
+
 [tool.ruff.lint.isort]
-known-first-party = ["e_tui"]
+known-first-party = ["e_tui", "scripts", "gates"]
 
 [tool.ruff.lint.flake8-type-checking]
 ### pydantic and msgspec resolve these classes' annotations at runtime: their imports must stay real.
@@ -168,7 +173,7 @@ docstring-code-format = true
 python-version = "3.14"
 
 [tool.ty.src]
-include = ["src", "tests"]
+include = ["src", "tests", "scripts/gate.py", "gates"]
 
 [tool.ty.terminal]
 error-on-warning = true

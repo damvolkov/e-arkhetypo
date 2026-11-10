@@ -111,6 +111,7 @@ docs = [
     "zensical>=0.0.70",
 ]
 dev = [
+    "ast-grep-cli>=0.40",
     { include-group = "lint" },
     { include-group = "test" },
     { include-group = "docs" },
@@ -164,7 +165,7 @@ select = [
 ignore = ["E501", "ISC001", "PLR0913"]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**" = ["S101", "S106", "S311", "PLR2004", "ARG", "FBT"]
+"tests/**" = ["S101", "S106", "S311", "PLR2004", "ARG", "FBT", "TID251"]
 ### the node contract resolves test nodes' annotations at runtime: their RunState import must be real.
 "tests/unit/e_graph/instrument/test_node.py" = ["S101", "PLR2004", "ARG", "TC001"]
 "scripts/**" = ["T20", "S603", "S607", "PTH"]
@@ -178,8 +179,12 @@ ignore = ["E501", "ISC001", "PLR0913"]
 ### a runner's signature is its role's contract, read as source: `state` and `call` are taken, used or not.
 "src/e_graph/runners/**" = ["TC001", "TC002", "TC003", "ARG001"]
 
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+"os.environ".msg = "config is an injected contract: pydantic-settings, never os.environ (e-nous law 16)"
+"os.getenv".msg = "config is an injected contract: pydantic-settings, never os.getenv (e-nous law 16)"
+
 [tool.ruff.lint.isort]
-known-first-party = ["e_graph"]
+known-first-party = ["e_graph", "scripts", "gates"]
 
 [tool.ruff.lint.flake8-type-checking]
 ### pydantic and msgspec resolve these classes' annotations at runtime: their imports must stay real.
@@ -201,7 +206,7 @@ docstring-code-format = true
 python-version = "3.14"
 
 [tool.ty.src]
-include = ["src", "tests"]
+include = ["src", "tests", "scripts/gate.py", "gates"]
 
 [tool.ty.terminal]
 error-on-warning = true

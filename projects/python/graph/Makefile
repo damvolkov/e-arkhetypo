@@ -22,7 +22,7 @@ MAKEFLAGS += --no-print-directory
 export PYTHONPATH := $(CURDIR)/src
 
 ##### TARGETS #####
-.PHONY: help install sync lock common common-check lint type arch validate harden hooks test integration cov record conversions dartsops dartsops-eval dartsops-gate stress docs docs-build bundle snap check ci serve up down build logs release ci-vars clean
+.PHONY: help install sync lock common common-check lint type arch validate harden hooks test integration cov record conversions dartsops dartsops-eval dartsops-gate stress docs docs-build bundle snap check ci serve up down build logs release ci-vars clean gates
 
 help:
 	@printf "$(BOLD)$(CYAN)$(PROJECT)$(RESET) $(GRAY)· uv · ruff · ty · tach · pytest · zensical · docker · pnpm — infra/ops/ports/providers/engines/processors materialized from $(COMMON_SRC)$(RESET)\n\n"
@@ -53,7 +53,10 @@ COMMON_ROOT ?= ../common
 common: ## materialize the shared sections (engines, infra, ops, ports, processors, providers) from projects/python/common (source of truth) via a structural rewrite, and the shared root files into the project root
 	@uv run python scripts/materialize.py
 	@cp $(COMMON_ROOT)/prek.toml prek.toml
-	@cp $(COMMON_ROOT)/semgrep.yml semgrep.yml
+	@mkdir -p gates scripts
+	@cp $(COMMON_ROOT)/gates/models.py gates/models.py
+	@cp $(COMMON_ROOT)/scripts/gate.py scripts/gate.py
+	@{ cat $(COMMON_ROOT)/gates/rules.yml; sed '1,/##### PROJECT #####/d' gates/rules.yml 2>/dev/null; } > gates/rules.yml.new && mv gates/rules.yml.new gates/rules.yml
 	@cp $(COMMON_ROOT)/.gitattributes .gitattributes
 	@cp $(COMMON_ROOT)/.python-version .python-version
 	@cp $(COMMON_ROOT)/.github/dependabot.yml .github/dependabot.yml
@@ -62,7 +65,9 @@ common: ## materialize the shared sections (engines, infra, ops, ports, processo
 common-check: ## fail if the materialized sections or the shared root files drifted from projects/python/common
 	@uv run python scripts/materialize.py --check
 	@diff $(COMMON_ROOT)/prek.toml prek.toml \
-	 && diff $(COMMON_ROOT)/semgrep.yml semgrep.yml \
+	 && diff $(COMMON_ROOT)/gates/models.py gates/models.py \
+	 && diff $(COMMON_ROOT)/scripts/gate.py scripts/gate.py \
+	 && sed '/##### PROJECT #####/q' gates/rules.yml | diff $(COMMON_ROOT)/gates/rules.yml - \
 	 && diff $(COMMON_ROOT)/.gitattributes .gitattributes \
 	 && diff $(COMMON_ROOT)/.python-version .python-version \
 	 && diff $(COMMON_ROOT)/.github/dependabot.yml .github/dependabot.yml \
@@ -87,6 +92,9 @@ validate: ## validate pyproject.toml against schema
 
 harden: ## zizmor audit of GitHub Actions workflows (templates assemble them at generation)
 	@test -d .github/workflows && uv run zizmor --persona=regular .github/workflows || echo "no workflows assembled: e-taxis writes them"
+
+gates: ## gates/rules.yml, the house laws no tool names (e-nous law 21): rules against their cases, tree/shape/syntax, genealogy/parity
+	@failed=0; for phase in test check semantic; do echo "== $$phase"; uv run python -m scripts.gate $$phase || failed=1; done; exit $$failed
 
 hooks: ## run all prek hooks on every file (ruff, ty, tach, zizmor, gitleaks)
 	@uv run prek run --all-files

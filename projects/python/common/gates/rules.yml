@@ -580,6 +580,27 @@ rules:
       - "get_logger().warning('x')"
 
   - level: syntax
+    id: file-parents
+    law: "16"
+    message: "never a path read from below: a location is absolute and given (the environment, a setting, the event) or anchored once at the root (`Path(sys.prefix).parent`), never derived from the module's own file"
+    files: ["src/**/*.py", "scripts/**/*.py", "gates/**/*.py"]
+    rule:
+      any:
+        - pattern: Path(__file__).parent
+        - pattern: Path(__file__).parents
+        - pattern: Path(__file__).resolve().parent
+        - pattern: Path(__file__).resolve().parents
+        - pattern: pathlib.Path(__file__).parent
+        - pattern: pathlib.Path(__file__).parents
+    valid:
+      - "ROOT: Final = Path(sys.prefix).parent"
+      - "here = Path(os.environ['CLAUDE_PROJECT_DIR'])"
+    invalid:
+      - "ROOT = Path(__file__).resolve().parents[2]"
+      - "HERE = Path(__file__).parent / 'data'"
+      - "x = pathlib.Path(__file__).parents[1]"
+
+  - level: syntax
     id: not-open
     law: "8"
     message: "a provider's resource read before open is an `Opened[T]` descriptor (ports/provider), never a hand-written `case None: raise`"

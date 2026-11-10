@@ -16,7 +16,6 @@ from typing import TYPE_CHECKING, Any, Final
 import asyncpg
 import pytest
 import pytest_asyncio
-from psqlpy.exceptions import Error as PsqlError
 from pytest_httpserver import HTTPServer, RequestHandler
 from werkzeug import Request, Response
 
@@ -212,11 +211,8 @@ def asyncpg_server(monkeypatch: pytest.MonkeyPatch) -> FakeAsyncpgServer:
 ##### POSTGRES #####
 @pytest_asyncio.fixture(scope="session", loop_scope="session")
 async def database(worker_id: str) -> str:
-    """A database of the adapter tests' own beside POSTGRES_TEST_DSN's; every test needing it skips with no server."""
-    try:
-        return await create(f"{DSN}_adapters_{worker_id}")
-    except PsqlError as error:
-        pytest.skip(f"no test Postgres at {DSN.rpartition('@')[2]}: {error}")
+    """A database of the adapter tests' own beside POSTGRES_TEST_DSN's; no server is an error, never a skip."""
+    return await create(f"{DSN}_adapters_{worker_id}")
 
 
 @pytest.fixture

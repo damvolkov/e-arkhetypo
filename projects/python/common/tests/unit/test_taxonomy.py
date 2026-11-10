@@ -10,14 +10,11 @@ and the provider meets that port; class names are unique, `<Name><Nature>`."""
 import ast
 import importlib
 from collections import Counter
-from functools import reduce
 from pathlib import Path
 from typing import Final, get_protocol_members
 
 import pytest
 
-from e_infra.infra.config.base import BaseSettings
-from e_infra.infra.settings import settings as st
 from e_infra.ports.provider import Locality, Provider, ProviderSpec
 
 PACKAGE: Final = Path(__file__).resolve().parents[2] / "src" / "e_infra"
@@ -184,33 +181,8 @@ def test_taxonomy_provider_class_carries_its_nature(folder: str, cls: type) -> N
     assert cls.__name__.endswith(folder.removeprefix("providers/").title().removesuffix("s"))
 
 
-##### CONFIG MIRRORS THE TREE — module path ≡ settings chain ≡ the module it configures #####
+##### SETTINGS STAY AT THE ROOT — no provider, engine or processor is handed the settings object #####
 MIRRORED: Final = ("providers", "engines", "processors")
-CONFIG: Final = PACKAGE / "infra" / "config"
-
-
-def _chain(path: Path) -> tuple[str, ...]:
-    return path.relative_to(CONFIG).with_suffix("").parts
-
-
-CONFIGS: Final = [path for tree in MIRRORED for path in sorted((CONFIG / tree).rglob("*.py"))]
-
-
-@pytest.mark.parametrize("path", CONFIGS, ids=["/".join(_chain(path)) for path in CONFIGS])
-def test_taxonomy_config_module_configures_the_module_at_its_path(path: Path) -> None:
-    configured = PACKAGE.joinpath(*_chain(path)).with_suffix(".py")
-    assert configured.exists(), f"infra/config/{'/'.join(_chain(path))}.py configures nothing: no {configured}"
-
-
-@pytest.mark.parametrize("path", CONFIGS, ids=["/".join(_chain(path)) for path in CONFIGS])
-def test_taxonomy_settings_chain_is_the_module_path(path: Path) -> None:
-    module = importlib.import_module(_dotted(path))
-    (cls,) = (
-        cls
-        for cls in vars(module).values()
-        if isinstance(cls, type) and issubclass(cls, BaseSettings) and cls.__module__ == module.__name__
-    )
-    assert isinstance(reduce(getattr, _chain(path), st), cls)
 
 
 def _takes_settings() -> list[Path]:
@@ -227,12 +199,5 @@ def _takes_settings() -> list[Path]:
     ]
 
 
-TAKERS: Final = _takes_settings()
-
-
-@pytest.mark.parametrize("path", TAKERS, ids=[str(path.relative_to(PACKAGE)) for path in TAKERS])
-def test_taxonomy_module_that_takes_settings_has_its_config(path: Path) -> None:
-    config = CONFIG.joinpath(*path.relative_to(PACKAGE).parts)
-    assert config.exists(), (
-        f"{path.relative_to(PACKAGE)} takes settings: infra/config/{path.relative_to(PACKAGE)} is missing"
-    )
+def test_taxonomy_no_module_below_the_root_takes_settings() -> None:
+    assert not [str(path.relative_to(PACKAGE)) for path in _takes_settings()]

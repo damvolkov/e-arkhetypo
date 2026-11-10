@@ -149,6 +149,13 @@ ignore = ["E501", "ISC001", "PLR0913"]
 [tool.ruff.lint.flake8-tidy-imports.banned-api]
 "os.environ".msg = "config is an injected contract: pydantic-settings, never os.environ (e-nous law 16)"
 "os.getenv".msg = "config is an injected contract: pydantic-settings, never os.getenv (e-nous law 16)"
+"pytest.mark.xfail".msg = "a red is never hidden: fix the code or the expectation (e-nous test-py-tdd rule 2)"
+"pytest.xfail".msg = "a red is never hidden: fix the code or the expectation (e-nous test-py-tdd rule 2)"
+"pytest.mark.skip".msg = "a red is never hidden: a test that cannot run errors (e-nous test-py-tdd rule 2)"
+"pytest.mark.skipif".msg = "a red is never hidden: a test that cannot run errors (e-nous test-py-tdd rule 2)"
+"pytest.skip".msg = "a red is never hidden: a test that cannot run errors (e-nous test-py-tdd rule 2)"
+"pytest.importorskip".msg = "a red is never hidden: a missing dependency is an error (e-nous test-py-tdd rule 2)"
+"unittest.skip".msg = "a red is never hidden: a test that cannot run errors (e-nous test-py-tdd rule 2)"
 
 [tool.ruff.lint.isort]
 known-first-party = ["e_tui", "scripts", "gates"]
@@ -190,6 +197,8 @@ filterwarnings = [
     "ignore:datetime.datetime.utcnow\\(\\) is deprecated:DeprecationWarning",
 ]
 timeout = "60"
+### an empty parametrize is a vacuous test, never a silent skip.
+empty_parameter_set_mark = "fail_at_collect"
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 markers = [

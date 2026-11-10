@@ -21,7 +21,6 @@ import anyio
 import pytest
 import pytest_asyncio
 from psqlpy import ConnectionPool
-from psqlpy.exceptions import Error as PsqlError
 from pydantic import HttpUrl, PostgresDsn, RedisDsn, Secret, SecretStr
 
 from e_infra.infra.background import SETTLED, BackgroundState
@@ -217,12 +216,9 @@ REACHED: Final[dict[str, str]] = {}
 
 
 async def reachable(name: str) -> str:
-    """The DSN of the test database `name` beside POSTGRES_TEST_DSN's, created when missing — or the test skips and says
-    why. Asked for only by what needs a server: the memory engine's tests never reach here."""
-    try:
-        REACHED.setdefault(name, await create(f"{DSN}_{name}"))
-    except PsqlError as error:
-        pytest.skip(f"no test Postgres at {DSN.rpartition('@')[2]}: {error}")
+    """The DSN of the test database `name` beside POSTGRES_TEST_DSN's, created when missing — no server is an error, never a
+    skip. Asked for only by what needs a server: the memory engine's tests never reach here."""
+    REACHED.setdefault(name, await create(f"{DSN}_{name}"))
     return REACHED[name]
 
 

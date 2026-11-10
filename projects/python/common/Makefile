@@ -63,16 +63,16 @@ hooks: ## run all prek hooks on every file (ruff, ty, tach, zizmor, gitleaks)
 test: ## run tests, benchmarks out by default [TESTARGS='-k expr']
 	@uv run pytest tests $(TESTARGS) -n auto -q
 
-integration: ## the tests that need a real service (Postgres at POSTGRES_TEST_DSN); skipped when none answers
+integration: ## the tests that need a real service (Postgres at POSTGRES_TEST_DSN, the emulators, the models); an error when one does not answer
 	@uv run pytest tests -m integration -q
 
 cov: ## run tests with coverage gate (fail under 90%), benchmarks out like the CI matrix
 	@uv run pytest tests $(TESTARGS) --cov --cov-report=term-missing
 
-offline: ## the whole suite as CI runs it (`pytest tests`, no filter) in a container with no network: no service answers
+offline: ## the suite minus the integration tier, in a container with no network: proves no unit test reaches a service
 	@docker run --rm --network none --user "$$(id -u):$$(id -g)" -e HOME=/tmp/home \
 		-v "$$HOME/.local/share/uv:$$HOME/.local/share/uv:ro" -v "$(CURDIR):$(CURDIR)" -w "$(CURDIR)" \
-		ubuntu:24.04 .venv/bin/python -m pytest tests -q -p no:cacheprovider
+		ubuntu:24.04 .venv/bin/python -m pytest tests -m "not integration" -q -p no:cacheprovider
 
 # — docs —
 docs: ## serve docs site live at :8000

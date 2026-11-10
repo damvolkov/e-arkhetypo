@@ -27,20 +27,31 @@ SCHEMA: Final[tuple[str, ...]] = (
     kind text NOT NULL DEFAULT 'key', created timestamptz NOT NULL DEFAULT now(), expires timestamptz,
     revoked timestamptz)""",
     "CREATE INDEX IF NOT EXISTS auth_grant_owner ON auth_grant (owner) WHERE revoked IS NULL",
+    ### the segments an account reads beyond the general: added in place to a table made before them.
+    "ALTER TABLE auth_account ADD COLUMN IF NOT EXISTS segments text[] NOT NULL DEFAULT '{}'",
+    ### whether the account acts for the people it serves, naming each call's subject.
+    "ALTER TABLE auth_account ADD COLUMN IF NOT EXISTS delegate boolean NOT NULL DEFAULT false",
 )
 ### the tables are created by one opener at a time: two concurrent creators collide on `pg_type`.
 SCHEMA_LOCK: Final[str] = "SELECT pg_advisory_xact_lock(hashtext('auth'))"
 ENROLL: Final[str] = """
 INSERT INTO auth_account (id, name, role) VALUES ($1, $2, $3)
 ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, role = EXCLUDED.role
-RETURNING id, name, role, created"""
-ACCOUNTS: Final[str] = "SELECT id, name, role, created FROM auth_account ORDER BY created"
+RETURNING id, name, role, created, segments, delegate"""
+ACCOUNTS: Final[str] = "SELECT id, name, role, created, segments, delegate FROM auth_account ORDER BY created"
+SEGMENT: Final[str] = (
+    "UPDATE auth_account SET segments = $2 WHERE id = $1 RETURNING id, name, role, created, segments, delegate"
+)
+DELEGATE: Final[str] = (
+    "UPDATE auth_account SET delegate = $2 WHERE id = $1 RETURNING id, name, role, created, segments, delegate"
+)
 ISSUE: Final[str] = (
     "INSERT INTO auth_grant (digest, owner, kind, created, expires) VALUES ($1, $2, $3, coalesce($4, now()), $5)"
 )
 REVOKE: Final[str] = "UPDATE auth_grant SET revoked = now() WHERE owner = $1 AND revoked IS NULL RETURNING digest"
 HOLDER: Final[str] = """
-SELECT a.id, a.name, a.role, a.created, g.digest, g.kind, g.created AS issued, g.expires, g.revoked
+SELECT a.id, a.name, a.role, a.created, a.segments, a.delegate, g.digest, g.kind, g.created AS issued, g.expires,
+    g.revoked
 FROM auth_grant g JOIN auth_account a ON a.id = g.owner WHERE g.digest = $1"""
 
 
@@ -52,6 +63,8 @@ class PostgresAccount(msgspec.Struct, frozen=True, kw_only=True):
     name: str
     role: Role
     created: datetime | None = None
+    segments: tuple[str, ...] = ()
+    delegate: bool = False
 
 
 class PostgresHolder(PostgresAccount, frozen=True, kw_only=True):
@@ -80,7 +93,14 @@ class PostgresAuthDriver:
     @staticmethod
     def _common_account(row: Row) -> Account:
         found = msgspec.convert(row, PostgresAccount, strict=False)
-        return Account(owner=found.id, name=found.name, role=found.role, created=found.created)
+        return Account(
+            owner=found.id,
+            name=found.name,
+            role=found.role,
+            created=found.created,
+            segments=frozenset(found.segments),
+            delegate=found.delegate,
+        )
 
     ############################################################
 
@@ -120,6 +140,16 @@ class PostgresAuthDriver:
         revoked = len(await self._db.fetch(REVOKE, [owner]))
         logger.debug("auth postgres revoke", owner=owner, revoked=revoked)
         return revoked
+
+    async def segment(self, owner: str, segments: frozenset[str]) -> Account | None:
+        row = await self._db.row(SEGMENT, [owner, sorted(segments)])
+        logger.debug("auth postgres segment", owner=owner, segments=len(segments))
+        return None if row is None else self._common_account(row)
+
+    async def delegate(self, owner: str, *, delegate: bool) -> Account | None:
+        row = await self._db.row(DELEGATE, [owner, delegate])
+        logger.debug("auth postgres delegate", owner=owner, delegate=delegate)
+        return None if row is None else self._common_account(row)
 
     async def holder(self, digest: str) -> tuple[Account, Grant] | None:
         match await self._db.row(HOLDER, [digest]):

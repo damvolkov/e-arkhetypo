@@ -14,7 +14,8 @@ if TYPE_CHECKING:
 
 @runtime_checkable
 class AuthPort(Provider, Protocol):
-    """Accounts and their grants: make what is missing, keep or revoke grants, and tell whose a digest is."""
+    """Accounts and their grants: make what is missing (an account made again keeps its segments), keep or revoke
+    grants, set an account's segments or whether it is a delegate (None: no such account), and tell whose a digest is."""
 
     async def enroll(self, account: Account) -> Account: ...
 
@@ -23,5 +24,9 @@ class AuthPort(Provider, Protocol):
     async def issue(self, grant: Grant) -> None: ...
 
     async def revoke(self, owner: str) -> int: ...
+
+    async def segment(self, owner: str, segments: frozenset[str]) -> Account | None: ...
+
+    async def delegate(self, owner: str, *, delegate: bool) -> Account | None: ...
 
     async def holder(self, digest: str) -> tuple[Account, Grant] | None: ...

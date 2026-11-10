@@ -1,6 +1,6 @@
 """tests/support/auth: an `AuthPort` that keeps accounts and grants in dicts — the store an auth engine is tested over.
 
-`FakeAuth` honours the port as Postgres does: `enroll` makes an account or renames it in place, `revoke` stamps every
+`FakeAuth` honours the port as Postgres does: `enroll` makes an account or renames it in place (its segments kept), `segment` sets them, `revoke` stamps every
 live grant of an account and counts them, `holder` finds a grant by digest with its account. `key` seats an account with
 a ready key whose digest is the token's, for the tests that send a header."""
 
@@ -36,9 +36,28 @@ class FakeAuth:
     async def enroll(self, account: Account) -> Account:
         kept = self.owners.get(account.owner)
         self.owners[account.owner] = made = msgspec.structs.replace(
-            account, created=kept.created if kept else datetime.now(UTC)
+            account,
+            created=kept.created if kept else datetime.now(UTC),
+            segments=kept.segments if kept else account.segments,
+            delegate=kept.delegate if kept else account.delegate,
         )
         return made
+
+    async def delegate(self, owner: str, *, delegate: bool) -> Account | None:
+        match self.owners.get(owner):
+            case None:
+                return None
+            case kept:
+                self.owners[owner] = made = msgspec.structs.replace(kept, delegate=delegate)
+                return made
+
+    async def segment(self, owner: str, segments: frozenset[str]) -> Account | None:
+        match self.owners.get(owner):
+            case None:
+                return None
+            case kept:
+                self.owners[owner] = made = msgspec.structs.replace(kept, segments=segments)
+                return made
 
     async def accounts(self) -> list[Account]:
         return list(self.owners.values())

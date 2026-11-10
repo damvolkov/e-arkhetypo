@@ -12,10 +12,10 @@ from collections.abc import Mapping, Sequence
 from typing import Final, TypedDict
 
 import msgspec
-from litestar import Request, Response, delete, get, post
+from litestar import Request, Response, delete, get, post, put
 from litestar.di import NamedDependency, Provide
 from litestar.handlers import HTTPRouteHandler
-from litestar.params import FromPath
+from litestar.params import FromPath, JSONBody
 from litestar.status_codes import HTTP_200_OK, HTTP_400_BAD_REQUEST, HTTP_503_SERVICE_UNAVAILABLE
 from litestar.types import ExceptionHandlersMap
 
@@ -47,6 +47,18 @@ def unnamed(_request: Request[Caller, None, AppState], exc: AuthNameError) -> Re
     return Response({"detail": exc.message}, status_code=HTTP_400_BAD_REQUEST)
 
 
+class Segments(msgspec.Struct, frozen=True, kw_only=True, forbid_unknown_fields=True):
+    """The segments an account reads beyond the tenant's general documents, whole."""
+
+    segments: frozenset[str]
+
+
+class Delegate(msgspec.Struct, frozen=True, kw_only=True, forbid_unknown_fields=True):
+    """Whether an account acts for the people it serves."""
+
+    delegate: bool
+
+
 ##### HANDLERS #####
 async def me(caller: NamedDependency[Caller]) -> Caller:
     """Who the caller's key names: an account, or nobody."""
@@ -61,6 +73,16 @@ async def listed(auth: NamedDependency[AuthEngine]) -> list[Account]:
 async def rotate(name: FromPath[str], auth: NamedDependency[AuthEngine]) -> Issued:
     """The account of `name`, made when missing, with one fresh key; every earlier one revoked."""
     return await auth.rotate(name)
+
+
+async def segment(name: FromPath[str], data: JSONBody[Segments], auth: NamedDependency[AuthEngine]) -> Account:
+    """The segments the account of `name` reads, set whole."""
+    return await auth.segment(name, data.segments)
+
+
+async def delegate(name: FromPath[str], data: JSONBody[Delegate], auth: NamedDependency[AuthEngine]) -> Account:
+    """Whether the account of `name` acts for the people it serves, naming each call's subject."""
+    return await auth.delegate(name, delegate=data.delegate)
 
 
 async def revoke(name: FromPath[str], auth: NamedDependency[AuthEngine]) -> Revoked:
@@ -100,4 +122,6 @@ ROUTES: Final[tuple[HTTPRouteHandler, ...]] = (
     get("/auth/accounts", name="auth.list", **OPTIONS)(listed),
     post("/auth/accounts/{name:str}/token", name="auth.rotate", status_code=HTTP_200_OK, **OPTIONS)(rotate),
     delete("/auth/accounts/{name:str}/token", name="auth.revoke", status_code=HTTP_200_OK, **OPTIONS)(revoke),
+    put("/auth/accounts/{name:str}/segments", name="auth.segment", status_code=HTTP_200_OK, **OPTIONS)(segment),
+    put("/auth/accounts/{name:str}/delegate", name="auth.delegate", status_code=HTTP_200_OK, **OPTIONS)(delegate),
 )

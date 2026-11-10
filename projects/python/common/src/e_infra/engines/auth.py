@@ -75,7 +75,10 @@ class AuthEngine:
                 message = "expired token: ask for a new one"
                 raise UnknownTokenError(message)
             case _:
-                return Caller(owner=account.owner, name=account.name, role=account.role)
+                return Caller(
+                    owner=account.owner, name=account.name, role=account.role, segments=account.segments,
+                    delegate=account.delegate,
+                )  # fmt: skip
 
     ############################################################
 
@@ -128,3 +131,23 @@ class AuthEngine:
     async def accounts(self) -> list[Account]:
         """Every account, the admin's included."""
         return await self._port.accounts()
+
+    async def delegate(self, name: str, *, delegate: bool) -> Account:
+        """Whether the account of `name` acts for the people it serves; an unknown account is refused."""
+        match await self._port.delegate(self._common_account(name).owner, delegate=delegate):
+            case None:
+                message = f"no account {name!r}: issue it a key first"
+                raise AuthNameError(message)
+            case account:
+                logger.info("auth delegate set", owner=account.owner, name=name, delegate=delegate)
+                return account
+
+    async def segment(self, name: str, segments: frozenset[str]) -> Account:
+        """The segments the account of `name` reads beyond the general, set whole; an unknown account is refused."""
+        match await self._port.segment(self._common_account(name).owner, segments):
+            case None:
+                message = f"no account {name!r}: issue it a key first"
+                raise AuthNameError(message)
+            case account:
+                logger.info("auth segments set", owner=account.owner, name=name, segments=sorted(segments))
+                return account

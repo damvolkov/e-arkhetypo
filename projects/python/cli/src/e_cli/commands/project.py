@@ -5,6 +5,8 @@ service was given, which the runtime wrapped in the undo journal, so each comman
 `ecli history undo` without a line of inverse logic. `create`, `remove` and `env set` declare `_me`, an
 `Identity` they never read — which is exactly how a command says "authenticated only"."""
 
+from typing import Final
+
 from rich.console import Console
 from rich.table import Table
 
@@ -14,7 +16,7 @@ from e_cli.models.project import ProjectState
 from e_cli.runtime.deps import Inject
 
 ##### DEFAULTS #####
-HEADER: str = "bold #6f9bff"
+HEADER: Final = "bold #6f9bff"
 
 
 ##### COMMANDS #####
@@ -29,7 +31,7 @@ async def listing(*, projects: Inject[ProjectStorePort], console: Inject[Console
 async def create(
     name: str,
     *,
-    description: str = "",
+    description: str | None = None,
     state: ProjectState = ProjectState.DRAFT,
     projects: Inject[ProjectStorePort],
     _me: Inject[Identity],

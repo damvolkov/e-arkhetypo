@@ -87,7 +87,7 @@ async def remove(data: JSONBody[UserArgs], store: NamedDependency[StorePort]) ->
 
 
 ##### ROUTES #####
-ROUTES: tuple[HTTPRouteHandler, ...] = tuple(
+ROUTES: Final[tuple[HTTPRouteHandler, ...]] = tuple(
     tool.route(access, dependencies=router.READ_DEPS, exception_handlers=REFUSALS)(handler)
     for tool, access, handler in (
         (LIST, Access.USER, listed),

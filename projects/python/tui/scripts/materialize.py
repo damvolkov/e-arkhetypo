@@ -22,16 +22,16 @@ import libcst as cst
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-ROOT: Path = Path(__file__).resolve().parents[1]
-COMMON_SRC: Path = ROOT.parent / "common" / "src" / "e_infra"
+ROOT: Final = Path(__file__).resolve().parents[1]
+COMMON_SRC: Final = ROOT.parent / "common" / "src" / "e_infra"
 PACKAGE: Final[str] = "e_tui"
-SECTIONS: tuple[str, ...] = ("infra", "ops", "ports", "providers", "engines", "processors")
+SECTIONS: Final = ("infra", "ops", "ports", "providers", "engines", "processors")
 ### the opt-in table of projects/python/common/docs/index.md, read for a TUI: what it does not take stays at the source.
 ### the compose tool belongs to stack management (e-taxis materializes the whole ops area), not to a running service.
 ### postgres (psqlpy, asyncpg) and the durable queues (awa, pgqueuer) ride in only for a service that runs them: add psqlpy / asyncpg / pgqueuer / awa-pg,
 ### drop the exclusions, and name the class that fills QueuePort at the composition root.
 ### tracing, the cache and the model and web edges are opt-in everywhere: each brings its library with it.
-EXCLUDES: frozenset[str] = frozenset(
+EXCLUDES: Final = frozenset(
     {
         "ops/compose.py",
         "ports/database.py",
@@ -125,7 +125,7 @@ def _reroot_e_infra(name: cst.BaseExpression) -> cst.BaseExpression:
     return _dotted([PACKAGE, *parts[1:]]) if hit else name
 
 
-def _reroot_alias(alias: object) -> object:
+def _reroot_alias(alias: cst.ImportAlias | cst.Element) -> cst.ImportAlias | cst.Element:
     """One `import a.b [as c]` alias, stripped whatever its wrapper shape; anything else passes through."""
     match alias:
         case cst.ImportAlias(name=name):

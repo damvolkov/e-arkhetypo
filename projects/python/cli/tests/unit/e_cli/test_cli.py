@@ -4,14 +4,20 @@ import importlib
 import inspect
 import subprocess
 import sys
+from typing import TYPE_CHECKING
 
 import pytest
 
 from e_cli.cli import CARDS, GROUPS, main
 
+if TYPE_CHECKING:
+    from tests.unit.e_cli.conftest import Ecli
+
+    from e_cli.models.command import CommandCard
+
 
 @pytest.mark.parametrize("card", CARDS, ids=[card.path for card in CARDS])
-def test_cli_card_target_is_a_coroutine_function(card) -> None:
+def test_cli_card_target_is_a_coroutine_function(card: CommandCard) -> None:
     module, _, function = card.target.partition(":")
     assert inspect.iscoroutinefunction(getattr(importlib.import_module(module), function))
 
@@ -41,12 +47,12 @@ def test_cli_main_exits_with_the_run_code(monkeypatch: pytest.MonkeyPatch) -> No
 
 
 @pytest.mark.parametrize("tokens", [(), ("project",), ("project", "env")], ids=["root", "group", "nested"])
-def test_cli_bare_group_prints_its_help(ecli, tokens: tuple[str, ...]) -> None:
+def test_cli_bare_group_prints_its_help(ecli: Ecli, tokens: tuple[str, ...]) -> None:
     code, out, _ = ecli(*tokens)
     assert code == 0
     assert "Usage: ecli" in out
 
 
-def test_cli_help_lists_every_group_with_its_summary(ecli) -> None:
+def test_cli_help_lists_every_group_with_its_summary(ecli: Ecli) -> None:
     _, out, _ = ecli("--help")
     assert all(group.help[:20] in out for group in GROUPS if not group.parent)

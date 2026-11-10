@@ -6,7 +6,7 @@ composition root bound (today, sqlite behind the undo journal). Raw user input e
 and a violation leaves as a `ProjectError` the launcher knows how to report."""
 
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Final
 
 import msgspec
 
@@ -19,7 +19,7 @@ if TYPE_CHECKING:
     from e_cli.ports.store import StorePort
 
 ##### DEFAULTS #####
-PREFIX: str = "project:"
+PREFIX: Final = "project:"
 
 
 ##### TYPES #####
@@ -34,7 +34,7 @@ class ProjectStore:
     ##### PRIVATE METHODS #####
 
     @staticmethod
-    def _create_spec(name: str, description: str, state: ProjectState) -> ProjectSpec:
+    def _create_spec(name: str, description: str | None, state: ProjectState) -> ProjectSpec:
         """The boundary: raw arguments converted against the constrained spec, or refused with the rule broken."""
         try:
             return msgspec.convert({"name": name, "description": description, "state": state}, ProjectSpec)
@@ -72,7 +72,9 @@ class ProjectStore:
         async for key in self._store.keys(PREFIX):
             yield await self.get(key.removeprefix(PREFIX))
 
-    async def create(self, name: str, description: str = "", state: ProjectState = ProjectState.DRAFT) -> Project:
+    async def create(
+        self, name: str, description: str | None = None, state: ProjectState = ProjectState.DRAFT
+    ) -> Project:
         spec = self._create_spec(name, description, state)
         match await self._store.get(f"{PREFIX}{spec.name}"):
             case None:

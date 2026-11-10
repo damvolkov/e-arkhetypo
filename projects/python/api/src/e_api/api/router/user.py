@@ -114,7 +114,7 @@ READ_DEPS: Final[dict[str, Provide]] = {
 }
 
 ##### ROUTES #####
-ROUTES: tuple[HTTPRouteHandler, ...] = (
+ROUTES: Final[tuple[HTTPRouteHandler, ...]] = (
     post(
         "/users",
         name="user.create",

@@ -1,5 +1,6 @@
 """tests/unit/e_api/api/router/user: the user CRUD chain end to end — the key's access per route, DTO families out."""
 
+from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 import msgspec
@@ -7,10 +8,13 @@ import msgspec
 from e_api.api.deps import USER_KEY
 from e_api.models.user import UserRecord
 
+if TYPE_CHECKING:
+    from litestar.testing import TestClient
+
 NEW = {"username": "bob", "email": "bob@example.com", "password": "s3cret-passphrase"}
 
 
-def test_create_returns_read_model_without_credential(client, root_key) -> None:
+def test_create_returns_read_model_without_credential(client: TestClient, root_key: dict[str, str]) -> None:
     response = client.post("/users", json=NEW, headers=root_key)
     assert response.status_code == 201
     body = response.json()
@@ -19,12 +23,12 @@ def test_create_returns_read_model_without_credential(client, root_key) -> None:
     assert "password_hash" not in body
 
 
-def test_create_rejects_weak_input(client, root_key) -> None:
+def test_create_rejects_weak_input(client: TestClient, root_key: dict[str, str]) -> None:
     response = client.post("/users", json={"username": "BOB", "email": "x", "password": "short"}, headers=root_key)
     assert response.status_code == 400
 
 
-def test_every_route_refuses_nobody(client) -> None:
+def test_every_route_refuses_nobody(client: TestClient) -> None:
     uid = "9d1a5b58-0e0e-4a5e-9a3f-000000000000"
     answered = [
         client.post("/users", json=NEW),
@@ -38,7 +42,7 @@ def test_every_route_refuses_nobody(client) -> None:
     assert answered[1].json()["detail"] == "user access: send a key (Authorization: Bearer)"
 
 
-def test_writing_is_the_admins(client, ana_key, created_user) -> None:
+def test_writing_is_the_admins(client: TestClient, ana_key: dict[str, str], created_user: dict[str, Any]) -> None:
     """An account reads; creating, changing and deleting a record are refused it, in the guard's words."""
     uid = created_user["id"]
     answered = [
@@ -50,7 +54,7 @@ def test_writing_is_the_admins(client, ana_key, created_user) -> None:
     assert answered[0].json()["detail"] == "admin access: this key's account is user"
 
 
-def test_a_key_nobody_holds_is_refused_where_keys_are_read(client) -> None:
+def test_a_key_nobody_holds_is_refused_where_keys_are_read(client: TestClient) -> None:
     """A public route never reads the key; every other is refused before its route runs."""
     forged = {"Authorization": "Bearer stolen"}
     assert [client.get(path, headers=forged).status_code for path in ("/users", "/auth/me", "/health")] == [
@@ -60,7 +64,9 @@ def test_a_key_nobody_holds_is_refused_where_keys_are_read(client) -> None:
     ]
 
 
-def test_list_read_update_delete_flow(client, ana_key, root_key, created_user) -> None:
+def test_list_read_update_delete_flow(
+    client: TestClient, ana_key: dict[str, str], root_key: dict[str, str], created_user: dict[str, Any]
+) -> None:
     user_id = created_user["id"]
 
     assert [u["id"] for u in client.get("/users", headers=ana_key).json()] == [user_id]
@@ -81,7 +87,7 @@ def test_list_read_update_delete_flow(client, ana_key, root_key, created_user) -
     assert client.get("/users", headers=ana_key).json() == []
 
 
-def test_credential_is_stored_only_as_an_argon2_hash(client, created_user) -> None:
+def test_credential_is_stored_only_as_an_argon2_hash(client: TestClient, created_user: dict[str, Any]) -> None:
     """The crypto-through-the-store chain end to end: what persists is a hash, verifiable and never the password."""
     graph = client.app.state.system
     with client.portal() as portal:
@@ -91,5 +97,5 @@ def test_credential_is_stored_only_as_an_argon2_hash(client, created_user) -> No
         assert portal.call(graph.crypto.verify_password, "correct-horse-1", record.password_hash)
 
 
-def test_patch_unknown_user_is_404(client, root_key) -> None:
+def test_patch_unknown_user_is_404(client: TestClient, root_key: dict[str, str]) -> None:
     assert client.patch(f"/users/{UUID(int=8)}", json={"quota": "1.00"}, headers=root_key).status_code == 404

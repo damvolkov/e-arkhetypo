@@ -8,7 +8,8 @@ engine's (`engines/auth`): a name is plain — lower case letters, digits, `-` a
 makes no account (503). The admin's first key comes from `python -m e_api admin`, on the service's own host.
 """
 
-from typing import Any, Final
+from collections.abc import Mapping, Sequence
+from typing import Final, TypedDict
 
 import msgspec
 from litestar import Request, Response, delete, get, post
@@ -16,9 +17,11 @@ from litestar.di import NamedDependency, Provide
 from litestar.handlers import HTTPRouteHandler
 from litestar.params import FromPath
 from litestar.status_codes import HTTP_200_OK, HTTP_400_BAD_REQUEST, HTTP_503_SERVICE_UNAVAILABLE
+from litestar.types import ExceptionHandlersMap
 
 from e_api.api.deps import DepKey, auth, caller, graph
 from e_api.api.security import SECURITY
+from e_api.api.state import AppState
 from e_api.engines.auth import AuthEngine
 from e_api.infra.auth.guard import OPT
 from e_api.infra.auth.models import Access, Account, Caller, Issued
@@ -34,12 +37,12 @@ class Revoked(msgspec.Struct, frozen=True, kw_only=True):
 
 
 ##### HELPERS #####
-def closed(_request: Request[Any, Any, Any], exc: AuthClosedError) -> Response[dict[str, str]]:
+def closed(_request: Request[Caller, None, AppState], exc: AuthClosedError) -> Response[dict[str, str]]:
     """No secret: the engine makes no account."""
     return Response({"detail": exc.message}, status_code=HTTP_503_SERVICE_UNAVAILABLE)
 
 
-def unnamed(_request: Request[Any, Any, Any], exc: AuthNameError) -> Response[dict[str, str]]:
+def unnamed(_request: Request[Caller, None, AppState], exc: AuthNameError) -> Response[dict[str, str]]:
     """A name that is not a plain account name."""
     return Response({"detail": exc.message}, status_code=HTTP_400_BAD_REQUEST)
 
@@ -66,12 +69,22 @@ async def revoke(name: FromPath[str], auth: NamedDependency[AuthEngine]) -> Revo
 
 
 ##### CHAINS #####
-DEPS: Final[dict[str, Provide]] = {
+class RouteOptions(TypedDict):
+    """The keyword options every route of this router passes to its decorator."""
+
+    tags: Sequence[str]
+    dependencies: Mapping[str, Provide]
+    exception_handlers: ExceptionHandlersMap
+    opt: Mapping[str, Access | bool]
+    security: Sequence[dict[str, list[str]]]
+
+
+DEPS: Final[Mapping[str, Provide]] = {
     DepKey.GRAPH.value: Provide(graph, sync_to_thread=False),
     DepKey.AUTH.value: Provide(auth, sync_to_thread=False),
     DepKey.CALLER.value: Provide(caller, sync_to_thread=False),
 }
-OPTIONS: Final[dict[str, Any]] = {
+OPTIONS: Final[RouteOptions] = {
     "tags": ["auth"],
     "dependencies": DEPS,
     "exception_handlers": {AuthClosedError: closed, AuthNameError: unnamed},
@@ -79,10 +92,10 @@ OPTIONS: Final[dict[str, Any]] = {
     "security": SECURITY,
 }
 ### who the caller is: any caller's question.
-ANYONE: Final[dict[str, Any]] = {**OPTIONS, "opt": OPT[Access.ANONYMOUS]}
+ANYONE: Final[RouteOptions] = {**OPTIONS, "opt": OPT[Access.ANONYMOUS]}
 
 ##### ROUTES #####
-ROUTES: tuple[HTTPRouteHandler, ...] = (
+ROUTES: Final[tuple[HTTPRouteHandler, ...]] = (
     get("/auth/me", name="auth.me", **ANYONE)(me),
     get("/auth/accounts", name="auth.list", **OPTIONS)(listed),
     post("/auth/accounts/{name:str}/token", name="auth.rotate", status_code=HTTP_200_OK, **OPTIONS)(rotate),

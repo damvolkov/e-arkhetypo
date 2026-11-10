@@ -11,34 +11,49 @@ silently grows an empty node and reads as present forever, so a placement check 
 never fails. Presence is therefore tested by item access (`.get`, no mutation) and the shadow graph the
 validator builds is seeded by item assignment. Dotted paths (`system.template`) descend and grow as needed."""
 
-from collections.abc import MutableMapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass
+from enum import Enum, auto
 from functools import reduce
-from typing import Final
+from typing import Final, Literal
 
 from e_tui.flow.graph import Graph
 from e_tui.flow.page import Page
+from e_tui.infra.payload import JSON
 from e_tui.infra.state import State
 
 ##### NAMESPACE #####
-ANSWERS: str = "answers"
+ANSWERS: Final = "answers"
+
 
 ##### SHADOW #####
-MISSING: Final[object] = object()  # the "no such path" marker — a real value is never this
+class Marker(Enum):
+    """Two one-of-a-kind values a path can hold in the shadow: produced (`PRESENCE`) or absent (`MISSING`)."""
+
+    PRESENCE = auto()
+    MISSING = auto()
 
 
-@dataclass(slots=True)
+PRESENCE: Final = Marker.PRESENCE
+MISSING: Final = Marker.MISSING
+
+
+@dataclass(slots=True, init=False)
 class FlowState:
     """The one mutable truth of a walk: graph, position, trail, data."""
 
     graph: Graph
-    at: str = ""
-    trail: tuple[str, ...] = ()
-    data: State = field(default_factory=State)
+    at: str
+    trail: tuple[str, ...]
+    data: State
 
-    def __post_init__(self) -> None:
+    def __init__(
+        self, graph: Graph, at: str | None = None, trail: tuple[str, ...] = (), data: State | None = None
+    ) -> None:
         """An unnamed position means the entry — one rule, applied once at birth."""
-        self.at = self.at or self.graph.entry.id
+        self.graph = graph
+        self.at = graph.entry.id if at is None else at
+        self.trail = trail
+        self.data = State() if data is None else data
 
     ##### VIEWS #####
 
@@ -61,21 +76,21 @@ class FlowState:
 ##### PATHS #####
 
 
-def _child(node: object, key: str) -> object:
-    """The value under `key` in a mapping, or `MISSING` — item access, so nothing auto-vivifies."""
-    match node:
-        case MutableMapping() as mapping:
-            return mapping.get(key, MISSING)
-        case _:
-            return MISSING
-
-
-def has(state: object, path: str) -> bool:
+def has(state: State, path: str) -> bool:
     """True when `path` already exists in `state` — the non-mutating presence test a `condition` must use."""
-    return reduce(_child, path.split("."), state) is not MISSING
+    head, _, rest = path.partition(".")
+    match (state.get(head, MISSING), rest):
+        case (Marker.MISSING, _):
+            return False
+        case (_, ""):
+            return True
+        case (State() as child, _):
+            return has(child, rest)
+        case _:
+            return False
 
 
-def _descend(node: MutableMapping[str, object], key: str) -> MutableMapping[str, object]:
+def _descend(node: State, key: str) -> State:
     """The child branch at `key`, grown on demand — reuses a `State`, never overwrites an existing branch."""
     match node.get(key):
         case State() as child:
@@ -86,7 +101,7 @@ def _descend(node: MutableMapping[str, object], key: str) -> MutableMapping[str,
             return grown
 
 
-def seed(state: MutableMapping[str, object], path: str, value: object) -> None:
+def seed(state: State, path: str, value: JSON | Literal[Marker.PRESENCE]) -> None:
     """Set `path` to `value` inside `state`, materialising parent branches — how a shadow graph is built."""
     *parents, leaf = path.split(".")
     reduce(_descend, parents, state)[leaf] = value

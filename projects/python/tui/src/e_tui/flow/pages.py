@@ -11,12 +11,9 @@ from dataclasses import dataclass, field
 
 from e_tui.flow.graph import Graph
 from e_tui.flow.page import Page
-from e_tui.flow.state import has, seed
+from e_tui.flow.state import PRESENCE, has, seed
 from e_tui.infra.state import State
 from e_tui.models.error import PageStructureError
-
-##### SHADOW #####
-_PRESENCE: object = object()  # the sentinel a produced path holds in the shadow: presence, never a value
 
 
 @dataclass(slots=True)
@@ -24,7 +21,7 @@ class PagesBuilder:
     """Accumulates pages in order, validating each against everything added before it."""
 
     id: str
-    _pages: list[Page] = field(default_factory=list)
+    _pages: tuple[Page, ...] = ()
     _shadow: State = field(default_factory=State)
 
     ############################################################
@@ -41,13 +38,13 @@ class PagesBuilder:
             f"flow {self.id!r}: page {page.id!r} rejects its place",
         )
         for path in page.produces:
-            seed(self._shadow, path, _PRESENCE)
-        self._pages.append(page)
+            seed(self._shadow, path, PRESENCE)
+        self._pages = (*self._pages, page)
         return self
 
     def build(self) -> Graph:
         """Freeze the accumulated pages into the walk-safe `Graph` — its own checks are the last net."""
-        return Graph(self.id, tuple(self._pages))
+        return Graph(self.id, self._pages)
 
 
 def _check(holds: bool, why: str) -> None:  # noqa: FBT001 — the boolean argument IS the predicate

@@ -2,10 +2,12 @@
 
 from dataclasses import dataclass, field
 from enum import StrEnum
+from typing import Final
 
 ##### DEFAULTS #####
-REDACTION: str = "**********"
-VISIBLE: int = 4  # trailing characters a masked token keeps, enough to tell two logins apart
+REDACTION: Final = "**********"
+### Trailing characters a masked token keeps, enough to tell two logins apart.
+VISIBLE: Final = 4
 
 
 ##### ENUMS #####

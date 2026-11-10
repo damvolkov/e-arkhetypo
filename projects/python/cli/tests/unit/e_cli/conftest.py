@@ -1,5 +1,6 @@
 """tests/unit/e_cli: the harness — a real `ecli` per test on its own sqlite file, and an in-memory StorePort."""
 
+from collections.abc import AsyncIterator, Callable
 from typing import TYPE_CHECKING, ClassVar, Self
 
 import pytest
@@ -8,8 +9,10 @@ from e_cli.cli import build
 from e_cli.ports.provider import Isolation, Locality, ProviderSpec, Workload
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncIterator, Callable
     from pathlib import Path
+
+
+type Ecli = Callable[..., tuple[int, str, str]]
 
 
 class MemoryStore:
@@ -39,9 +42,9 @@ class MemoryStore:
     async def delete(self, key: str) -> None:
         self.data.pop(key, None)
 
-    async def keys(self, prefix: str = "") -> AsyncIterator[str]:
+    async def keys(self, prefix: str | None = None) -> AsyncIterator[str]:
         for key in sorted(self.data):
-            if key.startswith(prefix):
+            if key.startswith(prefix or ""):
                 yield key
 
 
@@ -58,7 +61,7 @@ def store() -> MemoryStore:
 
 
 @pytest.fixture
-def ecli(capfd: pytest.CaptureFixture[str]) -> Callable[..., tuple[int, str, str]]:
+def ecli(capfd: pytest.CaptureFixture[str]) -> Ecli:
     """Run the real app on a token list: (exit code, stdout, stderr), exactly what a shell would see."""
 
     def run(*tokens: str) -> tuple[int, str, str]:

@@ -2,13 +2,13 @@
 
 from datetime import datetime
 from enum import StrEnum
-from typing import Annotated
+from typing import Annotated, Final
 
 import msgspec
 
 ##### DEFAULTS #####
-LAG_MS: float = 250.0
-DOWN_MS: float = 1000.0
+LAG_MS: Final[float] = 250.0
+DOWN_MS: Final[float] = 1000.0
 
 
 ##### TYPES #####

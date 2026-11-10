@@ -12,6 +12,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 
 from e_tui.flow.page import Page
+from e_tui.infra.state import State
 from e_tui.models.error import FlowError
 from e_tui.models.object import Commit
 
@@ -54,7 +55,7 @@ class Graph:
         index = self._order()[origin.id]
         return self.pages[index + 1].id if index + 1 < len(self.pages) else None
 
-    def next_of(self, page: Page, commit: Commit, state: Mapping[str, object]) -> str | None:
+    def next_of(self, page: Page, commit: Commit, state: State) -> str | None:
         """Where the walk goes after `page`: its route decides alone; else its declared next; else the next in line."""
         return page.route(commit, state) if page.route else (page.next or self.follows(page))
 

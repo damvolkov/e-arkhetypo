@@ -10,7 +10,7 @@ import pytest
 from e_api.models.user import Password, User, UserCreate, UserRecord, UserUpdate
 
 
-def sample_create(**overrides) -> UserCreate:
+def sample_create(**overrides: str) -> UserCreate:
     payload = {"username": "alice", "email": "alice@example.com", "password": "correct-horse-1"}
     return msgspec.convert({**payload, **overrides}, UserCreate, strict=False)
 

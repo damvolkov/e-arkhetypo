@@ -8,7 +8,7 @@ revertible is a property of writing through the port."""
 import time
 from collections.abc import AsyncIterator
 from datetime import UTC, datetime
-from typing import ClassVar, Self
+from typing import ClassVar, Final, Self
 
 import msgspec
 
@@ -18,7 +18,7 @@ from e_cli.ports.provider import Isolation, Locality, ProviderSpec, Workload
 from e_cli.ports.store import StorePort
 
 ##### DEFAULTS #####
-PREFIX: str = "journal:"
+PREFIX: Final = "journal:"
 
 
 ##### TYPES #####
@@ -90,7 +90,7 @@ class StoreJournal:
         await self._common_record(key)
         await self._inner.delete(key)
 
-    def keys(self, prefix: str = "") -> AsyncIterator[str]:
+    def keys(self, prefix: str | None = None) -> AsyncIterator[str]:
         return self._inner.keys(prefix)
 
     async def entries(self) -> list[Journal]:

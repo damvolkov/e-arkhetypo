@@ -33,7 +33,7 @@ async def ready(graph: NamedDependency[State]) -> Response[list[ProviderHealth]]
 ##### CHAINS — endpoint-local wiring: enum-owned keys, .value only at the litestar edge #####
 READY_DEPS: Final[dict[str, Provide]] = {DepKey.GRAPH.value: Provide(graph, sync_to_thread=False)}
 
-ROUTES: tuple[HTTPRouteHandler, ...] = (
+ROUTES: Final[tuple[HTTPRouteHandler, ...]] = (
     get("/health", name="health", opt=OPT[Access.PUBLIC])(health),
     get("/ready", name="ready", opt=OPT[Access.PUBLIC], dependencies=READY_DEPS)(ready),
 )

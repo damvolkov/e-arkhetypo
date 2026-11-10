@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 
 def test_auth_me_names_the_caller(client: TestClient, ana_key: dict[str, str]) -> None:
     assert (client.get("/auth/me").json(), client.get("/auth/me", headers=ana_key).json()) == (
-        {"owner": "", "name": "", "role": "anonymous"},
+        {"owner": None, "name": None, "role": "anonymous"},
         {"owner": "ana", "name": "ana", "role": "user"},
     )
 

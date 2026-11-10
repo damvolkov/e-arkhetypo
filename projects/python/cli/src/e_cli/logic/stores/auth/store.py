@@ -4,7 +4,7 @@ Identity resolution is the one place auth policy lives: a run's own identity (fl
 in the session) wins; otherwise the stored login; otherwise `IdentityError`. A command opts into it by
 declaring `Inject[Identity]`, and the provider asks this store."""
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Final
 
 from e_cli.models.error import IdentityError
 from e_cli.models.identity import Identity, IdentityOrigin
@@ -13,7 +13,7 @@ if TYPE_CHECKING:
     from e_cli.ports.store import StorePort
 
 ##### DEFAULTS #####
-KEY: str = "auth:token"
+KEY: Final = "auth:token"
 
 
 ##### TYPES #####

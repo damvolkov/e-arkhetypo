@@ -12,11 +12,11 @@ from e_api.infra.config.api import DocsRenderer
 
 
 @pytest.mark.parametrize("path", ["/docs", "/docs/swagger", "/docs/redoc", "/docs/elements", "/docs/rapidoc"])
-def test_default_renderers_served_under_docs(client, path: str) -> None:
+def test_default_renderers_served_under_docs(client: TestClient, path: str) -> None:
     assert client.get(path).status_code == 200
 
 
-def test_docs_root_is_swagger_and_spec_is_beside_it(client) -> None:
+def test_docs_root_is_swagger_and_spec_is_beside_it(client: TestClient) -> None:
     assert "SwaggerUIBundle" in client.get("/docs").text
     spec = client.get("/docs/openapi.json").json()
     assert spec["info"]["title"] == "e-api"
@@ -27,13 +27,13 @@ def test_docs_root_is_swagger_and_spec_is_beside_it(client) -> None:
     ("alias", "target"),
     [("/schema", "/docs"), ("/schema/redoc", "/docs/redoc"), ("/schema/openapi.json", "/docs/openapi.json")],
 )
-def test_schema_aliases_docs_keeping_the_subpath(client, alias: str, target: str) -> None:
+def test_schema_aliases_docs_keeping_the_subpath(client: TestClient, alias: str, target: str) -> None:
     response = client.get(alias, follow_redirects=False)
     assert (response.status_code, response.headers["location"]) == (HTTP_307_TEMPORARY_REDIRECT, target)
     assert client.get(alias).status_code == 200
 
 
-def test_aliases_stay_out_of_the_spec(client) -> None:
+def test_aliases_stay_out_of_the_spec(client: TestClient) -> None:
     assert not [path for path in client.get("/docs/openapi.json").json()["paths"] if path.startswith("/schema")]
 
 

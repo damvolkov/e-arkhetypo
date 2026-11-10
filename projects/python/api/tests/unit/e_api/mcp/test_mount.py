@@ -2,6 +2,7 @@
 caller the token middleware resolved reaching the tool, a bad key refused as the API refuses it, a tool's own route kept
 to the engine."""
 
+from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any, Final
 
 import pytest
@@ -129,7 +130,9 @@ async def test_mount_unknown_tool(client: AsyncTestClient[Litestar]) -> None:
 async def test_mount_a_call_off_http_is_refused(client: AsyncTestClient[Litestar]) -> None:
     """A call with no HTTP request behind it (an in-process transport) has no caller to carry: refused, never anonymous."""
     server = client.app.state.system.mcp.server
-    result = await server._call_tool(object(), types.CallToolRequestParams(name="api_health", arguments={}))
+    result = await server._call_tool(
+        SimpleNamespace(request=None), types.CallToolRequestParams(name="api_health", arguments={})
+    )
     assert (result.is_error, result.content[0].text) == (True, "a tool is called over HTTP, through the MCP endpoint")
 
 

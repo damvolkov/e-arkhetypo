@@ -1,9 +1,14 @@
 """tests/integration/e_tui/interact/toggle: switches come up lit by defaults-or-previous; commit reports on."""
 
+from typing import TYPE_CHECKING
+
 from textual.widgets import Switch
 
 from e_tui.interact.toggle import Toggle
 from e_tui.models.object import Field, ToggleSpec
+
+if TYPE_CHECKING:
+    from tests.integration.e_tui.interact.conftest import Mounter
 
 SPEC = ToggleSpec(
     prompt="pick modules",
@@ -17,21 +22,21 @@ SPEC = ToggleSpec(
 )
 
 
-async def test_toggle_reports_its_defaults_when_untouched(mount) -> None:
+async def test_toggle_reports_its_defaults_when_untouched(mount: Mounter) -> None:
     app = mount(lambda: Toggle(SPEC))
     async with app.run_test() as pilot:
         await pilot.pause()
         assert app.object.commit().values == ("rdb", "req")
 
 
-async def test_previous_overrides_defaults_on_a_revisit(mount) -> None:
+async def test_previous_overrides_defaults_on_a_revisit(mount: Mounter) -> None:
     app = mount(lambda: Toggle(SPEC, previous=("vdb",)))
     async with app.run_test() as pilot:
         await pilot.pause()
         assert app.object.commit().values == ("vdb", "req")
 
 
-async def test_clicking_a_switch_changes_the_commit(mount) -> None:
+async def test_clicking_a_switch_changes_the_commit(mount: Mounter) -> None:
     app = mount(lambda: Toggle(SPEC))
     async with app.run_test() as pilot:
         await pilot.pause()
@@ -40,7 +45,7 @@ async def test_clicking_a_switch_changes_the_commit(mount) -> None:
         assert app.object.commit().values == ("req",)
 
 
-async def test_locked_switch_cannot_be_turned_off(mount) -> None:
+async def test_locked_switch_cannot_be_turned_off(mount: Mounter) -> None:
     app = mount(lambda: Toggle(SPEC))
     async with app.run_test() as pilot:
         await pilot.pause()

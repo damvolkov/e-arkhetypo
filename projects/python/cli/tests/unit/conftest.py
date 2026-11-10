@@ -9,9 +9,10 @@ import csv
 import io
 
 from pytest_resources import FileType, eserde_loaders
+from pytest_resources.hooks import Register  # noqa: TC002 — pluggy resolves hook annotations at runtime
 
 
-def pytest_resource_loaders(register) -> None:
+def pytest_resource_loaders(register: Register) -> None:
     """Make e-serde the project's loader, then add a canonical CSV binding on top."""
     register(eserde_loaders())
     register({FileType.CSV: lambda raw: list(csv.DictReader(io.StringIO(raw.decode())))})

@@ -24,7 +24,7 @@ def test_commit_defaults_to_an_accepted_empty_answer() -> None:
 
 
 def test_field_detail_is_optional() -> None:
-    assert Field(key="k", label="L").detail == ""
+    assert Field(key="k", label="L").detail is None
 
 
 def test_spec_union_decodes_from_a_discriminated_mapping() -> None:

@@ -7,7 +7,7 @@ Copy this module and the `pages/` package to start a real app — nothing here i
 """
 
 from functools import reduce
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Final
 
 import eserde
 import msgspec
@@ -18,9 +18,11 @@ from e_tui.flow.pages import PagesBuilder
 from e_tui.pages import confirm, db, modules, report, system
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable, Mapping, Sequence
+    from collections.abc import Iterable
 
     from textual.widget import Widget
+
+    from e_tui.infra.state import State
 
 ##### MODEL #####
 
@@ -28,30 +30,25 @@ if TYPE_CHECKING:
 class AppBlueprint(msgspec.Struct, frozen=True, omit_defaults=True):
     """The data model the wizard spits out — every choice resolved into one typed record."""
 
-    system: str = ""
+    system: str | None = None
     dsn: str | None = None
     modules: tuple[str, ...] = ()
     materialized: bool = True
 
 
 ##### PAGES #####
-PAGES = (system.PAGE, db.PAGE, modules.PAGE, confirm.PAGE, report.PAGE)
+PAGES: Final = (system.PAGE, db.PAGE, modules.PAGE, confirm.PAGE, report.PAGE)
 
 
 ##### RESULT #####
 
 
-def _blueprint(state: Mapping[str, object]) -> AppBlueprint:
-    """The shared state, resolved into the model — the page hooks wrote these exact shapes."""
-    return AppBlueprint(
-        system=str(state.get("system", "")),
-        dsn=cast("str", state.get("dsn", "")) or None,
-        modules=tuple(cast("Sequence[str]", state.get("modules", ()))),
-        materialized=bool(state.get("materialized", True)),
-    )
+def _blueprint(state: State) -> AppBlueprint:
+    """The shared state, converted into the model — the page hooks wrote these exact shapes; other keys are ignored."""
+    return msgspec.convert(dict(state), AppBlueprint)
 
 
-def _result_view(state: Mapping[str, object]) -> Iterable[Widget]:
+def _result_view(state: State) -> Iterable[Widget]:
     """The payoff: mount the emitted blueprint as formatted JSON once the walk is done."""
     model = msgspec.json.format(eserde.dumps(_blueprint(state))).decode()
     return [Label("project blueprint"), Static(model, markup=False)]  # the JSON's brackets are literal, not markup

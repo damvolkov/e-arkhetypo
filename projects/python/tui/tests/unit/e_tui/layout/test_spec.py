@@ -80,7 +80,7 @@ def test_spec_masthead_and_lines_are_exclusive(make_leaf: Callable[..., Box]) ->
 
 def test_spec_masthead_defaults_are_minimal() -> None:
     mast = Mast(main="E-TUI")
-    assert mast.sub == ""
+    assert mast.sub is None
     assert 0.0 < mast.max_height <= 1.0
 
 

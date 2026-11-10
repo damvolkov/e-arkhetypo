@@ -12,12 +12,11 @@ reads `st` and hands each door its values.
 """
 
 from importlib.metadata import version
-from typing import Final, cast
+from typing import Final
 
 from litestar import Litestar
 from litestar.openapi.spec import Components
 from litestar.router import Router
-from litestar.types import Middleware
 
 from e_api.api import docs
 from e_api.api.lifespan import crypto, db, engines, mcp, providers, sealed
@@ -58,9 +57,7 @@ def create_app() -> Litestar:
             mcp.lifespan,
             sealed.lifespan,
         ],
-        ### the declared union of middlewares crosses into litestar's looser `Middleware` alias here;
-        ### asgi_correlation_id types its scope narrower than the protocol — wiring is exact, upstream typing is not.
-        middleware=cast("list[Middleware]", list(MIDDLEWARES)),
+        middleware=MIDDLEWARES,
         cors_config=cors_config(origins=st.ALLOW_ORIGINS, methods=st.ALLOW_METHODS),
         ### pyproject is the version source of truth: uv-dynamic-versioning stamps it, dev reads 0.0.0.
         ### where the docs live, their aliases and renderers: DOCS_* settings, translated by api.docs.

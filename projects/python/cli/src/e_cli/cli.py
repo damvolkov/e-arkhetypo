@@ -17,6 +17,7 @@ typo fails the gate, never a user.
 
 import sys
 from importlib.metadata import version
+from typing import Final
 
 from cyclopts import App
 
@@ -24,14 +25,14 @@ from e_cli.models.command import CommandCard, CommandGroup
 from e_cli.runtime.launcher import Launcher
 
 ##### TREE #####
-GROUPS: tuple[CommandGroup, ...] = (
+GROUPS: Final[tuple[CommandGroup, ...]] = (
     CommandGroup(path="auth", help="The credential the cli acts with: store, inspect, drop."),
     CommandGroup(path="project", help="Projects of the demo domain."),
     CommandGroup(path="project env", help="Environment variables of one project."),
     CommandGroup(path="history", help="Every run that wrote to the store, and the undo of the last one."),
 )
 
-CARDS: tuple[CommandCard, ...] = (
+CARDS: Final[tuple[CommandCard, ...]] = (
     CommandCard(path="auth login", target="e_cli.commands.auth:login", summary="Store a credential for later runs."),
     CommandCard(path="auth status", target="e_cli.commands.auth:status", summary="Show who this run acts as."),
     CommandCard(path="auth logout", target="e_cli.commands.auth:logout", summary="Drop the stored credential."),

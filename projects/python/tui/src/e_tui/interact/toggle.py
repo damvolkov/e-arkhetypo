@@ -21,7 +21,7 @@ class Toggle(Vertical):
         on = frozenset(previous or spec.defaults)
         self._switches = {field.key: self._dial(field, on, spec.locked) for field in spec.fields}
         rows = [
-            Horizontal(Label(f"{field.label}  {field.detail}".rstrip(), expand=False), self._switches[field.key])
+            Horizontal(Label(f"{field.label}  {field.detail or ''}".rstrip(), expand=False), self._switches[field.key])
             for field in spec.fields
         ]
         super().__init__(*self._headed(spec.prompt, rows))
@@ -40,6 +40,6 @@ class Toggle(Vertical):
         return Switch(value=field.key in on or field.key in locked, disabled=field.key in locked, id=field.key)
 
     @staticmethod
-    def _headed(prompt: str, rows: Sequence[Widget]) -> list[Widget]:
+    def _headed(prompt: str | None, rows: Sequence[Widget]) -> list[Widget]:
         """The optional prompt above the rows."""
         return [Label(prompt), *rows] if prompt else list(rows)

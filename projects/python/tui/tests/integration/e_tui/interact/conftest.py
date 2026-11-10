@@ -14,12 +14,16 @@ from textual.widget import Widget
 ##### HOST #####
 
 
+type Mounter = Callable[[Callable[[], Widget]], Mount]
+
+
 class Mount(App[None]):
     """The minimum app that builds one object from a factory and mounts it as the whole screen."""
 
     def __init__(self, factory: Callable[[], Widget]) -> None:
         super().__init__()
         self._factory = factory
+        ### The host exposes whichever object the factory built; the tests assert on it directly.
         self.object: Any = None
 
     def compose(self) -> ComposeResult:
@@ -28,6 +32,6 @@ class Mount(App[None]):
 
 
 @pytest.fixture
-def mount() -> Callable[[Callable[[], Widget]], Mount]:
+def mount() -> Mounter:
     """Wrap an object factory in the host app."""
     return Mount

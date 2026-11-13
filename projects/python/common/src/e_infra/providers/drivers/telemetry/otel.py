@@ -97,20 +97,26 @@ STATUSES: Final[Mapping[SpanStatus, StatusCode]] = MappingProxyType(
 
 
 ##### EXPORTERS — one handler per transport, chosen by value #####
-def export_http(endpoint: str, headers: dict[str, str], timeout: float) -> SpanExporter:
-    """OTLP over HTTP/protobuf: the collector's base URL, traces under `/v1/traces`."""
-    return HTTPExporter(endpoint=f"{endpoint}{TRACES_PATH}", headers=headers, timeout=timeout)
+class OTelExporter:
+    """The span exporter of each transport: the handlers `EXPORTERS` dispatches on."""
 
+    @staticmethod
+    def http(endpoint: str, headers: dict[str, str], timeout: float) -> SpanExporter:
+        """OTLP over HTTP/protobuf: the collector's base URL, traces under `/v1/traces`."""
+        return HTTPExporter(endpoint=f"{endpoint}{TRACES_PATH}", headers=headers, timeout=timeout)
 
-def export_grpc(endpoint: str, headers: dict[str, str], timeout: float) -> SpanExporter:
-    """OTLP over gRPC: a plain `http://` collector is a local, unencrypted one; anything else negotiates TLS."""
-    return GrpcExporter(endpoint=endpoint, insecure=endpoint.startswith("http://"), headers=headers, timeout=timeout)
+    @staticmethod
+    def grpc(endpoint: str, headers: dict[str, str], timeout: float) -> SpanExporter:
+        """OTLP over gRPC: a plain `http://` collector is a local, unencrypted one; anything else negotiates TLS."""
+        return GrpcExporter(
+            endpoint=endpoint, insecure=endpoint.startswith("http://"), headers=headers, timeout=timeout
+        )
 
 
 EXPORTERS: Final[Mapping[OTelProtocol, Callable[[str, dict[str, str], float], SpanExporter]]] = MappingProxyType(
     {
-        OTelProtocol.HTTP: export_http,
-        OTelProtocol.GRPC: export_grpc,
+        OTelProtocol.HTTP: OTelExporter.http,
+        OTelProtocol.GRPC: OTelExporter.grpc,
     }
 )
 

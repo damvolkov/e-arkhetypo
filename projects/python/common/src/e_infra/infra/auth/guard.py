@@ -32,15 +32,23 @@ OPT: Final[Mapping[Access, Mapping[str, Access | bool]]] = MappingProxyType(
 )
 
 
-async def guard(connection: Connection, handler: BaseRouteHandler) -> None:
-    """The entry's declared access, met by the user the middleware resolved — or the refusal it earns."""
-    declared = handler.opt.get(ACCESS)
-    match (connection.scope.get("method"), declared):
-        case (HttpMethod.OPTIONS, _) | (_, Access.PUBLIC):
-            return
-        case _:
-            try:
-                AuthPolicy.admit(connection.user, Access(declared))
-            except RefusedError as exc:
-                logger.warning("auth guard refused", path=connection.url.path, access=str(declared), reason=exc.message)
-                raise REFUSALS[type(exc)](detail=exc.message) from exc
+class AuthGuard:
+    """The guard Litestar calls on every router of both doors."""
+
+    async def __call__(self, connection: Connection, handler: BaseRouteHandler) -> None:
+        """The entry's declared access, met by the user the middleware resolved — or the refusal it earns."""
+        declared = handler.opt.get(ACCESS)
+        match (connection.scope.get("method"), declared):
+            case (HttpMethod.OPTIONS, _) | (_, Access.PUBLIC):
+                return
+            case _:
+                try:
+                    AuthPolicy.admit(connection.user, Access(declared))
+                except RefusedError as exc:
+                    logger.warning(
+                        "auth guard refused", path=connection.url.path, access=str(declared), reason=exc.message
+                    )
+                    raise REFUSALS[type(exc)](detail=exc.message) from exc
+
+
+guard = AuthGuard()

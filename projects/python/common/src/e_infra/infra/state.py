@@ -30,16 +30,25 @@ class State(MutableMapping[str, Leaf]):
         object.__setattr__(self, "_nodes", dict(nodes))
         object.__setattr__(self, "_sealed", False)
 
+    ##### PRIVATE #####
+    def _common_check_writable(self) -> None:
+        match self._sealed:
+            case True:
+                msg = "Sealed state: the graph is built at startup, mutated never"
+                raise RuntimeError(msg)
+            case _:
+                pass
+
     ##### MAPPING CORE #####
     def __getitem__(self, name: str) -> Leaf:
         return self._nodes[name]
 
     def __setitem__(self, name: str, value: Leaf) -> None:
-        self._check_writable()
+        self._common_check_writable()
         self._nodes[name] = value
 
     def __delitem__(self, name: str) -> None:
-        self._check_writable()
+        self._common_check_writable()
         del self._nodes[name]
 
     def __iter__(self) -> Iterator[str]:
@@ -64,11 +73,11 @@ class State(MutableMapping[str, Leaf]):
                     return child
 
     def __setattr__(self, name: str, value: object) -> None:
-        self._check_writable()
+        self._common_check_writable()
         self._nodes[name] = value
 
     def __delattr__(self, name: str) -> None:
-        self._check_writable()
+        self._common_check_writable()
         self._nodes.pop(name, None)
 
     def __repr__(self) -> str:
@@ -84,15 +93,4 @@ class State(MutableMapping[str, Leaf]):
     def seal(self) -> None:
         """Close the whole subtree: from now on, reads of declared nodes only."""
         object.__setattr__(self, "_sealed", True)
-        for child in self._nodes.values():
-            match child:
-                case State():
-                    child.seal()
-
-    def _check_writable(self) -> None:
-        match self._sealed:
-            case True:
-                msg = "Sealed state: the graph is built at startup, mutated never"
-                raise RuntimeError(msg)
-            case _:
-                pass
+        _ = [child.seal() for child in self._nodes.values() if isinstance(child, State)]

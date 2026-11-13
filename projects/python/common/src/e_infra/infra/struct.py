@@ -5,7 +5,7 @@ constraint — `Meta` patterns, bounds, custom types. `CheckedStruct` closes tha
 msgspec's own: a struct built outside a decode re-validates itself by converting its builtin form back
 into its type, so every constraint, nested field and error location (`- at $.output`) is msgspec's,
 never a hand-written duplicate — and the instance then holds the checked values, exactly as if decoded.
-Cross-field rules go in `_check`, which runs once per instance.
+Cross-field rules go in `_post_init_check`, which runs once per instance.
 
 A complex type is a **checked type**: a subclass of a builtin (`dict`, `list`, `tuple`, `str`, `int`,
 `float`) that validates in its constructor and raises `ValueError` — with any third-party library it
@@ -44,15 +44,15 @@ class CheckedStruct(msgspec.Struct, frozen=True):
     def __post_init__(self) -> None:
         match TRUSTED.get():
             case True:
-                self._check()
+                self._post_init_check()
             case _:
-                ### the rebuilt twin runs `_check` itself; this instance adopts its checked values, field by field.
+                ### the rebuilt twin runs `_post_init_check` itself; this instance adopts its checked values, field by field.
                 with self.trusted():
                     builtins = msgspec.to_builtins(self, enc_hook=self.enc_hook)
                     twin = msgspec.convert(builtins, type(self), dec_hook=self.dec_hook)
                 _ = [force_setattr(self, name, getattr(twin, name)) for name in self.__struct_fields__]
 
-    def _check(self) -> None:
+    def _post_init_check(self) -> None:
         """Cross-field rules, raising `ValueError`; a single field's rule belongs to its type."""
 
     ############################################################

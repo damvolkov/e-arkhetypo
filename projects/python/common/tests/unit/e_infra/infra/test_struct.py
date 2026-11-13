@@ -49,7 +49,7 @@ class Plan(CheckedStruct, frozen=True, kw_only=True, tag_field="kind", tag="plan
     retries: Annotated[int, msgspec.Meta(ge=0)] = 0
     timeout: timedelta | None = None
 
-    def _check(self) -> None:
+    def _post_init_check(self) -> None:
         match self.after in self.steps:
             case True:
                 msg = "after cannot also be a step"
@@ -115,11 +115,11 @@ def test_one_path_rejects_both_births(change: dict[str, Any], error: str, born: 
 
 def test_cross_field_rule_runs_once_per_birth(monkeypatch: pytest.MonkeyPatch) -> None:
     calls: list[str] = []
-    check = Plan._check
-    monkeypatch.setattr(Plan, "_check", lambda self: (calls.append(self.name), check(self))[1])
+    check = Plan._post_init_check
+    monkeypatch.setattr(Plan, "_post_init_check", lambda self: (calls.append(self.name), check(self))[1])
     decode(RAW)
     construct(RAW)
-    ### constructed: the original skips `_check`, its round-tripped twin runs it — once per birth either way.
+    ### constructed: the original skips `_post_init_check`, its round-tripped twin runs it — once per birth either way.
     assert calls == ["daily-run", "daily-run"]
 
 

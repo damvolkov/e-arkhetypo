@@ -69,7 +69,8 @@ def test_every_gate_documents_its_effect() -> None:
 
 def test_workflows_are_valid_yaml() -> None:
     for file in WORKFLOWS.glob("*.yml"):
-        eserde.load(file, format=eserde.Format.YAML)  # a malformed assembly must die here, not on a runner
+        ### A malformed assembly must die here, not on a runner.
+        eserde.load(file, format=eserde.Format.YAML)
 
 
 def test_declared_features_keep_their_gates_true_to_name() -> None:

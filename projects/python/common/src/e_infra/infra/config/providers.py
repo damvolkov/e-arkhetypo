@@ -250,12 +250,12 @@ class ProviderSettings(BaseSettings):
 
     @field_validator("RERANK_URL", "GLINER_URL", mode="before")
     @classmethod
-    def _url_none(cls, value: JSON) -> JSON:
+    def _common_url_none(cls, value: JSON) -> JSON:
         ### the string `none` is the service off, as the variable always said.
         return None if value == "none" else value
 
     @model_validator(mode="after")
-    def _asyncpg_bounds(self) -> Self:
+    def _common_asyncpg_bounds(self) -> Self:
         match self.ASYNCPG_POOL_MIN <= self.ASYNCPG_POOL:
             case True:
                 return self

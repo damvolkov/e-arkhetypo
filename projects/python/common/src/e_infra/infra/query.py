@@ -114,6 +114,51 @@ class CacheQuery(Query, Enum):
     )
 
 
+class AwaQuery(Query, Enum):
+    """`queue/awa`: the driver's own `background.progress` table, kept apart from awa's schema, and its probe."""
+
+    SCHEMA = ("CREATE SCHEMA IF NOT EXISTS background", "The schema of the driver's own tables.")
+    PROGRESS = (
+        (
+            "CREATE TABLE IF NOT EXISTS background.progress ("
+            "job bigint PRIMARY KEY, snapshot jsonb NOT NULL, updated timestamptz NOT NULL DEFAULT now())"
+        ),
+        "The latest snapshot of each job: awa clears a job's progress when it completes.",
+    )
+    REPORT = (
+        (
+            "INSERT INTO background.progress (job, snapshot) VALUES ($1, $2::jsonb) "
+            "ON CONFLICT (job) DO UPDATE SET snapshot = EXCLUDED.snapshot, updated = now()"
+        ),
+        "Upsert a job's latest snapshot.",
+    )
+    SNAPSHOTS = (
+        (
+            "SELECT job, snapshot FROM background.progress "
+            "WHERE job IN (SELECT jsonb_array_elements_text($1::jsonb)::bigint)"
+        ),
+        "The snapshots of the jobs in a JSON array of ids: awa binds no array parameter.",
+    )
+    HEALTH = ("SELECT 1", "One trivial statement: the queue's database answers.")
+
+
+class SqliteQuery(Query, Enum):
+    """`store/sqlite`: the one `kv` table, read, written and walked by key."""
+
+    SCHEMA = (
+        "CREATE TABLE IF NOT EXISTS kv (key TEXT PRIMARY KEY, value BLOB NOT NULL)",
+        "The key-value table, created when missing.",
+    )
+    GET = ("SELECT value FROM kv WHERE key = ?", "The value under a key.")
+    SET = (
+        "INSERT OR REPLACE INTO kv (key, value) VALUES (?, ?)",
+        "Write one value under a key, replacing what it held.",
+    )
+    DELETE = ("DELETE FROM kv WHERE key = ?", "Remove a key; absent is not an error.")
+    KEYS = ("SELECT key FROM kv WHERE key LIKE ? ORDER BY key", "The keys under a LIKE pattern, in key order.")
+    HEALTH = ("SELECT 1", "One trivial statement: the file answers.")
+
+
 class DatabaseQuery(Query, Enum):
     """`database/psqlpy` and `database/asyncpg`: whether a database exists, and that the pool answers."""
 

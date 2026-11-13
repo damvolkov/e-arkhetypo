@@ -158,7 +158,7 @@ class FileFinder:
 
     ##### PRIVATE #####
 
-    def _names(self, package: ModuleType) -> list[str]:
+    def _common_names(self, package: ModuleType) -> list[str]:
         """The module names to sweep: the directory's own files, or every file below it as a dotted path."""
         match self._recursive:
             case True:
@@ -173,35 +173,39 @@ class FileFinder:
             case _:
                 return [info.name for info in pkgutil.iter_modules(package.__path__) if not info.ispkg]
 
-    def _modules(self) -> dict[str, ModuleType]:
+    def _common_modules(self) -> dict[str, ModuleType]:
         package = importlib.import_module(self._package)
         return {
             name: importlib.import_module(f"{self._package}.{name}")
-            for name in self._names(package)
+            for name in self._common_names(package)
             if not name.startswith("_") and name not in self._skip
         }
 
     @staticmethod
-    def _own[M: Owned](mod: ModuleType, predicate: Callable[[Owned], TypeIs[M]]) -> dict[str, M]:
+    def _common_own[M: Owned](mod: ModuleType, predicate: Callable[[Owned], TypeIs[M]]) -> dict[str, M]:
         return {
             name: obj
             for name, obj in vars(mod).items()
             if not name.startswith("_") and predicate(obj) and obj.__module__ == mod.__name__
         }
 
-    def _classes(self, modules: dict[str, ModuleType], of_base: type | None = None) -> dict[str, type]:
+    def _common_classes(self, modules: dict[str, ModuleType], of_base: type | None = None) -> dict[str, type]:
         return {
             name: obj
             for module in modules.values()
-            for name, obj in self._own(module, inspect.isclass).items()
+            for name, obj in self._common_own(module, inspect.isclass).items()
             ### a base selects its subclasses, never itself — even when it lives in the swept package.
             if of_base is None or (issubclass(obj, of_base) and obj is not of_base)
         }
 
-    def _functions(self, modules: dict[str, ModuleType]) -> dict[str, FunctionType]:
-        return {name: obj for module in modules.values() for name, obj in self._own(module, inspect.isfunction).items()}
+    def _common_functions(self, modules: dict[str, ModuleType]) -> dict[str, FunctionType]:
+        return {
+            name: obj
+            for module in modules.values()
+            for name, obj in self._common_own(module, inspect.isfunction).items()
+        }
 
-    def _select(
+    def _common_select(
         self,
         target: Kind | type | ModuleType | Callable[[Owned], bool],
         modules: dict[str, ModuleType],
@@ -211,16 +215,18 @@ class FileFinder:
             case Kind.MODULES:
                 found: Mapping[str, Member] = modules
             case Kind.CLASSES:
-                found = self._classes(modules)
+                found = self._common_classes(modules)
             case Kind.FUNCTIONS:
-                found = self._functions(modules)
+                found = self._common_functions(modules)
             case ModuleType() as module:
-                found = {**self._own(module, inspect.isclass), **self._own(module, inspect.isfunction)}
+                found = {**self._common_own(module, inspect.isclass), **self._common_own(module, inspect.isfunction)}
             case type() as base:
-                found = self._classes(modules, base)
+                found = self._common_classes(modules, base)
             case predicate if callable(predicate):
                 found = {
-                    k: v for k, v in {**self._classes(modules), **self._functions(modules)}.items() if predicate(v)
+                    k: v
+                    for k, v in {**self._common_classes(modules), **self._common_functions(modules)}.items()
+                    if predicate(v)
                 }
             case unknown:
                 msg = f"Unsupported discover target: {unknown!r}"
@@ -244,11 +250,11 @@ class FileFinder:
         self, target: Kind | type | ModuleType | Callable[[Owned], bool], *, pattern: re.Pattern[str] | None = None
     ) -> dict[str, Member]:
         """Return ``{name: object}`` for whatever ``target`` selects across the package's modules."""
-        return self._select(target, self._modules(), pattern)
+        return self._common_select(target, self._common_modules(), pattern)
 
     def summaries(self) -> dict[str, str]:
         """One-line description per module of the package — what a display surface renders."""
-        return {name: self.summary(mod) for name, mod in self._modules().items()}
+        return {name: self.summary(mod) for name, mod in self._common_modules().items()}
 
     async def asummaries(self) -> dict[str, str]:
         """``summaries`` off the event loop, for the display surfaces that live inside a running app."""

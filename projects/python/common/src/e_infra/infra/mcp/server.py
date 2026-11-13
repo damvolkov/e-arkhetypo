@@ -55,7 +55,7 @@ class MCPServer:
             name,
             version=version,
             instructions=instructions,
-            on_list_tools=self._list_tools,
+            on_list_tools=self._common_list_tools,
             on_call_tool=self._call_tool,
         )
         security = TransportSecuritySettings(allowed_hosts=list(hosts), allowed_origins=list(origins))
@@ -65,7 +65,7 @@ class MCPServer:
     ##### PRIVATE #####
 
     @staticmethod
-    def _list_tool(entry: MCPEntry) -> types.Tool:
+    def _common_list_tool(entry: MCPEntry) -> types.Tool:
         tool = entry.tool
         hints = types.ToolAnnotations(
             title=tool.title, read_only_hint=tool.read_only, destructive_hint=tool.destructive, open_world_hint=False
@@ -79,10 +79,10 @@ class MCPServer:
             annotations=hints,
         )
 
-    async def _list_tools(
+    async def _common_list_tools(
         self, _ctx: ToolContext, _params: types.PaginatedRequestParams | None
     ) -> types.ListToolsResult:
-        return types.ListToolsResult(tools=[self._list_tool(entry) for entry in self._registry])
+        return types.ListToolsResult(tools=[self._common_list_tool(entry) for entry in self._registry])
 
     async def _call_tool(self, ctx: ToolContext, params: types.CallToolRequestParams) -> types.CallToolResult:
         ### the HTTP request the transport attached: the endpoint's, its scope the caller's.

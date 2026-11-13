@@ -157,16 +157,30 @@ rules:
   - level: syntax
     id: loop
     law: "7"
-    message: "no for, no while: comprehensions and functional operators"
+    message: "no for, no while: comprehensions and functional operators (inside an async def only a loop that must suspend: a while that awaits, a for that yields — an async generator has no yield from — or an async for that awaits)"
     files: ["src/**/*.py", "scripts/**/*.py", "gates/**/*.py"]
     rule:
       any: [{kind: for_statement}, {kind: while_statement}]
+      not:
+        inside: {kind: function_definition, regex: '^async\b', stopBy: end}
+        any:
+          - all: [{kind: while_statement}, {has: {any: [{kind: await}, {kind: yield}], stopBy: end}}]
+          - all: [{kind: for_statement}, {has: {kind: yield, stopBy: end}}]
+          - all: [{kind: for_statement}, {regex: '^async\b'}, {has: {kind: await, stopBy: end}}]
     valid:
       - "y = [v for v in xs]"
+      - "async def a():\n    while True:\n        await tick()\n"
+      - "async def a():\n    while more:\n        page = await get()\n        for i in page:\n            yield i\n"
+      - "async def a():\n    async for x in xs:\n        yield x\n"
+      - "async def a():\n    async for x in xs:\n        await f(x)\n"
     invalid:
       - "for x in xs:\n    f(x)\n"
       - "while running:\n    step()\n"
       - "async def a():\n    async for x in xs:\n        f(x)\n"
+      - "async def a():\n    for x in xs:\n        await f(x)\n"
+      - "async def a():\n    while running:\n        step()\n"
+      - "def a():\n    for x in xs:\n        yield x\n"
+      - "def a():\n    while True:\n        yield next(it)\n"
 
   - level: syntax
     id: isinstance-chain
@@ -324,8 +338,11 @@ rules:
       has:
         field: right
         regex: '^\(?\s*[rbu]*["''](?:[^\s"'']+[\s"'']+){40,}'
+      not:
+        inside: {kind: class_definition, has: {field: superclasses, regex: 'Enum'}, stopBy: end}
     valid:
       - "LABEL = 'a short line'"
+      - "class Query(Base, Enum):\n    PROMPT = 'word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word'\n"
     invalid:
       - "PROMPT = 'word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word'"
 

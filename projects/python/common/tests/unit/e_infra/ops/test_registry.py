@@ -25,7 +25,7 @@ def test_every_level_of_the_hierarchy_is_registered_by_path(registry: CodeRegist
     finder = registry["e_infra.ops.file.FileFinder"]
     assert finder.kind is Kind.CLASS
     assert finder.parent == "e_infra.ops.file"
-    method = registry["e_infra.ops.file.FileFinder._modules"]
+    method = registry["e_infra.ops.file.FileFinder._common_modules"]
     assert method.kind is Kind.METHOD
     assert method.private
     assert registry["e_infra.ops.compose.COMPOSE_FILE"].value == "'compose.yml'"

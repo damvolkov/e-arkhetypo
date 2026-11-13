@@ -21,9 +21,8 @@ from e_infra.providers.drivers.telemetry.otel import (
     ROLES,
     STATUSES,
     OTelDriver,
+    OTelExporter,
     OTelSpan,
-    export_grpc,
-    export_http,
 )
 from unit.e_infra.conftest import otel_args
 
@@ -112,14 +111,14 @@ async def test_nested_spans_share_the_trace(exporter: InMemorySpanExporter) -> N
 
 ##### EXPORT #####
 def test_http_exporter_built_with_headers_and_deadline() -> None:
-    exporter = export_http("http://collector:4318", {"x-key": "k"}, 3.0)
+    exporter = OTelExporter.http("http://collector:4318", {"x-key": "k"}, 3.0)
     assert isinstance(exporter, HTTPExporter)
     exporter.shutdown()
 
 
 @pytest.mark.parametrize("endpoint", ["http://collector:4317", "https://collector:4317"])
 def test_grpc_exporter_built_for_plain_and_tls_collectors(endpoint: str) -> None:
-    exporter = export_grpc(endpoint, {"x-key": "k"}, 3.0)
+    exporter = OTelExporter.grpc(endpoint, {"x-key": "k"}, 3.0)
     assert isinstance(exporter, GrpcExporter)
     exporter.shutdown()
 

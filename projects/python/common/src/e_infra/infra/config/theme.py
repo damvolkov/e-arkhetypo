@@ -26,7 +26,7 @@ class ThemeSettings(BaseSettings):
 
     @field_validator("THEME_BACKGROUND", "THEME_CORPORATE", "THEME_INK")
     @classmethod
-    def _theme_hex(cls, value: str) -> str:
+    def _common_theme_hex(cls, value: str) -> str:
         ### lowercasing once here keeps every consumer's equality checks honest.
         match HEX.fullmatch(value):
             case None:

@@ -30,7 +30,8 @@ def test_modules_skips_packages_and_declared_names() -> None:
 def test_classes_and_functions_are_own_symbols_only() -> None:
     assert "State" in INFRA.discover(Kind.CLASSES)
     assert "ELogger" in INFRA.discover(Kind.CLASSES)
-    assert {"encode_json"} <= set(INFRA.discover(Kind.FUNCTIONS))  # `setup` lives on ELogger now, not in the module
+    ### `setup` lives on ELogger now, not in the module.
+    assert {"encode_json"} <= set(INFRA.discover(Kind.FUNCTIONS))
 
 
 def test_base_selects_subclasses_and_module_target_reads_one_file() -> None:

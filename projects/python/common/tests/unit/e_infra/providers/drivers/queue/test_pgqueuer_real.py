@@ -252,7 +252,7 @@ async def test_pgqueuer_close_bounded(engine: PgqueuerDriver, monkeypatch: pytes
         await anyio.sleep_forever()
 
     await engine.__aenter__()
-    monkeypatch.setattr(PgqueuerDriver, "_close_drain", never)
+    monkeypatch.setattr(PgqueuerDriver, "_aexit_drain", never)
     with anyio.fail_after(10), pytest.raises(QueueError, match="close timed out"):
         await engine.__aexit__(None, None, None)
 

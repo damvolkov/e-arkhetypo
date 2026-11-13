@@ -172,7 +172,7 @@ GLYPHS: Final[Mapping[Glyph, tuple[Rect, ...]]] = MappingProxyType(
 )
 
 GLYPH_CHARS: Final[frozenset[str]] = frozenset(glyph.value for glyph in Glyph)
-_COLOR: Final[re.Pattern[str]] = re.compile(r"#[0-9a-fA-F]{6}")
+COLOR_HEX: Final[re.Pattern[str]] = re.compile(r"#[0-9a-fA-F]{6}")
 
 ##### GENERATOR #####
 
@@ -186,8 +186,8 @@ class LogoGenerator(Struct, frozen=True, kw_only=True):
     landscape: bool = True
 
     def __post_init__(self) -> None:
-        self._check_color(self.background, "background")
-        self._check_color(self.foreground, "foreground")
+        self._common_check_color(self.background, "background")
+        self._common_check_color(self.foreground, "foreground")
         match bad := set(self.prefix.upper()) - GLYPH_CHARS:
             case _ if bad:
                 msg = f"prefix letters outside the square font: {sorted(bad)!r}"
@@ -198,9 +198,9 @@ class LogoGenerator(Struct, frozen=True, kw_only=True):
     ##### PRIVATE #####
 
     @staticmethod
-    def _check_color(value: str, field: str) -> None:
+    def _common_check_color(value: str, field: str) -> None:
         match value:
-            case str() if _COLOR.fullmatch(value):
+            case str() if COLOR_HEX.fullmatch(value):
                 return
             case _:
                 msg = f"{field} must be a 6-digit hex color, got {value!r}"
@@ -239,17 +239,16 @@ class LogoGenerator(Struct, frozen=True, kw_only=True):
     @staticmethod
     def _generate_rects(text: str, scale: Fraction, origin_x: int, origin_y: int) -> Iterator[Rect]:
         """Every stroke of the word, canvas-relative, in reading order."""
-        for index, char in enumerate(text):
-            base_x = origin_x + int(index * PITCH * scale)
-            yield from (
-                Rect(
-                    base_x + int(rect.x * scale),
-                    origin_y + int(rect.y * scale),
-                    int(rect.w * scale),
-                    int(rect.h * scale),
-                )
-                for rect in GLYPHS[Glyph(char.upper())]
+        yield from (
+            Rect(
+                origin_x + int(index * PITCH * scale) + int(rect.x * scale),
+                origin_y + int(rect.y * scale),
+                int(rect.w * scale),
+                int(rect.h * scale),
             )
+            for index, char in enumerate(text)
+            for rect in GLYPHS[Glyph(char.upper())]
+        )
 
     def _generate_lines(self, text: str) -> Iterator[str]:
         """The svg as its lines: header, background, one group of glyph rects."""

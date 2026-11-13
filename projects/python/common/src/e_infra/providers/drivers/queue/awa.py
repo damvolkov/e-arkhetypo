@@ -20,7 +20,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from functools import partial
 from itertools import count
-from typing import TYPE_CHECKING, ClassVar, Final, Self
+from typing import TYPE_CHECKING, ClassVar, Self
 
 import anyio
 import msgspec
@@ -30,6 +30,7 @@ from awa import DatabaseError as AwaDatabaseError
 from e_infra.infra.background import BackgroundJob, BackgroundState
 from e_infra.infra.errors import ProviderError, QueueError
 from e_infra.infra.logger import logger
+from e_infra.infra.query import AwaQuery
 from e_infra.ports.provider import Isolation, Locality, Opened, ProviderSpec, Workload
 
 if TYPE_CHECKING:
@@ -41,23 +42,7 @@ if TYPE_CHECKING:
     from e_infra.infra.background import BackgroundHandler
     from e_infra.infra.payload import JSON
 
-SCHEMA: Final[tuple[str, ...]] = (
-    "CREATE SCHEMA IF NOT EXISTS background",
-    (
-        "CREATE TABLE IF NOT EXISTS background.progress ("
-        "job bigint PRIMARY KEY, snapshot jsonb NOT NULL, updated timestamptz NOT NULL DEFAULT now())"
-    ),
-)
-REPORT: Final[str] = (
-    "INSERT INTO background.progress (job, snapshot) VALUES ($1, $2::jsonb) "
-    "ON CONFLICT (job) DO UPDATE SET snapshot = EXCLUDED.snapshot, updated = now()"
-)
 type AwaJob = Job[dict[str, JSON]]
-
-### awa binds no array parameter: the ids travel as one JSON array.
-SNAPSHOTS: Final[str] = (
-    "SELECT job, snapshot FROM background.progress WHERE job IN (SELECT jsonb_array_elements_text($1::jsonb)::bigint)"
-)
 
 
 @dataclass(frozen=True, slots=True)
@@ -111,7 +96,7 @@ class AwaDriver:
         return Cancel() if job.is_cancelled() else None
 
     async def _register_report(self, job: int, progress: Mapping[str, JSON]) -> None:
-        await self._common_execute(REPORT, job, json.dumps(progress))
+        await self._common_execute(AwaQuery.REPORT, job, json.dumps(progress))
 
     async def _register_watch(self, job: AwaJob, scope: anyio.CancelScope) -> None:
         _ = await anext(tick for tick in count() if await self._register_cancelled(job))
@@ -122,7 +107,7 @@ class AwaDriver:
         return job.is_cancelled()
 
     async def _common_snapshots(self, ids: list[int]) -> dict[int, Mapping[str, JSON]]:
-        rows = await self._common_fetch(SNAPSHOTS, json.dumps(ids)) if ids else []
+        rows = await self._common_fetch(AwaQuery.SNAPSHOTS, json.dumps(ids)) if ids else []
         return dict(map(self._common_snapshot, rows))
 
     @staticmethod
@@ -134,18 +119,18 @@ class AwaDriver:
                 msg = f"a progress row of awa is not (job, snapshot): {dict(row)}"
                 raise QueueError(msg)
 
-    async def _common_execute(self, query: str, *params: JSON, bounded: bool = True) -> None:
+    async def _common_execute(self, query: AwaQuery, *params: JSON, bounded: bool = True) -> None:
         async def run(client: AsyncClient) -> None:
             async with await client.transaction() as tx:
-                await tx.execute(query, *params)
+                await tx.execute(query.sql, *params)
 
         await self._common_call(run, bounded=bounded)
 
-    async def _common_fetch(self, query: str, *params: JSON) -> Sequence[Mapping[str, JSON]]:
+    async def _common_fetch(self, query: AwaQuery, *params: JSON) -> Sequence[Mapping[str, JSON]]:
         async def run(client: AsyncClient) -> Sequence[Mapping[str, JSON]]:
             ### returned after the block: awa's transaction may swallow an exit, so the type checker wants the rows bound.
             async with await client.transaction() as tx:
-                rows = await tx.fetch_all(query, *params)
+                rows = await tx.fetch_all(query.sql, *params)
             return rows  # noqa: RET504
 
         return await self._common_call(run)
@@ -207,7 +192,7 @@ class AwaDriver:
             raise QueueError(str(error) or "awa open timed out") from error
         ### the schema is one-time work — awa's first migrate takes seconds on a fresh database: it is never cut short.
         await self._common_call(lambda client: client.migrate(), bounded=False)
-        _ = [await self._common_execute(statement, bounded=False) for statement in SCHEMA]
+        _ = [await self._common_execute(statement, bounded=False) for statement in (AwaQuery.SCHEMA, AwaQuery.PROGRESS)]
         await self._common_call(self._enter_fill)
         logger.info("awa opened", pool=self._pool)
         return self
@@ -215,7 +200,7 @@ class AwaDriver:
     async def health(self) -> bool:
         """One trivial query on the queue's database, within QUEUE_TIMEOUT."""
         try:
-            await self._common_fetch("SELECT 1")
+            await self._common_fetch(AwaQuery.HEALTH)
         except ProviderError as error:
             logger.warning("awa unhealthy", error=str(error))
             raise

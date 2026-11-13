@@ -71,7 +71,7 @@ async def test_pgqueuer_close_that_cannot_drain_is_a_queue_error(
     async def never(_: PgqueuerDriver) -> None:
         await anyio.sleep_forever()
 
-    monkeypatch.setattr(PgqueuerDriver, "_close_drain", never)
+    monkeypatch.setattr(PgqueuerDriver, "_aexit_drain", never)
     opened._drain, opened._timeout = timedelta(milliseconds=20), timedelta(milliseconds=20)
     with anyio.fail_after(5), pytest.raises(QueueError, match="close timed out"):
         await opened.__aexit__(None, None, None)

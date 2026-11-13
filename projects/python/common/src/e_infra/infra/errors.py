@@ -239,12 +239,18 @@ class CryptoError(OpsError):
 class TokenFailure(StrEnum):
     """Distinct reasons a JWT token will not pass validation."""
 
-    MALFORMED = "malformed"  # count "." ≠ JWS(2) / JWE(4)
-    EXPIRED = "expired"  # exp claim validation failed
-    FORGED = "forged"  # signature mismatch with our keys
-    INVALID_CLAIM = "invalid_claim"  # issuer/audience mismatch
-    EMPTY_JWE = "empty_jwe"  # decrypted payload was None
-    MISSING_FIELD = "missing_field"  # required claim absent
+    ### Count "." ≠ JWS(2) / JWE(4).
+    MALFORMED = "malformed"
+    ### Exp claim validation failed.
+    EXPIRED = "expired"
+    ### Signature mismatch with our keys.
+    FORGED = "forged"
+    ### Issuer/audience mismatch.
+    INVALID_CLAIM = "invalid_claim"
+    ### Decrypted payload was None.
+    EMPTY_JWE = "empty_jwe"
+    ### Required claim absent.
+    MISSING_FIELD = "missing_field"
 
 
 class TokenError(CryptoError):

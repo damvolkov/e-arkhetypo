@@ -50,7 +50,7 @@ class ApiSettings(BaseSettings):
 
     @field_validator("DOCS_PATH")
     @classmethod
-    def _docs_absolute(cls, value: str) -> str:
+    def _common_docs_absolute(cls, value: str) -> str:
         match value.startswith("/"):
             case True:
                 ### one canonical spelling: `/docs`, never `/docs/` — subpaths are appended to it.
@@ -61,7 +61,7 @@ class ApiSettings(BaseSettings):
 
     @field_validator("DOCS_ALIASES")
     @classmethod
-    def _docs_aliases_absolute(cls, value: Sequence[str]) -> Sequence[str]:
+    def _common_docs_aliases_absolute(cls, value: Sequence[str]) -> Sequence[str]:
         match [alias for alias in value if not alias.startswith("/")]:
             case []:
                 return [alias.rstrip("/") for alias in value]
@@ -70,7 +70,7 @@ class ApiSettings(BaseSettings):
                 raise ValueError(msg)
 
     @model_validator(mode="after")
-    def _docs_aliases_elsewhere(self) -> Self:
+    def _common_docs_aliases_elsewhere(self) -> Self:
         match self.DOCS_PATH in self.DOCS_ALIASES:
             case True:
                 msg = f"an alias cannot be the docs root itself: {self.DOCS_PATH!r}"

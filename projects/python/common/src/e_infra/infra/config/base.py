@@ -38,7 +38,7 @@ class SecretsEnv(SettingsBase):
 
     model_config = SettingsConfigDict(extra="ignore", env_file=".env")
 
-    app_env: str = "dev"
+    APP_ENV: str = "dev"
 
 
 class BaseSettings(SettingsBase):
@@ -70,16 +70,22 @@ class BaseSettings(SettingsBase):
     ) -> tuple[PydanticBaseSettingsSource, ...]:
         ### pydantic-settings reads these first-to-highest: kwargs beat env, the config file is the floor.
         own = settings_cls.model_config.get("secrets_dir")
-        secrets = (file_secret_settings,) if own else cls._settings_customise_secrets(settings_cls)
-        return (init_settings, env_settings, dotenv_settings, *secrets, *cls._settings_customise_files(settings_cls))
+        secrets = (file_secret_settings,) if own else cls._settings_customise_sources_secrets(settings_cls)
+        return (
+            init_settings,
+            env_settings,
+            dotenv_settings,
+            *secrets,
+            *cls._settings_customise_sources_files(settings_cls),
+        )
 
     @staticmethod
-    def _settings_customise_secrets(settings_cls: type[SettingsBase]) -> tuple[PydanticBaseSettingsSource, ...]:
+    def _settings_customise_sources_secrets(settings_cls: type[SettingsBase]) -> tuple[PydanticBaseSettingsSource, ...]:
         """The environment's secrets folder, when it exists: absent folder, absent source."""
-        folder = SECRETS / SecretsEnv().app_env
+        folder = SECRETS / SecretsEnv().APP_ENV
         return (SecretsSettingsSource(settings_cls, secrets_dir=folder),) if folder.is_dir() else ()
 
     @staticmethod
-    def _settings_customise_files(settings_cls: type[SettingsBase]) -> tuple[PydanticBaseSettingsSource, ...]:
+    def _settings_customise_sources_files(settings_cls: type[SettingsBase]) -> tuple[PydanticBaseSettingsSource, ...]:
         """The configured config-file sources only: absent format, absent source."""
         return tuple(source(settings_cls) for key, source in FILE_SOURCES if settings_cls.model_config.get(key))

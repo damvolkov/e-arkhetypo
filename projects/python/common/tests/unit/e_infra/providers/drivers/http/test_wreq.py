@@ -41,7 +41,8 @@ async def test_http_roundtrip_and_status_error(http_server: str) -> None:
         with pytest.raises(HTTPError) as caught:
             await adapter.get("/bad")
     assert caught.value.status == 500
-    await adapter.__aexit__(None, None, None)  # the stack already closed it: second exit is a no-op, not an error
+    ### The stack already closed it: second exit is a no-op, not an error.
+    await adapter.__aexit__(None, None, None)
 
 
 async def test_http_get_decodes_typed_shape(http_server: str) -> None:

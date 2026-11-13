@@ -286,7 +286,7 @@ class PgqueuerDriver:
     async def _start_tick(fire: BackgroundFire, _schedule: Schedule) -> None:
         await fire()
 
-    async def _close_drain(self) -> None:
+    async def _aexit_drain(self) -> None:
         """Supervisors given QUEUE_DRAIN to return with their jobs done; past it they are cancelled, jobs with them."""
         tasks, self._supervisors = self._supervisors, set()
         _, late = await asyncio.wait(tasks, timeout=self._drain.total_seconds()) if tasks else (set(), set())
@@ -398,7 +398,7 @@ class PgqueuerDriver:
         limit = self._drain + self._timeout * 2
         try:
             with anyio.fail_after(limit.total_seconds()):
-                await self._close_drain()
+                await self._aexit_drain()
         except TimeoutError as error:
             msg = f"pgqueuer close timed out after {limit}"
             logger.error("pgqueuer close timed out", limit=str(limit))

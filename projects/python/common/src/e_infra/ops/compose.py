@@ -14,6 +14,7 @@ binds under ``data/<service>/``. Interpolated published ports (``${WEB_PORT:-808
 untouched — they are already parameterized; validation of the result belongs to
 ``docker compose config`` at deploy time."""
 
+import functools
 import re
 import string
 from collections.abc import Iterable, Mapping
@@ -153,20 +154,10 @@ class StackCompose:
     def _merge_documents(
         self, chosen: Iterable[str], documents: Iterable[Mapping[str, JSON]]
     ) -> tuple[dict[str, dict[str, JSON]], dict[str, dict[str, JSON]]]:
-        services: dict[str, dict[str, JSON]] = {}
-        resources: dict[str, dict[str, JSON]] = {section: {} for section in RESOURCES}
         wanted: frozenset[str] | None = frozenset(chosen) or None
-        for frag in documents:
-            match frag:
-                case {"include": _}:
-                    msg = "include is not supported: pass the included fragment in the list instead"
-                    raise ComposeError(msg)
-            for name, svc in self._merge_dict(frag.get("services")).items():
-                body = self._merge_dict(svc)
-                services[name] = self._merge_service(services[name], body) if name in services else dict(body)
-            for section in RESOURCES:
-                for key, val in self._merge_dict(frag.get(section)).items():
-                    resources[section][key] = {**self._merge_dict(resources[section].get(key)), **self._merge_dict(val)}
+        services, resources = functools.reduce(
+            self._merge_fragment, documents, ({}, {section: {} for section in RESOURCES})
+        )
         match wanted:
             case None:
                 return services, resources
@@ -179,10 +170,37 @@ class StackCompose:
                         msg = f"Unknown services requested: {missing}"
                         raise ComposeError(msg)
 
-    def _merge_load(self, entries: list[tuple[str, Path]]) -> list[Mapping[str, JSON]]:
-        return [document for _, directory in entries for document in self._compose_of(directory / COMPOSE_FILE)]
+    def _merge_fragment(
+        self,
+        merged: tuple[dict[str, dict[str, JSON]], dict[str, dict[str, JSON]]],
+        frag: Mapping[str, JSON],
+    ) -> tuple[dict[str, dict[str, JSON]], dict[str, dict[str, JSON]]]:
+        services, resources = merged
+        match frag:
+            case {"include": _}:
+                msg = "include is not supported: pass the included fragment in the list instead"
+                raise ComposeError(msg)
+        bodies = ((name, self._merge_dict(svc)) for name, svc in self._merge_dict(frag.get("services")).items())
+        return (
+            services
+            | {
+                name: self._merge_service(services[name], body) if name in services else dict(body)
+                for name, body in bodies
+            },
+            {
+                section: resources[section]
+                | {
+                    key: {**self._merge_dict(resources[section].get(key)), **self._merge_dict(val)}
+                    for key, val in self._merge_dict(frag.get(section)).items()
+                }
+                for section in RESOURCES
+            },
+        )
 
-    def _compose_of(self, path: Path) -> list[dict[str, JSON]]:
+    def _merge_load(self, entries: list[tuple[str, Path]]) -> list[Mapping[str, JSON]]:
+        return [document for _, directory in entries for document in self._common_compose_of(directory / COMPOSE_FILE)]
+
+    def _common_compose_of(self, path: Path) -> list[dict[str, JSON]]:
         """One compose file as documents, with ``include:`` spliced in the way docker compose does it:
         every included fragment first, the including body after — includes nest."""
         document = eserde.load(path, format="yaml")
@@ -192,14 +210,13 @@ class StackCompose:
             case names:
                 body = {key: value for key, value in document.items() if key != "include"}
                 return [
-                    *(part for name in names for part in self._compose_of((path.parent / name).resolve())),
+                    *(part for name in names for part in self._common_compose_of((path.parent / name).resolve())),
                     *([body] if body else []),
                 ]
 
     def _merge_service(self, base: dict[str, JSON], over: Mapping[str, JSON]) -> dict[str, JSON]:
         out = dict(base)
-        for key, val in over.items():
-            self._merge_rule(out, key, val)
+        _ = [self._merge_rule(out, key, val) for key, val in over.items()]
         return out
 
     @staticmethod
@@ -241,14 +258,15 @@ class StackCompose:
 
     @classmethod
     def _merge_mapping(cls, a: Mapping[str, JSON], b: Mapping[str, JSON]) -> dict[str, JSON]:
-        out = dict(a)
-        for key, val in b.items():
-            match (out.get(key), val):
-                case (dict() as u, dict() as w):
-                    out[key] = cls._merge_mapping(u, w)
-                case _:
-                    out[key] = val
-        return out
+        return {
+            **a,
+            **{
+                key: cls._merge_mapping(old, val)
+                if isinstance(old := a.get(key), dict) and isinstance(val, dict)
+                else val
+                for key, val in b.items()
+            },
+        }
 
     @staticmethod
     def _merge_env(env: JSON) -> dict[str, str]:
@@ -355,23 +373,25 @@ class StackCompose:
             case _:
                 return ""
 
+    def _merge_policy_service(self, name: str, svc: dict[str, JSON], declared: frozenset[str]) -> None:
+        svc["container_name"] = svc["hostname"] = name
+        match svc:
+            case {"environment": dict() | list() | None as env}:
+                svc["environment"] = dict(sorted(self._merge_env(env).items()))
+        match (self._spec.ports, svc.get("ports")):
+            case str() as pattern, list() as ports:
+                svc["ports"] = [self._merge_port(name, p, pattern) for p in ports]
+        match svc.get("volumes"):
+            case list() as vols:
+                svc["volumes"] = [self._merge_volume(name, v, declared) for v in vols]
+        match self._spec.network:
+            case str() as net:
+                nets = self._merge_networks(svc.get("networks"))
+                svc["networks"] = {net: next(iter(nets.values()), None) if len(nets) <= 1 else None}
+
     def _merge_policy(self, services: dict[str, dict[str, JSON]], resources: dict[str, dict[str, JSON]]) -> None:
         declared = frozenset(resources["volumes"])
-        for name, svc in services.items():
-            svc["container_name"] = svc["hostname"] = name
-            match svc:
-                case {"environment": dict() | list() | None as env}:
-                    svc["environment"] = dict(sorted(self._merge_env(env).items()))
-            match (self._spec.ports, svc.get("ports")):
-                case str() as pattern, list() as ports:
-                    svc["ports"] = [self._merge_port(name, p, pattern) for p in ports]
-            match svc.get("volumes"):
-                case list() as vols:
-                    svc["volumes"] = [self._merge_volume(name, v, declared) for v in vols]
-            match self._spec.network:
-                case str() as net:
-                    nets = self._merge_networks(svc.get("networks"))
-                    svc["networks"] = {net: next(iter(nets.values()), None) if len(nets) <= 1 else None}
+        _ = [self._merge_policy_service(name, svc, declared) for name, svc in services.items()]
         referenced = {
             self._merge_policy_source(v) for svc in services.values() for v in self._merge_list(svc.get("volumes"))
         }

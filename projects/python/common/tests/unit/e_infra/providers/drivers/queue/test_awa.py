@@ -12,9 +12,10 @@ from awa import DatabaseError as AwaDatabaseError
 
 from e_infra.infra.background import BackgroundState
 from e_infra.infra.errors import ProviderError, QueueError
+from e_infra.infra.query import AwaQuery
 from e_infra.ports.queue import QueuePort, SchedulePort
 from e_infra.providers.drivers.queue import awa as awa_module
-from e_infra.providers.drivers.queue.awa import REPORT, SCHEMA, AwaDriver
+from e_infra.providers.drivers.queue.awa import AwaDriver
 from support.awa import FakeAwaJob
 from unit.e_infra.conftest import over
 
@@ -36,8 +37,8 @@ async def test_awa_open_migrates_creates_its_tables_and_fills_the_pool(
         [client] = awa_clients
         assert (client.dsn, client.max_connections) == (str(awa_unit["dsn"].get_secret_value()), 6)
         assert "migrate" in client.calls
-        assert client.sql() == list(SCHEMA)
-        assert client.opened == len(SCHEMA) + awa_unit["pool"]
+        assert client.sql() == [AwaQuery.SCHEMA.sql, AwaQuery.PROGRESS.sql]
+        assert client.opened == 2 + awa_unit["pool"]
     assert (client.drained, client.closed) == (50, True)
     assert logs.at("info") == ["awa opened", "awa closed"]
 
@@ -234,7 +235,7 @@ async def test_awa_run_reports_progress_into_the_driver_table(
     awa_opened.register("ingest", "docs", handler)
     job = FakeAwaJob(id=7, kind="ingest", queue="docs", args={"n": 1})
     assert await awa_clients[0].tasks["ingest"](job) is None
-    assert REPORT in awa_clients[0].sql()
+    assert AwaQuery.REPORT.sql in awa_clients[0].sql()
     assert awa_clients[0].statements[-1][1] == (7, json.dumps({"seen": 1}))
 
 

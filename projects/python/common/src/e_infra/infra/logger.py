@@ -105,7 +105,8 @@ class ELogger:
         self._order = tuple(order)
         self._order_set = frozenset(order)
         self._sep, self._head_sep, self._kv_fmt, self._width = sep, head_sep, kv_fmt, level_width
-        match colors and stream.isatty():  # no ANSI codes into pipes or files
+        ### No ANSI codes into pipes or files.
+        match colors and stream.isatty():
             case True:
                 palette, self._dim, self._reset = LEVEL_COLORS, DIM, RESET
             case _:
@@ -165,9 +166,8 @@ class ELogger:
         match env.lower():
             case Env.PROD:
                 renderer: Processor = structlog.processors.JSONRenderer(serializer=cls.encode_json)
-                factory: Callable[..., WrappedLogger] = structlog.BytesLoggerFactory(
-                    file=stream.buffer
-                )  # msgspec emits bytes
+                ### msgspec emits bytes.
+                factory: Callable[..., WrappedLogger] = structlog.BytesLoggerFactory(file=stream.buffer)
             case Env.DEV | Env.LOCAL:
                 renderer = ELogger(order=order, stream=stream, **options)
                 factory = structlog.PrintLoggerFactory(file=stream)

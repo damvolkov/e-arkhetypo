@@ -52,21 +52,21 @@ class MemoryEvents:
     ##### PRIVATE #####
 
     @staticmethod
-    async def _start_one(handler: EventsHandler, event: Event) -> None:
+    async def _aenter_one(handler: EventsHandler, event: Event) -> None:
         try:
             await handler(event)
         except Exception as error:  # noqa: BLE001 — a listener's failure is its own, never the publisher's
             logger.warning("event handler failed", kind=type(event).__name__, error=f"{type(error).__name__}: {error}")
 
-    async def _start_each(self, event: Event) -> None:
+    async def _aenter_each(self, event: Event) -> None:
         """One event to every handler of its type, in subscription order."""
-        _ = [await self._start_one(handler, event) for handler in tuple(self._handlers.get(type(event), ()))]
+        _ = [await self._aenter_one(handler, event) for handler in tuple(self._handlers.get(type(event), ()))]
 
-    async def _start_deliver(self) -> None:
+    async def _aenter_deliver(self) -> None:
         ### a delivery is a loop by nature, as long as the process lives: a comprehension would keep one item per event.
         async with self._receive:
             async for event in self._receive:
-                await self._start_each(event)
+                await self._aenter_each(event)
 
     ############################################################
 
@@ -88,7 +88,7 @@ class MemoryEvents:
     async def __aenter__(self) -> Self:
         self._group = anyio.create_task_group()
         await self._group.__aenter__()
-        self._group.start_soon(self._start_deliver)
+        self._group.start_soon(self._aenter_deliver)
         return self
 
     async def __aexit__(

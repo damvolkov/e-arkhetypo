@@ -31,7 +31,8 @@ async def test_sqlite_crud_cycle(tmp_path: Path) -> None:
 
         await adapter.delete("user:1")
         assert await adapter.get("user:1") is None
-        await adapter.delete("user:1")  # idempotent
+        ### Idempotent.
+        await adapter.delete("user:1")
 
 
 async def test_sqlite_creates_absent_parents(tmp_path: Path) -> None:
@@ -46,7 +47,8 @@ async def test_sqlite_close_survives_double(tmp_path: Path) -> None:
     adapter = SqliteDriver(**sqlite_args(path=tmp_path / "kv.db"))
     await adapter.__aenter__()
     await adapter.__aexit__(None, None, None)
-    await adapter.__aexit__(None, None, None)  # closing a closed store is a no-op, not an error
+    ### Closing a closed store is a no-op, not an error.
+    await adapter.__aexit__(None, None, None)
 
 
 async def test_sqlite_closed_adapter_refuses(tmp_path: Path) -> None:

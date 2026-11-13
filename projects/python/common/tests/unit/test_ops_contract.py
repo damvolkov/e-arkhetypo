@@ -19,7 +19,8 @@ REPO: Final = Path(__file__).resolve().parents[2]
 OPS: Final = REPO / "src" / "e_infra" / "ops"
 DOC: Final = REPO / "docs" / "index.md"
 SECTION: Final = "## ops — the closed registry of categories"
-LIMIT: Final = 20  # the house law: never more than twenty categories of agnostic tools
+### The house law: never more than twenty categories of agnostic tools.
+LIMIT: Final = 20
 ROW_RE: Final = re.compile(r"^\|\s*`([a-z]+)`\s*\|")
 
 

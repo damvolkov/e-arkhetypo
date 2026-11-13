@@ -17,11 +17,17 @@ if TYPE_CHECKING:
 MARK: Final[str] = "mcp.bridged"
 
 
-async def internal(connection: Connection, _handler: BaseRouteHandler) -> None:
-    """Through the MCP endpoint, or refused."""
-    match connection.scope.get(MARK):
-        case True:
-            return
-        case _:
-            logger.warning("mcp tool route reached directly", path=connection.url.path)
-            raise PermissionDeniedException(detail="an MCP tool: called through the MCP endpoint only")
+class MCPGuard:
+    """The guard on a tool's router: the MCP endpoint's requests only."""
+
+    async def __call__(self, connection: Connection, _handler: BaseRouteHandler) -> None:
+        """Through the MCP endpoint, or refused."""
+        match connection.scope.get(MARK):
+            case True:
+                return
+            case _:
+                logger.warning("mcp tool route reached directly", path=connection.url.path)
+                raise PermissionDeniedException(detail="an MCP tool: called through the MCP endpoint only")
+
+
+internal = MCPGuard()

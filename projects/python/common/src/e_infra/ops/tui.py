@@ -12,6 +12,7 @@ Scales to the available width and height in integer steps, never overflows the t
 and falls back to a framed compact line when not even the minimum scale fits."""
 
 from functools import lru_cache
+from types import MappingProxyType
 from typing import TYPE_CHECKING, Final
 
 from rich.style import Style
@@ -20,13 +21,17 @@ from textual.reactive import reactive
 from textual.widget import Widget
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
+
     from textual.geometry import Size
 
 ##### DEFAULTS #####
-COLOR: Final = "#0277bd"  # dark sky blue: letters and frame
+### Dark sky blue: letters and frame.
+COLOR: Final = "#0277bd"
 MAX_SCALE: Final = 40
 MIN_WIDTH: Final = 5
-SUB_RATIO: Final = 4  # the tagline is a quarter of the title height: a tagline, not a second logo
+### The tagline is a quarter of the title height: a tagline, not a second logo.
+SUB_RATIO: Final = 4
 
 ##### FONTS #####
 UPPER_SPEC: Final = """
@@ -72,13 +77,11 @@ Z ###/..#/.#./#../###
 : .../.#./.../.#./...
 + .../.#./###/.#./...
 """
-UPPER: Final[dict[str, tuple[str, ...]]] = {
-    key: tuple(rows.split("/")) for item in UPPER_SPEC.split("\n") if item for key, rows in [item.split(" ", 1)]
-}
-UPPER[" "] = ("..",) * 5
-UPPER["/"] = ("..#", "..#", ".#.", "#..", "#..")
-
 BLANK: Final[tuple[str, ...]] = ("..",) * 5
+UPPER: Final[Mapping[str, tuple[str, ...]]] = MappingProxyType(
+    {key: tuple(rows.split("/")) for item in UPPER_SPEC.split("\n") if item for key, rows in [item.split(" ", 1)]}
+    | {" ": BLANK, "/": ("..#", "..#", ".#.", "#..", "#..")}
+)
 ### the tagline font below a half-block quarter: 3 pixels tall, drawn in sextants (2x3 pixels per cell) so one
 ### text row holds a whole glyph — square pixels where half-blocks would need 2.5 rows.
 SMALL_SPEC: Final = """
@@ -124,24 +127,25 @@ Z ##./.#./.##
 + .#./###/.#.
 / ..#/.#./#..
 """
-SMALL: Final[dict[str, tuple[str, ...]]] = {
-    key: tuple(rows.split("/")) for item in SMALL_SPEC.split("\n") if item for key, rows in [item.split(" ", 1)]
-}
 SMALL_BLANK: Final[tuple[str, ...]] = ("..",) * 3
-SMALL[" "] = SMALL_BLANK
+SMALL: Final[Mapping[str, tuple[str, ...]]] = MappingProxyType(
+    {key: tuple(rows.split("/")) for item in SMALL_SPEC.split("\n") if item for key, rows in [item.split(" ", 1)]}
+    | {" ": SMALL_BLANK}
+)
 ### a sextant's six pixels as bits (top-left = 1 … bottom-right = 32): the block skips the four patterns that
 ### already exist elsewhere — empty, full, left half, right half.
-SEXTANT_REUSED: Final[dict[int, str]] = {0: " ", 21: "▌", 42: "▐", 63: "█"}
+SEXTANT_REUSED: Final[Mapping[int, str]] = MappingProxyType({0: " ", 21: "▌", 42: "▐", 63: "█"})
 
-SEXTANT: Final[dict[int, str]] = SEXTANT_REUSED | {
-    bits: chr(0x1FB00 + offset) for offset, bits in enumerate(bits for bits in range(64) if bits not in SEXTANT_REUSED)
-}
-HALF: Final[dict[tuple[bool, bool], str]] = {
-    (False, False): " ",
-    (True, False): "▀",
-    (False, True): "▄",
-    (True, True): "█",
-}
+SEXTANT: Final[Mapping[int, str]] = MappingProxyType(
+    dict(SEXTANT_REUSED)
+    | {
+        bits: chr(0x1FB00 + offset)
+        for offset, bits in enumerate(bits for bits in range(64) if bits not in SEXTANT_REUSED)
+    }
+)
+HALF: Final[Mapping[tuple[bool, bool], str]] = MappingProxyType(
+    {(False, False): " ", (True, False): "▀", (False, True): "▄", (True, True): "█"}
+)
 
 
 ##### TYPES #####
@@ -195,7 +199,7 @@ class HeaderTui(Widget):
 
     @staticmethod
     def _common_glyphs(
-        text: str, font: dict[str, tuple[str, ...]], blank: tuple[str, ...] = BLANK
+        text: str, font: Mapping[str, tuple[str, ...]], blank: tuple[str, ...] = BLANK
     ) -> list[tuple[str, ...]]:
         """Rows per character; unknown characters fall back to the font's blank."""
         return [font.get(ch, blank) for ch in text]

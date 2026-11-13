@@ -15,7 +15,8 @@ def test_deep_dynamic_assignment_from_zero() -> None:
 
 def test_open_reads_auto_vivify_and_stay_identity_stable() -> None:
     state = State()
-    assert state.adapters is state.adapters  # created on first touch, same child ever after
+    ### Created on first touch, same child ever after.
+    assert state.adapters is state.adapters
 
 
 def test_navigation_is_attribute_first() -> None:
@@ -38,7 +39,8 @@ def test_seal_freezes_the_whole_subtree() -> None:
     with pytest.raises(RuntimeError, match="Sealed"):
         state.adapters.redis = object()
     with pytest.raises(AttributeError, match="crypto"):
-        _ = state.nope  # after seal a typo raises; it does not silently create a node
+        ### After seal a typo raises; it does not silently create a node.
+        _ = state.nope
 
 
 def test_is_a_mapping_for_the_host_framework() -> None:

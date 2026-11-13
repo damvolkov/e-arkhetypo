@@ -103,22 +103,29 @@ class CryptoKeys:
 
 
 class TokenShape(IntEnum):
-    JWS = 2  # count of "." separators: 3 parts
-    JWE = 4  # 5 parts
+    ### Count of "." separators: 3 parts.
+    JWS = 2
+    ### 5 parts.
+    JWE = 4
 
 
 class AlgPrefix(StrEnum):
     RS = "RS"
     PS = "PS"
     ES = "ES"
-    EDDSA = "Ed"  # EdDSA's two-letter prefix, named by the algorithm it opens
+    ### EdDSA's two-letter prefix, named by the algorithm it opens.
+    EDDSA = "Ed"
 
 
 ##### DEFAULTS #####
-SECRET_SIZE: Final = 32  # bytes of entropy for the master secret
-IDENT_SIZE: Final = 32  # hex chars of an identifier's id: 128 bits, never colliding, short enough for a log
-KEY_SIZE: Final = 32  # HKDF output: one AES-256/HMAC-256 key per domain
-NONCE_SIZE: Final = 12  # AES-GCM standard
+### Bytes of entropy for the master secret.
+SECRET_SIZE: Final = 32
+### Hex chars of an identifier's id: 128 bits, never colliding, short enough for a log.
+IDENT_SIZE: Final = 32
+### HKDF output: one AES-256/HMAC-256 key per domain.
+KEY_SIZE: Final = 32
+### AES-GCM standard.
+NONCE_SIZE: Final = 12
 TAG_SIZE: Final = 16
 RSA_SIZE: Final = 4096
 RSA_EXPONENT: Final = 65537
@@ -129,12 +136,12 @@ TOKEN_INFO: Final = b"e-core/token"
 JWE_INFO: Final = b"e-core/jwe"
 ENCRYPT_INFO: Final = b"e-core/encrypt"
 SIGN_INFO: Final = b"e-core/sign"
-ENC_KEY_SIZES: Final[Mapping[TokenEnc, int]] = MappingProxyType(
-    {TokenEnc.A128GCM: 16, TokenEnc.A256GCM: 32}
-)  # dir mode: key IS the CEK
+### Dir mode: the key is the CEK.
+ENC_KEY_SIZES: Final[Mapping[TokenEnc, int]] = MappingProxyType({TokenEnc.A128GCM: 16, TokenEnc.A256GCM: 32})
+### Alg prefix to joserfc key_type.
 JOSE_KEY_TYPES: Final[Mapping[AlgPrefix, Literal["RSA", "EC", "OKP"]]] = MappingProxyType(
     {AlgPrefix.RS: "RSA", AlgPrefix.PS: "RSA", AlgPrefix.ES: "EC", AlgPrefix.EDDSA: "OKP"}
-)  # alg prefix -> joserfc key_type
+)
 MISSING_PRIVATE_KEY: Final = "asymmetric engine needs a private_key PEM to sign tokens"
 NO_VERIFY_KEY: Final = "engine needs a signing key or a public jwks set to verify"
 MISSING_ROOT: Final = "crypto engine needs a secret: set CRYPTO__SECRET or pass CryptoKeys(secret=...)"

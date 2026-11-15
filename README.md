@@ -23,6 +23,11 @@ The Triad, all Greek — the will decides (e-nous), the body holds the forms (e-
 | **e-arkhetypo** | the archetypes — project blueprints, stacks, CI sources; data only | templates |
 | [e-taxis](https://github.com/damvolkov/e-taxis) | the order — all the code: turns archetypes into running things, transpiles, evaluates and enhances the mind, runs its workflows | tools |
 
+**The laws.** Everything here is built under **EAGER** — Economical · Asynchronous · Grounded · Expressive · Rooted —
+whose laws are named in fourteen sets: **OST** · **NATURES** · **LEXIS** · **BANKS** · **SYMBOLON** · **KAIROS** ·
+**METRON** · **ELENCHOS** · **ERGON** · **ALETHEIA** · **PHRONESIS** · **HOROS** · **KANON** · **TRIAD**. What each
+holds, and where it lives: [e-nous · The laws](https://github.com/damvolkov/e-nous#the-laws--eager).
+
 ##### PROJECTS — the templates #####
 
 Each is an independent uv project with its own `pyproject.toml`, `Makefile`, tests, docs and CI/CD.

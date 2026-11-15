@@ -217,6 +217,10 @@ touches — `stack`, `systems`, `infra`. Lines under `[Unreleased]` are written 
   in CI holds them (the CI workflow is assembled from `infra/jobs/ci/quality.yml`, outside common: untouched). Evidence:
   `make gates` green, `make test` equal to main (2 failed, 7 errors: gcs, gemini and vision credentials), ruff, ty, tach
   green.
+- common's `.gitignore` carries ERGON's three grounds — `.plans/`, `.reports/`, `.scratch/` — so every project
+  materialized from it ignores them in its tracked file; the plans hook (e-nous `TODO_laws`) only falls back to
+  `.git/info/exclude` where they are missing.
+- README names the fourteen sets of EAGER and points to e-nous for what each holds.
 
 ### stack
 

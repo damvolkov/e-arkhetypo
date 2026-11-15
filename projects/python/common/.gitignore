@@ -1,4 +1,6 @@
 site/
 
-# agent plans (persona: Plans) — working state, never committed
+# ERGON's three grounds (persona: ERGON) — working state, never committed: plans, what they found, what they needed
 .plans/
+.reports/
+.scratch/

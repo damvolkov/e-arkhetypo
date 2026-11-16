@@ -469,7 +469,36 @@ touches — `stack`, `systems`, `infra`. Lines under `[Unreleased]` are written 
   itself. `uv sync` therefore fails before any gate runs; the remedy is a `pyproject.toml` edit, outside the
   maintenance allowlist. Exempting the bumped packages one by one does not work: `httpx2` 2.16.0 pins `httpcore2`
   ==2.16.0 and `zensical` 0.1.1 pins `zensical-ui`==0.0.42, both outside the window, so the exemptions cascade through
-  the transitive closure — the cutoff itself has to move.
+  the transitive closure — the cutoff itself has to move. All five projects fail on the same first package
+  (`ast-grep-cli>=0.51.2`, published 2026-11-11), and with the cutoff lifted all five resolve, every bumped floor to
+  itself — ruff 0.17.5, ty 0.0.104, tach 0.35.3, validate-pyproject 0.27, zizmor 1.32.0, pytest 9.2.0,
+  pytest-asyncio 1.5.0, pytest-randomly 5.1.0, httpx2 2.16.0, psqlpy 0.13.1, fakeredis 2.40.0, zensical 0.1.1,
+  ast-grep-cli 0.51.2, prek 0.5.10 — so nothing hides behind that first unsatisfiable floor. A floor is not a ceiling:
+  a from-scratch resolve takes `pillow` 13.0.0 in `graph` over its `>=12.3.0`, where a sticky `uv lock` in place leaves
+  the locked 12.3.0. That the cutoff is the whole blocker, proven in a copy of `common` outside the tree with only
+  `exclude-newer` moved: `uv lock` changes nothing but the bumped tools (`zensical-ui` in, `deepmerge` out), `uv sync`
+  succeeds, and `make ci` runs every gate through to `cov` (1439 passed, 97.52% — its 7 errors are the `repo()`
+  fixture walking up for `stack/_template`, which a copy outside the tree cannot find; in the tree the same suite is
+  1446 green).
+- pytest 9.2, from the same bump, applies the `filterwarnings` ini while it autoloads `pytest11` plugins and while it
+  collects, and `graph` reads that as a hard failure: `langsmith`'s plugin (`langsmith_plugin`, reached through
+  `langgraph`) imports `langsmith.client` at load time, Python 3.14 deprecates `asyncio.iscoroutinefunction`, and
+  `graph`'s `filterwarnings = ["error", ...]` turns the DeprecationWarning into `Error while loading plugin "pytest11"`
+  — the run aborts before it collects a single test (exit 3), where pytest 9.1.1 collects 770 in the same env. One more
+  `filterwarnings` line, in the form `common` already carries for google-genai's `_UnionGenericAlias`
+  (`ignore:'asyncio.iscoroutinefunction' is deprecated:DeprecationWarning`), is the whole fix: with that filter the
+  suite collects 770 again. `-p no:langsmith_plugin` is not it — every test module that imports `langsmith.client`
+  warns the same way during collection. `pyproject.toml` again, so outside the maintenance allowlist; `common`, `api`,
+  `cli` and `tui` carry no langsmith and are untouched.
+- what the second pass proved, in probe envs holding each project's locked dependencies plus exactly those floors: the
+  root `make test` (26); `common`'s whole `make ci` — ruff check/format, ty, tach, validate-pyproject, zizmor 1.32.0,
+  `zensical build --strict`, prek 0.5.10 still reading `prek.toml` and still installing its hook, `cov` at 98.15%
+  (1446 passed), and the same suite green under three pytest-randomly seeds with `-n auto` against a live ParadeDB;
+  the four templates materialized — api 173, cli 88, tui 179 pass with ruff, ty, tach and validate-pyproject clean,
+  api's and graph's `zensical build --strict` clean. `graph`'s 20 ty diagnostics are the same findings under ty 0.0.82
+  (two of them only renamed), and its 100 test reds — `st.CRYPTO__PRIVATE_KEY` reading `None`, runtime config this
+  environment does not hold — are the same set under the pre-bump floors, so neither is this branch's. Two README code
+  blocks (`cli`, `tui`) are not ruff-format clean — under 0.16.8 either, and no gate here reaches a README.
 
 ### infra
 

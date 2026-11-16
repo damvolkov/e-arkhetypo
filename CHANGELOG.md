@@ -265,6 +265,7 @@ touches — `stack`, `systems`, `infra`. Lines under `[Unreleased]` are written 
   `.env.example` files of organon, egnosis and hermes point at the new paths. Live on the host: Discord connected,
   model and organon calls authenticated from the managed layer.
 - floating tags resolved to current digests (`stack/resolve-2026-11-09`)
+- floating tags resolved to current digests (`stack/resolve-2026-11-16`)
 
 ### projects
 

@@ -499,6 +499,38 @@ touches — `stack`, `systems`, `infra`. Lines under `[Unreleased]` are written 
   (two of them only renamed), and its 100 test reds — `st.CRYPTO__PRIVATE_KEY` reading `None`, runtime config this
   environment does not hold — are the same set under the pre-bump floors, so neither is this branch's. Two README code
   blocks (`cli`, `tui`) are not ruff-format clean — under 0.16.8 either, and no gate here reaches a README.
+- what the third pass settled, holding `main` (0558860) beside the branch in two copies of the tree that differ only in
+  the lifted `exclude-newer` cutoff, both materialized, so every number below is baseline against branch and not
+  baseline against expectation. The CI red is one line: `ecosystem`, the only job that tests anything, runs
+  `make -C projects/python/common install` and `ci`, and `install`'s `uv sync` dies resolving before a gate starts —
+  `common` alone carries a fixed `exclude-newer = "2026-10-21T00:00:00Z"`, where the four templates carry a relative
+  `"7 days"` that admits `ast-grep-cli` 0.51.2 (published 2026-11-11) on its own from 2026-11-18. `sync-projects`
+  cannot paper over it either: its `uv lock` resolves against the same cutoff, which is why no lockfile on this branch
+  moved. So the human decision is `common`'s cutoff, and only that one for CI.
+- every fix already on this branch is load-bearing, and none is over-reach. `main`'s `common` is ty-clean at 0.0.82,
+  and reverting the three `common` edits in place brings back exactly three findings under 0.0.104 —
+  `invalid-explicit-return` (`_listen_started`), `renamed-rule-in-ignore-comment` (`call-non-callable`),
+  `invalid-assignment` (the frozen-settings test). `graph`'s four renames neither lose nor gain a suppression: 20
+  diagnostics on `main` at ty 0.0.84, 20 on the branch at 0.0.104, the same 20 findings, where running 0.0.84 against
+  the branch's renamed comments costs 12 more (6 errors it can no longer suppress, 6 `ignore-comment-unknown-rule`).
+- `common`'s whole `make ci` is green at the new floors once the cutoff moves, which is the whole of CI's ask: ruff
+  check and format (212 files), ty, tach, validate-pyproject, zizmor 1.32.0 (no findings, 5 suppressed), zensical
+  0.1.1 `build --strict` — the bump's largest jump, 0.0.71 -> 0.1.1, and it needed nothing — and `cov` at 98.15% with
+  1446 passed against ParadeDB v0.26.4-pg17 on :45011, the image and port `ci.yml` itself declares. Root `make test`
+  is 26 passed. cli 88, api 173, tui 179.
+- correcting the second pass on two counts it reported clean. api and tui are not ty-clean: 3 diagnostics each, all
+  `import-not-found` for `ports/telemetry`, which `scripts/materialize.py` names in its telemetry section yet does not
+  write — and `main` reports the same 3, so the gap predates the bump and the fix is in the materializer, not here.
+  `graph`'s ruff is not clean either: 2 `RUF100` on the materialized `infra/proxy.py` and `infra/state.py`, whose
+  `# noqa: ANN401` comes from `common` where `ANN` is selected and `graph` selects none — ruff 0.16.9 on `main` reports
+  the identical 2, and removing the comment would break `common`, so it is a `graph` ruff-config question.
+- one more `pyproject.toml` line the bump does need, though no CI job reaches it: pytest 9.2 applies `filterwarnings`
+  while it autoloads `pytest11` plugins, so `langsmith`'s plugin importing `langsmith.client` meets 3.14's deprecation
+  of `asyncio.iscoroutinefunction` and `graph`'s `"error"` turns it into `Error while loading plugin` — exit 3, before
+  a single test is collected, where pytest 9.1.1 collects 770 in the same env on the same tree. The remedy is the form
+  `common` already carries for google-genai, `"ignore:'asyncio.iscoroutinefunction' is deprecated:DeprecationWarning"`,
+  and with only that line added `graph` collects 770 again at exit 0. `graph`'s 100 reds are untouched by it and are
+  `main`'s exactly — 51 failed, 670 passed, 49 errors on both sides of the bump.
 
 ### infra
 

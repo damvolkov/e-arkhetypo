@@ -84,7 +84,7 @@ def test_add_node_derives_and_accepts_names(located: Place) -> None:
 def test_a_pipeline_graph_mounts_its_own_nodes_one_per_section(located: Place) -> None:
     graph = InstrumentGraph(name="doc").add_node(located(node_alpha, "ingest")).add_node(located(node_beta, "probe"))
     assert graph.sections == {Section.INGEST}
-    assert graph.nodes["alpha"].pipeline == "doc"  # ty: ignore[unresolved-attribute]
+    assert graph.nodes["alpha"].pipeline == "doc"  # ty: ignore[missing-attribute]
 
 
 @pytest.mark.parametrize(

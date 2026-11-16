@@ -451,6 +451,25 @@ touches — `stack`, `systems`, `infra`. Lines under `[Unreleased]` are written 
   so its new dev dependency `ast-grep-cli` is not locked there; `common`'s `test_compose::test_full_stack` fails on main
   as before.
 - common: `QueryPort` takes a bank member (`Query`, a `NamedTuple` of literal SQL and description, in `e_infra.infra.query`; one enum per consumer: `DatabaseQuery`, `CacheQuery`, `QueueQuery`, `AuthQuery`) and `script` a `Script` NewType, never a raw string; both database drivers, the auth, cache and PgQueuer consumers and every test follow. The gate `bank-port-takes-text` goes 4 -> 0 and `bank-sql-inline` 39 -> 10, no other rule moves; ruff, ty and tach clean, 1445 unit tests and the 80 database integration tests pass on a live Postgres.
+- the python tooling bump (ruff 0.17.5, ty 0.0.104, pytest 9.2, pytest-asyncio 1.5, zensical 0.1.1) meets ty's renamed
+  and reclassified rules, all of them in ignore comments or in one narrowing ty stopped doing: `common`'s
+  `_listen_started` binds the acquired proxy to a local before storing it on `self._listener` (ty 0.0.104 no longer
+  narrows an instance attribute across the `await` that assigned it), `common`'s frozen-settings test carries
+  `ty: ignore[invalid-assignment]` on its deliberate illegal assignment as `ports/test_provider.py` already did, and
+  `call-non-callable` -> `not-callable` (`common`'s MCP registry) / `abstract-class-instantiation` (`graph`'s abstract
+  builder — the rename hint is generic, but 0.0.104 classifies that site under the new rule),
+  `invalid-method-override` -> `incompatible-method-override` (`graph`'s four LangGraph narrowings),
+  `unresolved-attribute` -> `missing-attribute`. No behaviour change and no public API moves. Evidence, against a probe
+  env resolved at exactly the new floors: `common` green end to end (1446 tests, 98.15% coverage, ruff 0.17.5
+  check/format, ty, tach, validate-pyproject and `zensical build --strict` all clean), api 173, cli 88, tui 179;
+  `graph`'s ty goes 27 -> 20 and those 20 are red under ty 0.0.82 as well, so they predate the bump. Not fixed here,
+  and the reason no `uv.lock` on this branch resolves: 12 of the 15 bumped floors publish after `common`'s
+  `exclude-newer = 2026-10-21T00:00:00Z` (`httpx2` 2.16.0 by seven hours), and six publish inside the four templates'
+  `7 days` window — `graph` also wants `pytest-recording` 0.15.0, published 2026-11-15, seven hours before the bump
+  itself. `uv sync` therefore fails before any gate runs; the remedy is a `pyproject.toml` edit, outside the
+  maintenance allowlist. Exempting the bumped packages one by one does not work: `httpx2` 2.16.0 pins `httpcore2`
+  ==2.16.0 and `zensical` 0.1.1 pins `zensical-ui`==0.0.42, both outside the window, so the exemptions cascade through
+  the transitive closure — the cutoff itself has to move.
 
 ### infra
 

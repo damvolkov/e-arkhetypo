@@ -57,4 +57,4 @@ def test_registry_a_list_answer_has_no_output_schema() -> None:
 )
 def test_registry_refuses(routes: object, message: str) -> None:
     with pytest.raises(MCPRegistryError, match=message):
-        MCPRegistry(routes())  # ty: ignore[call-non-callable]
+        MCPRegistry(routes())  # ty: ignore[not-callable]

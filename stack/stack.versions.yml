@@ -1,5 +1,5 @@
 schema: 1
-resolved: "2026-11-09"
+resolved: "2026-11-16"
 images:
 - ref: "agentmemory:latest"
   service: "agentmemory"
@@ -16,7 +16,7 @@ images:
   category: "mem"
   registry: "docker.io"
   tag: "3-alpine"
-  digest: "sha256:a0f2e268f2ce8f3709611a90054ec6a8ae31f6251f5896b8648b9bb99835e30a"
+  digest: "sha256:0f9552bb28711333da16915ec146f5e6bb44a7fdac9ced15dc17c2e0206346dd"
   floating: false
   vanished: false
   build: false
@@ -46,7 +46,7 @@ images:
   category: "llm"
   registry: "ghcr.io"
   tag: "server-cuda"
-  digest: "sha256:f28803153f5ce48a6c8deaef694f58fca09b5dd79baca75fced670ec23b7bd71"
+  digest: "sha256:d68ec493c0ff9105ddfe2e909fff304117bc6e1fffbbd8d94182bd455983c264"
   floating: true
   vanished: false
   build: false
@@ -66,7 +66,7 @@ images:
   category: "llm"
   registry: "ghcr.io"
   tag: "cpu-latest"
-  digest: "sha256:50c39e698cda14212ea5bb0c17400ad3c72ee3432e03326a17dc8a096aeb9f33"
+  digest: "sha256:99dd0f48a5248ad67d486ba335e2c2fc2e2d5765140d50a8dd452819fff562ff"
   floating: true
   vanished: false
   build: false
@@ -126,7 +126,7 @@ images:
   category: "watch"
   registry: "docker.io"
   tag: "latest"
-  digest: "sha256:488984b716c0862639f91a698adbe2862677a5a07bad42da5f03f3030883b205"
+  digest: "sha256:0615ec4fbd4072004b7d86b46ded63013a74b7d6eb1119273dd89e8fa25c13cf"
   floating: true
   vanished: false
   build: false
@@ -186,7 +186,7 @@ images:
   category: "llm"
   registry: "ghcr.io"
   tag: "server-cuda"
-  digest: "sha256:f28803153f5ce48a6c8deaef694f58fca09b5dd79baca75fced670ec23b7bd71"
+  digest: "sha256:d68ec493c0ff9105ddfe2e909fff304117bc6e1fffbbd8d94182bd455983c264"
   floating: true
   vanished: false
   build: false
@@ -196,7 +196,7 @@ images:
   category: "llm"
   registry: "ghcr.io"
   tag: "server-cuda"
-  digest: "sha256:f28803153f5ce48a6c8deaef694f58fca09b5dd79baca75fced670ec23b7bd71"
+  digest: "sha256:d68ec493c0ff9105ddfe2e909fff304117bc6e1fffbbd8d94182bd455983c264"
   floating: true
   vanished: false
   build: false
@@ -206,7 +206,7 @@ images:
   category: "watch"
   registry: "docker.io"
   tag: "latest"
-  digest: "sha256:0db216b630ae1f348a1584c67f3cead8b4c1fc839169a39501db664744158e28"
+  digest: "sha256:b43c257ccfc925d4a50b8717cac61a3b51df8c48d01847936057e5c4075a24a7"
   floating: true
   vanished: false
   build: false
@@ -276,7 +276,7 @@ images:
   category: "watch"
   registry: "docker.io"
   tag: "latest"
-  digest: "sha256:1f9a144a5357b4973e93a15718f050247cb7a4ee7b7c6c06ecb91b5eed3fbaad"
+  digest: "sha256:09ec48906c054a27dd09a88c8e6bcc24fe89649d3ecc94d3a8ed394e21279b31"
   floating: true
   vanished: false
   build: false
@@ -306,7 +306,7 @@ images:
   category: "rdb"
   registry: "docker.io"
   tag: "pg18"
-  digest: "sha256:c29f30688a9ad961691bdf0ec1650717cc132a5814619d80f80463d6e4c42e47"
+  digest: "sha256:38681dc6eaf55308e2a4c6de392d131652dcfac70e1263e35cd9b5ea3fe39782"
   floating: true
   vanished: false
   build: false
@@ -326,7 +326,7 @@ images:
   category: "vdb"
   registry: "docker.io"
   tag: "latest"
-  digest: "sha256:9bfc89f9914fc14876a88c05270685921a55b8877b254a98bcc1cc2f0a424cd2"
+  digest: "sha256:d277592721d2e3b73f9b797b53cf05e6a5bb2134f6d13fdbda4ca51782afbcac"
   floating: true
   vanished: false
   build: false
@@ -356,7 +356,7 @@ images:
   category: "rag"
   registry: "docker.io"
   tag: "latest"
-  digest: "sha256:287af61f1a13e86d02974fcde91a3413a9945788de38b61ffbc491d81a19bcc2"
+  digest: "sha256:932f69dca010db9880bddebb2171f05d8e1a25d04a59149ff65409993d680024"
   floating: true
   vanished: false
   build: false
@@ -366,7 +366,7 @@ images:
   category: "media"
   registry: "docker.io"
   tag: "latest"
-  digest: "sha256:26b5e320482c48d999073dfaf830666b1a312ad0f97d35ae67bd499659b9834e"
+  digest: "sha256:bb3a1f30936b1fa6b4a1b8895e62df2b0919d6e0a04d223112a2df3a2d8878c4"
   floating: true
   vanished: false
   build: false
@@ -406,7 +406,7 @@ images:
   category: "speech"
   registry: "ghcr.io"
   tag: "latest"
-  digest: "sha256:20b6cd92689dbeba4eaa61fc1a0810a4891c22cfca5919a444a541a32393f8db"
+  digest: "sha256:03b659a7e2cffb2c95640974b08484cd7eeb9f6e0d755ef18a6b464a31dcfece"
   floating: true
   vanished: false
   build: false

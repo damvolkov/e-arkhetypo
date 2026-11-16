@@ -451,6 +451,86 @@ touches — `stack`, `systems`, `infra`. Lines under `[Unreleased]` are written 
   so its new dev dependency `ast-grep-cli` is not locked there; `common`'s `test_compose::test_full_stack` fails on main
   as before.
 - common: `QueryPort` takes a bank member (`Query`, a `NamedTuple` of literal SQL and description, in `e_infra.infra.query`; one enum per consumer: `DatabaseQuery`, `CacheQuery`, `QueueQuery`, `AuthQuery`) and `script` a `Script` NewType, never a raw string; both database drivers, the auth, cache and PgQueuer consumers and every test follow. The gate `bank-port-takes-text` goes 4 -> 0 and `bank-sql-inline` 39 -> 10, no other rule moves; ruff, ty and tach clean, 1445 unit tests and the 80 database integration tests pass on a live Postgres.
+- the python tooling bump (ruff 0.17.5, ty 0.0.104, pytest 9.2, pytest-asyncio 1.5, zensical 0.1.1) meets ty's renamed
+  and reclassified rules, all of them in ignore comments or in one narrowing ty stopped doing: `common`'s
+  `_listen_started` binds the acquired proxy to a local before storing it on `self._listener` (ty 0.0.104 no longer
+  narrows an instance attribute across the `await` that assigned it), `common`'s frozen-settings test carries
+  `ty: ignore[invalid-assignment]` on its deliberate illegal assignment as `ports/test_provider.py` already did, and
+  `call-non-callable` -> `not-callable` (`common`'s MCP registry) / `abstract-class-instantiation` (`graph`'s abstract
+  builder — the rename hint is generic, but 0.0.104 classifies that site under the new rule),
+  `invalid-method-override` -> `incompatible-method-override` (`graph`'s four LangGraph narrowings),
+  `unresolved-attribute` -> `missing-attribute`. No behaviour change and no public API moves. Evidence, against a probe
+  env resolved at exactly the new floors: `common` green end to end (1446 tests, 98.15% coverage, ruff 0.17.5
+  check/format, ty, tach, validate-pyproject and `zensical build --strict` all clean), api 173, cli 88, tui 179;
+  `graph`'s ty goes 27 -> 20 and those 20 are red under ty 0.0.82 as well, so they predate the bump. Not fixed here,
+  and the reason no `uv.lock` on this branch resolves: 12 of the 15 bumped floors publish after `common`'s
+  `exclude-newer = 2026-10-21T00:00:00Z` (`httpx2` 2.16.0 by seven hours), and six publish inside the four templates'
+  `7 days` window — `graph` also wants `pytest-recording` 0.15.0, published 2026-11-15, seven hours before the bump
+  itself. `uv sync` therefore fails before any gate runs; the remedy is a `pyproject.toml` edit, outside the
+  maintenance allowlist. Exempting the bumped packages one by one does not work: `httpx2` 2.16.0 pins `httpcore2`
+  ==2.16.0 and `zensical` 0.1.1 pins `zensical-ui`==0.0.42, both outside the window, so the exemptions cascade through
+  the transitive closure — the cutoff itself has to move. All five projects fail on the same first package
+  (`ast-grep-cli>=0.51.2`, published 2026-11-11), and with the cutoff lifted all five resolve, every bumped floor to
+  itself — ruff 0.17.5, ty 0.0.104, tach 0.35.3, validate-pyproject 0.27, zizmor 1.32.0, pytest 9.2.0,
+  pytest-asyncio 1.5.0, pytest-randomly 5.1.0, httpx2 2.16.0, psqlpy 0.13.1, fakeredis 2.40.0, zensical 0.1.1,
+  ast-grep-cli 0.51.2, prek 0.5.10 — so nothing hides behind that first unsatisfiable floor. A floor is not a ceiling:
+  a from-scratch resolve takes `pillow` 13.0.0 in `graph` over its `>=12.3.0`, where a sticky `uv lock` in place leaves
+  the locked 12.3.0. That the cutoff is the whole blocker, proven in a copy of `common` outside the tree with only
+  `exclude-newer` moved: `uv lock` changes nothing but the bumped tools (`zensical-ui` in, `deepmerge` out), `uv sync`
+  succeeds, and `make ci` runs every gate through to `cov` (1439 passed, 97.52% — its 7 errors are the `repo()`
+  fixture walking up for `stack/_template`, which a copy outside the tree cannot find; in the tree the same suite is
+  1446 green).
+- pytest 9.2, from the same bump, applies the `filterwarnings` ini while it autoloads `pytest11` plugins and while it
+  collects, and `graph` reads that as a hard failure: `langsmith`'s plugin (`langsmith_plugin`, reached through
+  `langgraph`) imports `langsmith.client` at load time, Python 3.14 deprecates `asyncio.iscoroutinefunction`, and
+  `graph`'s `filterwarnings = ["error", ...]` turns the DeprecationWarning into `Error while loading plugin "pytest11"`
+  — the run aborts before it collects a single test (exit 3), where pytest 9.1.1 collects 770 in the same env. One more
+  `filterwarnings` line, in the form `common` already carries for google-genai's `_UnionGenericAlias`
+  (`ignore:'asyncio.iscoroutinefunction' is deprecated:DeprecationWarning`), is the whole fix: with that filter the
+  suite collects 770 again. `-p no:langsmith_plugin` is not it — every test module that imports `langsmith.client`
+  warns the same way during collection. `pyproject.toml` again, so outside the maintenance allowlist; `common`, `api`,
+  `cli` and `tui` carry no langsmith and are untouched.
+- what the second pass proved, in probe envs holding each project's locked dependencies plus exactly those floors: the
+  root `make test` (26); `common`'s whole `make ci` — ruff check/format, ty, tach, validate-pyproject, zizmor 1.32.0,
+  `zensical build --strict`, prek 0.5.10 still reading `prek.toml` and still installing its hook, `cov` at 98.15%
+  (1446 passed), and the same suite green under three pytest-randomly seeds with `-n auto` against a live ParadeDB;
+  the four templates materialized — api 173, cli 88, tui 179 pass with ruff, ty, tach and validate-pyproject clean,
+  api's and graph's `zensical build --strict` clean. `graph`'s 20 ty diagnostics are the same findings under ty 0.0.82
+  (two of them only renamed), and its 100 test reds — `st.CRYPTO__PRIVATE_KEY` reading `None`, runtime config this
+  environment does not hold — are the same set under the pre-bump floors, so neither is this branch's. Two README code
+  blocks (`cli`, `tui`) are not ruff-format clean — under 0.16.8 either, and no gate here reaches a README.
+- what the third pass settled, holding `main` (0558860) beside the branch in two copies of the tree that differ only in
+  the lifted `exclude-newer` cutoff, both materialized, so every number below is baseline against branch and not
+  baseline against expectation. The CI red is one line: `ecosystem`, the only job that tests anything, runs
+  `make -C projects/python/common install` and `ci`, and `install`'s `uv sync` dies resolving before a gate starts —
+  `common` alone carries a fixed `exclude-newer = "2026-10-21T00:00:00Z"`, where the four templates carry a relative
+  `"7 days"` that admits `ast-grep-cli` 0.51.2 (published 2026-11-11) on its own from 2026-11-18. `sync-projects`
+  cannot paper over it either: its `uv lock` resolves against the same cutoff, which is why no lockfile on this branch
+  moved. So the human decision is `common`'s cutoff, and only that one for CI.
+- every fix already on this branch is load-bearing, and none is over-reach. `main`'s `common` is ty-clean at 0.0.82,
+  and reverting the three `common` edits in place brings back exactly three findings under 0.0.104 —
+  `invalid-explicit-return` (`_listen_started`), `renamed-rule-in-ignore-comment` (`call-non-callable`),
+  `invalid-assignment` (the frozen-settings test). `graph`'s four renames neither lose nor gain a suppression: 20
+  diagnostics on `main` at ty 0.0.84, 20 on the branch at 0.0.104, the same 20 findings, where running 0.0.84 against
+  the branch's renamed comments costs 12 more (6 errors it can no longer suppress, 6 `ignore-comment-unknown-rule`).
+- `common`'s whole `make ci` is green at the new floors once the cutoff moves, which is the whole of CI's ask: ruff
+  check and format (212 files), ty, tach, validate-pyproject, zizmor 1.32.0 (no findings, 5 suppressed), zensical
+  0.1.1 `build --strict` — the bump's largest jump, 0.0.71 -> 0.1.1, and it needed nothing — and `cov` at 98.15% with
+  1446 passed against ParadeDB v0.26.4-pg17 on :45011, the image and port `ci.yml` itself declares. Root `make test`
+  is 26 passed. cli 88, api 173, tui 179.
+- correcting the second pass on two counts it reported clean. api and tui are not ty-clean: 3 diagnostics each, all
+  `import-not-found` for `ports/telemetry`, which `scripts/materialize.py` names in its telemetry section yet does not
+  write — and `main` reports the same 3, so the gap predates the bump and the fix is in the materializer, not here.
+  `graph`'s ruff is not clean either: 2 `RUF100` on the materialized `infra/proxy.py` and `infra/state.py`, whose
+  `# noqa: ANN401` comes from `common` where `ANN` is selected and `graph` selects none — ruff 0.16.9 on `main` reports
+  the identical 2, and removing the comment would break `common`, so it is a `graph` ruff-config question.
+- one more `pyproject.toml` line the bump does need, though no CI job reaches it: pytest 9.2 applies `filterwarnings`
+  while it autoloads `pytest11` plugins, so `langsmith`'s plugin importing `langsmith.client` meets 3.14's deprecation
+  of `asyncio.iscoroutinefunction` and `graph`'s `"error"` turns it into `Error while loading plugin` — exit 3, before
+  a single test is collected, where pytest 9.1.1 collects 770 in the same env on the same tree. The remedy is the form
+  `common` already carries for google-genai, `"ignore:'asyncio.iscoroutinefunction' is deprecated:DeprecationWarning"`,
+  and with only that line added `graph` collects 770 again at exit 0. `graph`'s 100 reds are untouched by it and are
+  `main`'s exactly — 51 failed, 670 passed, 49 errors on both sides of the bump.
 
 ### infra
 

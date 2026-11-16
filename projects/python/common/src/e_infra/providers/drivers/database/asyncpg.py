@@ -202,8 +202,9 @@ class AsyncpgDriver:
         """The connection LISTEN holds, taken with the first channel."""
         match self._listener:
             case None:
-                self._listener = await AsyncpgStatements._common_call(self.pool.acquire())
-                return self._listener
+                held = await AsyncpgStatements._common_call(self.pool.acquire())
+                self._listener = held
+                return held
             case listener:
                 return listener
 

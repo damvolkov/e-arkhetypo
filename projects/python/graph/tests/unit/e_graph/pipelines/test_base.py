@@ -85,7 +85,7 @@ def package(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Callable[[str, d
 ##### BUILDER #####
 def test_builder_is_abstract() -> None:
     with pytest.raises(TypeError, match="compose"):
-        PipelineBuilder()  # ty: ignore[call-non-callable] — instantiating the abstract base is the point
+        PipelineBuilder()  # ty: ignore[abstract-class-instantiation] — instantiating the abstract base is the point
 
 
 def test_builder_names_itself_after_its_folder() -> None:

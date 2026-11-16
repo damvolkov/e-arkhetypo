@@ -256,14 +256,14 @@ class InstrumentGraph(StateGraph[Channels, None, Channels, Channels]):
 
     ############################################################
 
-    def add_node(  # ty: ignore[invalid-method-override] — the contract narrows LangGraph's open overloads on purpose
+    def add_node(  # ty: ignore[incompatible-method-override] — the contract narrows LangGraph's open overloads on purpose
         self, node: str | NodeFunc, action: NodeFunc | None = None, **policies: Unpack[NodePolicies]
     ) -> Self:
         """Add an instrumented node: `add_node(node_extract)` or `add_node("name", node_extract)`."""
         self._add_one(node, action, policies)
         return self
 
-    def add_sequence(  # ty: ignore[invalid-method-override] — same narrowing as add_node
+    def add_sequence(  # ty: ignore[incompatible-method-override] — same narrowing as add_node
         self, nodes: Sequence[NodeFunc | tuple[str, NodeFunc]]
     ) -> Self:
         """Add nodes chained in order, named as `add_node` names them."""
@@ -272,7 +272,7 @@ class InstrumentGraph(StateGraph[Channels, None, Channels, Channels]):
             self.add_edge(source, target)
         return self
 
-    def add_conditional_edges(  # ty: ignore[invalid-method-override] — routers read the RunState, not raw channels
+    def add_conditional_edges(  # ty: ignore[incompatible-method-override] — routers read the RunState, not raw channels
         self, source: str, path: Route, path_map: dict[Hashable, str] | Sequence[str] | None = None
     ) -> Self:
         """Route on the RunState; the router must name every target it can reach."""
@@ -280,7 +280,7 @@ class InstrumentGraph(StateGraph[Channels, None, Channels, Channels]):
         super().add_conditional_edges(source, self._route_wrap(path), ends)
         return self
 
-    def compile(  # ty: ignore[invalid-method-override] — LangGraph's options pass through untouched
+    def compile(  # ty: ignore[incompatible-method-override] — LangGraph's options pass through untouched
         self, **options: Any
     ) -> CompiledStateGraph[Channels, None, Channels, Channels]:
         """LangGraph's compile, after stamping every node with its role — the edges are final by now."""

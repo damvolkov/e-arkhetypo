@@ -64,29 +64,29 @@ Issues = "https://github.com/damvolkov/e-arkhetypo/issues"
 ##### DEPS #####
 [dependency-groups]
 lint = [
-    "ruff>=0.16",
-    "ty>=0.0.75",
-    "tach>=0.35",
-    "validate-pyproject[all]>=0.26",
-    "zizmor>=1.25",
+    "ruff>=0.17.5",
+    "ty>=0.0.104",
+    "tach>=0.35.3",
+    "validate-pyproject[all]>=0.27",
+    "zizmor>=1.32.0",
 ]
 test = [
-    "pytest>=9.1",
-    "pytest-asyncio>=1.4",
+    "pytest>=9.2.0",
+    "pytest-asyncio>=1.5.0",
     "pytest-cov>=7.1",
     "pytest-xdist[psutil]>=3.8",
-    "pytest-randomly>=5.0",
+    "pytest-randomly>=5.1.0",
     "pytest-timeout>=2.4",
     "pytest-textual-snapshot>=1.1",
     "fakeredis>=2.40.0",
     ### no [serde] extra: it pins e-serde<0.6 and the materialized ops/registry needs >=0.6.1, which the plugin loads through.
-    "pytest-resources>=0.3.2",
+    "pytest-resources>=0.3.3",
 ]
 dev = [
-    "ast-grep-cli>=0.40",
+    "ast-grep-cli>=0.51.2",
     { include-group = "lint" },
     { include-group = "test" },
-    "prek>=0.4",
+    "prek>=0.5.10",
     ### structural rewrite of projects/python/common at materialization time (scripts/materialize.py); parses real 3.14 syntax.
     "libcst>=1.9",
 ]

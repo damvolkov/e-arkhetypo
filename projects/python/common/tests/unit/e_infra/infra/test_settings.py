@@ -125,7 +125,7 @@ def test_a_credential_never_leaks(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def test_frozen_blocks_mutation() -> None:
     with pytest.raises(ValidationError):
-        ProbeSettings().PROBE_PORT = 1
+        ProbeSettings().PROBE_PORT = 1  # ty: ignore[invalid-assignment]
 
 
 def test_app_env_decodes_to_typed_env(monkeypatch: pytest.MonkeyPatch) -> None:

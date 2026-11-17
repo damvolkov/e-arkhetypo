@@ -221,6 +221,8 @@ touches — `stack`, `systems`, `infra`. Lines under `[Unreleased]` are written 
   materialized from it ignores them in its tracked file; the plans hook (e-nous `TODO_laws`) only falls back to
   `.git/info/exclude` where they are missing.
 - README names the fourteen sets of EAGER and points to e-nous for what each holds.
+- common's `.gitignore` ignores ERGON's one root `.ergon/` (`plans/`, `scratch/`, `reports/` under it) instead of
+  the three grounds `.plans/`, `.reports/`, `.scratch/` — the law moved its grounds under one root (e-nous `feat/ergon-root`).
 
 ### stack
 

@@ -1,6 +1,4 @@
 site/
 
-# ERGON's three grounds (persona: ERGON) — working state, never committed: plans, what they found, what they needed
-.plans/
-.reports/
-.scratch/
+# ERGON's ground (persona: ERGON) — working state, never committed: .ergon/{plans,scratch,reports}
+.ergon/

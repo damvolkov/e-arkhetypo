@@ -1,1 +1,0 @@
-- CI runs on Linux only: macOS and Windows dropped (Damien, 17/11 — the stack runs on Linux).

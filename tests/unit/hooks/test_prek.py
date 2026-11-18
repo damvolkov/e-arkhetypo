@@ -48,8 +48,23 @@ def _frozen_entry() -> list[str]:
         ("projects/python/common/x.py", None, 0),
         ("projects/python/api/x.py", "1", 0),
         ("stack/x.yml", None, 0),
+        ("projects/rust/common/Cargo.toml", None, 0),
+        ("projects/rust/cli/Cargo.toml", None, 1),
+        ("projects/templates.yml", None, 0),
+        ("projects/rust/README.md", None, 0),
+        ("infra/jobs/x.yml", None, 0),
     ],
-    ids=["template-blocked", "common-allowed", "template-thawed", "outside-projects"],
+    ids=[
+        "template-blocked",
+        "common-allowed",
+        "template-thawed",
+        "outside-projects",
+        "rust-common-allowed",
+        "rust-template-blocked",
+        "registry-allowed",
+        "language-readme-allowed",
+        "infra-allowed",
+    ],
 )
 async def test_frozen_templates_hook(tmp_path: Path, path: str, thaw: str | None, code: int) -> None:
     _ = [

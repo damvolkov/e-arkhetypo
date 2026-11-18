@@ -105,3 +105,6 @@ clean: ## remove caches + build artifacts
 
 %:
 	@:
+
+changelog: ## fold the done branches' .ergon/changelog fragments into CHANGELOG.md and open the fold PR
+	@taxis changelog fold --pr --yes

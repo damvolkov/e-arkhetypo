@@ -38,7 +38,7 @@ dependencies = [
     ##### postgres — psqlpy (Rust driver, pgvector native); the background's durable engines: PgQueuer (asyncpg), awa #####
     "psqlpy>=0.12",
     "pgqueuer[asyncpg]>=1.6",
-    "awa-pg>=0.6.17",
+    "awa-pg>=0.6.16",
     ##### http #####
     "wreq>=0.10",
     ##### web — litestar carries the auth middleware, guard and MCP routes; mcp is the protocol (infra/mcp/server only) #####
@@ -86,15 +86,15 @@ Issues = "https://github.com/damvolkov/e-arkhetypo/issues"
 ##### DEPS #####
 [dependency-groups]
 lint = [
-    "ruff>=0.17.5",
-    "ty>=0.0.104",
+    "ruff>=0.17.4",
+    "ty>=0.0.101",
     "tach>=0.35.3",
     "validate-pyproject[all]>=0.27",
     "zizmor>=1.32.0",
 ]
 test = [
     "pytest>=9.2.0",
-    "pytest-asyncio>=1.5.0",
+    "pytest-asyncio>=1.4.1",
     "pytest-cov>=7.1",
     "pytest-xdist[psutil]>=3.8",
     "pytest-randomly>=5.1.0",
@@ -122,10 +122,10 @@ dev = [
 [tool.uv]
 required-version = ">=0.12"
 default-groups = ["dev"]
-### an instant, not a date: uv reads a bare date in the local zone, so a laptop and CI locked different cutoffs.
-exclude-newer = "2026-10-21T00:00:00Z"
+### a duration, as the templates: uv resolves it to the same instant everywhere; Renovate waits the same 7 days.
+exclude-newer = "7 days"
 ### e-serde is first-party (the compose loader) and rtrafilatura ships fast; exempt both from the freshness window.
-exclude-newer-package = { "e-serde" = "2100-01-01T00:00:00Z", "rtrafilatura" = "2100-01-01T00:00:00Z", "awa-pg" = "2026-11-09T00:00:00Z" }
+exclude-newer-package = { "e-serde" = "2100-01-01T00:00:00Z", "rtrafilatura" = "2100-01-01T00:00:00Z" }
 cache-keys = [{ file = "pyproject.toml" }, { git = { commit = true, tags = true } }]
 
 ##### VERSION #####

@@ -31,6 +31,12 @@
       "enabled": false
     },
     {
+      "description": "uv resolves inside a 7-day window (exclude-newer = \"7 days\"): no floor is raised to a release younger than that, or the lock stops resolving.",
+      "matchManagers": ["pep621"],
+      "minimumReleaseAge": "7 days",
+      "internalChecksFilter": "strict"
+    },
+    {
       "description": "Runtime deps: one PR per package, CI judges them; patch releases merge themselves once every required check passes.",
       "matchManagers": ["pep621"],
       "matchDepTypes": ["project.dependencies"],

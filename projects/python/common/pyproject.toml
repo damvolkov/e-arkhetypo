@@ -123,9 +123,9 @@ dev = [
 required-version = ">=0.12"
 default-groups = ["dev"]
 ### an instant, not a date: uv reads a bare date in the local zone, so a laptop and CI locked different cutoffs.
-exclude-newer = "2026-10-21T00:00:00Z"
+exclude-newer = "2026-11-18T00:00:00Z"
 ### e-serde is first-party (the compose loader) and rtrafilatura ships fast; exempt both from the freshness window.
-exclude-newer-package = { "e-serde" = "2100-01-01T00:00:00Z", "rtrafilatura" = "2100-01-01T00:00:00Z", "awa-pg" = "2026-11-09T00:00:00Z" }
+exclude-newer-package = { "e-serde" = "2100-01-01T00:00:00Z", "rtrafilatura" = "2100-01-01T00:00:00Z" }
 cache-keys = [{ file = "pyproject.toml" }, { git = { commit = true, tags = true } }]
 
 ##### VERSION #####

@@ -69,7 +69,7 @@ Infra y aplicaciones:
 | `queue` | brokers, event bus | — vacío |
 | `proxy` | reverse proxy, gateway, túneles | — vacío |
 | `auth` | identidad, secretos | — vacío |
-| `watch` | métricas, logs, trazas, monitor de contenedores | otel-collector, jaeger, phoenix, prometheus, loki, grafana, lazydocker |
+| `watch` | métricas, logs, trazas, monitor de contenedores y de agentes | otel-collector, jaeger, phoenix, prometheus, loki, grafana, lazydocker, ccam |
 | `storage` | objetos/archivos, datalakes | gcs, minio |
 | `llm` | serving de modelos y embeddings | vllm, strata, clef, jev, llamacpp, llama, ikllama, ellm, embed, reranker, gliner |
 | `speech` | STT / TTS | evoice, speaches, fwhisper, wlive, kokoro |
@@ -142,6 +142,7 @@ Puerto = default en host (`:container`). GPU = necesita `nvidia` runtime.
 | watch/loki | grafana/loki:latest | 3100 | | |
 | watch/grafana | grafana/grafana:latest | 3000 | | `provisioning/` |
 | watch/lazydocker | host: binario de jesseduffield/lazydocker (sha256) | — | | `setup.sh`, `config.yml`; mínimo del sistema: monitor fijado en el escritorio (autostart + Smart Auto Move en GNOME) |
+| watch/ccam | ghcr.io/hoangsonww/claude-code-agent-monitor:latest | 4820 (loopback) | | Claude Code Agent Monitor: sesiones, árbol de subagentes, workflows y coste, leídos de `~/.claude` y `~/.claude.json` montados `:ro` — sin hooks, con retraso; `ccam.service`. Sus hooks de tiempo real entran sólo por e-nous (`taxis transpile`), nunca por su botón «Install hooks» |
 
 ## URLs entre servicios (red `stack`)
 

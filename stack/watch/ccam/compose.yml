@@ -1,0 +1,47 @@
+services:
+  ccam:
+    image: ghcr.io/hoangsonww/claude-code-agent-monitor:latest
+    container_name: ccam
+    hostname: ccam
+    restart: unless-stopped
+    labels:
+      stack.category: "watch"
+      stack.port: "4820"
+    environment:
+      NODE_ENV: production
+      DASHBOARD_HOST: 0.0.0.0
+      DASHBOARD_PORT: 4820
+      DASHBOARD_DATA_DIR: /app/data
+      DASHBOARD_ENV_PATH: /app/config/.env
+      CLAUDE_HOME: /home/node/.claude
+      TZ: ${TZ:-Europe/Madrid}
+    ports:
+      - "127.0.0.1:${CCAM_PORT:-4820}:4820"  # dashboard; sólo loopback: lee las sesiones de Claude Code del host
+    volumes:
+      - ccam-data:/app/data
+      - ccam-config:/app/config
+      - ${CLAUDE_HOME:-~/.claude}:/home/node/.claude:ro              # sesiones, subagentes, workflows: sólo lectura
+      - ${CLAUDE_JSON:-~/.claude.json}:/home/node/.claude.json:ro    # servidores MCP del usuario
+    read_only: true
+    tmpfs:
+      - /tmp:size=512m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4820/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks:
+      - stack
+
+volumes:
+  ccam-data:
+  ccam-config:
+
+networks:
+  stack:
+    name: stack

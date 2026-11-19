@@ -18,7 +18,7 @@ MAKEFLAGS += --no-print-directory
 export PYTHONPATH := $(CURDIR)/src
 
 ##### TARGETS #####
-.PHONY: help install sync lock lint type arch validate harden hooks test integration cov offline docs docs-build check ci release ci-vars clean gates
+.PHONY: help install sync lock lint type arch validate seal harden hooks test integration cov offline docs docs-build check ci release ci-vars clean gates
 
 help:
 	@printf "$(BOLD)$(CYAN)$(PROJECT)$(RESET) $(GRAY)· uv · ruff · ty · tach · pytest · zensical — the python infra blueprint of every e-stack system$(RESET)\n\n"
@@ -49,6 +49,9 @@ arch: ## enforce import architecture (tach)
 
 validate: ## validate pyproject.toml against schema
 	@uv run validate-pyproject pyproject.toml
+
+seal: ## the project's Claude hooks and settings match their seal, .claude/SHA256SUMS (none: nothing sealed); `taxis workspace seal` reseals, from the Triad
+	@test ! -f .claude/SHA256SUMS || bash -c 'cd .claude && sha256sum --quiet --strict -c SHA256SUMS && diff <( (ls settings.json 2>/dev/null; find hooks -type f 2>/dev/null) | LC_ALL=C sort) <(awk "{print \$$2}" SHA256SUMS)'
 
 harden: ## zizmor audit of GitHub Actions workflows (templates assemble them at generation)
 	@test -d .github/workflows && uv run zizmor --persona=regular .github/workflows || echo "no workflows assembled: e-taxis writes them"
@@ -82,8 +85,8 @@ docs-build: ## strict docs build to site/
 	@uv run zensical build --strict
 
 # — aggregate —
-check: lint type arch validate test ## fast local gate: lint + type + arch + validate + test
-ci: lint type arch validate harden docs-build cov ## full pipeline: every gate CI runs, in one command
+check: lint type arch validate seal test ## fast local gate: lint + type + arch + validate + test
+ci: lint type arch validate seal harden docs-build cov ## full pipeline: every gate CI runs, in one command
 
 # — release —
 release: ## cut a GitHub release via the release workflow [args: patch|minor|major]
@@ -102,3 +105,6 @@ clean: ## remove caches + build artifacts
 
 %:
 	@:
+
+changelog: ## fold the done branches' .ergon/changelog fragments into CHANGELOG.md and open the fold PR
+	@taxis changelog fold --pr --yes

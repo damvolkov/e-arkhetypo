@@ -1,6 +1,8 @@
 """tests/unit/e_infra/infra/mcp/registry: the tools read off their routes — each a POST taking one Struct, named once —
 and the start refused for a route that cannot be a tool."""
 
+from typing import TYPE_CHECKING
+
 import msgspec
 import pytest
 from litestar import get, post
@@ -9,6 +11,11 @@ from e_infra.infra.auth.models import Access
 from e_infra.infra.errors import MCPRegistryError
 from e_infra.infra.mcp.registry import MCPRegistry
 from support.tools import ECHO, NO, echo, wipe
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from litestar.handlers import HTTPRouteHandler
 
 
 async def bare() -> dict[str, str]:
@@ -55,6 +62,6 @@ def test_registry_a_list_answer_has_no_output_schema() -> None:
     ],
     ids=["twice", "untooled", "method", "arguments"],
 )
-def test_registry_refuses(routes: object, message: str) -> None:
+def test_registry_refuses(routes: Callable[[], list[HTTPRouteHandler]], message: str) -> None:
     with pytest.raises(MCPRegistryError, match=message):
-        MCPRegistry(routes())  # ty: ignore[not-callable]
+        MCPRegistry(routes())

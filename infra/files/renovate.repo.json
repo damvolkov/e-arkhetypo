@@ -35,6 +35,12 @@
       "enabled": false
     },
     {
+      "description": "uv resolves inside a 7-day window (exclude-newer = \"7 days\"): no floor is raised to a release younger than that, or the lock stops resolving.",
+      "matchManagers": ["pep621"],
+      "minimumReleaseAge": "7 days",
+      "internalChecksFilter": "strict"
+    },
+    {
       "description": "System runtime deps: one PR per package across the systems; sync-systems refreshes the locks.",
       "matchManagers": ["pep621"],
       "matchDepTypes": ["project.dependencies"],

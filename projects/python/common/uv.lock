@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 5
 requires-python = ">=3.14"
 
 [options]
@@ -323,13 +323,13 @@ wheels = [
 
 [[package]]
 name = "awa-pg"
-version = "0.6.16"
+version = "0.6.17"
 source = { registry = "https://pypi.org/simple" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/3b/0c/c4ecea95c05c1363bb4078be1425779b6652d8456283d82b04607eaf001a/awa_pg-0.6.16-cp310-abi3-macosx_10_12_x86_64.whl", hash = "sha256:8f2d6cce6c2ff17d0dfb773d2aede120681aea3bc1acb9df4c56ed3f4b59c8b5", size = 12518751, upload-time = "2026-11-09T19:16:04.071Z" },
-    { url = "https://files.pythonhosted.org/packages/6b/14/016bb7f493b388fb3eadddd995ebf5b5154c4109b45f5055cb55953c5ab0/awa_pg-0.6.16-cp310-abi3-macosx_11_0_arm64.whl", hash = "sha256:43b3626528e5d8a210b07eb579ad69e5a405dff6d17fa6f15bffbba9651d0df3", size = 12136111, upload-time = "2026-11-09T19:16:06.813Z" },
-    { url = "https://files.pythonhosted.org/packages/2f/9c/0492efd19ac4618ef21564a17290bce3c27c82345c6859a658867950428a/awa_pg-0.6.16-cp310-abi3-manylinux2014_aarch64.manylinux_2_17_aarch64.whl", hash = "sha256:95e378953392455e90d3b16fea31b6afc44f6bb6549d93cf015f7818bdd2339f", size = 13937130, upload-time = "2026-11-09T19:16:09.877Z" },
-    { url = "https://files.pythonhosted.org/packages/78/44/511ddda17f2299e9a64b4a3768d5098c4c38d5e7354cf01f1b282afa21bf/awa_pg-0.6.16-cp310-abi3-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:d5aec9a7115cf682554469e34f447df7cf1851d3aade60c7ed73e5d71612ce92", size = 13247534, upload-time = "2026-11-09T19:16:12.458Z" },
+    { url = "https://files.pythonhosted.org/packages/ed/35/28a75f620132fa50630e7caf2907778b35f0d161f89e50a42e69722ee9f8/awa_pg-0.6.17-cp310-abi3-macosx_10_12_x86_64.whl", hash = "sha256:10fdd17f9100f2f3c8c7be2d174a4dae88fad2db08c51ad53e208f6ef1bf9ad4", size = 12925732, upload-time = "2026-11-11T21:26:13.867Z" },
+    { url = "https://files.pythonhosted.org/packages/23/13/2af182db2977660f4477c7bb62126d49ba4efdc529e63671a51bf30c6c96/awa_pg-0.6.17-cp310-abi3-macosx_11_0_arm64.whl", hash = "sha256:8a53e9eb8f1d55ffc1f93b7b5705f0e39d074d5165faf79ce5b1a972099e377b", size = 12531807, upload-time = "2026-11-11T21:26:16.853Z" },
+    { url = "https://files.pythonhosted.org/packages/58/2c/e5e5e472d43f557c7838537c7c32eb5e24d73ba38df6037221264778913d/awa_pg-0.6.17-cp310-abi3-manylinux2014_aarch64.manylinux_2_17_aarch64.whl", hash = "sha256:d46ece78b220bcae86e54a7a1266a9e4a8bcfbd8f1f53ba9f61098c64838d8a7", size = 14326213, upload-time = "2026-11-11T21:26:19.764Z" },
+    { url = "https://files.pythonhosted.org/packages/14/df/5722309eede0c2a97fbd9b06a32fab5978c4829da5835611570dc5ec8fc7/awa_pg-0.6.17-cp310-abi3-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:17a76e49793e282642661db47334df6b37c4428afb5dd78edaed72138207f277", size = 13676131, upload-time = "2026-11-11T21:26:22.339Z" },
 ]
 
 [[package]]
@@ -839,7 +839,7 @@ requires-dist = [
     { name = "anyio", specifier = ">=4.15.1" },
     { name = "anytomd", extras = ["full"], specifier = ">=1.3.1.post2,<1.4" },
     { name = "argon2-cffi", specifier = ">=25.1.0" },
-    { name = "awa-pg", specifier = ">=0.6.16" },
+    { name = "awa-pg", specifier = ">=0.6.17" },
     { name = "bcrypt", specifier = ">=5.0.0" },
     { name = "beartype", specifier = ">=0.22.9" },
     { name = "croniter", specifier = ">=6.0" },

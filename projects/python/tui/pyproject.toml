@@ -37,7 +37,7 @@ dependencies = [
     "bcrypt>=5.0.0",
     "anyio>=4.15.1",
     ##### queue clock — the in-process supervisor's cron schedules #####
-    "croniter>=6.0",
+    "croniter>=6.2.4",
     ##### http #####
     "wreq>=0.10",
     ##### stores #####

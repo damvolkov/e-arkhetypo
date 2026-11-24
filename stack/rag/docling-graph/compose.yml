@@ -1,0 +1,47 @@
+# stack/rag/docling-graph — docling-graph (IBM, MIT) as a service: POST a document, its knowledge graph lands in FalkorDB.
+# Docling converts (rag/docling), the LLM slot extracts through the template (llm/vllm, structured output), and the
+# graph is written as openCypher by docling-graph's own exporter into FalkorDB (gdb/falkordb). Nothing here holds state
+# but the HF cache (the chunker's tokenizer); templates are mounted — a new document type is a file, not a build.
+#
+#   docker compose up -d --build --wait        # 127.0.0.1:45850 — /health, /docs, POST /graph/file|url
+#   curl -F file=@paper.pdf -F graph=papers http://127.0.0.1:45850/graph/file
+#
+# Needs on the host's loopback: rag/docling (:45800), the LLM slot (llm/vllm :45100), gdb/falkordb (:45018 on the
+# host: findr-falkordb). Override with DG_* (DG_DOCLING_URL, DG_LLM_URL, DG_FALKORDB_PORT…).
+name: docling-graph
+
+services:
+
+  docling-graph:
+    build:
+      context: .
+    image: docling-graph:local
+    container_name: docling-graph
+    hostname: docling-graph
+    restart: unless-stopped
+    ### the stack answers on the host's loopback: host network.
+    network_mode: host
+    labels:
+      stack.category: "rag"
+      stack.port: "45850"
+    environment:
+      - HOME=/data
+      - HF_HOME=/data/hf
+      - DG_LLM_KEY=${LLM_API_KEY:-local-dev}
+      - DG_LLM_MODEL=${LLM_SERVED_NAME:-demian-model}
+      - DG_FALKORDB_PASSWORD=${FALKORDB_PASSWORD:-falkordb}
+      - DG_DOCLING_URL=${DG_DOCLING_URL:-http://127.0.0.1:45800}
+      - DG_LLM_URL=${DG_LLM_URL:-http://127.0.0.1:45100/v1}
+      - DG_FALKORDB_PORT=${DG_FALKORDB_PORT:-45018}
+    volumes:
+      - docling-graph-data:/data
+      - ./templates:/app/templates:ro
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:45850/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+
+volumes:
+  docling-graph-data:

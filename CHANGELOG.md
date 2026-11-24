@@ -281,6 +281,7 @@ touches — `stack`, `systems`, `infra`. Lines under `[Unreleased]` are written 
   model and organon calls authenticated from the managed layer.
 - floating tags resolved to current digests (`stack/resolve-2026-11-09`)
 - floating tags resolved to current digests (`stack/resolve-2026-11-16`)
+- floating tags resolved to current digests (`stack/resolve-2026-11-23`)
 
 ### projects
 
@@ -547,6 +548,7 @@ touches — `stack`, `systems`, `infra`. Lines under `[Unreleased]` are written 
   `common` already carries for google-genai, `"ignore:'asyncio.iscoroutinefunction' is deprecated:DeprecationWarning"`,
   and with only that line added `graph` collects 770 again at exit 0. `graph`'s 100 reds are untouched by it and are
   `main`'s exactly — 51 failed, 670 passed, 49 errors on both sides of the bump.
+- lockfiles refreshed after `renovate/awa-pg-0.x`
 
 ### infra
 

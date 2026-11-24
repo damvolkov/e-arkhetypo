@@ -1,0 +1,19 @@
+[Unit]
+Description=docling-graph via Docker Compose — document → knowledge graph in FalkorDB (host loopback :45850)
+After=network-online.target docker.service docling.service vllm.service findr-falkordb.service
+Wants=network-online.target docling.service vllm.service findr-falkordb.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=%h/.config/compose/docling-graph
+ExecStart=/usr/bin/docker compose up -d --wait --remove-orphans
+ExecStop=/usr/bin/docker compose stop
+ExecReload=/usr/bin/docker compose up -d --wait --remove-orphans
+Restart=on-failure
+RestartSec=30s
+TimeoutStartSec=300
+TimeoutStopSec=30
+
+[Install]
+WantedBy=default.target

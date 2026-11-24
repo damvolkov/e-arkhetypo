@@ -73,7 +73,7 @@ Infra y aplicaciones:
 | `storage` | objetos/archivos, datalakes | gcs, minio |
 | `llm` | serving de modelos y embeddings | vllm, strata, clef, jev, llamacpp, llama, ikllama, ellm, embed, reranker, gliner |
 | `speech` | STT / TTS | evoice, speaches, fwhisper, wlive, kokoro |
-| `rag` | retrieval: búsqueda, loaders, extracción, pipelines | searxng (+ yacy), docling, playwright, pipelines |
+| `rag` | retrieval: búsqueda, loaders, extracción, pipelines | searxng (+ yacy), docling, docling-graph, playwright, pipelines |
 | `mem` | memoria de agentes | cortexdb, egnosis |
 | `agent` | harnesses de agentes como servicio | hermes; openhuman (+ cortexdb), retirado del host |
 | `front` | UIs y dashboards | openwebui |
@@ -127,6 +127,7 @@ Puerto = default en host (`:container`). GPU = necesita `nvidia` runtime.
 | rag/searxng | searxng/searxng:latest | 8080 | | `settings.yml`, `limiter.toml`; incluye `rag/yacy` |
 | rag/yacy | yacy/yacy_search_server:latest | 8090 (loopback) | | índice propio P2P de searxng; no se levanta solo |
 | rag/docling | docling-project/docling-serve:latest | 5001 | | |
+| rag/docling-graph | build `docling-graph:local` (python:3.12-slim + docling-graph) | 45850 (loopback) | | red `host`; `docling-graph.service`; documento → grafo de conocimiento en FalkorDB (`POST /graph/file\|url`); usa `rag/docling`, el slot LLM (`llm/vllm`) y `gdb/falkordb`; plantillas Pydantic montadas desde `./templates` |
 | rag/playwright | playwright:latest | 3000 | | |
 | rag/pipelines | open-webui/pipelines:latest | 9099 | | |
 | mem/egnosis | ghcr.io/damvolkov/e-gnosis:latest | 45200 (loopback) | | red `host`; `egnosis.service`; la memoria larga de la casa (REST + MCP); usa `rdb/paradedb`, `llm/embed`, `llm/reranker`, `llm/gliner`, `rag/docling` y el slot LLM |

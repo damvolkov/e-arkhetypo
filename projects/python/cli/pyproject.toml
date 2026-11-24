@@ -41,7 +41,7 @@ dependencies = [
     ##### cache — theine: W-TinyLFU, Rust core #####
     "theine>=2.0",
     ##### queue clock — the background supervisor's and DispatchEngine's cron schedules #####
-    "croniter>=6.0",
+    "croniter>=6.2.4",
     ##### models — tokenizers sizes what the embedding server sees #####
     "tokenizers>=0.23",
     ##### web — rtrafilatura: a page's main content #####

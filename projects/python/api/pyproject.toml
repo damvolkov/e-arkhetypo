@@ -49,7 +49,7 @@ dependencies = [
     ### the db lifespan provisions the databases the settings name: CREATE DATABASE, outside any transaction.
     "psqlpy>=0.12",
     ##### queue clock — the in-process supervisor's schedules (infra/background) #####
-    "croniter>=6.0",
+    "croniter>=6.2.4",
     ##### web — rtrafilatura: a page's main content (providers/adapters/rtrafilatura) #####
     "rtrafilatura>=0.2",
     "beartype>=0.22.9",

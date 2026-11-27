@@ -66,8 +66,16 @@ hooks: ## run all prek hooks on every file (ruff, ty, tach, zizmor, gitleaks)
 test: ## run tests, benchmarks out by default [TESTARGS='-k expr']
 	@uv run pytest tests $(TESTARGS) -n auto -q
 
+affected: ## the tests of this change: each changed src file's mirror and every changed test file, in parallel — the TDD loop; the whole suite is CI's
+	@base=$$(git merge-base HEAD origin/HEAD 2>/dev/null || git merge-base HEAD origin/main 2>/dev/null || git merge-base HEAD main); \
+	changed=$$( { git diff --name-only --relative $$base; git ls-files --others --exclude-standard; } | sort -u ); \
+	files=$$(echo "$$changed" | sed -nE 's#^src/(.*)/([^/]+)\.py$$#tests/unit/\1/test_\2.py#p; s#^(tests/.*/test_[^/]+\.py)$$#\1#p' | while read f; do [ -f "$$f" ] && echo "$$f"; done | sort -u); \
+	orphans=$$(echo "$$changed" | grep -E '^src/.*\.py$$' | while read s; do t=$$(echo "$$s" | sed -E 's#^src/(.*)/([^/]+)\.py$$#tests/unit/\1/test_\2.py#'); [ -f "$$s" ] && [ ! -f "$$t" ] && echo "$$s"; done); \
+	[ -z "$$orphans" ] || echo "affected: no mirror test for: $$orphans"; \
+	if [ -n "$$files" ]; then uv run pytest $$files -n auto -q; else echo "affected: no test mirrors this change"; fi
+
 integration: ## the tests that need a real service (Postgres at POSTGRES_TEST_DSN, the emulators, the models); an error when one does not answer
-	@uv run pytest tests -m integration -q
+	@uv run pytest tests -m integration -n auto -q
 
 cov: ## run tests with coverage gate (fail under 90%), benchmarks out like the CI matrix
 	@uv run pytest tests $(TESTARGS) --cov --cov-report=term-missing
